@@ -1,19 +1,18 @@
-import { masonLayout as layout } from './display-density';
 import { widthProperty, heightProperty, minWidthProperty, minHeightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty } from '@nativescript/core/ui/styling/style-properties';
 import { alignSelfProperty, flexGrowProperty, flexShrinkProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { aspectRatioProperty, bottomProperty, flexBasisProperty, gridColumnEndProperty, gridColumnStartProperty, gridRowEndProperty, gridRowStartProperty, justifySelfProperty, leftProperty, positionProperty, rightProperty, topProperty } from './properties';
 import { Style } from './style';
 import { isMasonView_ } from './symbols';
 
-// A plain NativeScript child of a Mason container keeps core's Style and cascade.
-// While attached, its Style sits on a shared prototype whose layout setters call
-// core's, then copy the effective value into the child's Mason leaf.
+// Plain core children keep core's Style; while attached, its layout setters also write the Mason leaf.
 
 interface LayoutProperty {
   name: string;
   cssName?: string;
   cssLocalName?: string;
   keyframe?: string;
+  sourceKey?: symbol;
+  source?: symbol;
   defaultValue?: unknown;
   isSet(style: object): boolean;
 }
@@ -22,20 +21,28 @@ const foreignStyle_ = Symbol('mason:foreignStyle');
 const foreignProto_ = Symbol('mason:foreignProto');
 const foreignInvalidate_ = Symbol('mason:foreignInvalidate');
 
-// Core px objects are device pixels; Mason reads px as CSS pixels, and numbers as dip.
-function toMason(value: any): any {
-  return value?.unit === 'px' ? layout.toDeviceIndependentPixels(value.value) : value;
+const PX = /^\s*(-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)px\s*$/i;
+
+// Core reads px as device pixels, Mason as CSS pixels.
+function cssPx(value: any): any {
+  if (typeof value === 'string') {
+    const match = PX.exec(value);
+    return match ? parseFloat(match[1]) : value;
+  }
+  return value?.unit === 'px' ? value.value : value;
 }
 
 type Write = (helper: any, style: any) => void;
 
 function scalar(property: LayoutProperty, fallback: unknown = property.defaultValue): Write {
   const { name } = property;
-  const unset = toMason(fallback);
+  const unset = cssPx(fallback);
   return (helper, style) => {
-    helper[name] = property.isSet(style) ? toMason(style[name]) : unset;
+    helper[name] = property.isSet(style) ? cssPx(style[name]) : unset;
   };
 }
+
+const skip: Write = () => {};
 
 function selfAlign(property: LayoutProperty): Write {
   const { name } = property;
@@ -47,29 +54,25 @@ function selfAlign(property: LayoutProperty): Write {
 
 const gridEdges = [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty] as unknown as LayoutProperty[];
 
-// One complete area, so a single edge never inherits stale native shorthand state.
 const writeGrid: Write = (helper, style) => {
   helper.gridArea = `${style.gridRowStart ?? 'auto'} / ${style.gridColumnStart ?? 'auto'} / ${style.gridRowEnd ?? 'auto'} / ${style.gridColumnEnd ?? 'auto'}`;
 };
 
-// Windows panels copy these from the XAML element on every measure.
 const entries: Array<[LayoutProperty, Write]> = [];
 function add(properties: unknown[], write: (property: LayoutProperty) => Write): void {
   for (const property of properties as LayoutProperty[]) entries.push([property, write(property)]);
 }
 
-// Windows panels copy these from the XAML element on every measure.
-if (!__WINDOWS__) {
-  add([widthProperty, heightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty], scalar);
-  // Core's 0 default would disable Mason's automatic minimum size.
-  add([minWidthProperty, minHeightProperty], (p) => scalar(p, 'auto'));
-}
+// Windows panels read these from the XAML element.
+add([widthProperty, heightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty], (p) => (__WINDOWS__ ? skip : scalar(p)));
+// Core's 0 default would disable Mason's automatic minimum size.
+add([minWidthProperty, minHeightProperty], (p) => (__WINDOWS__ ? skip : scalar(p, 'auto')));
 add([flexGrowProperty, flexShrinkProperty, flexBasisProperty, aspectRatioProperty, positionProperty, leftProperty, rightProperty, topProperty, bottomProperty], scalar);
 add([alignSelfProperty, justifySelfProperty], selfAlign);
 add(gridEdges, () => writeGrid);
 
 const foreignProtos = new WeakMap<object, object>();
-// Native views whose leaf this bridge has written; a leaf outlives a detach.
+// A leaf outlives a detach.
 const written = new WeakSet<object>();
 
 function foreignProto(proto: object): object {
@@ -89,7 +92,7 @@ function foreignProto(proto: object): object {
         enumerable: descriptor.enumerable,
         get: descriptor.get,
         set(this: any, value: unknown) {
-          set.call(this, value);
+          set.call(this, cssPx(value));
           const helper = this.viewRef?.get()?.[foreignStyle_];
           if (helper) write(helper, this);
         },
@@ -101,7 +104,7 @@ function foreignProto(proto: object): object {
   return shadow;
 }
 
-/** Start mirroring a plain child's layout styles into its Mason leaf. Call after the native insert. */
+/** Call after the native insert. */
 export function adoptForeignLayout(view: any): void {
   const style = view?.style;
   const native = view?.nativeViewProtected;
@@ -109,7 +112,13 @@ export function adoptForeignLayout(view: any): void {
   const helper = Style.fromView(view, native);
   view[foreignStyle_] = helper;
   if (!style[foreignProto_]) Object.setPrototypeOf(style, foreignProto(Object.getPrototypeOf(style)));
-  // A fresh leaf already holds Mason's defaults, so it only needs the values core has set.
+  for (const [property] of entries) {
+    const value = style[property.name];
+    const source = property.sourceKey ?? property.source;
+    if (value?.unit !== 'px' || !source) continue;
+    const key = sourceChannel(property, style[source]);
+    if (key) style[key] = value.value;
+  }
   const all = written.has(native);
   written.add(native);
   let grid = false;
@@ -121,7 +130,24 @@ export function adoptForeignLayout(view: any): void {
   if (grid) writeGrid(helper, style);
 }
 
-/** iOS: a content change core reports through requestLayout drops the child's cached Mason measurement. */
+const enum ValueSource {
+  Css = 2,
+  Local = 3,
+  Keyframe = 4,
+}
+
+function sourceChannel(property: LayoutProperty, source: ValueSource): string | undefined {
+  switch (source) {
+    case ValueSource.Css:
+      return property.cssName;
+    case ValueSource.Local:
+      return property.name;
+    case ValueSource.Keyframe:
+      return property.keyframe;
+  }
+  return undefined;
+}
+
 export function invalidateOnLayoutRequest(view: any, mason: any): void {
   const hook = view[foreignInvalidate_];
   if (hook) {
@@ -143,7 +169,6 @@ export function invalidateOnLayoutRequest(view: any, mason: any): void {
   view[foreignInvalidate_] = state;
 }
 
-/** Stop mirroring and give the child its own Style prototype and requestLayout back. */
 export function releaseForeignLayout(view: any): void {
   const hook = view?.[foreignInvalidate_];
   if (hook) {

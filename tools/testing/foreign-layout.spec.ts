@@ -105,7 +105,7 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(native.leaf(view)).toMatchObject({ width: 43, height: 43 });
   });
 
-  it('converts physical px to dip once, preserving dip values and percentage fractions', () => {
+  it('reads px as a CSS pixel, as Mason views do, in core and the leaf alike', () => {
     const native = nativeTransport();
     const { view, style } = foreign();
     setScreenScale(3);
@@ -116,8 +116,25 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     style['css:max-width'] = '120px';
     style['css:margin-left'] = '9px';
     adopt(view);
-    expect(style.width).toEqual({ value: 93, unit: 'px' });
-    expect(native.leaf(view)).toEqual({ width: 31, height: { value: 0.5, unit: '%' }, minWidth: 6, minHeight: 7, maxWidth: 40, marginLeft: 3 });
+    expect(style.width).toBe(93);
+    expect(style.minWidth).toBe(18);
+    expect(native.leaf(view)).toEqual({ width: 93, height: { value: 0.5, unit: '%' }, minWidth: 18, minHeight: 7, maxWidth: 120, marginLeft: 9 });
+    style.height = '31px';
+    style.marginTop = { unit: 'px', value: 4 };
+    expect(style.height).toBe(31);
+    expect(native.leaf(view)).toMatchObject({ height: 31, marginTop: 4 });
+  });
+
+  it('keeps the source of a px converted on adoption', () => {
+    const native = nativeTransport();
+    const { view, style } = foreign();
+    style['css:width'] = '22px';
+    adopt(view);
+    style.width = 40;
+    expect(native.leaf(view)).toMatchObject({ width: 40 });
+    style.width = unsetValue;
+    expect(style.width).toBe(22);
+    expect(native.leaf(view)).toMatchObject({ width: 22 });
   });
 
   it('forwards constraints, flex and grid placement without coercing core style', () => {
