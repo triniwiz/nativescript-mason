@@ -9,7 +9,7 @@
       "ios": "8.0.0",
       "android": "8.0.0",
       "windows": "9.1.0",
-      "linux": "0.1.0-alpha.2"
+      "linux": "0.1.0-alpha.0"
     }
   },
   "repository": {
