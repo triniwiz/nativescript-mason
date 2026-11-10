@@ -489,6 +489,21 @@ class Mason {
     return View(context, this)
   }
 
+  /**
+   * Style slot of the view the last create*WithSlot call made (-1 outside the shared Mason). JavaScript maps
+   * this buffer once and reads the slot from it, which saves a call per view.
+   */
+  val slotMailbox: ByteBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder())
+
+  private fun <T : Element> postSlot(element: T): T {
+    slotMailbox.putInt(0, if (this === shared) element.style.prepareSlot() else -1)
+    return element
+  }
+
+  fun createViewWithSlot(context: Context): View = postSlot(createView(context))
+
+  fun createTextViewWithSlot(context: Context, type: TextType): TextView = postSlot(createTextView(context, type))
+
   @JvmOverloads
   fun createListView(context: Context, isOrdered: Boolean = false): ListView {
     return ListView(context, this).apply {

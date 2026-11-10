@@ -1,7 +1,7 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
 import { displayDensity, masonLayout } from './display-density';
-import { isMasonView_, style_ } from './symbols';
+import { isMasonView_, native_, slot_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { arrayBufferOf, masonEngine } from './panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
@@ -1736,13 +1736,13 @@ let styleSlots: boolean | undefined;
 let androidMason: any;
 
 /** The view's own style slot index (taking one if it shares a default), or -1. */
-function styleSlot(nativeView: any): number {
+function styleSlot(nativeView: any, masonView = false): number {
   if (__ANDROID__) {
     if (styleSlots === undefined) {
       androidMason = org.nativescript.mason.masonkit.Mason.getShared();
       styleSlots = typeof androidMason.prepareStyleSlot === 'function';
     }
-    return styleSlots && nativeView instanceof android.view.View ? androidMason.prepareStyleSlot(nativeView) : -1;
+    return styleSlots && (masonView || nativeView instanceof android.view.View) ? androidMason.prepareStyleSlot(nativeView) : -1;
   }
   if (styleSlots === undefined && nativeView) {
     styleSlots = typeof nativeView.mason_prepareStyleSlot === 'function';
@@ -1755,7 +1755,7 @@ function styleChunk(chunk: number): ArrayBuffer | undefined {
   let buffer = styleChunks[chunk];
   if (buffer === undefined) {
     if (__ANDROID__) {
-      const data = androidMason.styleChunk(chunk);
+      const data = (androidMason ??= org.nativescript.mason.masonkit.Mason.getShared()).styleChunk(chunk);
       if (!data) return undefined;
       buffer = (<any>ArrayBuffer).from(data);
     } else {
@@ -1956,7 +1956,9 @@ export class Style {
   private loadBuffer() {
     this._bufferRequested = true;
     if (__ANDROID__ || __APPLE__) {
-      const slot = styleSlot(this.nativeView);
+      const owner = this.view_ as any;
+      const delivered = owner && owner[native_] === this.nativeView ? owner[slot_] : undefined;
+      const slot = delivered >= 0 ? delivered : styleSlot(this.nativeView, !!owner?.[isMasonView_]);
       const chunk = slot >= 0 ? styleChunk((slot / STYLE_SLOTS_PER_CHUNK) | 0) : undefined;
       if (chunk) {
         this.setBuffer(chunk, (slot % STYLE_SLOTS_PER_CHUNK) * StyleKeys.STYLE_BUFFER_SIZE, StyleKeys.STYLE_BUFFER_SIZE);

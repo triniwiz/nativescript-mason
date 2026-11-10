@@ -2,7 +2,7 @@ import { CSSType, Utils, ViewBase } from '@nativescript/core';
 import { TextBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isMasonView_, isTextChild_, isPlaceholder_, native_ } from '../symbols';
+import { style_, isMasonView_, isTextChild_, isPlaceholder_, native_, slot_ } from '../symbols';
 
 const enum TextType {
   None = 0,
@@ -115,6 +115,7 @@ export class Text extends TextBase {
       }
 
       this[native_] = view;
+      this[slot_] = Tree.instance.lastSlot;
       return view;
     }
     return this[native_] as never as org.nativescript.mason.masonkit.TextView;
