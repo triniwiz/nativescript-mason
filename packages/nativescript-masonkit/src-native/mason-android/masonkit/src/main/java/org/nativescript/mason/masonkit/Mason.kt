@@ -496,8 +496,34 @@ class Mason {
   val slotMailbox: ByteBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder())
 
   private fun <T : Element> postSlot(element: T): T {
-    slotMailbox.putInt(0, if (this === shared) element.style.prepareSlot() else -1)
+    val slot = if (this === shared) element.style.prepareSlot() else -1
+    if (slot >= 0) {
+      while (slotElements.size <= slot) slotElements.add(null)
+      slotElements[slot] = WeakReference(element)
+    }
+    slotMailbox.putInt(0, slot)
     return element
+  }
+
+  // A slot returns to the arena when its node dies; the next create*WithSlot owner overwrites the entry.
+  private val slotElements = ArrayList<WeakReference<Element>?>()
+
+  /**
+   * Style syncs queued by JavaScript, five ints each: slot, then the four dirty words of
+   * [Element.syncStyleParts]. JavaScript maps this buffer once and calls [syncStyleSlots] once per flush.
+   */
+  val syncQueue: ByteBuffer = ByteBuffer.allocateDirect(SYNC_QUEUE_ENTRIES * 5 * 4).order(ByteOrder.nativeOrder())
+
+  fun syncStyleSlots(count: Int) {
+    // Copied first: a sync can run JavaScript that queues and flushes again.
+    val queued = IntArray(count.coerceIn(0, SYNC_QUEUE_ENTRIES) * 5)
+    syncQueue.asIntBuffer().get(queued)
+    var i = 0
+    while (i < queued.size) {
+      slotElements.getOrNull(queued[i])?.get()
+        ?.syncStyleParts(queued[i + 1], queued[i + 2], queued[i + 3], queued[i + 4])
+      i += 5
+    }
   }
 
   fun createViewWithSlot(context: Context): View = postSlot(createView(context))
@@ -709,6 +735,7 @@ class Mason {
 
   companion object {
     private const val LOG_EVENTS = false
+    private const val SYNC_QUEUE_ENTRIES = 1024
 
     internal fun initLib() {
       NativeHelpers.initLib()
