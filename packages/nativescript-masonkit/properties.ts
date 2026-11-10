@@ -2651,13 +2651,21 @@ interface CoreLonghandHandlers {
  * while Mason's setNative parses the text. Core views keep core's converter.
  */
 function keepCssOnMasonViews(longhands: CssProperty<Style, any>[], core: CoreLonghandHandlers): void {
+  // A stylesheet value reaches every matching element, so each distinct text is parsed once and shared.
+  const lengths = new Map<string, Readonly<CssLength>>();
   for (const property of longhands) {
     property.overrideHandlers({
       name: property.name,
       cssName: property.cssLocalName,
       valueConverter(this: Style, value: string) {
-        const css = core.keywords?.get(value.trim()) ?? value;
-        return isMasonView(this) ? cssLength(css, core.converter) : core.converter(css);
+        if (!isMasonView(this)) return core.converter(core.keywords?.get(value.trim()) ?? value);
+        let length = lengths.get(value);
+        if (!length) {
+          length = Object.freeze(cssLength(core.keywords?.get(value.trim()) ?? value, core.converter));
+          if (lengths.size >= 512) lengths.clear();
+          lengths.set(value, length);
+        }
+        return length;
       },
       // Core's parse reads `10%` and `10rem` alike, so the CSS text decides.
       equalityComparer: (a, b) => (isCssLength(a) || isCssLength(b) ? (a as CssLength)?.css === (b as CssLength)?.css : core.comparer(a, b)),
