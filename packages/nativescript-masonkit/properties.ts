@@ -3,6 +3,8 @@ import {
   CssAnimationProperty,
   InheritedCssProperty,
   backgroundColorProperty,
+  colorProperty,
+  Color,
   Style,
   ViewBase as NSViewBase,
   ShorthandProperty,
@@ -2685,6 +2687,22 @@ keepCssOnMasonViews(radiusLonghands, { converter: CoreLength.parse, comparer: Co
 keepCssOnMasonViews(marginLonghands, { converter: CorePercentLength.parse, comparer: CorePercentLength.equals });
 keepCssOnMasonViews(paddingLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals });
 keepCssOnMasonViews(borderWidthLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals, keywords: BORDER_WIDTH_KEYWORDS });
+
+// Core builds a new Color per element for each color declaration; a Mason view shares one per text.
+const colors = new Map<string, Color>();
+function masonColorConverter(this: Style, value: string): Color {
+  if (!isMasonView(this)) return new Color(value);
+  let color = colors.get(value);
+  if (!color) {
+    color = new Color(value);
+    if (colors.size >= 512) colors.clear();
+    colors.set(value, color);
+  }
+  return color;
+}
+for (const property of [colorProperty, ...borderColorLonghands]) {
+  property.overrideHandlers({ name: property.name, cssName: property.cssLocalName, valueConverter: masonColorConverter });
+}
 
 /** The shorthands core registers; MasonKit builds these only to own core 9.1's parse-time split. */
 const coreShorthands: MasonShorthand[] = [
