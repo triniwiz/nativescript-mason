@@ -823,7 +823,7 @@ open class TextView @JvmOverloads constructor(
   override fun getAccessibilityClassName(): CharSequence = "android.widget.TextView"
 
   override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     info.text = readableText().toString()
   }
 

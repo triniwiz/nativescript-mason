@@ -145,7 +145,7 @@ class Scroll @JvmOverloads constructor(
 
   // A <summary> reads as a button that expands or collapses its details (see Details).
   override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     Details.onInitializeAccessibilityNodeInfo(this, info)
   }
 
