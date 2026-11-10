@@ -839,8 +839,9 @@ open class TextView @JvmOverloads constructor(
     if (readableText().toString().contains(searched.toString(), ignoreCase = true)) outViews.add(this)
   }
 
+  // ViewStructure.setText copies a Spanned (TextUtils.trimNoCopySpans) for every appeared text.
   override fun onProvideContentCaptureStructure(structure: ViewStructure, flags: Int) {
-    provideTextStructure(structure, readableText())
+    provideTextStructure(structure, readableText().toString())
   }
 
   override fun onProvideStructure(structure: ViewStructure) {
