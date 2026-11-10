@@ -509,6 +509,9 @@ function climbedThisTurn(root: any): boolean {
   return !!climbedRoots?.has(root) && !!root.isLayoutRequested;
 }
 
+// Core caches one default-padding Rect per class but reads its four Java fields for every view.
+const defaultPaddings = new WeakMap<object, { top: number; right: number; bottom: number; left: number }>();
+
 let windowsInnerHTML: ((view: any, html: string) => void) | undefined;
 
 export function setWindowsInnerHTML(build: (view: any, html: string) => void) {
@@ -566,6 +569,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       return;
     }
     super._removeViewFromNativeVisualTree(child);
+  }
+
+  _setDefaultPaddings(insets: any): void {
+    if (__ANDROID__ && insets) {
+      let paddings = defaultPaddings.get(insets);
+      if (!paddings) {
+        paddings = { top: insets.top, right: insets.right, bottom: insets.bottom, left: insets.left };
+        defaultPaddings.set(insets, paddings);
+      }
+      insets = paddings;
+    }
+    super._setDefaultPaddings(insets);
   }
 
   /** Mirror a plain child's CSS layout into its Mason leaf; containers call this after the native insert. */
