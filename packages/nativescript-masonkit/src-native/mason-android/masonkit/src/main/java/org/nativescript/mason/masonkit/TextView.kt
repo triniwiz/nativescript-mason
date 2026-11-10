@@ -824,7 +824,7 @@ open class TextView @JvmOverloads constructor(
 
   override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
     withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
-    info.text = readableText().toString()
+    info.text = readableText().let { if (A11y.serviceOn(context)) it else it.toString() }
   }
 
   override fun onPopulateAccessibilityEvent(event: AccessibilityEvent) {
