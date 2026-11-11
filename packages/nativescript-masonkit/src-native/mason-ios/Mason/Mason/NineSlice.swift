@@ -6,7 +6,11 @@
 //  `mask-border` (drawn into the element's mask).
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 // MARK: - Values
@@ -591,11 +595,11 @@ extension MasonStyle {
     guard let view = node.view else { return }
     if let mv = view as? MasonUIView {
       mv.invalidateDrawFlags()
-      mv.layer.setNeedsDisplay()
+      mv.backingLayer.setNeedsDisplay()
     } else {
       view.setNeedsDisplay()
       (view as? MasonText)?.textLayer.setNeedsDisplay()
-      view.layer.setNeedsDisplay()
+      view.backingLayer.setNeedsDisplay()
     }
   }
 

@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 07/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
 internal func mapTextInputType(
@@ -25,6 +29,7 @@ internal func mapTextInputType(
   return "insertText"
 }
 
+#if canImport(UIKit)
 @objcMembers
 @objc(MasonTextInput)
 public class MasonTextInput: UITextView, UITextViewDelegate {
@@ -362,3 +367,4 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
     return rect
   }
 }
+#endif

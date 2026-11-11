@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 25/11/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// CSS-like border renderer that reads from a MasonStyle buffer.
 public final class CSSBorderRenderer {
@@ -644,7 +648,7 @@ public final class CSSBorderRenderer {
       let f = shade(i)
       guard f != 1 else { return sides[i].color.cgColor }
       var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-      sides[i].color.getRed(&r, green: &g, blue: &b, alpha: &a)
+      sides[i].color.getRGBA(&r, &g, &b, &a)
       return UIColor(red: r * f, green: g * f, blue: b * f, alpha: a).cgColor
     }
     // A side with no width adds nothing to the ring, so it needn't match.
@@ -822,6 +826,27 @@ public final class CSSBorderRenderer {
       return
     }
 
+    // (cx, cy) on the unit corner curve runs from the corner's start (1, 0) to its end (0, 1).
+    func point(_ cx: CGFloat, _ cy: CGFloat) -> CGPoint {
+      switch corner {
+      case .topRight:
+        return CGPoint(x: rect.maxX - radius.x * (1 - cy), y: rect.minY + radius.y * (1 - cx))
+      case .bottomRight:
+        return CGPoint(x: rect.maxX - radius.x * (1 - cx), y: rect.maxY - radius.y * (1 - cy))
+      case .bottomLeft:
+        return CGPoint(x: rect.minX + radius.x * (1 - cy), y: rect.maxY - radius.y * (1 - cx))
+      case .topLeft:
+        return CGPoint(x: rect.minX + radius.x * (1 - cx), y: rect.minY + radius.y * (1 - cy))
+      }
+    }
+
+    // notch and square: the curve degenerates (0^0 is 1), so draw their two segments.
+    if exponent.isInfinite {
+      path.addLine(to: exponent < 0 ? point(0, 0) : point(1, 1))
+      path.addLine(to: point(0, 1))
+      return
+    }
+
     // Superellipse curve
     let steps = 16
     let exp = pow(2.0, 1.0 - abs(Double(exponent)))
@@ -838,26 +863,7 @@ public final class CSSBorderRenderer {
       let sy = CGFloat(1 - t.squareRoot())
       let cx = shallow ? c - c * sx + (1 - c) * sy : concave ? 1 - b : a
       let cy = shallow ? c + (1 - c) * sx - c * sy : concave ? 1 - a : b
-
-      let px: CGFloat
-      let py: CGFloat
-
-      switch corner {
-      case .topRight:
-        px = rect.maxX - radius.x * (1 - cy)
-        py = rect.minY + radius.y * (1 - cx)
-      case .bottomRight:
-        px = rect.maxX - radius.x * (1 - cx)
-        py = rect.maxY - radius.y * (1 - cy)
-      case .bottomLeft:
-        px = rect.minX + radius.x * (1 - cy)
-        py = rect.maxY - radius.y * (1 - cx)
-      case .topLeft:
-        px = rect.minX + radius.x * (1 - cx)
-        py = rect.minY + radius.y * (1 - cy)
-      }
-
-      path.addLine(to: CGPoint(x: px, y: py))
+      path.addLine(to: point(cx, cy))
     }
   }
 }

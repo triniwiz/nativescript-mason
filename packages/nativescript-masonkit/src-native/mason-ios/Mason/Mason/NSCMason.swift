@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import FontManager
 
 @objc(NSCMason)
@@ -468,6 +472,7 @@ public class NSCMason: NSObject {
 
   @objc public static var rootFontSize: Float = 16
 
+#if canImport(UIKit)
   @objc public static var viewportSize: CGSize {
     get {
       for scene in UIApplication.shared.connectedScenes {
@@ -479,13 +484,22 @@ public class NSCMason: NSObject {
       return .zero
     }
   }
+#else
+  @objc public static var viewportSize: CGSize {
+    guard let window = NSApp?.keyWindow ?? NSApp?.mainWindow else { return .zero }
+    return window.contentLayoutRect.size
+  }
+#endif
 
   private static var viewportListener: (() -> Void)?
   private static var viewportWatched = false
   private static var lastViewport: CGSize = .zero
   private static var viewportCheckScheduled = false
+#if canImport(UIKit)
   private static let observedScenes = NSHashTable<UIWindowScene>.weakObjects()
   private static var sceneObservations: [NSKeyValueObservation] = []
+#else
+#endif
 
   /// Called on the main thread after the key window changes size, so values that used a
   /// viewport unit can be resolved again.
@@ -494,6 +508,7 @@ public class NSCMason: NSObject {
     watchViewport()
   }
 
+#if canImport(UIKit)
   static func watchViewport() {
     if viewportWatched { return }
     viewportWatched = true
@@ -520,6 +535,18 @@ public class NSCMason: NSObject {
       sceneObservations.append(windowScene.observe(\.effectiveGeometry) { _, _ in scheduleViewportCheck() })
     }
   }
+#else
+  static func watchViewport() {
+    if viewportWatched { return }
+    viewportWatched = true
+    lastViewport = viewportSize
+    for name in [NSWindow.didResizeNotification, NSWindow.didBecomeKeyNotification, NSWindow.didEnterFullScreenNotification, NSWindow.didExitFullScreenNotification] {
+      NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+        scheduleViewportCheck()
+      }
+    }
+  }
+#endif
 
   // The window takes its new bounds after the geometry change is reported.
   private static func scheduleViewportCheck() {
@@ -560,6 +587,7 @@ public class NSCMason: NSObject {
     _scale = 0
   }
 
+#if canImport(UIKit)
   private static func resolveScale() -> Float {
     for scene in UIApplication.shared.connectedScenes {
       guard let windowScene = scene as? UIWindowScene else { continue }
@@ -599,4 +627,21 @@ public class NSCMason: NSObject {
       center.addObserver(forName: name, object: nil, queue: .main, using: invalidate)
     }
   }
+#else
+  private static func resolveScale() -> Float {
+    let window = NSApp?.keyWindow ?? NSApp?.mainWindow
+    return Float(window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2)
+  }
+
+  private static func installScaleObserversIfNeeded() {
+    if scaleObserversInstalled { return }
+    scaleObserversInstalled = true
+    let invalidate: (Notification) -> Void = { _ in NSCMason.invalidateScale() }
+    for name in [NSWindow.didChangeBackingPropertiesNotification, NSWindow.didBecomeKeyNotification, NSApplication.didChangeScreenParametersNotification] {
+      NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main, using: invalidate)
+    }
+  }
+#endif
+
+
 }

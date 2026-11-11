@@ -5,9 +5,13 @@
 //  Created by Osei Fortune on 11/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
-class MasonGestureRecognizer: UIGestureRecognizer {
+class MasonGestureRecognizer: MasonGestureRecognizerBase {
   weak var owner: MasonElement?
   weak var targetView: UIView?
   internal var isSubmit: Bool = false
@@ -28,9 +32,17 @@ class MasonGestureRecognizer: UIGestureRecognizer {
     // default delaysTouchesEnded=true causes a nil-event crash in
     // _delayTouchesForEvent:inPhase: when state is set to .recognized before
     // touchesEnded has occurred.
+#if canImport(UIKit)
     delaysTouchesEnded = false
     cancelsTouchesInView = false
+#endif
   }
+
+#if os(macOS)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+#endif
 
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
     // Record the start in window coords so touchesEnded can tell a tap from a scroll.
@@ -105,7 +117,7 @@ class MasonGestureRecognizer: UIGestureRecognizer {
   static func deeperTarget(from hitView: UIView?, below view: UIView, location: (UIView) -> CGPoint) -> Bool {
     var current = hitView
     while let v = current, v !== view {
-      if v.gestureRecognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true {
+      if hasClickRecognizer(v) {
         return true
       }
       if let text = v as? MasonText, text.inlineClickTarget(at: location(text)) != nil {
@@ -118,6 +130,45 @@ class MasonGestureRecognizer: UIGestureRecognizer {
     }
     return false
   }
+
+  static func hasClickRecognizer(_ view: UIView) -> Bool {
+    let recognizers: [UIGestureRecognizer]? = view.gestureRecognizers
+    return recognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true
+  }
+
+#if os(macOS)
+  // A control's own mouse tracking hides the release from recognizers: settle them and send the click.
+  @discardableResult
+  static func finishTrackedClick(_ control: NSView, down: NSEvent) -> MasonMouseEvent? {
+    guard let up = NSApp.currentEvent, up.type == .leftMouseUp, up.timestamp >= down.timestamp else { return nil }
+    var owner: MasonElement?
+    var current: NSView? = control
+    while let view = current {
+      for recognizer in view.gestureRecognizers where recognizer is MasonGestureRecognizer && recognizer.state == .possible {
+        recognizer.state = .failed
+      }
+      if owner == nil, let element = view as? MasonElement { owner = element }
+      current = view.superview
+    }
+    let moved = hypot(up.locationInWindow.x - down.locationInWindow.x, up.locationInWindow.y - down.locationInWindow.y)
+    guard let owner, moved <= tapSlop, control.bounds.contains(control.convert(up.locationInWindow, from: nil)) else { return nil }
+    let location = owner.uiView.convert(up.locationInWindow, from: nil)
+    let click = MasonMouseEvent(
+      type: "click",
+      options: MasonMouseEventOptions().apply {
+        $0.clientX = Float(location.x)
+        $0.clientY = Float(location.y)
+        $0.screenX = Float(location.x)
+        $0.screenY = Float(location.y)
+        $0.pageX = Float(location.x)
+        $0.pageY = Float(location.y)
+      }
+    )
+    click.target = owner.uiView
+    owner.node.mason.dispatch(click, owner.node)
+    return click
+  }
+#endif
 
   override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
     state = .cancelled

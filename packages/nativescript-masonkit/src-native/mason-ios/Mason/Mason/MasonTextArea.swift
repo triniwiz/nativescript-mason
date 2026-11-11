@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 20/03/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objc(MasonTextArea)
 @objcMembers
@@ -48,8 +52,13 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		didSet {
 			isEditable = !disabled
 			isSelectable = !disabled
+#if canImport(UIKit)
 			if disabled { _ = resignFirstResponder() }
 			if disabled { accessibilityTraits.insert(.notEnabled) } else { accessibilityTraits.remove(.notEnabled) }
+#else
+			if disabled { endEditing(true) }
+			setAccessibilityEnabled(!disabled)
+#endif
 		}
 	}
 
@@ -290,10 +299,10 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 			case .Justify:
 				textAlignment = .justified
 			case .Start:
-				let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+				let isLTR = masonLayoutIsLeftToRight()
 				textAlignment = isLTR ? .left : .right
 			case .End:
-				let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+				let isLTR = masonLayoutIsLeftToRight()
 				textAlignment = isLTR ? .right : .left
 			}
 		}

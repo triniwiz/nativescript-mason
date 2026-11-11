@@ -5,13 +5,17 @@
 //  Created by Osei Fortune on 28/11/2022.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import Foundation
 import CoreText
 
 @objcMembers
 @objc(MasonUIView)
-public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
+public class MasonUIView: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
   func onStyleChange(_ low: UInt64, _ high: UInt64) {
     invalidateDrawFlags()
     MasonNode.invalidateDescendantTextViews(inheritedBy: node, low, high)
@@ -56,6 +60,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   public override class var layerClass: AnyClass { MasonViewLayer.self }
 
+  // UIKit's background colour is the CSS one: the box paints its own background.
+  public override var backgroundColor: UIColor? {
+    get { style.backgroundColor == 0 ? nil : UIColor.colorFromARGB(style.backgroundColor) }
+    set { style.backgroundColor = newValue?.toUInt32() ?? 0 }
+  }
+
   // `<li>` children draw their markers in this view's padding.
   private var hasListMarkers: Bool {
     for sv in subviews where (sv as? MasonText)?.type == .Li {
@@ -78,11 +88,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   internal var overflowCornerClip: (radius: CGFloat, corners: CACornerMask)? {
     didSet {
       guard !_usesLayerPaint else {
-        layer.setNeedsDisplay()
+        backingLayer.setNeedsDisplay()
         return
       }
       let radius = overflowCornerClip?.radius ?? 0
       let corners = overflowCornerClip?.corners ?? MasonUIView.allCorners
+      let layer = backingLayer
       if layer.cornerRadius != radius { layer.cornerRadius = radius }
       if layer.maskedCorners != corners { layer.maskedCorners = corners }
     }
@@ -96,11 +107,11 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       if contentMode != .redraw { contentMode = .redraw }
       if _usesLayerPaint {
         _usesLayerPaint = false
-        layer.backgroundColor = nil
-        layer.borderWidth = 0
-        layer.borderColor = nil
-        layer.cornerRadius = overflowCornerClip?.radius ?? 0
-        layer.maskedCorners = overflowCornerClip?.corners ?? MasonUIView.allCorners
+        backingLayer.backgroundColor = nil
+        backingLayer.borderWidth = 0
+        backingLayer.borderColor = nil
+        backingLayer.cornerRadius = overflowCornerClip?.radius ?? 0
+        backingLayer.maskedCorners = overflowCornerClip?.corners ?? MasonUIView.allCorners
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         removeBorderLayer()
@@ -111,22 +122,22 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       return false
     }
     _usesLayerPaint = true
-    if layer.backgroundColor != paint.background { layer.backgroundColor = paint.background }
+    if backingLayer.backgroundColor != paint.background { backingLayer.backgroundColor = paint.background }
     // The overflow clip has the same radius when both exist; it outlives a box with nothing to paint.
     let corner = overflowCornerClip ?? (paint.radius, paint.corners)
-    if layer.cornerRadius != corner.radius { layer.cornerRadius = corner.radius }
-    if layer.maskedCorners != corner.corners { layer.maskedCorners = corner.corners }
+    if backingLayer.cornerRadius != corner.radius { backingLayer.cornerRadius = corner.radius }
+    if backingLayer.maskedCorners != corner.corners { backingLayer.maskedCorners = corner.corners }
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     setGradientLayer(paint.gradient, paint: paint)
     // A layer's own border draws above its sublayers, so with children it moves to a bottom
     // sublayer; a clipping view keeps it, as CSS clips children inside the border.
-    let clipsChildren = clipsToBounds || layer.mask != nil
+    let clipsChildren = clipsToBounds || backingLayer.mask != nil
     let useSublayer = paint.borderWidth > 0 && sublayersBesidesPaint() && !clipsChildren
     let ownWidth = useSublayer ? 0 : paint.borderWidth
     let ownColor = useSublayer ? nil : paint.borderColor
-    if layer.borderWidth != ownWidth { layer.borderWidth = ownWidth }
-    if layer.borderColor != ownColor { layer.borderColor = ownColor }
+    if backingLayer.borderWidth != ownWidth { backingLayer.borderWidth = ownWidth }
+    if backingLayer.borderColor != ownColor { backingLayer.borderColor = ownColor }
     if useSublayer {
       let border = _borderLayer ?? {
         let l = CALayer()
@@ -134,7 +145,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         _borderLayer = l
         return l
       }()
-      if border.superlayer !== layer { layer.insertSublayer(border, at: paintLayerIndex()) }
+      if border.superlayer !== layer { backingLayer.insertSublayer(border, at: paintLayerIndex()) }
       border.frame = CGRect(origin: .zero, size: bounds.size)
       border.borderWidth = paint.borderWidth
       border.borderColor = paint.borderColor
@@ -174,11 +185,14 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   }
 
   private func isPaintLayer(_ l: CALayer) -> Bool {
-    l === _borderLayer || l === _gradientLayer || _sideLayers.contains { $0 === l }
+#if os(macOS)
+    if _scrollIndicatorsStorage?.owns(l) == true { return true }
+#endif
+    return l === _borderLayer || l === _gradientLayer || _sideLayers.contains { $0 === l }
   }
 
   private func sublayersBesidesPaint() -> Bool {
-    guard let sublayers = layer.sublayers else { return false }
+    guard let sublayers = backingLayer.sublayers else { return false }
     return sublayers.contains { !isPaintLayer($0) }
   }
 
@@ -198,7 +212,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       _gradientLayer = l
       return l
     }()
-    if g.superlayer !== layer { layer.insertSublayer(g, at: 0) }
+    if g.superlayer !== layer { backingLayer.insertSublayer(g, at: 0) }
     g.frame = CGRect(origin: .zero, size: bounds.size)
     g.colors = gradient.colors
     g.locations = gradient.locations
@@ -221,7 +235,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
         shape.name = "mason.border"
         _sideLayers.append(shape)
       }
-      if shape.superlayer !== layer { layer.insertSublayer(shape, at: base + UInt32(i)) }
+      if shape.superlayer !== layer { backingLayer.insertSublayer(shape, at: base + UInt32(i)) }
       shape.frame = CGRect(origin: .zero, size: bounds.size)
       shape.fillColor = side.color
       shape.path = side.path
@@ -231,7 +245,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // A border on the view's own layer has to move to a sublayer once something sits on top of it.
   public override func didAddSubview(_ subview: UIView) {
     super.didAddSubview(subview)
-    if _usesLayerPaint && (layer.borderWidth > 0 || subview.layer.zPosition < 0) { layer.setNeedsDisplay() }
+    if _usesLayerPaint && (backingLayer.borderWidth > 0 || subview.backingLayer.zPosition < 0) { backingLayer.setNeedsDisplay() }
   }
 
   internal struct LayerGradient {
@@ -282,9 +296,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
     if isScrollContainer && (paint.gradient != nil || !paint.sides.isEmpty) { return nil }
     // A backdrop or a negative z-index child would go under paint sublayers.
-    let borderSublayer = paint.borderWidth > 0 && sublayersBesidesPaint() && !(clipsToBounds || layer.mask != nil)
+    let borderSublayer = paint.borderWidth > 0 && sublayersBesidesPaint() && !(clipsToBounds || backingLayer.mask != nil)
     if paint.gradient != nil || !paint.sides.isEmpty || borderSublayer {
-      if !style.resolvedBackdropFilterString.isEmpty || subviews.contains(where: { $0.layer.zPosition < 0 }) { return nil }
+      if !style.resolvedBackdropFilterString.isEmpty || subviews.contains(where: { $0.backingLayer.zPosition < 0 }) { return nil }
     }
 
     if border.hasRadii() {
@@ -458,6 +472,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // A <summary> reads as one button named by its text, expanded or collapsed with its details.
   private var isSummary: Bool { node.detailsRole == MasonDetails.summary }
 
+#if canImport(UIKit)
   public override var isAccessibilityElement: Bool {
     get { isSummary || super.isAccessibilityElement }
     set { super.isAccessibilityElement = newValue }
@@ -486,6 +501,30 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     if isSummary, MasonDetails.toggle(summary: node) { return true }
     return super.accessibilityActivate()
   }
+#else
+  public override func isAccessibilityElement() -> Bool {
+    isSummary || super.isAccessibilityElement()
+  }
+
+  public override func accessibilityLabel() -> String? {
+    super.accessibilityLabel() ?? (isSummary ? MasonDetails.accessibleName(self) : nil)
+  }
+
+  public override func accessibilityRole() -> NSAccessibility.Role? {
+    isSummary ? .disclosureTriangle : super.accessibilityRole()
+  }
+
+  public override func accessibilityValue() -> Any? {
+    guard isSummary, let details = MasonDetails.details(of: node) else { return super.accessibilityValue() }
+    return details.detailsOpen ? 1 : 0
+  }
+
+  public override func accessibilityPerformPress() -> Bool {
+    if isSummary, MasonDetails.toggle(summary: node) { return true }
+    return super.accessibilityPerformPress()
+  }
+
+#endif
 
   private func drawListItemMarkers(in context: CGContext) {
     var position = 0
@@ -656,7 +695,12 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   // begins when actually scrollable.
   // Only assigned for overflow scroll/auto, so it doubles as the gesture trigger.
   public var contentSize: CGSize = .zero {
-    didSet { _ensureScrollGesture() }
+    didSet {
+      _ensureScrollGesture()
+#if os(macOS)
+      _refreshScrollIndicators(flash: false)
+#endif
+    }
   }
   // When true, default `visible` overflow on Y acts as `auto` (web-like scroll-on-overflow).
   @objc public var isScrollContainer: Bool = false {
@@ -675,7 +719,20 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   private var _scrollDecelerationShown: CGPoint = .zero
   private var _scrollDecelerationTime: CFTimeInterval = 0
   private var _lastBoundsSize: CGSize = .zero
+#if canImport(UIKit)
   private var _scrollGestureDelegate: _MasonScrollPanDelegate?
+#else
+  private var _wheelIdleWork: DispatchWorkItem?
+  private var _wheelForwarding: Bool?
+  private var _wheelVelocity = WheelVelocity()
+  private var _scrollIndicatorsStorage: ScrollIndicators?
+  private var _scrollIndicators: ScrollIndicators {
+    if let indicators = _scrollIndicatorsStorage { return indicators }
+    let indicators = ScrollIndicators(host: self)
+    _scrollIndicatorsStorage = indicators
+    return indicators
+  }
+#endif
   // True while a scroll gesture/deceleration is active; layoutSubviews skips
   // autoComputeIfRoot so scroll-step bounds changes don't retrigger layout.
   private var _isScrolling = false
@@ -721,11 +778,15 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     if isScrollContainer {
       MasonPositioning.recomputeSticky(scrollHost: self, descendants: stickyDescendants)
     }
+#if os(macOS)
+    _refreshScrollIndicators(flash: true)
+#endif
     if node.listensForScroll { _noteScrolled() }
   }
 
   // Attached lazily: most views never scroll, and a recognizer per view is not free.
   private func _ensureScrollGesture() {
+#if canImport(UIKit)
     guard _scrollGestureDelegate == nil else { return }
     // Delegate gates begin on scrollability and allows simultaneous
     // recognition with parent gestures.
@@ -734,12 +795,15 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     _scrollGestureDelegate = d
     _scrollPanGesture.delegate = d
     addGestureRecognizer(_scrollPanGesture)
+#endif
   }
 
+#if canImport(UIKit)
   private lazy var _scrollPanGesture: UIPanGestureRecognizer = {
     let g = UIPanGestureRecognizer(target: self, action: #selector(_handleScrollPan(_:)))
     return g
   }()
+#endif
   
   public var style: MasonStyle {
     return node.style
@@ -762,6 +826,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
 
   public override func layoutSubviews() {
     super.layoutSubviews()
+#if os(macOS)
+    _refreshScrollIndicators(flash: false)
+#endif
     // Skip layout during scroll steps — bounds.origin changes only shift the
     // visible window, not child positions.
     guard !_isScrolling else { return }
@@ -789,7 +856,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     // that gets resampled when composited, softening child text. draw(_:) already
     // clips the gradient background to the rounded border path, so corners stay
     // clean without it.
-    if layer.shouldRasterize { layer.shouldRasterize = false }
+    if backingLayer.shouldRasterize { backingLayer.shouldRasterize = false }
     // Transforms pivot on the layer's centre anchor; a transform-origin or a percentage depends on the size.
     if style.transformDependsOnOrigin { style.applyTransformFromBuffer() }
   }
@@ -846,7 +913,9 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     contentMode = .redraw
     // Mason positions children itself and doesn't use layout margins.
     autoresizesSubviews = false
+#if canImport(UIKit)
     insetsLayoutMarginsFromSafeArea = false
+#endif
   }
 
 
@@ -977,6 +1046,19 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   
+#if os(macOS)
+  @objc(cssDisplay)
+  public var display: Display {
+    get{
+      return style.display
+    }
+    set(value) {
+      style.display = value
+      checkAndUpdateStyle()
+    }
+  }
+  
+#else
   @objc public var display: Display {
     get{
       return style.display
@@ -987,6 +1069,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     }
   }
   
+#endif
+
   @objc public var _position: Position {
     get{
       return style.position
@@ -1731,16 +1815,17 @@ extension MasonUIView {
   // Keep the clip mask on the viewport as bounds.origin scrolls. Layout decides
   // whether a mask exists; its path is in viewport-local coordinates.
   func _updateScrollMask() {
-    if let cssMask = layer.mask as? MasonMaskLayer {
+    if let cssMask = backingLayer.mask as? MasonMaskLayer {
       // A CSS mask can be larger than the box (mask-clip: no-clip); keep its offset.
       cssMask.follow(viewBounds: bounds)
     } else {
-      layer.mask?.frame = bounds
+      backingLayer.mask?.frame = bounds
     }
   }
 
   // MARK: Pan handler
 
+#if canImport(UIKit)
   @objc func _handleScrollPan(_ gesture: UIPanGestureRecognizer) {
     switch gesture.state {
     case .began:
@@ -1771,6 +1856,113 @@ extension MasonUIView {
     default: break
     }
   }
+#else
+  public override func scrollWheel(with event: NSEvent) {
+    // Momentum is simulated from the release velocity, as on iOS.
+    if !event.momentumPhase.isEmpty {
+      if _wheelForwarding == true { nextResponder?.scrollWheel(with: event) }
+      return
+    }
+    let phased = !event.phase.isEmpty
+    let begins = event.phase.contains(.began) || event.phase.contains(.mayBegin)
+    if !phased || begins { _wheelForwarding = nil }
+
+    let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
+    let dx = event.scrollingDeltaX * scale
+    let dy = event.scrollingDeltaY * scale
+    if _wheelForwarding == nil, dx != 0 || dy != 0 {
+      let horizontal = abs(dx) > abs(dy)
+      _wheelForwarding = !(horizontal ? _canScrollH : _canScrollV)
+    }
+    if _wheelForwarding == true {
+      nextResponder?.scrollWheel(with: event)
+      return
+    }
+
+    guard phased else {
+      guard _wheelForwarding == false else { return }
+      _stopScrollAnimation()
+      if _scrollDecelerationLink != nil { _stopScrollDeceleration() }
+      _isScrolling = true
+      let current = contentOffset
+      _setScrollOrigin(_pixelAligned(_clampScrollOffset(CGPoint(x: current.x - (_canScrollH ? dx : 0), y: current.y - (_canScrollV ? dy : 0)))))
+      _wheelIdleWork?.cancel()
+      let work = DispatchWorkItem { [weak self] in self?._wheelScrollEnded() }
+      _wheelIdleWork = work
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+      return
+    }
+
+    if begins {
+      _stopScrollAnimation()
+      if _scrollDecelerationLink != nil { _stopScrollDeceleration() }
+      _panActive = true
+      _isScrolling = true
+      _scrollPanStartOffset = contentOffset
+      _scrollPanTranslation = .zero
+      _wheelVelocity.reset()
+    }
+    if dx != 0 || dy != 0 {
+      _scrollPanTranslation.x += dx
+      _scrollPanTranslation.y += dy
+      _wheelVelocity.add(CGPoint(x: -dx, y: -dy), at: event.timestamp)
+      let t = _scrollPanTranslation
+      let raw = CGPoint(x: _scrollPanStartOffset.x - (_canScrollH ? t.x : 0), y: _scrollPanStartOffset.y - (_canScrollV ? t.y : 0))
+      _setScrollOrigin(_pixelAligned(event.hasPreciseScrollingDeltas ? _rubberBanded(raw) : _clampScrollOffset(raw)))
+    }
+    if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+      _panActive = false
+      let v = _wheelVelocity.velocity(at: event.timestamp)
+      _startScrollDeceleration(CGPoint(x: _canScrollH ? v.x : 0, y: _canScrollV ? v.y : 0))
+    }
+  }
+
+  private func _wheelScrollEnded() {
+    _wheelIdleWork = nil
+    _isScrolling = false
+    _scrollMotionEnded()
+  }
+
+  func _refreshScrollIndicators(flash: Bool) {
+    let h = _canScrollH, v = _canScrollV
+    guard h || v || _scrollIndicatorsStorage != nil else { return }
+    _scrollIndicators.update(offset: contentOffset, contentSize: contentSize, horizontalAxis: h, verticalAxis: v, flash: flash)
+  }
+
+  public override func hitTest(_ point: NSPoint) -> NSView? {
+    if let indicators = _scrollIndicatorsStorage, let parent = superview, indicators.contains(convert(point, from: parent)) {
+      return self
+    }
+    return super.hitTest(point)
+  }
+
+  public override func mouseDown(with event: NSEvent) {
+    let local = convert(event.locationInWindow, from: nil)
+    guard let indicators = _scrollIndicatorsStorage, let start = indicators.beginDrag(at: local, window: event.locationInWindow) else {
+      super.mouseDown(with: event)
+      return
+    }
+    _stopScrollAnimation()
+    if _scrollDecelerationLink != nil { _stopScrollDeceleration() }
+    _setScrollOrigin(_pixelAligned(_clampScrollOffset(start)))
+  }
+
+  public override func mouseDragged(with event: NSEvent) {
+    guard let next = _scrollIndicatorsStorage?.dragOffset(window: event.locationInWindow) else {
+      super.mouseDragged(with: event)
+      return
+    }
+    _setScrollOrigin(_pixelAligned(_clampScrollOffset(next)))
+  }
+
+  public override func mouseUp(with event: NSEvent) {
+    guard _scrollIndicatorsStorage?.dragOffset(window: event.locationInWindow) != nil else {
+      super.mouseUp(with: event)
+      return
+    }
+    _scrollIndicatorsStorage?.endDrag()
+  }
+#endif
 
   // MARK: Deceleration
 
@@ -1793,9 +1985,8 @@ extension MasonUIView {
 
   /// A display link at the display's full rate (120Hz on ProMotion when the app allows it).
   fileprivate static func scrollDisplayLink(_ target: Any, _ selector: Selector) -> CADisplayLink {
-    let link = CADisplayLink(target: target, selector: selector)
+    let link = masonDisplayLink(target, selector)
     link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
-    link.add(to: .main, forMode: .common)
     return link
   }
 
@@ -1821,7 +2012,11 @@ extension MasonUIView {
   }
 
   // UIScrollView.DecelerationRate.normal: the velocity kept per millisecond.
+#if canImport(UIKit)
   private static let decelerationPerMs = UIScrollView.DecelerationRate.normal.rawValue
+#else
+  private static let decelerationPerMs: CGFloat = 0.998
+#endif
 
   // Advance one axis by `dt` seconds: momentum decay in-bounds, spring-back when overscrolled.
   // Returns (offset, velocity, settled).
@@ -1888,7 +2083,11 @@ extension MasonUIView {
   private static let smoothScrollDuration: CFTimeInterval = 0.3
 
   private var _scrollInMotion: Bool {
+#if canImport(UIKit)
     _panActive || _scrollDecelerationLink != nil || _scrollAnimationLink != nil
+#else
+    _panActive || _wheelIdleWork != nil || _scrollDecelerationLink != nil || _scrollAnimationLink != nil
+#endif
   }
 
   private func _noteScrolled() {
@@ -2178,6 +2377,7 @@ extension MasonUIView {
 // MARK: - Private gesture delegate
 // Separate class: UIView already exposes gestureRecognizerShouldBegin with the
 // same ObjC selector, so conforming MasonUIView directly would conflict.
+#if canImport(UIKit)
 private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelegate {
   weak var owner: MasonUIView?
 
@@ -2201,6 +2401,7 @@ private final class _MasonScrollPanDelegate: NSObject, UIGestureRecognizerDelega
     shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
   ) -> Bool { true }
 }
+#endif
 
 // Skips the backing store (and draw(_:)) while the owning view paints nothing.
 final class MasonViewLayer: CALayer {

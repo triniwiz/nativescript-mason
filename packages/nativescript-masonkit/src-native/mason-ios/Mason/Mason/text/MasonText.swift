@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreText
 
 // MARK: - Helper Functions (top-level)
@@ -63,7 +67,11 @@ class ViewHelper {
       CATransaction.setCompletionBlock {
         let renderer = UIGraphicsImageRenderer(size: size)
         self.image = renderer.image { _ in
+#if canImport(UIKit)
           view.drawHierarchy(in: view.bounds, afterScreenUpdates: afterScreenUpdates)
+#else
+          if let cg = UIGraphicsGetCurrentContext() { view.backingLayer.render(in: cg) }
+#endif
         }
       }
       
@@ -72,7 +80,7 @@ class ViewHelper {
       rendererFormat.opaque = view.isOpaque
       
       self.image = UIGraphicsImageRenderer(size: view.bounds.size, format: rendererFormat).image { ctx in
-        view.layer.render(in: ctx.cgContext)
+        view.backingLayer.render(in: ctx.cgContext)
       }
       
     }
@@ -413,7 +421,7 @@ final class MasonInkLayer: CALayer {
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
-public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
+public class MasonText: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
   // MARK: Properties
   public let node: MasonNode
   public let type: MasonTextType
@@ -591,7 +599,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
           node.mason.hasListenerOnPath(target, "click") else { return nil }
     // A box with its own click recognizer takes the touch itself.
     if let view = target.view, view.superview === self,
-       view.gestureRecognizers?.contains(where: { $0 is MasonGestureRecognizer && $0.isEnabled }) == true {
+       MasonGestureRecognizer.hasClickRecognizer(view) {
       return nil
     }
     return target
@@ -671,7 +679,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       if n.hasPseudo(.active) != pressed {
         n.setPseudo(.active, pressed)
         n.view?.setNeedsDisplay()
-        n.view?.layer.setNeedsDisplay()
+        n.view?.backingLayer.setNeedsDisplay()
       }
       current = n.parent
     }
@@ -756,6 +764,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     return text.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
+#if canImport(UIKit)
   public override var isAccessibilityElement: Bool {
     get { accessibilityElementOverride ?? (engine.inlineAccessibilityElements(in: self) == nil && !accessibilityText.isEmpty) }
     set { accessibilityElementOverride = newValue }
@@ -775,6 +784,28 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     get { super.accessibilityElements ?? engine.inlineAccessibilityElements(in: self) }
     set { super.accessibilityElements = newValue }
   }
+#else
+  public override func isAccessibilityElement() -> Bool {
+    accessibilityElementOverride ?? (engine.inlineAccessibilityElements(in: self) == nil && !accessibilityText.isEmpty)
+  }
+
+  public override func setAccessibilityElement(_ isElement: Bool) {
+    accessibilityElementOverride = isElement
+  }
+
+  public override func accessibilityLabel() -> String? {
+    super.accessibilityLabel() ?? accessibilityText
+  }
+
+  public override func accessibilityRole() -> NSAccessibility.Role? {
+    type == .A ? .link : .staticText
+  }
+
+  public override func accessibilityChildren() -> [Any]? {
+    engine.inlineAccessibilityElements(in: self) ?? super.accessibilityChildren()
+  }
+
+#endif
 
   public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
     if inlineTapTarget != nil {

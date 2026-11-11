@@ -77,6 +77,50 @@ if [ "${INCLUDE_VISIONOS:-0}" = "1" ]; then
     -debug-symbols $(PWD)/dist/Release-xrsimulator/Mason.framework.dSYM"
 fi
 
+MAC_FRAMEWORK_ARGS=""
+# Mac slices are opt-in: `INCLUDE_MACCATALYST=1` (UIKit on macOS) and
+# `INCLUDE_MACOS=1` (AppKit). They need the Rust *-apple-ios-macabi and
+# *-apple-darwin targets installed.
+if [ "${INCLUDE_MACCATALYST:-0}" = "1" ]; then
+  echo "Build for Mac Catalyst"
+  xcodebuild \
+      -project Mason/Mason.xcodeproj \
+      -scheme Mason \
+      -destination "generic/platform=macOS,variant=Mac Catalyst" \
+      -configuration Release \
+      clean build \
+      BUILD_DIR=$(PWD)/dist \
+      CODE_SIGN_IDENTITY="" \
+      CODE_SIGNING_REQUIRED=NO \
+      SKIP_INSTALL=NO \
+      BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+      -quiet
+
+  MAC_FRAMEWORK_ARGS="$MAC_FRAMEWORK_ARGS \
+    -framework $(PWD)/dist/Release-maccatalyst/Mason.framework \
+    -debug-symbols $(PWD)/dist/Release-maccatalyst/Mason.framework.dSYM"
+fi
+
+if [ "${INCLUDE_MACOS:-0}" = "1" ]; then
+  echo "Build for macOS"
+  xcodebuild \
+      -project Mason/Mason.xcodeproj \
+      -scheme Mason \
+      -destination "generic/platform=macOS" \
+      -configuration Release \
+      clean build \
+      BUILD_DIR=$(PWD)/dist \
+      CODE_SIGN_IDENTITY="" \
+      CODE_SIGNING_REQUIRED=NO \
+      SKIP_INSTALL=NO \
+      BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+      -quiet
+
+  MAC_FRAMEWORK_ARGS="$MAC_FRAMEWORK_ARGS \
+    -framework $(PWD)/dist/Release/Mason.framework \
+    -debug-symbols $(PWD)/dist/Release/Mason.framework.dSYM"
+fi
+
 echo "Creating XCFramework"
 xcodebuild \
     -create-xcframework \
@@ -85,4 +129,5 @@ xcodebuild \
     -framework $(PWD)/dist/Release-iphonesimulator/Mason.framework \
     -debug-symbols $(PWD)/dist/Release-iphonesimulator/Mason.framework.dSYM \
     $XR_FRAMEWORK_ARGS \
+    $MAC_FRAMEWORK_ARGS \
     -output $(PWD)/dist/Mason.xcframework

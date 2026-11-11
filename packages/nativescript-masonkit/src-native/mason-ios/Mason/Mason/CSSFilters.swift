@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 20/11/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import Metal
@@ -38,12 +42,12 @@ public class CSSFilters {
     // 2. No sublayers (except our filter layer)
     // 3. No transforms on the view
     // 4. No corner radius or other layer effects
-    let sublayersExcludingFilter = view.layer.sublayers?.filter { $0 !== excludeLayer }
-    guard let contents = view.layer.contents,
+    let sublayersExcludingFilter = view.backingLayer.sublayers?.filter { $0 !== excludeLayer }
+    guard let contents = view.backingLayer.contents,
           sublayersExcludingFilter == nil || sublayersExcludingFilter?.isEmpty == true,
           view.transform.isIdentity,
-          view.layer.cornerRadius == 0,
-          view.layer.borderWidth == 0,
+          view.backingLayer.cornerRadius == 0,
+          view.backingLayer.borderWidth == 0,
           CFGetTypeID(contents as CFTypeRef) == CGImage.typeID else {
       return nil
     }
@@ -174,7 +178,7 @@ public class CSSFilters {
     fmt.opaque = false
     let renderer = UIGraphicsImageRenderer(bounds: view.bounds, format: fmt)
     let image = renderer.image { ctx in
-      view.layer.render(in: ctx.cgContext)
+      view.backingLayer.render(in: ctx.cgContext)
     }
     
     excludeLayer?.isHidden = wasHidden
@@ -286,8 +290,8 @@ public class CSSFilters {
 
     /// The layer the output lives in: the superview's, unless a CSS mask or clip-path has to clip it.
     private func outputHost(for view: UIView) -> CALayer {
-      if view.layer.mask is MasonMaskLayer { return view.layer }
-      return view.superview?.layer ?? view.layer
+      if view.backingLayer.mask is MasonMaskLayer { return view.backingLayer }
+      return view.superview?.backingLayer ?? view.backingLayer
     }
 
     /// Keeps the output layer over (or under) the view, matching its box, transform and visibility.
@@ -301,7 +305,7 @@ public class CSSFilters {
       CATransaction.begin()
       CATransaction.setDisableActions(true)
       defer { CATransaction.commit() }
-      let v = view.layer
+      let v = view.backingLayer
       let region = outputRegion.offsetBy(dx: v.bounds.minX, dy: v.bounds.minY)
       if host === v {
         if !CATransform3DIsIdentity(layer.transform) { layer.transform = CATransform3DIdentity }
@@ -341,12 +345,12 @@ public class CSSFilters {
       let host = outputHost(for: view)
       if layer.superlayer !== host {
         layer.removeFromSuperlayer()
-        if host === view.layer {
+        if host === view.backingLayer {
           host.addSublayer(layer)
         } else if placement == .under {
-          host.insertSublayer(layer, below: view.layer)
+          host.insertSublayer(layer, below: view.backingLayer)
         } else {
-          host.insertSublayer(layer, above: view.layer)
+          host.insertSublayer(layer, above: view.backingLayer)
         }
       }
       layer.contentsScale = CGFloat(NSCMason.scale)
@@ -394,14 +398,14 @@ public class CSSFilters {
     private func setupSublayerObservation(for view: UIView) {
       sublayerContentObservations.removeAll()
 
-      sublayersObservation = view.layer.observe(\.sublayers, options: [.new]) { [weak self] layer, _ in
+      sublayersObservation = view.backingLayer.observe(\.sublayers, options: [.new]) { [weak self] layer, _ in
         guard let self = self, !self.isApplying else { return }
         self.sublayerContentObservations.removeAll()
         self.observeSublayerContents(layer: layer)
         self.invalidate()
       }
 
-      observeSublayerContents(layer: view.layer)
+      observeSublayerContents(layer: view.backingLayer)
     }
 
     public func apply(to view: UIView) {
@@ -420,7 +424,7 @@ public class CSSFilters {
           guard let self = self, !self.isApplying else { return }
           self.invalidate()
         }
-        contentsObservation = view.layer.observe(\.contents) { [weak self] _, _ in
+        contentsObservation = view.backingLayer.observe(\.contents) { [weak self] _, _ in
           guard let self = self, !self.isApplying else { return }
           self.invalidate()
         }
@@ -444,7 +448,7 @@ public class CSSFilters {
       guard view.bounds.width > 0, view.bounds.height > 0, let context = ciContext else { return }
       let scale = CGFloat(NSCMason.scale)
       let box = CGRect(origin: .zero, size: view.bounds.size)
-      let masked = view.layer.mask is MasonMaskLayer
+      let masked = view.backingLayer.mask is MasonMaskLayer
       placement = !masked && view.superview != nil && CSSFilters.isShadowOnly(filters) ? .under : .over
 
       let regionPx = CSSFilters.paintRegionPixels(filters, box: box, scale: scale)
@@ -456,7 +460,7 @@ public class CSSFilters {
         ? CSSFilters.applyShadowsOnly(filters, to: content, scale: scale)
         : CSSFilters.applyElementChain(filters, to: content, scale: scale)
 
-      let cover = placement == .over && CSSFilters.needsBackdropCover(filters) && CATransform3DIsIdentity(view.layer.transform)
+      let cover = placement == .over && CSSFilters.needsBackdropCover(filters) && CATransform3DIsIdentity(view.backingLayer.transform)
       if cover, let behind = CSSFilters.captureBackdropToCIImage(view: view, scale: scale, alsoHiding: layer) {
         output = output.composited(over: behind.cropped(to: CGRect(x: 0, y: 0, width: box.width * scale, height: box.height * scale)))
       }
@@ -478,7 +482,7 @@ public class CSSFilters {
       isApplying = true
       defer { isApplying = false }
 
-      view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+      view.backingLayer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
       tearDownBackdropRendering()
 
       let active = filters.contains { if case .dropShadow = $0 { return false } else { return true } }
@@ -503,7 +507,7 @@ public class CSSFilters {
       renderLayer.frame = view.bounds
       renderLayer.masksToBounds = true
       renderLayer.contentsScale = CGFloat(NSCMason.scale)
-      view.layer.insertSublayer(renderLayer, at: 0)
+      view.backingLayer.insertSublayer(renderLayer, at: 0)
       backdropRenderLayer = renderLayer
     }
 
@@ -576,10 +580,9 @@ public class CSSFilters {
         observer = obs
       }
       if link == nil {
-        let l = CADisplayLink(target: self, selector: #selector(tick))
+        let l = masonDisplayLink(self, #selector(tick))
         l.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
         l.isPaused = true
-        l.add(to: .main, forMode: .common)
         link = l
       }
     }
@@ -777,7 +780,7 @@ public class CSSFilters {
 
   /// `image`'s alpha in `color`, offset and blurred; drop-shadow()'s third length is the standard deviation.
   static func dropShadow(of image: CIImage, dx: CGFloat, dy: CGFloat, blur: CGFloat, color: UIColor, scale: CGFloat) -> CIImage {
-    var shadow = CIImage(color: CIColor(color: color)).cropped(to: image.extent)
+    var shadow = CIImage(color: CIColor(masonColor: color)).cropped(to: image.extent)
       .applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: image])
     let sigma = blur * scale
     if sigma > 0 { shadow = shadow.applyingGaussianBlur(sigma: Double(sigma)) }
@@ -882,20 +885,20 @@ public class CSSFilters {
 
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    let wasHidden = view.layer.isHidden
-    view.layer.isHidden = true
+    let wasHidden = view.backingLayer.isHidden
+    view.backingLayer.isHidden = true
     let extraWasHidden = extra?.isHidden ?? true
     extra?.isHidden = true
-    let swapped = substituteGradients(in: root.layer, rect: frameInRoot, scale: scale)
+    let swapped = substituteGradients(in: root.backingLayer, rect: frameInRoot, scale: scale)
     let image = renderer.image { ctx in
       ctx.cgContext.translateBy(x: -frameInRoot.minX, y: -frameInRoot.minY)
-      root.layer.render(in: ctx.cgContext)
+      root.backingLayer.render(in: ctx.cgContext)
     }
     for (layer, colors, contents) in swapped {
       layer.colors = colors
       layer.contents = contents
     }
-    view.layer.isHidden = wasHidden
+    view.backingLayer.isHidden = wasHidden
     extra?.isHidden = extraWasHidden
     CATransaction.commit()
 

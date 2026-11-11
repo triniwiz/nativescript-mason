@@ -5,10 +5,15 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
-class MasonDateInput: UIView {
+#if canImport(UIKit)
+class MasonDateInput: MasonViewBase {
   internal var owner: MasonElement?
   private let locale = Locale.current
   private let order: [String]
@@ -425,3 +430,4 @@ private final class MasonDatePickerController: UIViewController, UIPopoverPresen
     return .none
   }
 }
+#endif

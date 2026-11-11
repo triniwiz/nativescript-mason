@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 29/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objc(MasonBr)
 @objcMembers
@@ -13,7 +17,7 @@ public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc 
   public let mason: NSCMason
   public var node: MasonNode
   
-  internal class FakeView: UIView {}
+  internal class FakeView: MasonViewBase {}
   
   private lazy var view: FakeView =  {
     FakeView(frame: .zero)
@@ -51,7 +55,7 @@ public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc 
 
       // Inside a TextContainer the text layout already emits a "\n" segment for
       // this Br — the node itself must not add height (matches Android).
-      if MasonViewKind.isTextContainer(self.node.parent?.view) {
+      if MasonViewKind.isTextContainer(self.node.layoutParent?.view) {
         return ret
       }
 

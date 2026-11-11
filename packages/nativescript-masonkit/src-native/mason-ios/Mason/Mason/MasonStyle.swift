@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import QuartzCore
 import FontManager
 
@@ -1196,18 +1200,18 @@ public class MasonStyle: NSObject {
     let turn = node.inlineTurn
     if count == 0 && (flags & StyleKeys.TRANSFORM_FLAG_HAS_MATRIX) == 0 {
       if turn != 0 {
-        view.layer.transform = CATransform3DIdentity
+        view.backingLayer.transform = CATransform3DIdentity
         view.transform = CGAffineTransform(rotationAngle: turn)
         return
       }
       // Only reset if currently transformed
-      if view.transform != .identity || !CATransform3DIsIdentity(view.layer.transform) {
+      if view.transform != .identity || !CATransform3DIsIdentity(view.backingLayer.transform) {
         if Thread.isMainThread {
-          view.transform = .identity; view.layer.transform = CATransform3DIdentity
+          view.transform = .identity; view.backingLayer.transform = CATransform3DIdentity
           updateShadowLayer(for: view.bounds)
         } else {
           DispatchQueue.main.async { [weak self] in
-            view.transform = .identity; view.layer.transform = CATransform3DIdentity
+            view.transform = .identity; view.backingLayer.transform = CATransform3DIdentity
             self?.updateShadowLayer(for: view.bounds)
           }
         }
@@ -1230,7 +1234,7 @@ public class MasonStyle: NSObject {
         t.m43 = CGFloat(getFloat(base + 56)); t.m44 = CGFloat(getFloat(base + 60))
         DispatchQueue.main.async { [weak self] in
           let about = self?.layerTransformAboutOrigin(t, view.bounds.size) ?? t
-          view.layer.transform = turn == 0 ? about : CATransform3DConcat(CATransform3DMakeRotation(turn, 0, 0, 1), about)
+          view.backingLayer.transform = turn == 0 ? about : CATransform3DConcat(CATransform3DMakeRotation(turn, 0, 0, 1), about)
           self?.updateShadowLayer(for: view.bounds)
         }
       } else {
@@ -3329,20 +3333,20 @@ public class MasonStyle: NSObject {
     mShadowLayer.isHidden = false
 
     guard let superview = view.superview else { return }
-    let host = superview.layer
+    let host = superview.backingLayer
 
     if !shadowLayerAdded || shadowLayerParent !== host {
       mShadowLayer.removeFromSuperlayer()
-      if let childLayer = view.layer as CALayer?, superview.layer.sublayers?.contains(childLayer) == true {
-        superview.layer.insertSublayer(mShadowLayer, below: childLayer)
+      if let childLayer = view.backingLayer as CALayer?, superview.backingLayer.sublayers?.contains(childLayer) == true {
+        superview.backingLayer.insertSublayer(mShadowLayer, below: childLayer)
       } else {
-        superview.layer.insertSublayer(mShadowLayer, at: 0)
+        superview.backingLayer.insertSublayer(mShadowLayer, at: 0)
       }
       shadowLayerAdded = true
       shadowLayerParent = host
     }
 
-    mShadowLayer.updateBounds(viewBounds: viewBounds, viewLayer: view.layer)
+    mShadowLayer.updateBounds(viewBounds: viewBounds, viewLayer: view.backingLayer)
   }
   
   /// Detach the outset-shadow layer (it lives in the superview's layer, so
@@ -4462,7 +4466,7 @@ public class MasonStyle: NSObject {
       if backdropFilter.isEmpty {
         if let current = mBackdropFilterStorage, !current.filters.isEmpty {
           current.reset()
-          node.view?.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+          node.view?.backingLayer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
         }
         return
       }
@@ -4486,7 +4490,7 @@ public class MasonStyle: NSObject {
   /// view has a size.
   func updateBackdropFrames(for bounds: CGRect) {
     guard let backdrop = mBackdropFilterStorage, !backdrop.filters.isEmpty, let view = node.view else { return }
-    if let backdropLayer = view.layer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" }) {
+    if let backdropLayer = view.backingLayer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" }) {
       if backdropLayer.frame != bounds {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -4745,8 +4749,8 @@ public class MasonStyle: NSObject {
       if(isDirty > 0 || isDirtyHigh > 0){
         let state = StateKeys(low: isDirty, high: isDirtyHigh)
         if(state.contains(.zIndex)){
-          element?.uiView.layer.zPosition = CGFloat(zIndex)
-          if zIndex < 0 { element?.uiView.superview?.layer.setNeedsDisplay() }
+          element?.uiView.backingLayer.zPosition = CGFloat(zIndex)
+          if zIndex < 0 { element?.uiView.superview?.backingLayer.setNeedsDisplay() }
         }
         if state.contains(.caretColor) {
           notifyTextStyleChanged(.caretColor)
@@ -4779,8 +4783,8 @@ public class MasonStyle: NSObject {
       
       if(isDirty > 0){
         if(state.contains(.zIndex)){
-          element?.uiView.layer.zPosition = CGFloat(zIndex)
-          if zIndex < 0 { element?.uiView.superview?.layer.setNeedsDisplay() }
+          element?.uiView.backingLayer.zPosition = CGFloat(zIndex)
+          if zIndex < 0 { element?.uiView.superview?.backingLayer.setNeedsDisplay() }
         }
       }
 

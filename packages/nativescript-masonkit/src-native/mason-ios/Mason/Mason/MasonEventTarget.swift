@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 11/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 public protocol MasonEventTarget {
   var node: MasonNode { get }
