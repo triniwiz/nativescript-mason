@@ -509,6 +509,9 @@ function climbedThisTurn(root: any): boolean {
   return !!climbedRoots?.has(root) && !!root.isLayoutRequested;
 }
 
+// Core caches one default-padding Rect per class but reads its four Java fields for every view.
+const defaultPaddings = new WeakMap<object, { top: number; right: number; bottom: number; left: number }>();
+
 let windowsInnerHTML: ((view: any, html: string) => void) | undefined;
 
 export function setWindowsInnerHTML(build: (view: any, html: string) => void) {
@@ -560,12 +563,30 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   // Core's CustomLayoutView finds the child with a WinRT call per sibling. Mason's containers remove
   // their children natively themselves, so only core's bookkeeping is kept.
   public _removeViewFromNativeVisualTree(child: any): void {
-    releaseForeignLayout(child);
     if (__WINDOWS__ || __LINUX__) {
-      child._isAddedToNativeVisualTree = false;
+      this._masonForgetNativeChild(child);
       return;
     }
+    releaseForeignLayout(child);
     super._removeViewFromNativeVisualTree(child);
+  }
+
+  _setDefaultPaddings(insets: any): void {
+    if (__ANDROID__ && insets) {
+      let paddings = defaultPaddings.get(insets);
+      if (!paddings) {
+        paddings = { top: insets.top, right: insets.right, bottom: insets.bottom, left: insets.left };
+        defaultPaddings.set(insets, paddings);
+      }
+      insets = paddings;
+    }
+    super._setDefaultPaddings(insets);
+  }
+
+  /** Core's bookkeeping for a child this container has already removed natively. */
+  _masonForgetNativeChild(child: any): void {
+    releaseForeignLayout(child);
+    child._isAddedToNativeVisualTree = false;
   }
 
   /** Mirror a plain child's CSS layout into its Mason leaf; containers call this after the native insert. */
