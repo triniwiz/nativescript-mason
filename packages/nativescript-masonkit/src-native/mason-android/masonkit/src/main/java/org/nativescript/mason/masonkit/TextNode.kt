@@ -301,13 +301,16 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
     private fun resolve(paint: TextPaint) {
       if (paint.density == density && exact > 0f) return
-      val p = TextPaint().apply {
+      val s = scratch.get()!!
+      val p = s.paint.apply {
         set(paint)
         textSize = fontSizeDip * paint.density
         this@NormalLineHeightSpan.typeface?.let { typeface = it }
       }
-      val f = p.fontMetrics
-      val i = p.fontMetricsInt
+      val f = s.metrics
+      val i = s.metricsInt
+      p.getFontMetrics(f)
+      p.getFontMetricsInt(i)
       density = paint.density
       exact = f.descent - f.ascent
       intAscent = i.ascent
@@ -341,6 +344,19 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       lineHeight: Int,
       fm: Paint.FontMetricsInt?
     ) {}
+
+    private class Scratch {
+      val paint = TextPaint()
+      val metrics = Paint.FontMetrics()
+      val metricsInt = Paint.FontMetricsInt()
+    }
+
+    private companion object {
+      // Every span reads its metrics once; a TextPaint per span was a native allocation per text build.
+      val scratch = object : ThreadLocal<Scratch>() {
+        override fun initialValue() = Scratch()
+      }
+    }
   }
 
   class RelativeLineHeightSpan(private val multiplier: Float) : LineHeightSpan {
