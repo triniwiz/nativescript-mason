@@ -3,6 +3,8 @@ import {
   CssAnimationProperty,
   InheritedCssProperty,
   backgroundColorProperty,
+  colorProperty,
+  Color,
   Style,
   ViewBase as NSViewBase,
   ShorthandProperty,
@@ -2651,13 +2653,21 @@ interface CoreLonghandHandlers {
  * while Mason's setNative parses the text. Core views keep core's converter.
  */
 function keepCssOnMasonViews(longhands: CssProperty<Style, any>[], core: CoreLonghandHandlers): void {
+  // A stylesheet value reaches every matching element, so each distinct text is parsed once and shared.
+  const lengths = new Map<string, Readonly<CssLength>>();
   for (const property of longhands) {
     property.overrideHandlers({
       name: property.name,
       cssName: property.cssLocalName,
       valueConverter(this: Style, value: string) {
-        const css = core.keywords?.get(value.trim()) ?? value;
-        return isMasonView(this) ? cssLength(css, core.converter) : core.converter(css);
+        if (!isMasonView(this)) return core.converter(core.keywords?.get(value.trim()) ?? value);
+        let length = lengths.get(value);
+        if (!length) {
+          length = Object.freeze(cssLength(core.keywords?.get(value.trim()) ?? value, core.converter));
+          if (lengths.size >= 512) lengths.clear();
+          lengths.set(value, length);
+        }
+        return length;
       },
       // Core's parse reads `10%` and `10rem` alike, so the CSS text decides.
       equalityComparer: (a, b) => (isCssLength(a) || isCssLength(b) ? (a as CssLength)?.css === (b as CssLength)?.css : core.comparer(a, b)),
@@ -2677,6 +2687,22 @@ keepCssOnMasonViews(radiusLonghands, { converter: CoreLength.parse, comparer: Co
 keepCssOnMasonViews(marginLonghands, { converter: CorePercentLength.parse, comparer: CorePercentLength.equals });
 keepCssOnMasonViews(paddingLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals });
 keepCssOnMasonViews(borderWidthLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals, keywords: BORDER_WIDTH_KEYWORDS });
+
+// Core builds a new Color per element for each color declaration; a Mason view shares one per text.
+const colors = new Map<string, Color>();
+function masonColorConverter(this: Style, value: string): Color {
+  if (!isMasonView(this)) return new Color(value);
+  let color = colors.get(value);
+  if (!color) {
+    color = new Color(value);
+    if (colors.size >= 512) colors.clear();
+    colors.set(value, color);
+  }
+  return color;
+}
+for (const property of [colorProperty, ...borderColorLonghands]) {
+  property.overrideHandlers({ name: property.name, cssName: property.cssLocalName, valueConverter: masonColorConverter });
+}
 
 /** The shorthands core registers; MasonKit builds these only to own core 9.1's parse-time split. */
 const coreShorthands: MasonShorthand[] = [

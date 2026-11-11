@@ -1200,7 +1200,24 @@ const RADIUS_KEYS = [
 
 const FAST_RADIUS_TOKEN = /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(px|dip|dppx|%)?$/;
 
+const radiusTokens = new Map<string, WindowsRadius[] | null>();
+let radiusTokensScale = NaN;
+
+/** Parsed tokens of one radius text, shared between every element that uses it: callers only read them. */
 function fastRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
+  if (scale !== radiusTokensScale || radiusTokens.size >= 512) {
+    radiusTokens.clear();
+    radiusTokensScale = scale;
+  }
+  let tokens = radiusTokens.get(part);
+  if (tokens === undefined) {
+    tokens = parseRadiusTokens(part, scale);
+    radiusTokens.set(part, tokens);
+  }
+  return tokens;
+}
+
+function parseRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
   const out: WindowsRadius[] = [];
   for (const token of part.split(/\s+/)) {
     if (!token) continue;
