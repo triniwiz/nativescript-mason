@@ -526,7 +526,20 @@ class Mason {
     }
   }
 
-  fun createViewWithSlot(context: Context): View = postSlot(createView(context))
+  fun createViewWithSlot(context: Context): View = postSlot(createView(context)).also {
+    it.node.awaitingFirstStyle = true
+    awaitingFirstStyle.add(it.node)
+  }
+
+  private val awaitingFirstStyle = ArrayList<Node>()
+
+  /** Settles views still waiting for their first style sync; a layout must see their runs. */
+  internal fun settleViewsWithoutStyle() {
+    if (inCompute || awaitingFirstStyle.isEmpty()) return
+    val pending = awaitingFirstStyle.toList()
+    awaitingFirstStyle.clear()
+    for (node in pending) node.settleInlineRuns()
+  }
 
   fun createTextViewWithSlot(context: Context, type: TextType): TextView = postSlot(createTextView(context, type))
 
