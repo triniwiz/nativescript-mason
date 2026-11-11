@@ -823,8 +823,8 @@ open class TextView @JvmOverloads constructor(
   override fun getAccessibilityClassName(): CharSequence = "android.widget.TextView"
 
   override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
-    info.text = readableText()
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
+    info.text = readableText().let { if (A11y.serviceOn(context)) it else it.toString() }
   }
 
   override fun onPopulateAccessibilityEvent(event: AccessibilityEvent) {
@@ -839,8 +839,9 @@ open class TextView @JvmOverloads constructor(
     if (readableText().toString().contains(searched.toString(), ignoreCase = true)) outViews.add(this)
   }
 
+  // ViewStructure.setText copies a Spanned (TextUtils.trimNoCopySpans) for every appeared text.
   override fun onProvideContentCaptureStructure(structure: ViewStructure, flags: Int) {
-    provideTextStructure(structure, readableText())
+    provideTextStructure(structure, readableText().toString())
   }
 
   override fun onProvideStructure(structure: ViewStructure) {

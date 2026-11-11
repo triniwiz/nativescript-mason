@@ -89,6 +89,7 @@ class Scroll @JvmOverloads constructor(
     }
     clipChildren = false
     clipToPadding = false
+    if (android.os.Build.VERSION.SDK_INT >= 30) importantForContentCapture = android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO
     setScrollChangeListner(object : TwoDScrollView.ScrollChangeListener {
       override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
         MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
@@ -144,7 +145,7 @@ class Scroll @JvmOverloads constructor(
 
   // A <summary> reads as a button that expands or collapses its details (see Details).
   override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     Details.onInitializeAccessibilityNodeInfo(this, info)
   }
 

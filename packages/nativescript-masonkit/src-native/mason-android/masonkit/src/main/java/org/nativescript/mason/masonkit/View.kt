@@ -71,6 +71,7 @@ open class View @JvmOverloads constructor(
     clipToPadding = false
 
     isChildrenDrawingOrderEnabled = false
+    if (android.os.Build.VERSION.SDK_INT >= 30) importantForContentCapture = android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO
   }
 
 
@@ -177,7 +178,7 @@ open class View @JvmOverloads constructor(
 
   // A <summary> reads as a button that expands or collapses its details (see Details).
   override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     Details.onInitializeAccessibilityNodeInfo(this, info)
   }
 
