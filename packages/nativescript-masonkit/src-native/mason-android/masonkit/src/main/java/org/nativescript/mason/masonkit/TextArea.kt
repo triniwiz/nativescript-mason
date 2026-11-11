@@ -106,7 +106,7 @@ class TextArea @JvmOverloads constructor(
       // The TextWatcher.afterTextChanged will handle node.dirty() + requestLayout()
     }
 
-  constructor(context: Context, mason: Mason) : this(context, null, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.themed(context), null, true) {
     setup(mason)
   }
 

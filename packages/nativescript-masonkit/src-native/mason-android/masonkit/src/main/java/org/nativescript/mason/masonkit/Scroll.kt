@@ -64,7 +64,7 @@ class Scroll @JvmOverloads constructor(
     return v == Overflow.Auto.value || (visibleOverflowScrolls && v == Overflow.Visible.value)
   }
 
-  constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.themed(context), null, 0, true) {
     node = mason.createNode().apply {
       view = this@Scroll
     }

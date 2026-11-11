@@ -84,6 +84,9 @@ internal class ThemelessContext private constructor(base: Context, template: and
       wrappers[context] = WeakReference(wrapper)
       return wrapper
     }
+
+    // Widgets that draw from the theme (scrollbars, text selection, pickers) may be handed a Mason view's context.
+    fun themed(context: Context): Context = if (context is ThemelessContext) context.baseContext else context
   }
 }
 
