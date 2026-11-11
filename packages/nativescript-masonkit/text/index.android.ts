@@ -43,6 +43,8 @@ export class Text extends TextBase {
   [style_];
   _inBatch = false;
   private _type: TextType;
+  /** The text native was created holding, until the first textContent setNative. */
+  private _nativeHoldsText: string | undefined;
   constructor(type: TextType = 0) {
     super();
     this._type = type;
@@ -52,68 +54,11 @@ export class Text extends TextBase {
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      let view;
-      switch (this._type) {
-        case TextType.None:
-          view = Tree.instance.createTextView(context, TextType.None as number) as never;
-          break;
-        case TextType.P:
-          view = Tree.instance.createTextView(context, TextType.P as number) as never;
-          break;
-        case TextType.Span:
-          view = Tree.instance.createTextView(context, TextType.Span as number) as never;
-          break;
-        case TextType.Code:
-          view = Tree.instance.createTextView(context, TextType.Code as number) as never;
-          break;
-        case TextType.H1:
-          view = Tree.instance.createTextView(context, TextType.H1 as number) as never;
-          break;
-        case TextType.H2:
-          view = Tree.instance.createTextView(context, TextType.H2 as number) as never;
-          break;
-        case TextType.H3:
-          view = Tree.instance.createTextView(context, TextType.H3 as number) as never;
-          break;
-        case TextType.H4:
-          view = Tree.instance.createTextView(context, TextType.H4 as number) as never;
-          break;
-        case TextType.H5:
-          view = Tree.instance.createTextView(context, TextType.H5 as number) as never;
-          break;
-        case TextType.H6:
-          view = Tree.instance.createTextView(context, TextType.H6 as number) as never;
-          break;
-        case TextType.Li:
-          view = Tree.instance.createTextView(context, TextType.Li as number) as never;
-          break;
-        case TextType.Blockquote:
-          view = Tree.instance.createTextView(context, TextType.Blockquote as number) as never;
-          break;
-        case TextType.B:
-          view = Tree.instance.createTextView(context, TextType.B as number) as never;
-          break;
-
-        case TextType.Pre:
-          view = Tree.instance.createTextView(context, TextType.Pre as number) as never;
-          break;
-        case TextType.Strong:
-          view = Tree.instance.createTextView(context, TextType.Strong as number) as never;
-          break;
-        case TextType.Em:
-          view = Tree.instance.createTextView(context, TextType.Em as number) as never;
-          break;
-        case TextType.I:
-          view = Tree.instance.createTextView(context, TextType.I as number) as never;
-          break;
-        case TextType.A:
-          view = Tree.instance.createTextView(context, TextType.A as number) as never;
-          break;
-        default:
-          view = Tree.instance.createTextView(context, TextType.None as number) as never;
-          break;
-      }
-
+      // textContent set before mount travels with the create call; its deferred setNative then has nothing to send.
+      const text = this.textContent;
+      const withText = typeof text === 'string' && text !== '' ? text : undefined;
+      const view = Tree.instance.createTextView(context, this._type as number, withText) as never;
+      this._nativeHoldsText = withText;
       this[native_] = view;
       this[slot_] = Tree.instance.lastSlot;
       return view;
@@ -139,6 +84,10 @@ export class Text extends TextBase {
   }
 
   [textContentProperty.setNative](value) {
+    const held = this._nativeHoldsText;
+    this._nativeHoldsText = undefined;
+    // Children attached since creation may have changed the native content, so only skip while there are none.
+    if (held !== undefined && value === held && this._children.length === 0) return;
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
     if (nativeView) {
       nativeView.setTextContent(value);

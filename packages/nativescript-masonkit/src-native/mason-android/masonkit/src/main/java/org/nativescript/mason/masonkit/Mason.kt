@@ -530,6 +530,10 @@ class Mason {
 
   fun createTextViewWithSlot(context: Context, type: TextType): TextView = postSlot(createTextView(context, type))
 
+  /** A text view already holding [text]: saves JavaScript a separate setTextContent call per view. */
+  fun createTextViewWithSlot(context: Context, type: TextType, text: String): TextView =
+    postSlot(createTextView(context, type).also { it.textContent = text })
+
   @JvmOverloads
   fun createListView(context: Context, isOrdered: Boolean = false): ListView {
     return ListView(context, this).apply {

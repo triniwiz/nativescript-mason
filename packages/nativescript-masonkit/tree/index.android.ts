@@ -88,7 +88,7 @@ export class Tree {
     return view;
   }
 
-  createTextView(context, type?: TextType) {
+  createTextView(context, type?: TextType, text?: string) {
     const key = type ?? TextType.None;
     let nativeType = this._textTypes[key];
     if (nativeType === undefined) {
@@ -153,7 +153,7 @@ export class Tree {
       this._textTypes[key] = nativeType;
     }
     // @ts-ignore - typings regenerate from the AAR separately.
-    const view = this.native.createTextViewWithSlot(context, nativeType);
+    const view = text ? this.native.createTextViewWithSlot(context, nativeType, text) : this.native.createTextViewWithSlot(context, nativeType);
     this._takeSlot();
     return view;
   }
