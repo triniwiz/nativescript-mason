@@ -1362,6 +1362,203 @@ mod tests {
         assert!(parent_height >= child_height - 0.001);
     }
 
+    fn inline_box_layout_in_text(nested: bool, inline_block: bool) -> (f32, f32) {
+        let mut mason = Mason::new();
+        let parent = mason.create_text_node();
+        let span = mason.create_text_node();
+        let boxed = mason.create_node();
+        let (pid, sid, bid) = (parent.id(), span.id(), boxed.id());
+
+        mason.with_style_mut(bid, |s| {
+            if inline_block {
+                s.set_display_mode(crate::style::DisplayMode::Box);
+            }
+            s.set_size(Size {
+                width: Dimension::length(60.0),
+                height: Dimension::length(30.0),
+            });
+        });
+        let text = InlineSegment::Text { flags: 0, width: 40.0, ascent: 8.0, descent: 3.0 };
+        let child = InlineSegment::InlineChild { id: Some(bid), baseline: 0.0 };
+        mason.set_segments(pid, vec![text.clone(), child]);
+        mason.set_measure(pid, Some(test_measure), std::ptr::null_mut());
+        if nested {
+            mason.set_segments(sid, vec![text]);
+            mason.set_measure(sid, Some(test_measure), std::ptr::null_mut());
+            mason.append_node(sid, &[bid]);
+            mason.append_node(pid, &[sid]);
+        } else {
+            mason.append_node(pid, &[bid]);
+        }
+        mason.compute_wh(pid, 400.0, -2.0);
+        let out = mason.layout(bid);
+        (out[3], out[4])
+    }
+
+    #[test]
+    fn sized_block_in_a_flex_item_text_keeps_its_size() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        let text = mason.create_text_node();
+        let boxed = mason.create_node();
+        let (rid, tid, bid) = (root.id(), text.id(), boxed.id());
+        mason.with_style_mut(rid, |s| {
+            s.set_display(Display::Flex);
+            s.set_flex_direction(FlexDirection::Column);
+        });
+        mason.with_style_mut(bid, |s| {
+            s.set_size(Size { width: Dimension::length(60.0), height: Dimension::length(30.0) });
+        });
+        mason.set_segments(tid, vec![
+            InlineSegment::Text { flags: 0, width: 40.0, ascent: 8.0, descent: 3.0 },
+            InlineSegment::InlineChild { id: Some(bid), baseline: 0.0 },
+        ]);
+        mason.set_measure(tid, Some(test_measure), std::ptr::null_mut());
+        mason.append_node(tid, &[bid]);
+        mason.append_node(rid, &[tid]);
+        mason.compute_wh(rid, 400.0, 300.0);
+        let out = mason.layout(bid);
+        assert_eq!((out[3], out[4]), (60.0, 30.0));
+    }
+
+    extern "C" fn wrapping_boxes_measure(
+        _data: *const c_void,
+        known_w: c_float,
+        _known_h: c_float,
+        avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
+        // Three 107-wide, 48-tall boxes: one line when they fit, else two.
+        let w = if known_w.is_nan() { avail_w } else { known_w };
+        if w.is_nan() || w <= 0.0 || w >= 321.0 {
+            MeasureOutput::make(321.0, 48.0)
+        } else {
+            MeasureOutput::make(w.min(214.0), 96.0)
+        }
+    }
+
+    #[test]
+    fn block_grows_to_a_wrapped_run_of_inline_boxes() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        let div = mason.create_node();
+        let run = mason.create_anonymous_text_node();
+        let boxes: Vec<_> = (0..3).map(|_| mason.create_node()).collect();
+        let ids: Vec<Id> = boxes.iter().map(|b| b.id()).collect();
+        for &b in &ids {
+            mason.with_style_mut(b, |s| {
+                s.set_display_mode(crate::style::DisplayMode::Box);
+                s.set_size(Size { width: Dimension::length(107.0), height: Dimension::length(48.0) });
+            });
+        }
+        mason.set_segments(
+            run.id(),
+            ids.iter().map(|&id| InlineSegment::InlineChild { id: Some(id), baseline: 0.0 }).collect(),
+        );
+        mason.set_measure(run.id(), Some(wrapping_boxes_measure), std::ptr::null_mut());
+        mason.append_node(run.id(), &ids);
+        mason.append_node(div.id(), &[run.id()]);
+        mason.append_node(root.id(), &[div.id()]);
+        mason.compute_wh(root.id(), 273.0, -2.0);
+        let run_h = mason.layout(run.id())[4];
+        let div_h = mason.layout(div.id())[4];
+        assert_eq!(run_h, 96.0, "run height");
+        assert_eq!(div_h, run_h, "div height");
+    }
+
+    #[test]
+    fn padded_or_sized_inline_text_is_an_inline_box() {
+        let mut mason = Mason::new();
+        let parent = mason.create_text_node();
+        let plain = mason.create_text_node();
+        let padded = mason.create_text_node();
+        let sized = mason.create_text_node();
+        let text = InlineSegment::Text { flags: 0, width: 20.0, ascent: 8.0, descent: 3.0 };
+        for n in [&plain, &padded, &sized] {
+            mason.set_segments(n.id(), vec![text.clone()]);
+        }
+        mason.with_style_mut(padded.id(), |s| {
+            s.set_padding(taffy::Rect {
+                left: LengthPercentage::length(4.0),
+                right: LengthPercentage::length(4.0),
+                top: LengthPercentage::length(0.0),
+                bottom: LengthPercentage::length(0.0),
+            })
+        });
+        mason.with_style_mut(sized.id(), |s| s.set_width(Dimension::length(40.0)));
+        mason.append_node(parent.id(), &[plain.id(), padded.id(), sized.id()]);
+        assert!(mason.0.is_pure_inline(plain.id()));
+        assert!(!mason.0.is_pure_inline(padded.id()));
+        assert!(!mason.0.is_pure_inline(sized.id()));
+    }
+
+    extern "C" fn two_lines_measure(
+        _data: *const c_void,
+        _known_w: c_float,
+        _known_h: c_float,
+        _avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
+        MeasureOutput::make(200.0, 40.0)
+    }
+
+    extern "C" fn line_measure(
+        _data: *const c_void,
+        _known_w: c_float,
+        _known_h: c_float,
+        _avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
+        MeasureOutput::make(0.0, 20.0)
+    }
+
+    #[test]
+    fn text_run_with_a_line_break_is_measured_as_text() {
+        let mut mason = Mason::new();
+        let root = mason.create_node();
+        let run = mason.create_anonymous_text_node();
+        let br = mason.create_line_break_node();
+        mason.set_segments(
+            run.id(),
+            vec![
+                InlineSegment::Text { flags: 0, width: 50.0, ascent: 8.0, descent: 3.0 },
+                InlineSegment::LineBreak,
+                InlineSegment::Text { flags: 0, width: 150.0, ascent: 8.0, descent: 3.0 },
+            ],
+        );
+        mason.with_style_mut(run.id(), |s| {
+            s.set_display(Display::Block);
+            s.set_display_mode(crate::style::DisplayMode::None);
+        });
+        mason.set_measure(run.id(), Some(two_lines_measure), std::ptr::null_mut());
+        // A break measured as its own line, as a native <br> outside text does.
+        mason.set_measure(br.id(), Some(line_measure), std::ptr::null_mut());
+        mason.append_node(run.id(), &[br.id()]);
+        mason.append_node(root.id(), &[run.id()]);
+        mason.compute_wh(root.id(), 400.0, 300.0);
+        assert!(mason.layout(run.id())[4] >= 22.0, "run height {}", mason.layout(run.id())[4]);
+    }
+
+    #[test]
+    fn inline_block_in_text_keeps_its_size() {
+        assert_eq!(inline_box_layout_in_text(false, true), (60.0, 30.0));
+    }
+
+    #[test]
+    fn inline_block_in_a_flattened_span_keeps_its_size() {
+        assert_eq!(inline_box_layout_in_text(true, true), (60.0, 30.0));
+    }
+
+    #[test]
+    fn sized_block_in_text_keeps_its_size() {
+        assert_eq!(inline_box_layout_in_text(false, false), (60.0, 30.0));
+    }
+
+    #[test]
+    fn sized_block_in_a_flattened_span_keeps_its_size() {
+        assert_eq!(inline_box_layout_in_text(true, false), (60.0, 30.0));
+    }
+
     #[test]
     fn root_height_with_maxcontent() {
         // simulate the Android/IOS wrapper mapping of an unconstrained spec
