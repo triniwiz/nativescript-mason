@@ -33,11 +33,20 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
-import org.nativescript.mason.masonkit.toCSSColorInt
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+
+private val RGBA = Regex("""rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)""")
+
+// Hex or rgb()/rgba() to an ARGB int.
+private fun String.toCSSColorInt(): Int {
+  val m = RGBA.matchEntire(trim()) ?: return android.graphics.Color.parseColor(this)
+  val (r, g, b) = m.destructured
+  val a = ((m.groupValues[4].ifEmpty { "1" }.toFloat()) * 255).toInt().coerceIn(0, 255)
+  return android.graphics.Color.argb(a, r.toInt(), g.toInt(), b.toInt())
+}
 
 class WebActivity : AppCompatActivity() {
   val mason = Mason.shared

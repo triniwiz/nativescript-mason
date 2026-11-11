@@ -395,7 +395,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       let card = mason.createView()
       card.display = .Flex
       card.flexDirection = .Column
-      card.style.borderRadius = "\(toPx(16))px"
+      card.style.borderRadius = "16px"
       card.style.overflow = MasonPoint(uniform: .Clip)
       card.style.setSizeHeight(toPx(200), 1)
       card.style.position = .Relative
@@ -461,7 +461,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     featureCard.display = .Flex
     featureCard.flexDirection = .Column
     featureCard.style.background = "#0F172A"
-    featureCard.style.borderRadius = "\(toPx(20))px"
+    featureCard.style.borderRadius = "20px"
     featureCard.style.padding = MasonRect(uniform: .Points(toPx(24)))
 
     let featureLabel = mason.createTextView(type: .Span)
@@ -537,7 +537,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       testimonialCard.display = .Flex
       testimonialCard.flexDirection = .Row
       testimonialCard.style.background = "#FFFFFF"
-      testimonialCard.style.borderRadius = "\(toPx(16))px"
+      testimonialCard.style.borderRadius = "16px"
       testimonialCard.style.padding = MasonRect(uniform: .Points(toPx(16)))
       testimonialCard.style.marginBottom = .Points(toPx(12))
       testimonialCard.style.border = "1px solid #E5E7EB"
@@ -653,7 +653,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     for (imageUrl, height, column) in galleryImages {
       let galleryItem = mason.createView()
       galleryItem.style.height = .Points(toPx(Float(height)))
-      galleryItem.style.borderRadius = "\(toPx(12))px"
+      galleryItem.style.borderRadius = "12px"
       galleryItem.style.overflow = MasonPoint(uniform: .Clip)
       galleryItem.style.position = .Relative
 
@@ -689,7 +689,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       .Points(toPx(24))
     )
     ctaSection.style.background = "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)"
-    ctaSection.style.borderRadius = "\(toPx(20))px"
+    ctaSection.style.borderRadius = "20px"
 
     let ctaTitle = mason.createTextView(type: .H2)
     ctaTitle.append(text: "Start Your Journey")
@@ -712,7 +712,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     ctaButton.style.fontWeight = "600"
     ctaButton.style.setColor(css: "#3B82F6")
     ctaButton.style.background = "#FFFFFF"
-    ctaButton.style.borderRadius = "\(toPx(12))px"
+    ctaButton.style.borderRadius = "12px"
     ctaButton.style.border = "0"
     ctaButton.style.padding = MasonRect(
       .Points(toPx(14)),
@@ -2323,7 +2323,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       style.size = MasonSize(.Auto, .Points(toPx(140)))
       style.backgroundColor = self.argb("#EEF2FF")
       style.border = "2 solid #6366F1"
-      style.borderRadius = "\(toPx(24))px"
+      style.borderRadius = "24px"
       style.cornerShape = "round"
     }
     let circLabel = mason.createTextView()
@@ -2345,7 +2345,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       style.size = MasonSize(.Auto, .Points(toPx(140)))
       style.backgroundColor = self.argb("#F0FDF4")
       style.border = "2 solid #22C55E"
-      style.borderRadius = "\(toPx(24))px"
+      style.borderRadius = "24px"
       style.cornerShape = "squircle"
     }
     let sqLabel = mason.createTextView()
@@ -2383,7 +2383,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         style.size = MasonSize(.Auto, .Points(toPx(100)))
         style.backgroundColor = self.argb(sample.bg)
         style.border = "1 solid \(sample.border)"
-        style.borderRadius = "\(toPx(28))px"
+        style.borderRadius = "28px"
         style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
         style.cornerShape = sample.shape
       }
@@ -2409,7 +2409,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       style.size = MasonSize(.Auto, .Points(toPx(160)))
       style.backgroundColor = self.argb("#1E293B")
       style.border = "2 solid #475569"
-      style.borderRadius = "\(toPx(32))px"
+      style.borderRadius = "32px"
       style.margin = MasonRect(.Zero, .Zero, .Points(toPx(10)), .Zero)
       // TL: super-squircle, TR: circular, BR: squircle, BL: scoop
       style.cornerShape = "superellipse(3) round squircle scoop"
@@ -2445,7 +2445,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       icon.configure { style in
         style.size = MasonSize(.Points(toPx(64)), .Points(toPx(64)))
         style.backgroundColor = self.argb(color)
-        style.borderRadius = "\(toPx(16))px"
+        style.borderRadius = "16px"
         style.cornerShape = "squircle"
       }
       grid.append(icon)
@@ -2469,7 +2469,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         style.size = MasonSize(.Auto, .Auto)
         style.backgroundColor = self.argb(b.bg)
         style.border = "1 solid \(b.border)"
-        style.borderRadius = "\(toPx(14))px"
+        style.borderRadius = "14px"
         style.cornerShape = "squircle"
         style.padding = MasonRect(
           .Points(toPx(14)), .Points(toPx(18)),
