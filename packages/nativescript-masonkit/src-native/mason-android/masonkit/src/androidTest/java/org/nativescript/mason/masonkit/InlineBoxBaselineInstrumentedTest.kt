@@ -92,4 +92,19 @@ class InlineBoxBaselineInstrumentedTest {
     Assert.assertTrue("the inline div is laid out", inner.node.computedWidth > 0 && inner.node.computedHeight > 0)
     Assert.assertTrue("the link inside it is laid out", link.node.computedWidth > 0 && link.node.computedHeight > 0)
   }
+
+  @Test
+  fun aWidthAFloatErrorUnderTheMeasuredOneKeepsTheBaseline() {
+    val key = Mason().createTextView(context, TextType.Span).apply { append("Ctrl") }
+    val maxContent = Float.fromBits(MeasureOutput.MAX_BITS)
+    val size = key.measure(Float.NaN, Float.NaN, maxContent, maxContent)
+    val width = MeasureOutput.getWidth(size)
+    val height = MeasureOutput.getHeight(size)
+
+    val under = MeasureOutput.getWidth(key.measure(width - 0.0001f, height, MeasureOutput.BASELINE_QUERY, 0f))
+    val exact = MeasureOutput.getWidth(key.measure(width, height, MeasureOutput.BASELINE_QUERY, 0f))
+
+    Assert.assertTrue("the label has a baseline below its top ($exact)", exact > 0f)
+    Assert.assertEquals("a width of $width less a float error gives the one-line baseline", exact, under, 0.5f)
+  }
 }

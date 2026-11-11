@@ -315,7 +315,8 @@ open class TextView @JvmOverloads constructor(
   /** The last line's baseline from the top of a [width] by [height] content box, where it is drawn. */
   private fun baselineFromTop(width: Float, height: Float): Float {
     if (engine.isVerticalWritingMode) return Float.NaN
-    val contentWidth = width.toInt()
+    // Same rounding as the measure, so a width a float error under it reuses that layout.
+    val contentWidth = ceilConstraint(width)
     if (floatAwareStaticLayout == null &&
       (cachedStaticLayout == null || (contentWidth > 0 && !cachedStaticLayoutFits(contentWidth)))
     ) {

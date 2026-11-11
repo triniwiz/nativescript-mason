@@ -107,7 +107,7 @@ private fun hasSoftWrapOpportunity(text: CharSequence, softHyphens: Boolean = fa
 private fun ceilFine(v: Float): Float = ceil(v * 64f - 0.01f) / 64f
 
 // A wrap width that a fractional box width fits in; flooring it re-wraps the last word.
-private fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
+internal fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
 
 /**
  * Compute the widest segment between soft wrap opportunities in [text] without
