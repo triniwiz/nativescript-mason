@@ -769,7 +769,7 @@ class Input @JvmOverloads constructor(
   }
 
   @JvmOverloads
-  constructor(context: Context, mason: Mason, type: Type = Type.Text) : this(context, null, true) {
+  constructor(context: Context, mason: Mason, type: Type = Type.Text) : this(ThemelessContext.themed(context), null, true) {
     setup(mason, type)
   }
 
