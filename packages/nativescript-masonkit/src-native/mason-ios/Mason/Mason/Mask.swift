@@ -7,7 +7,11 @@
 //  into the one `layer.mask`.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 private let maskColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
@@ -547,30 +551,30 @@ extension MasonStyle {
     defer { CATransaction.commit() }
 
     guard mask.isActive else {
-      if let installed = view.layer.mask as? MasonMaskLayer {
+      if let installed = view.backingLayer.mask as? MasonMaskLayer {
         // Hand any overflow clip back to the plain shape mask layout would have set.
         if let clip = installed.overflowClip {
           let shape = CAShapeLayer()
           shape.path = clip
           shape.frame = view.bounds
-          view.layer.mask = shape
+          view.backingLayer.mask = shape
         } else {
-          view.layer.mask = nil
+          view.backingLayer.mask = nil
         }
       }
       return
     }
 
     let maskLayer: MasonMaskLayer
-    if let installed = view.layer.mask as? MasonMaskLayer {
+    if let installed = view.backingLayer.mask as? MasonMaskLayer {
       maskLayer = installed
     } else {
       maskLayer = MasonMaskLayer()
       // Layout's overflow clip shape is box-local (its frame is the bounds); keep clipping by it.
-      if let shape = view.layer.mask as? CAShapeLayer, let path = shape.path {
+      if let shape = view.backingLayer.mask as? CAShapeLayer, let path = shape.path {
         maskLayer.setOverflowClip(path)
       }
-      view.layer.mask = maskLayer
+      view.backingLayer.mask = maskLayer
     }
     maskLayer.owner = mask
 
@@ -615,7 +619,7 @@ extension MasonStyle {
   /// Layout's overflow clip, routed into the CSS mask while one owns `layer.mask`.
   /// Returns false when there is no CSS mask and the caller should set its shape mask.
   internal static func routeOverflowClip(_ view: UIView, _ path: CGPath?) -> Bool {
-    guard let maskLayer = view.layer.mask as? MasonMaskLayer else { return false }
+    guard let maskLayer = view.backingLayer.mask as? MasonMaskLayer else { return false }
     maskLayer.setOverflowClip(path)
     return true
   }

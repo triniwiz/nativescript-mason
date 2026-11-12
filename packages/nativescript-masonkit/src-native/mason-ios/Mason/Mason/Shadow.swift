@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 21/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 private let SPLIT_REGEX = try! NSRegularExpression(pattern: "\\s+")
 
@@ -32,7 +36,7 @@ struct BoxShadow: Hashable {
     hasher.combine(inset)
     // Hash color by its RGBA components
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-    color.getRed(&r, green: &g, blue: &b, alpha: &a)
+    color.getRGBA(&r, &g, &b, &a)
     hasher.combine(r)
     hasher.combine(g)
     hasher.combine(b)
@@ -42,8 +46,8 @@ struct BoxShadow: Hashable {
   static func == (lhs: BoxShadow, rhs: BoxShadow) -> Bool {
     var lr: CGFloat = 0, lg: CGFloat = 0, lb: CGFloat = 0, la: CGFloat = 0
     var rr: CGFloat = 0, rg: CGFloat = 0, rb: CGFloat = 0, ra: CGFloat = 0
-    lhs.color.getRed(&lr, green: &lg, blue: &lb, alpha: &la)
-    rhs.color.getRed(&rr, green: &rg, blue: &rb, alpha: &ra)
+    lhs.color.getRGBA(&lr, &lg, &lb, &la)
+    rhs.color.getRGBA(&rr, &rg, &rb, &ra)
     return lhs.offsetX == rhs.offsetX &&
            lhs.offsetY == rhs.offsetY &&
            lhs.blurRadius == rhs.blurRadius &&

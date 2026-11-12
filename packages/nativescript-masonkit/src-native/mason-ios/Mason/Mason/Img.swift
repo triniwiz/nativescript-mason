@@ -4,7 +4,11 @@
 //
 //  Created by Osei Fortune on 07/05/2025.
 //
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 @_implementationOnly import SDWebImage
 
 @objc(MasonLoadingState)
@@ -298,7 +302,7 @@ private let maxImgSvgRasterPx: CGFloat = 4096
 
 @objcMembers
 @objc(MasonImg)
-public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
+public class Img: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObjc {
   
   public let node: MasonNode
   public let mason: NSCMason

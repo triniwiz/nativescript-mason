@@ -1243,8 +1243,9 @@ impl Tree {
                     let mode = style.display_mode();
                     let inline_or_box_inline =
                         matches!(mode, DisplayMode::Inline | DisplayMode::Box);
-                    // Fix: Check for anonymous inline blocks too
-                    let is_inline = style.force_inline() || inline_or_box_inline;
+                    // Anonymous inline blocks and <br> breaks are inline content.
+                    let is_inline =
+                        style.force_inline() || inline_or_box_inline || child.is_line_container();
 
                     if is_inline {
                         has_inline = true;

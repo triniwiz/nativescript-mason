@@ -190,16 +190,15 @@ extension MasonTextNode {
         // Apply whitespace processing
       let whiteSpace = container.node.style.resolvedWhiteSpace
         switch whiteSpace {
-        case .Normal:
-            processed = normalizeNewlines(processed)
+        case .Normal, .NoWrap:
+            // A line break is collapsible white space here; runs merge when the text is composed.
+            processed = normalizeNewlines(processed).replacingOccurrences(of: "\n", with: " ")
         case .Pre:
             processed = normalizeNewlines(processed)
         case .PreWrap:
             processed = normalizeNewlines(processed)
         case .PreLine:
             processed = processPreLine(processed, treatNBSPAsSpace: false)
-        case .NoWrap:
-            processed = normalizeNewlines(processed)
         case .BreakSpaces:
             // Spaces are preserved as in pre-wrap; break-spaces only differs in where lines may wrap.
             processed = normalizeNewlines(processed)

@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 02/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 enum DrawState: BitwiseCopyable {
   case idle
@@ -33,8 +37,10 @@ internal func inlineBoxSize(_ node: MasonNode) -> CGSize {
   let scale = CGFloat(NSCMason.scale)
   let layout = node.computedLayout
   let laidOut = !layout.width.isNaN && !layout.height.isNaN && (layout.width > 0 || layout.height > 0)
-  let width = laidOut ? CGFloat(layout.width) : CGFloat(node.cachedWidth)
-  let height = laidOut ? CGFloat(layout.height) : CGFloat(node.cachedHeight)
+  let reported = node.reportedSize
+  let fallback = reported != .zero ? reported : CGSize(width: node.cachedWidth, height: node.cachedHeight)
+  let width = laidOut ? CGFloat(layout.width) : fallback.width
+  let height = laidOut ? CGFloat(layout.height) : fallback.height
   return CGSize(width: width / scale, height: height / scale)
 }
 
@@ -189,16 +195,16 @@ public class TextEngine: NSObject {
 
     func add(_ node: MasonNode?, _ label: String, _ traits: UIAccessibilityTraits, _ rect: CGRect) {
       let frame = rect.applying(drawnTransform)
-      if let last = elements.last as? InlineAccessibilityElement, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
-        last.accessibilityLabel = (last.accessibilityLabel ?? "") + label
-        last.accessibilityFrameInContainerSpace = last.accessibilityFrameInContainerSpace.union(frame)
+      if let last = elements.last as? InlineAccessibilityElement, last.node === node, last.traits == traits, node != nil || traits == .staticText {
+        last.label += label
+        last.frameInContainer = last.frameInContainer.union(frame)
         return
       }
-      let element = InlineAccessibilityElement(accessibilityContainer: view)
+      let element = InlineAccessibilityElement(container: view)
       element.node = node
-      element.accessibilityLabel = label
-      element.accessibilityTraits = traits
-      element.accessibilityFrameInContainerSpace = frame
+      element.label = label
+      element.traits = traits
+      element.frameInContainer = frame
       elements.append(element)
     }
 
@@ -958,7 +964,11 @@ public class TextEngine: NSObject {
 
   /// `style` as a CTParagraphStyle whose maximum line spacing is its own line spacing.
   private static func coreTextStyle(_ style: NSParagraphStyle) -> CTParagraphStyle {
+#if canImport(UIKit)
     var alignment = CTTextAlignment(style.alignment)
+#else
+    var alignment = CTTextAlignment(rawValue: UInt8(style.alignment.rawValue)) ?? .natural
+#endif
     var lineBreak = CTLineBreakMode(rawValue: UInt8(style.lineBreakMode.rawValue)) ?? .byWordWrapping
     var direction = CTWritingDirection(rawValue: Int8(style.baseWritingDirection.rawValue)) ?? .natural
     var floats: [CGFloat] = [
@@ -1308,7 +1318,12 @@ public class TextEngine: NSObject {
     let hasBackgroundImage: Bool = {
       let bgString = container.node.style.background.trimmingCharacters(in: .whitespacesAndNewlines)
       if !bgString.isEmpty { return true }
-      if let alpha = container.node.view?.backgroundColor?.cgColor.alpha, alpha > 0 { return true }
+#if canImport(UIKit)
+      let viewBackground = container.node.view?.backgroundColor
+#else
+      let viewBackground = (container.node.view as? MasonViewBase)?.backgroundColor
+#endif
+      if let alpha = viewBackground?.cgColor.alpha, alpha > 0 { return true }
       return false
     }()
     let hasBackground = hasBackgroundImage || container.node.style.backgroundColor != 0
@@ -2476,7 +2491,7 @@ public class TextEngine: NSObject {
     defer { isBuilding = false }
     
     // build `composed` from child fragments using HTML-like whitespace collapsing
-    // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
+    // Text nodes already folded collapsible line breaks into spaces; a "\n" left is a <br> or pre-line.
     let wsSet = TextEngine.collapsibleWhitespace
     // pre, pre-wrap and break-spaces keep every space; only their wrapping differs. white-space
     // inherits, so a span with no value of its own follows its <p>.
@@ -2945,8 +2960,28 @@ final class TextLayoutCache {
 
 
 /// An accessibility element for a piece of a text view: plain text, a link or an inline box.
+#if canImport(UIKit)
 final class InlineAccessibilityElement: UIAccessibilityElement {
   weak var node: MasonNode?
+
+  init(container: MasonText) {
+    super.init(accessibilityContainer: container)
+  }
+
+  var label: String {
+    get { accessibilityLabel ?? "" }
+    set { accessibilityLabel = newValue }
+  }
+
+  var traits: UIAccessibilityTraits {
+    get { accessibilityTraits }
+    set { accessibilityTraits = newValue }
+  }
+
+  var frameInContainer: CGRect {
+    get { accessibilityFrameInContainerSpace }
+    set { accessibilityFrameInContainerSpace = newValue }
+  }
 
   override func accessibilityActivate() -> Bool {
     guard let node = node, let text = accessibilityContainer as? MasonText else { return false }
@@ -2955,6 +2990,39 @@ final class InlineAccessibilityElement: UIAccessibilityElement {
     return true
   }
 }
+#else
+final class InlineAccessibilityElement: NSAccessibilityElement {
+  weak var node: MasonNode?
+  private weak var container: MasonText?
+
+  init(container: MasonText) {
+    self.container = container
+    super.init()
+    setAccessibilityParent(container)
+  }
+
+  var label: String {
+    get { accessibilityLabel() ?? "" }
+    set { setAccessibilityLabel(newValue) }
+  }
+
+  var traits: UIAccessibilityTraits = .staticText {
+    didSet { setAccessibilityRole(traits.role) }
+  }
+
+  var frameInContainer: CGRect {
+    get { accessibilityFrameInParentSpace() }
+    set { setAccessibilityFrameInParentSpace(newValue) }
+  }
+
+  override func accessibilityPerformPress() -> Bool {
+    guard let node = node, let text = container else { return false }
+    let frame = frameInContainer
+    text.dispatchInlineClick(node, at: CGPoint(x: frame.midX, y: frame.midY))
+    return true
+  }
+}
+#endif
 
 /// A weak reference to the element that produced a range of flattened text. Equal when it
 /// names the same node, so rebuilt strings still match layout caches.

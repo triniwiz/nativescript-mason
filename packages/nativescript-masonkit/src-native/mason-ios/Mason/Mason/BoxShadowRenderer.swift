@@ -5,7 +5,11 @@
 //  CSS box-shadow rendering for iOS using Core Graphics
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Renders CSS box-shadow effects using Core Graphics
 class BoxShadowRenderer {

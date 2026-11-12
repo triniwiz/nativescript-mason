@@ -7,28 +7,30 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
-		A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */; };
-		F1A7C0DE0000000000000A01 /* LayerPaintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */; };
-		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
-		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
+		0AE3F6404DEC1D298257A893 /* MasonPositioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3566126DEDA2AF8CE957357F /* MasonPositioning.swift */; };
+		1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */; };
+		1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */; };
+		4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */; };
 		5A7E0C1DB0A15F6E00C0FE01 /* SvgParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */; };
-		5A7E0C1DB0A15F6E00C0FE11 /* SvgText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */; };
 		5A7E0C1DB0A15F6E00C0FE03 /* SvgParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */; };
+		5A7E0C1DB0A15F6E00C0FE11 /* SvgText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */; };
+		6D1F0A7E2B5C4E9100AA1101 /* InputAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */; };
 		7C3A9E51D2B84F06000A5C01 /* Mask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C02 /* Mask.swift */; };
 		7C3A9E51D2B84F06000A5C03 /* MaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */; };
+		7E1A2B3C4D5E6F7081920A02 /* TextIndentLineClampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1A2B3C4D5E6F7081920A01 /* TextIndentLineClampTests.swift */; };
+		7E1A2B3C4D5E6F7081920B02 /* TextOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1A2B3C4D5E6F7081920B01 /* TextOrientationTests.swift */; };
 		8D4B1F62E3C95A17000B6D01 /* ClipPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */; };
 		8D4B1F62E3C95A17000B6D03 /* NineSlice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */; };
 		8D4B1F62E3C95A17000B6D05 /* ClipPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D06 /* ClipPathTests.swift */; };
 		8D4B1F62E3C95A17000B6D07 /* NineSliceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B1F62E3C95A17000B6D08 /* NineSliceTests.swift */; };
-		6D1F0A7E2B5C4E9100AA1101 /* InputAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */; };
-		4DC21EC3531201553DA17260 /* WritableStyleValuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */; };
-		7E1A2B3C4D5E6F7081920A02 /* TextIndentLineClampTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1A2B3C4D5E6F7081920A01 /* TextIndentLineClampTests.swift */; };
-		7E1A2B3C4D5E6F7081920B02 /* TextOrientationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1A2B3C4D5E6F7081920B01 /* TextOrientationTests.swift */; };
-		1B0E7A11C4F2D6E8A9B3C501 /* InlineBoxAfterTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */; };
-		1AF2FF69B11149D230637010 /* ApplyToViewPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */; };
-		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
-		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A1B2C3D4E5F60001AABBCC01 /* SuperellipseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */; };
+		A1B2C3D4E5F60001AABBCD01 /* LengthScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */; };
+		A1B2C3D4E5F60001AABBCD03 /* BorderBufferSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */; };
+		A1B2C3D4E5F60001AABBCD05 /* AuthorChildrenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */; };
+		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; platformFilters = (ios, maccatalyst, macos, ); };
+		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; platformFilters = (ios, maccatalyst, macos, ); settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B4D8E1F2A3C60011AABBCD11 /* CoreLayoutInteropTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */; };
+		C0FFEE5C0011AABBCC000002 /* ScrollTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE5C0011AABBCC000001 /* ScrollTests.swift */; };
 		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
 		F10A1B122F02684500888DDD /* Br.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10A1B112F02684200888DDD /* Br.swift */; };
 		F11B22282FE5F757009B961E /* SDWebImage in Frameworks */ = {isa = PBXBuildFile; productRef = F11B22272FE5F757009B961E /* SDWebImage */; };
@@ -42,15 +44,12 @@
 		F155B4D82F0F34D7004419BF /* MasonTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155B4D72F0F34D1004419BF /* MasonTextInput.swift */; };
 		F16270A12F14901800ABE5FF /* MasonGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */; };
 		F16270A32F14996B00ABE5FF /* MasonEventTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16270A22F14996800ABE5FF /* MasonEventTarget.swift */; };
-		F1D37A012F2B000100DE7A11 /* Details.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1D37A002F2B000100DE7A11 /* Details.swift */; };
 		F175AB1B2F683EFD00465812 /* BugViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F175AB1A2F683EFD00465812 /* BugViewController.swift */; };
 		F17A6C7F2F6DBF0F0009E643 /* MasonTextArea.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17A6C7E2F6DBF0A0009E643 /* MasonTextArea.swift */; };
 		F17DD8942F67D6DC004ECEF6 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
-		C0FFEE5C0011AABBCC000002 /* ScrollTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE5C0011AABBCC000001 /* ScrollTests.swift */; };
-		B4D8E1F2A3C60011AABBCD11 /* CoreLayoutInteropTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */; };
 		F184839D293534D800EC35F4 /* Mason.h in Headers */ = {isa = PBXBuildFile; fileRef = F184838F293534D800EC35F4 /* Mason.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F18483AD2935351200EC35F4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AC2935351200EC35F4 /* AppDelegate.swift */; };
 		F18483AF2935351200EC35F4 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483AE2935351200EC35F4 /* SceneDelegate.swift */; };
@@ -74,12 +73,14 @@
 		F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18E99122DCB73F80062B4F7 /* Img.swift */; };
 		F1903AC12F22055D00917254 /* MasonList.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1903AC02F22051D00917254 /* MasonList.swift */; };
 		F1903AC32F22116300917254 /* MasonLi.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1903AC22F22115D00917254 /* MasonLi.swift */; };
+		F1A7C0DE0000000000000A01 /* LayerPaintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */; };
 		F1BEB7442F0F91C600FDFE3F /* MasonCheckboxInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BEB7432F0F91C000FDFE3F /* MasonCheckboxInput.swift */; };
 		F1BEB7462F0F920600FDFE3F /* MasonRadioInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BEB7452F0F91F600FDFE3F /* MasonRadioInput.swift */; };
 		F1BEB7482F0F933600FDFE3F /* MasonRangeInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BEB7472F0F933100FDFE3F /* MasonRangeInput.swift */; };
 		F1BEB74A2F0F93F400FDFE3F /* MasonDateInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BEB7492F0F93E800FDFE3F /* MasonDateInput.swift */; };
 		F1BEB74C2F0F9A0600FDFE3F /* MasonFileInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BEB74B2F0F99FF00FDFE3F /* MasonFileInput.swift */; };
 		F1C3CDBB2FDEB7BB006B9F6C /* FontManager in Frameworks */ = {isa = PBXBuildFile; productRef = F1C3CDBA2FDEB7BB006B9F6C /* FontManager */; };
+		F1D37A012F2B000100DE7A11 /* Details.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1D37A002F2B000100DE7A11 /* Details.swift */; };
 		F1DE08992EBC1199002870F6 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1DE08982EBC1195002870F6 /* Constants.swift */; };
 		F1E4F95229622AD60091913B /* MasonRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95129622AD60091913B /* MasonRect.swift */; };
 		F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95329622ADF0091913B /* MasonSize.swift */; };
@@ -96,7 +97,6 @@
 		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
 		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
 		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
-		0AE3F6404DEC1D298257A893 /* MasonPositioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3566126DEDA2AF8CE957357F /* MasonPositioning.swift */; };
 		F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */; };
 		F1F29C5A2EF8587600324A68 /* Shadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F29C592EF8587300324A68 /* Shadow.swift */; };
 		F1F4F1012F0F7F5400FBA616 /* MasonPasswordInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F4F1002F0F7F4C00FBA616 /* MasonPasswordInput.swift */; };
@@ -157,26 +157,28 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthScanTests.swift; sourceTree = "<group>"; };
-		F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPaintTests.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
+		1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineBoxAfterTextTests.swift; sourceTree = "<group>"; };
+		3566126DEDA2AF8CE957357F /* MasonPositioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPositioning.swift; sourceTree = "<group>"; };
 		5A7E0C1DB0A15F6E00C0FE02 /* SvgParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParser.swift; sourceTree = "<group>"; };
-		5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgText.swift; sourceTree = "<group>"; };
 		5A7E0C1DB0A15F6E00C0FE04 /* SvgParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgParserTests.swift; sourceTree = "<group>"; };
+		5A7E0C1DB0A15F6E00C0FE12 /* SvgText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SvgText.swift; sourceTree = "<group>"; };
+		6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputAppearanceTests.swift; sourceTree = "<group>"; };
 		7C3A9E51D2B84F06000A5C02 /* Mask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mask.swift; sourceTree = "<group>"; };
 		7C3A9E51D2B84F06000A5C04 /* MaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskTests.swift; sourceTree = "<group>"; };
+		7E1A2B3C4D5E6F7081920A01 /* TextIndentLineClampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextIndentLineClampTests.swift; sourceTree = "<group>"; };
+		7E1A2B3C4D5E6F7081920B01 /* TextOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOrientationTests.swift; sourceTree = "<group>"; };
 		8D4B1F62E3C95A17000B6D02 /* ClipPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPath.swift; sourceTree = "<group>"; };
 		8D4B1F62E3C95A17000B6D04 /* NineSlice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineSlice.swift; sourceTree = "<group>"; };
 		8D4B1F62E3C95A17000B6D06 /* ClipPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPathTests.swift; sourceTree = "<group>"; };
 		8D4B1F62E3C95A17000B6D08 /* NineSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NineSliceTests.swift; sourceTree = "<group>"; };
-		6D1F0A7E2B5C4E9100AA1102 /* InputAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputAppearanceTests.swift; sourceTree = "<group>"; };
-		B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritableStyleValuesTests.swift; sourceTree = "<group>"; };
-		7E1A2B3C4D5E6F7081920A01 /* TextIndentLineClampTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextIndentLineClampTests.swift; sourceTree = "<group>"; };
-		7E1A2B3C4D5E6F7081920B01 /* TextOrientationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOrientationTests.swift; sourceTree = "<group>"; };
-		1B0E7A11C4F2D6E8A9B3C502 /* InlineBoxAfterTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineBoxAfterTextTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60001AABBCC02 /* SuperellipseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperellipseTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60001AABBCD02 /* LengthScanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthScanTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60001AABBCD04 /* BorderBufferSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderBufferSyncTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60001AABBCD06 /* AuthorChildrenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorChildrenTests.swift; sourceTree = "<group>"; };
 		AD5459FF307D3F16D85FCF73 /* ApplyToViewPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyToViewPerfTests.swift; sourceTree = "<group>"; };
+		B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLayoutInteropTests.swift; sourceTree = "<group>"; };
+		B55F84D7B17D9CB15F6971C6 /* WritableStyleValuesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritableStyleValuesTests.swift; sourceTree = "<group>"; };
+		C0FFEE5C0011AABBCC000001 /* ScrollTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollTests.swift; sourceTree = "<group>"; };
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
 		F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShadowRenderer.swift; sourceTree = "<group>"; };
@@ -189,7 +191,6 @@
 		F155B4D72F0F34D1004419BF /* MasonTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTextInput.swift; sourceTree = "<group>"; };
 		F16270A02F14901300ABE5FF /* MasonGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonGestureRecognizer.swift; sourceTree = "<group>"; };
 		F16270A22F14996800ABE5FF /* MasonEventTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonEventTarget.swift; sourceTree = "<group>"; };
-		F1D37A002F2B000100DE7A11 /* Details.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Details.swift; sourceTree = "<group>"; };
 		F175AB1A2F683EFD00465812 /* BugViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BugViewController.swift; sourceTree = "<group>"; };
 		F17A6C7E2F6DBF0A0009E643 /* MasonTextArea.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTextArea.swift; sourceTree = "<group>"; };
 		F17DD8932F67D6DC004ECEF6 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
@@ -198,8 +199,6 @@
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
 		F1848396293534D800EC35F4 /* MasonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MasonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184839B293534D800EC35F4 /* MasonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonTests.swift; sourceTree = "<group>"; };
-		C0FFEE5C0011AABBCC000001 /* ScrollTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollTests.swift; sourceTree = "<group>"; };
-		B4D8E1F2A3C60011AABBCD10 /* CoreLayoutInteropTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLayoutInteropTests.swift; sourceTree = "<group>"; };
 		F18483AA2935351200EC35F4 /* MasonDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MasonDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F18483AC2935351200EC35F4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F18483AE2935351200EC35F4 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -227,11 +226,13 @@
 		F18E99142DCB95F80062B4F7 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.1.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		F1903AC02F22051D00917254 /* MasonList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonList.swift; sourceTree = "<group>"; };
 		F1903AC22F22115D00917254 /* MasonLi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLi.swift; sourceTree = "<group>"; };
+		F1A7C0DE0000000000000A02 /* LayerPaintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPaintTests.swift; sourceTree = "<group>"; };
 		F1BEB7432F0F91C000FDFE3F /* MasonCheckboxInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonCheckboxInput.swift; sourceTree = "<group>"; };
 		F1BEB7452F0F91F600FDFE3F /* MasonRadioInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRadioInput.swift; sourceTree = "<group>"; };
 		F1BEB7472F0F933100FDFE3F /* MasonRangeInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRangeInput.swift; sourceTree = "<group>"; };
 		F1BEB7492F0F93E800FDFE3F /* MasonDateInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonDateInput.swift; sourceTree = "<group>"; };
 		F1BEB74B2F0F99FF00FDFE3F /* MasonFileInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonFileInput.swift; sourceTree = "<group>"; };
+		F1D37A002F2B000100DE7A11 /* Details.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Details.swift; sourceTree = "<group>"; };
 		F1DE08982EBC1195002870F6 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		F1E4F95129622AD60091913B /* MasonRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRect.swift; sourceTree = "<group>"; };
 		F1E4F95329622ADF0091913B /* MasonSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonSize.swift; sourceTree = "<group>"; };
@@ -248,7 +249,6 @@
 		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
 		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
-		3566126DEDA2AF8CE957357F /* MasonPositioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPositioning.swift; sourceTree = "<group>"; };
 		F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHelpers.swift; sourceTree = "<group>"; };
 		F1F29C592EF8587300324A68 /* Shadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shadow.swift; sourceTree = "<group>"; };
 		F1F4F1002F0F7F4C00FBA616 /* MasonPasswordInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPasswordInput.swift; sourceTree = "<group>"; };
@@ -257,6 +257,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		F1AC0A5E2FF1000100A1B2C3 /* platform */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = platform; sourceTree = "<group>"; };
 		F1EE934D2E849EE700DA90BB /* text */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = text; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -397,6 +398,7 @@
 				F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */,
 				F1EE93512E84BA3E00DA90BB /* Extensions.swift */,
 				F1EE934D2E849EE700DA90BB /* text */,
+				F1AC0A5E2FF1000100A1B2C3 /* platform */,
 				F18C9B872E5199C5006E5561 /* MasonPoint.swift */,
 				F18C9B852E5170B8006E5561 /* Scroll.swift */,
 				F18E99122DCB73F80062B4F7 /* Img.swift */,
@@ -509,6 +511,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				F1AC0A5E2FF1000100A1B2C3 /* platform */,
 				F1EE934D2E849EE700DA90BB /* text */,
 			);
 			name = Mason;
@@ -834,6 +837,11 @@
 /* Begin PBXTargetDependency section */
 		AA904E4E2DAF0EE300F22BE4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				macos,
+			);
 			target = F184838B293534D800EC35F4 /* Mason */;
 			targetProxy = AA904E4D2DAF0EE300F22BE4 /* PBXContainerItemProxy */;
 		};
@@ -854,6 +862,11 @@
 		};
 		F18483ED2937115F00EC35F4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+				maccatalyst,
+				macos,
+			);
 			target = F184838B293534D800EC35F4 /* Mason */;
 			targetProxy = F18483EC2937115F00EC35F4 /* PBXContainerItemProxy */;
 		};
@@ -1017,7 +1030,6 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				XROS_DEPLOYMENT_TARGET = 1.0;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1025,7 +1037,11 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = mh_dylib;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				MASON_RUST_APPLE_OS = "$(MASON_RUST_APPLE_OS_CATALYST_$(IS_MACCATALYST))";
+				MASON_RUST_APPLE_OS_CATALYST_NO = darwin;
+				MASON_RUST_APPLE_OS_CATALYST_YES = "ios-macabi";
 				MODULEMAP_FILE = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
 					"$(inherited)",
@@ -1048,6 +1064,20 @@
 					"-lmasonnative",
 					"-ObjC",
 				);
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-$(MASON_RUST_APPLE_OS)/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-$(MASON_RUST_APPLE_OS)/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
 				"OTHER_LDFLAGS[sdk=xros*][arch=arm64]" = (
 					"$(inherited)",
 					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-visionos/debug\"",
@@ -1066,13 +1096,14 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "xrsimulator xros iphonesimulator iphoneos";
+				SUPPORTED_PLATFORMS = "xrsimulator xros iphonesimulator iphoneos macosx";
 				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				USE_HEADERMAP = YES;
+				XROS_DEPLOYMENT_TARGET = 1.0;
 			};
 			name = Debug;
 		};
@@ -1094,7 +1125,6 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				XROS_DEPLOYMENT_TARGET = 1.0;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1102,7 +1132,11 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = mh_dylib;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
+				MASON_RUST_APPLE_OS = "$(MASON_RUST_APPLE_OS_CATALYST_$(IS_MACCATALYST))";
+				MASON_RUST_APPLE_OS_CATALYST_NO = darwin;
+				MASON_RUST_APPLE_OS_CATALYST_YES = "ios-macabi";
 				MODULEMAP_FILE = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
 					"$(inherited)",
@@ -1125,6 +1159,20 @@
 					"-lmasonnative",
 					"-ObjC",
 				);
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-$(MASON_RUST_APPLE_OS)/release\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=macosx*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-$(MASON_RUST_APPLE_OS)/release\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
 				"OTHER_LDFLAGS[sdk=xros*][arch=arm64]" = (
 					"$(inherited)",
 					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-visionos/release\"",
@@ -1143,12 +1191,13 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "xrsimulator xros iphonesimulator iphoneos";
+				SUPPORTED_PLATFORMS = "xrsimulator xros iphonesimulator iphoneos macosx";
 				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				USE_HEADERMAP = YES;
+				XROS_DEPLOYMENT_TARGET = 1.0;
 			};
 			name = Release;
 		};
@@ -1191,6 +1240,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INFOPLIST_FILE = MasonDemo/Info.plist;
@@ -1207,6 +1259,9 @@
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.MasonDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1237,6 +1292,8 @@
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.MasonDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1389,7 +1446,7 @@
 			repositoryURL = "https://github.com/NativeScript/font-manager";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.1;
+				minimumVersion = 1.0.23;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

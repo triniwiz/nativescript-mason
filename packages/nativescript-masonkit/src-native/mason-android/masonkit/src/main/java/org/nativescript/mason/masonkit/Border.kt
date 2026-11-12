@@ -644,80 +644,18 @@ class BorderRenderer(private val style: Style) {
     // CSS spec proportional radius reduction on the outer box, then inset the
     // radii so the clipped content follows the same curve family inside the border.
     val f = cssRadiusScale(width, height)
-    val tlX = insetRadius(tl.x * f, maxStrokeHalf)
-    val tlY = insetRadius(tl.y * f, maxStrokeHalf)
-    val trX = insetRadius(tr.x * f, maxStrokeHalf)
-    val trY = insetRadius(tr.y * f, maxStrokeHalf)
-    val brX = insetRadius(br.x * f, maxStrokeHalf)
-    val brY = insetRadius(br.y * f, maxStrokeHalf)
-    val blX = insetRadius(bl.x * f, maxStrokeHalf)
-    val blY = insetRadius(bl.y * f, maxStrokeHalf)
+    val tlX = insetCorner(tl.x * f, maxStrokeHalf, topLeftExponent)
+    val tlY = insetCorner(tl.y * f, maxStrokeHalf, topLeftExponent)
+    val trX = insetCorner(tr.x * f, maxStrokeHalf, topRightExponent)
+    val trY = insetCorner(tr.y * f, maxStrokeHalf, topRightExponent)
+    val brX = insetCorner(br.x * f, maxStrokeHalf, bottomRightExponent)
+    val brY = insetCorner(br.y * f, maxStrokeHalf, bottomRightExponent)
+    val blX = insetCorner(bl.x * f, maxStrokeHalf, bottomLeftExponent)
+    val blY = insetCorner(bl.y * f, maxStrokeHalf, bottomLeftExponent)
 
     val ofs = maxStrokeHalf
 
-    clipPath.moveTo(ofs + tlX, ofs)
-
-    // Top edge
-    clipPath.lineTo(ofs + innerWidth - trX, ofs)
-
-    // Top-right corner (reuse tempRadius to avoid PointF allocation)
-    tempRadius.set(trX, trY)
-    addCornerToPath(
-      clipPath,
-      Corner.TOP_RIGHT,
-      tempRadius,
-      topRightExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    // Right edge
-    clipPath.lineTo(ofs + innerWidth, ofs + innerHeight - brY)
-
-    // Bottom-right corner
-    tempRadius.set(brX, brY)
-    addCornerToPath(
-      clipPath,
-      Corner.BOTTOM_RIGHT,
-      tempRadius,
-      bottomRightExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    // Bottom edge
-    clipPath.lineTo(ofs + blX, ofs + innerHeight)
-
-    // Bottom-left corner
-    tempRadius.set(blX, blY)
-    addCornerToPath(
-      clipPath,
-      Corner.BOTTOM_LEFT,
-      tempRadius,
-      bottomLeftExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    // Left edge
-    clipPath.lineTo(ofs, ofs + tlY)
-
-    // Top-left corner
-    tempRadius.set(tlX, tlY)
-    addCornerToPath(
-      clipPath,
-      Corner.TOP_LEFT,
-      tempRadius,
-      topLeftExponent,
-      innerWidth,
-      innerHeight,
-      ofs
-    )
-
-    clipPath.close()
+    appendOutline(clipPath, ofs, ofs, innerWidth, innerHeight, tlX, tlY, trX, trY, brX, brY, blX, blY)
 
     return clipPath
   }
@@ -752,51 +690,7 @@ class BorderRenderer(private val style: Style) {
       roundRectBounds.set(0f, 0f, width, height)
       outerClipPath.addRoundRect(roundRectBounds, radii, Path.Direction.CW)
     } else {
-      outerClipPath.moveTo(tlX, 0f)
-
-      // Top edge
-      outerClipPath.lineTo(width - trX, 0f)
-
-      // Top-right corner
-      tempRadius.set(trX, trY)
-      addCornerToPath(outerClipPath, Corner.TOP_RIGHT, tempRadius, topRightExponent, width, height)
-
-      // Right edge
-      outerClipPath.lineTo(width, height - brY)
-
-      // Bottom-right corner
-      tempRadius.set(brX, brY)
-      addCornerToPath(
-        outerClipPath,
-        Corner.BOTTOM_RIGHT,
-        tempRadius,
-        bottomRightExponent,
-        width,
-        height
-      )
-
-      // Bottom edge
-      outerClipPath.lineTo(blX, height)
-
-      // Bottom-left corner
-      tempRadius.set(blX, blY)
-      addCornerToPath(
-        outerClipPath,
-        Corner.BOTTOM_LEFT,
-        tempRadius,
-        bottomLeftExponent,
-        width,
-        height
-      )
-
-      // Left edge
-      outerClipPath.lineTo(0f, tlY)
-
-      // Top-left corner
-      tempRadius.set(tlX, tlY)
-      addCornerToPath(outerClipPath, Corner.TOP_LEFT, tempRadius, topLeftExponent, width, height)
-
-      outerClipPath.close()
+      appendOutline(outerClipPath, 0f, 0f, width, height, tlX, tlY, trX, trY, brX, brY, blX, blY)
     }
 
     // Cache dimensions to allow short-circuit returns on subsequent calls
@@ -850,20 +744,10 @@ class BorderRenderer(private val style: Style) {
     if (radii[1] + radii[7] > 0f) f = f.coerceAtMost(h / (radii[1] + radii[7]))
     val x = rect.left
     val y = rect.top
-    path.moveTo(x + radii[0] * f, y)
-    path.lineTo(x + w - radii[2] * f, y)
-    tempRadius.set(radii[2] * f, radii[3] * f)
-    addCornerToPath(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, x, y)
-    path.lineTo(x + w, y + h - radii[5] * f)
-    tempRadius.set(radii[4] * f, radii[5] * f)
-    addCornerToPath(path, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, x, y)
-    path.lineTo(x + radii[6] * f, y + h)
-    tempRadius.set(radii[6] * f, radii[7] * f)
-    addCornerToPath(path, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, x, y)
-    path.lineTo(x, y + radii[1] * f)
-    tempRadius.set(radii[0] * f, radii[1] * f)
-    addCornerToPath(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, x, y)
-    path.close()
+    appendOutline(
+      path, x, y, w, h,
+      radii[0] * f, radii[1] * f, radii[2] * f, radii[3] * f, radii[4] * f, radii[5] * f, radii[6] * f, radii[7] * f
+    )
   }
 
   /** Check if there are any border radii set */
@@ -895,6 +779,43 @@ class BorderRenderer(private val style: Style) {
     )
   }
 
+  // The outline clockwise from the top edge. Two notches that meet leave no edge between them,
+  // so it is skipped rather than drawn as a spike.
+  private fun appendOutline(
+    path: Path, x: Float, y: Float, w: Float, h: Float,
+    tlX: Float, tlY: Float, trX: Float, trY: Float, brX: Float, brY: Float, blX: Float, blY: Float
+  ) {
+    val top = notchesMeet(topLeftExponent, topRightExponent, tlX + trX, w)
+    val right = notchesMeet(topRightExponent, bottomRightExponent, trY + brY, h)
+    val bottom = notchesMeet(bottomRightExponent, bottomLeftExponent, brX + blX, w)
+    val left = notchesMeet(bottomLeftExponent, topLeftExponent, blY + tlY, h)
+    if (top) {
+      path.moveTo(x + tlX, y + tlY)
+    } else {
+      path.moveTo(x + tlX, y)
+      path.lineTo(x + w - trX, y)
+    }
+    tempRadius.set(trX, trY)
+    addCornerToPath(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, x, y, !right)
+    if (!right) path.lineTo(x + w, y + h - brY)
+    tempRadius.set(brX, brY)
+    addCornerToPath(path, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, x, y, !bottom)
+    if (!bottom) path.lineTo(x + blX, y + h)
+    tempRadius.set(blX, blY)
+    addCornerToPath(path, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, x, y, !left)
+    if (!left) path.lineTo(x, y + tlY)
+    tempRadius.set(tlX, tlY)
+    addCornerToPath(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, x, y, !top)
+    path.close()
+  }
+
+  // Insetting a convex corner shrinks its radius; a concave one (scoop, notch) keeps it.
+  private fun insetCorner(radius: Float, by: Float, exponent: Float): Float =
+    if (exponent < 0f) radius else (radius - by).coerceAtLeast(0f)
+
+  private fun notchesMeet(a: Float, b: Float, radii: Float, side: Float): Boolean =
+    a == Float.NEGATIVE_INFINITY && b == Float.NEGATIVE_INFINITY && radii >= side - 0.5f
+
   private fun addCornerToPath(
     path: Path,
     corner: Corner,
@@ -903,7 +824,8 @@ class BorderRenderer(private val style: Style) {
     width: Float,
     height: Float,
     ofs: Float = 0f,
-    ofsY: Float = ofs
+    ofsY: Float = ofs,
+    toEdge: Boolean = true
   ) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
@@ -951,7 +873,10 @@ class BorderRenderer(private val style: Style) {
     val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
     val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
     val steps = 16
-    for (i in 0..steps) {
+    // notch and square: the curve degenerates (0^0 is 1), so draw their two segments.
+    val samples = if (exponent.isInfinite()) {
+      if (exponent >= 0f) listOf(1f to 1f, 0f to 1f) else if (toEdge) listOf(0f to 0f, 0f to 1f) else listOf(0f to 0f)
+    } else List(steps + 1) { i ->
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
       val a = cos(angle).pow(power).toFloat()
@@ -960,6 +885,9 @@ class BorderRenderer(private val style: Style) {
       val sy = 1 - sqrt(t)
       val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
       val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
+      cx to cy
+    }
+    for ((cx, cy) in samples) {
 
       var px: Float
       var py: Float
@@ -1155,30 +1083,17 @@ class BorderRenderer(private val style: Style) {
     val w = (width - l - r).coerceAtLeast(0f)
     val h = (height - t - b).coerceAtLeast(0f)
     val s = cssRadiusScale(width, height)
-    val tlX = (topLeftCorner.x * s - l).coerceAtLeast(0f)
-    val tlY = (topLeftCorner.y * s - t).coerceAtLeast(0f)
-    val trX = (topRightCorner.x * s - r).coerceAtLeast(0f)
-    val trY = (topRightCorner.y * s - t).coerceAtLeast(0f)
-    val brX = (bottomRightCorner.x * s - r).coerceAtLeast(0f)
-    val brY = (bottomRightCorner.y * s - b).coerceAtLeast(0f)
-    val blX = (bottomLeftCorner.x * s - l).coerceAtLeast(0f)
-    val blY = (bottomLeftCorner.y * s - b).coerceAtLeast(0f)
+    val tlX = insetCorner(topLeftCorner.x * s, l, topLeftExponent)
+    val tlY = insetCorner(topLeftCorner.y * s, t, topLeftExponent)
+    val trX = insetCorner(topRightCorner.x * s, r, topRightExponent)
+    val trY = insetCorner(topRightCorner.y * s, t, topRightExponent)
+    val brX = insetCorner(bottomRightCorner.x * s, r, bottomRightExponent)
+    val brY = insetCorner(bottomRightCorner.y * s, b, bottomRightExponent)
+    val blX = insetCorner(bottomLeftCorner.x * s, l, bottomLeftExponent)
+    val blY = insetCorner(bottomLeftCorner.y * s, b, bottomLeftExponent)
 
     into.reset()
-    into.moveTo(tlX, 0f)
-    into.lineTo(w - trX, 0f)
-    tempRadius.set(trX, trY)
-    addCorner(into, Corner.TOP_RIGHT, tempRadius, topRightExponent, w, h, 0f)
-    into.lineTo(w, h - brY)
-    tempRadius.set(brX, brY)
-    addCorner(into, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, w, h, 0f)
-    into.lineTo(blX, h)
-    tempRadius.set(blX, blY)
-    addCorner(into, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, w, h, 0f)
-    into.lineTo(0f, tlY)
-    tempRadius.set(tlX, tlY)
-    addCorner(into, Corner.TOP_LEFT, tempRadius, topLeftExponent, w, h, 0f)
-    into.close()
+    appendOutline(into, 0f, 0f, w, h, tlX, tlY, trX, trY, brX, brY, blX, blY)
     into.offset(l, t)
     return into
   }
@@ -1327,98 +1242,6 @@ class BorderRenderer(private val style: Style) {
 
   private enum class Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT }
 
-  private fun addCorner(
-    path: Path,
-    corner: Corner,
-    radius: PointF,
-    exponent: Float,
-    width: Float,
-    height: Float,
-    ofs: Float = 0f
-  ) {
-    if (radius.x <= 0f && radius.y <= 0f) return
-
-    if (exponent == 1f) {
-      // Use Android's analytic arc with reusable RectF
-      when (corner) {
-        Corner.TOP_LEFT -> cornerRect.set(ofs, ofs, ofs + radius.x * 2, ofs + radius.y * 2)
-        Corner.TOP_RIGHT -> cornerRect.set(
-          ofs + width - radius.x * 2,
-          ofs,
-          ofs + width,
-          ofs + radius.y * 2
-        )
-
-        Corner.BOTTOM_RIGHT -> cornerRect.set(
-          ofs + width - radius.x * 2,
-          ofs + height - radius.y * 2,
-          ofs + width,
-          ofs + height
-        )
-
-        Corner.BOTTOM_LEFT -> cornerRect.set(
-          ofs,
-          ofs + height - radius.y * 2,
-          ofs + radius.x * 2,
-          ofs + height
-        )
-      }
-
-      val startAngle = when (corner) {
-        Corner.TOP_LEFT -> 180f
-        Corner.TOP_RIGHT -> 270f
-        Corner.BOTTOM_RIGHT -> 0f
-        Corner.BOTTOM_LEFT -> 90f
-      }
-
-      path.arcTo(cornerRect, startAngle, 90f)
-      return
-    }
-
-    // Superellipse fallback
-    val power = 2.0.pow(1.0 - abs(exponent.toDouble()))
-    val concave = exponent < 0f
-    val shallow = exponent > -1f && exponent < 0f
-    val half = 1.0 - 0.5.pow(1.0 / 2.0.pow(abs(exponent.toDouble())))
-    val c = (2.41421356 * half - 0.70710678).coerceIn(0.0, 1.0).toFloat()
-    val steps = 16
-    for (i in 0..steps) {
-      val t = i / steps.toFloat()
-      val angle = t * Math.PI / 2.0
-      val a = cos(angle).pow(power).toFloat()
-      val b = sin(angle).pow(power).toFloat()
-      val sx = 1 - sqrt(1 - t)
-      val sy = 1 - sqrt(t)
-      val cx = if (shallow) c - c * sx + (1 - c) * sy else if (concave) 1 - b else a
-      val cy = if (shallow) c + (1 - c) * sx - c * sy else if (concave) 1 - a else b
-
-      var px: Float
-      var py: Float
-
-      when (corner) {
-        Corner.TOP_LEFT -> {
-          px = radius.x * (1 - cx); py = radius.y * (1 - cy)
-        }
-
-        Corner.TOP_RIGHT -> {
-          px = width - radius.x * (1 - cy); py = radius.y * (1 - cx)
-        }
-
-        Corner.BOTTOM_RIGHT -> {
-          px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
-        }
-
-        Corner.BOTTOM_LEFT -> {
-          px = radius.x * (1 - cy); py = height - radius.y * (1 - cx)
-        }
-      }
-      px += ofs
-      py += ofs
-      path.lineTo(px, py)
-    }
-  }
-
-
   private fun cosSuper(angle: Double, n: Float): Float {
     return (cos(angle).pow(n.toDouble())).toFloat()
   }
@@ -1434,10 +1257,6 @@ class BorderRenderer(private val style: Style) {
       Corner.BOTTOM_RIGHT -> style.mBorderRight.corner2Exponent
       Corner.BOTTOM_LEFT -> style.mBorderLeft.corner2Exponent
     }
-  }
-
-  private fun insetRadius(radius: Float, inset: Float): Float {
-    return (radius - inset).coerceAtLeast(0f)
   }
 
   enum class Side { Left, Top, Right, Bottom }

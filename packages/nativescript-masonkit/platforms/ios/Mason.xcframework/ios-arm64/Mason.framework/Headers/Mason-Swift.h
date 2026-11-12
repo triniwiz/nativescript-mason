@@ -1099,7 +1099,7 @@ SWIFT_CLASS_NAMED("MasonLi")
 @class NSIndexPath;
 @class UICollectionViewCell;
 SWIFT_CLASS_NAMED("MasonList")
-@interface MasonList : UIView <MasonElementObjc, UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout>
+@interface MasonList : UIView <MasonElementObjc>
 @property (nonatomic, strong) id <MasonListDelegate> _Nullable delegate;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
@@ -1115,8 +1115,8 @@ SWIFT_CLASS_NAMED("MasonList")
 @property (nonatomic, strong) NSMutableData * _Nonnull values;
 /// Virtual item count (set by user). Total count = staticItems.count + this value.
 @property (nonatomic) NSInteger count;
-- (void)layoutSubviews;
 - (void)registerWithCellClass:(Class _Nullable)cellClass forCellWithReuseIdentifier:(NSString * _Nonnull)identifier;
+- (void)layoutSubviews;
 /// Appends a static item at the end of the list (position = current count).
 - (void)addView:(MasonLi * _Nonnull)item;
 /// Inserts a static item at the given position, shifting existing entries at >= index.
@@ -1152,6 +1152,9 @@ SWIFT_CLASS_NAMED("MasonListCell")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@interface MasonList (SWIFT_EXTENSION(Mason)) <UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout>
 @end
 
 @interface MasonList (SWIFT_EXTENSION(Mason))
@@ -1665,6 +1668,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layerClass;)
 + (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, strong) UIColor * _Nullable backgroundColor;
 - (void)didAddSubview:(UIView * _Nonnull)subview;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic) BOOL isAccessibilityElement;

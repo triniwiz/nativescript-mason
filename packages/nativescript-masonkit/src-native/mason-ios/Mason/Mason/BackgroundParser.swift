@@ -6,7 +6,11 @@
 //
 
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 // MARK: - BackgroundClip
@@ -983,7 +987,7 @@ extension UIColor {
           var b: CGFloat = 0
           var a: CGFloat = 0
 
-          self.getRed(&r, green: &g, blue: &b, alpha: &a)
+          self.getRGBA(&r, &g, &b, &a)
 
           if includeAlpha {
               let rgba = (Int(r * 255) << 24) | (Int(g * 255) << 16) | (Int(b * 255) << 8) | Int(a * 255)
@@ -1165,7 +1169,7 @@ func expandInterpolatedStops(_ colors: [CGColor], _ locations: [CGFloat], _ inte
 
 private func srgbComponents(_ color: CGColor) -> [Double] {
   var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-  UIColor(cgColor: color).getRed(&r, green: &g, blue: &b, alpha: &a)
+  UIColor.from(cgColor: color).getRGBA(&r, &g, &b, &a)
   return [Double(r), Double(g), Double(b), Double(a)]
 }
 

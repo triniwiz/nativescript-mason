@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 24/09/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 let BLACK_COLOR = UInt32(bitPattern:-16777216)
 let WHITE_COLOR = UInt32(bitPattern:-1)
@@ -80,7 +84,7 @@ extension UIColor {
     case 0:
       return .clear
     default:
-      return UIColor(cgColor: cgColorFromARGB(argb))
+      return UIColor.from(cgColor: cgColorFromARGB(argb))
     }
     
   }
@@ -91,7 +95,7 @@ extension UIColor {
     let b = CGFloat((rgba >> 8) & 0xFF) / 255.0
     let a = CGFloat(rgba & 0xFF) / 255.0
     
-    return UIColor(cgColor: CGColor(srgbRed: r, green: g, blue: b, alpha: a))
+    return UIColor.from(cgColor: CGColor(srgbRed: r, green: g, blue: b, alpha: a))
   }
   
   
@@ -101,7 +105,7 @@ extension UIColor {
     var b: CGFloat = 0
     var a: CGFloat = 0
     
-    self.getRed(&r, green: &g, blue: &b, alpha: &a)
+    self.getRGBA(&r, &g, &b, &a)
     
     let red = UInt8(r * 255)
     let green = UInt8(g * 255)
@@ -119,7 +123,7 @@ extension UIColor {
     var b: CGFloat = 0
     var a: CGFloat = 0
     
-    guard getRed(&r, green: &g, blue: &b, alpha: &a) else {
+    guard getRGBA(&r, &g, &b, &a) else {
       return self
     }
     
@@ -134,7 +138,7 @@ extension UIColor {
   
   func lighter(by amount: CGFloat = 0.25) -> UIColor {
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-    getRed(&r, green: &g, blue: &b, alpha: &a)
+    getRGBA(&r, &g, &b, &a)
     return UIColor(red: min(r + amount, 1),
                    green: min(g + amount, 1),
                    blue: min(b + amount, 1),
@@ -143,7 +147,7 @@ extension UIColor {
   
   func darker(by amount: CGFloat = 0.25) -> UIColor {
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-    getRed(&r, green: &g, blue: &b, alpha: &a)
+    getRGBA(&r, &g, &b, &a)
     return UIColor(red: max(r - amount, 0),
                    green: max(g - amount, 0),
                    blue: max(b - amount, 0),

@@ -1228,7 +1228,7 @@ impl Tree {
 
     /// Check if a node is a pure inline container (DisplayMode::Inline)
     /// Pure inline containers ignore explicit size styling and use content size
-    fn is_pure_inline(&self, child_id: Id) -> bool {
+    pub(crate) fn is_pure_inline(&self, child_id: Id) -> bool {
         let node = &self.nodes()[child_id];
         let style = node.style();
 
@@ -1239,6 +1239,18 @@ impl Tree {
 
         // Must be DisplayMode::Inline (not Box/inline-block)
         if style.display_mode() != DisplayMode::Inline {
+            return false;
+        }
+
+        // The native text engines draw an inline element with padding, a border or a set size
+        // as an atomic box, so it is measured before the text that reserves room for it.
+        let size = style.size();
+        if !size.width.is_auto() || !size.height.is_auto() {
+            return false;
+        }
+        let spacing = style.get_padding().resolve_or_zero(Some(100.0), |_v, _b| 0.0)
+            + style.border().resolve_or_zero(Some(100.0), |_v, _b| 0.0);
+        if spacing.left > 0.0 || spacing.right > 0.0 || spacing.top > 0.0 || spacing.bottom > 0.0 {
             return false;
         }
 
@@ -2121,7 +2133,9 @@ impl Tree {
             None
         };
 
+        // The parent's content-size probe applies to the parent; the child keeps its own size.
         let block_inputs = LayoutInput {
+            sizing_mode: SizingMode::InherentSize,
             known_dimensions: Size {
                 width: stretched_width,
                 height: None,

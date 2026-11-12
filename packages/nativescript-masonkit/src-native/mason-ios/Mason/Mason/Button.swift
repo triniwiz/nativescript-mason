@@ -5,12 +5,16 @@
 //  Created by Osei Fortune on 01/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
 @objcMembers
 @objc(MasonButton)
-public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer, SingleLineTextBaselineProviding {
+public class Button: MasonControlBase,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer, SingleLineTextBaselineProviding {
   public let node: MasonNode
   public let mason: NSCMason
   
@@ -323,6 +327,7 @@ extension Button {
     touchStartTime = nil
 
     if duration < tapThreshold {
+#if canImport(UIKit)
       UIView.animate(withDuration: 0.08, animations: {
         self.transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
       }, completion: { _ in
@@ -330,6 +335,12 @@ extension Button {
           self.transform = .identity
         }
       })
+#else
+      let press = CAKeyframeAnimation(keyPath: "transform.scale")
+      press.values = [1, 0.98, 1]
+      press.duration = 0.16
+      backingLayer.add(press, forKey: "press")
+#endif
     }
 
     updatePseudo(.active, false)

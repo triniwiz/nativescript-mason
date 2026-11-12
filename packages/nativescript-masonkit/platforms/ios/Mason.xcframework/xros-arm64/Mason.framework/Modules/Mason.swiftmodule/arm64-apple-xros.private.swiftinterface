@@ -151,7 +151,7 @@ final public class CSSBorderRenderer {
   }
   @objc deinit
 }
-@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonButton) @_Concurrency.MainActor @preconcurrency public class Button : UIKit.UIControl, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonButton) @_Concurrency.MainActor @preconcurrency public class Button : Mason.MasonControlBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
@@ -561,7 +561,7 @@ extension Mason.MasonEventTarget {
   @discardableResult
   public func removeEventListener(_ event: Swift.String) -> Swift.Bool
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonInput) @_Concurrency.MainActor @preconcurrency public class MasonInput : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonInput) @_Concurrency.MainActor @preconcurrency public class MasonInput : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement {
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @objc @_Concurrency.MainActor @preconcurrency public var multiple: Swift.Bool {
@@ -820,7 +820,7 @@ public struct MasonNodeView {
   }
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonList) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonList : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, UIKit.UICollectionViewDataSource, UIKit.UICollectionViewDelegate, UIKit.UICollectionViewDelegateFlowLayout, UIKit.UICollectionViewDataSourcePrefetching {
+@_hasMissingDesignatedInitializers @objc(MasonList) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonList : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @objc @_Concurrency.MainActor @preconcurrency public var delegate: (any Mason.MasonList.MasonListDelegate)?
   @objc(MasonListDelegate) public protocol MasonListDelegate {
     @objc func list(_ list: UIKit.UICollectionView, cellForItemAt indexPath: Foundation.IndexPath) -> UIKit.UICollectionViewCell
@@ -866,8 +866,8 @@ public struct MasonNodeView {
     @objc get
     @objc set
   }
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @objc @_Concurrency.MainActor @preconcurrency public func register(cellClass: Swift.AnyClass?, forCellWithReuseIdentifier identifier: Swift.String)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func layoutSubviews()
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ item: Mason.MasonLi)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ item: Mason.MasonLi, at index: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func reload()
@@ -880,6 +880,8 @@ public struct MasonNodeView {
   @_Concurrency.MainActor @preconcurrency @objc public func collectionView(_ collectionView: UIKit.UICollectionView, cellForItemAt indexPath: Foundation.IndexPath) -> UIKit.UICollectionViewCell
   @_Concurrency.MainActor @preconcurrency @objc public func collectionView(_ collectionView: UIKit.UICollectionView, willDisplay cell: UIKit.UICollectionViewCell, forItemAt indexPath: Foundation.IndexPath)
   @objc deinit
+}
+extension Mason.MasonList : UIKit.UICollectionViewDataSource, UIKit.UICollectionViewDelegate, UIKit.UICollectionViewDelegateFlowLayout, UIKit.UICollectionViewDataSourcePrefetching {
 }
 @_hasMissingDesignatedInitializers @objc(TrackSizingFunction) @objcMembers public class TrackSizingFunction : ObjectiveC.NSObject {
   @objc public var isRepeating: Swift.Bool {
@@ -2487,6 +2489,9 @@ extension UIKit.UIImage {
   @_Concurrency.MainActor @preconcurrency @objc public func textView(_ textView: UIKit.UITextView, shouldChangeTextIn range: Foundation.NSRange, replacementText text: Swift.String) -> Swift.Bool
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func caretRect(for position: UIKit.UITextPosition) -> CoreFoundation.CGRect
 }
+public typealias MasonViewBase = UIKit.UIView
+public typealias MasonControlBase = UIKit.UIControl
+public typealias MasonGestureRecognizerBase = UIKit.UIGestureRecognizer
 @objc @_inheritsConvenienceInitializers public class BackgroundCALayer : QuartzCore.CALayer {
   @objc override dynamic public func draw(in ctx: CoreGraphics.CGContext)
   public func invalidate()
@@ -2514,7 +2519,7 @@ extension UIKit.UIImage {
   @objc override dynamic public func layoutSublayers()
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
@@ -3215,9 +3220,13 @@ public struct FontVariantNumeric : Swift.OptionSet, Swift.CustomStringConvertibl
   public typealias Element = Mason.FontVariantNumeric
   public typealias RawValue = Swift.UInt8
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
     @objc get
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var backgroundColor: UIKit.UIColor? {
+    @objc get
+    @objc set
   }
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func didAddSubview(_ subview: UIKit.UIView)
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
@@ -3547,7 +3556,7 @@ extension Mason.MasonList {
   }
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonLi) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonLi : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objc(MasonLi) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonLi : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc public var node: Mason.MasonNode {
@@ -3607,7 +3616,7 @@ public enum InlineSegmentPayload {
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : Mason.MasonViewBase, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
   @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {

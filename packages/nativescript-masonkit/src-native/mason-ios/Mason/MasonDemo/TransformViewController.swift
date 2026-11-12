@@ -77,9 +77,9 @@ class TransformViewController: UIViewController {
     let controls = mason.createView()
     controls.style.display = .Flex
     controls.style.flexDirection = .Column
-    controls.style.setPaddingWithValueType(12 * scale, 1)
-    controls.style.setGapRow(8 * scale, 1)
-    controls.style.setGapColumn(8 * scale, 1)
+    controls.style.setPaddingWithValueType(12 * scale, 0)
+    controls.style.setGapRow(8 * scale, 0)
+    controls.style.setGapColumn(8 * scale, 0)
 
     // Presets row (horizontal scroll)
     let presetsScroll = mason.createScrollView()
@@ -91,7 +91,7 @@ class TransformViewController: UIViewController {
     presetsRow.style.display = .Flex
     presetsRow.style.flexDirection = .Row
     presetsRow.style.flexWrap = .NoWrap
-    presetsRow.style.setGapColumn(8 * scale, 1)
+    presetsRow.style.setGapColumn(8 * scale, 0)
 
     // Transform input (declare early so closures can capture it)
     let transformInput = mason.createInput()
@@ -127,7 +127,7 @@ class TransformViewController: UIViewController {
     inputRow.style.display = .Flex
     inputRow.style.flexDirection = .Row
     inputRow.style.alignItems = .Center
-    inputRow.style.setGapColumn(8 * scale, 1)
+    inputRow.style.setGapColumn(8 * scale, 0)
 
     let applyBtn = mason.createButton()
     applyBtn.textContent = "Apply"

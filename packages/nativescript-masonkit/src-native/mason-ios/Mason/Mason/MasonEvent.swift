@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 07/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objcMembers
 @objc(MasonEventOptions)

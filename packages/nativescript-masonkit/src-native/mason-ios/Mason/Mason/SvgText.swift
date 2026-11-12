@@ -5,7 +5,11 @@
 //  Glyph outlines for SVG `<text>` (SvgParser.swift lays the runs out). Keep in step with SvgText.kt.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreText
 
 /// The font a run of SVG text asks for.
@@ -95,13 +99,21 @@ final class CoreTextSvgShaper: SvgTextShaping {
     var descriptor = base ?? UIFont.systemFont(ofSize: svgShapeSize).fontDescriptor
     var synthesize = false
     if font.italic {
+#if canImport(UIKit)
       if let italic = descriptor.withSymbolicTraits(descriptor.symbolicTraits.union(.traitItalic)) {
         descriptor = italic
       } else {
         synthesize = true
       }
+#else
+      descriptor = descriptor.withSymbolicTraits(descriptor.symbolicTraits.union(.traitItalic))
+#endif
     }
+#if canImport(UIKit)
     let ui = UIFont(descriptor: descriptor, size: svgShapeSize)
+#else
+    let ui = UIFont(descriptor: descriptor, size: svgShapeSize) ?? .systemFont(ofSize: svgShapeSize)
+#endif
     if font.italic && !synthesize && !ui.fontDescriptor.symbolicTraits.contains(.traitItalic) { synthesize = true }
     return (ui as CTFont, synthesize)
   }
