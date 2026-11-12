@@ -137,13 +137,15 @@ pub unsafe extern "C" fn mason_gtk_scroll_new(content: W) -> W {
     scrolled.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
     scrolled.set_propagate_natural_height(false);
     scrolled.set_child(Some(&content));
-    // Mason reports sizes as natural ones (minimum 0), so the viewport must scroll by those
+    // Mason reports sizes as natural ones (minimum 0), so the viewport must scroll by those.
+    // Horizontally it doesn't scroll: a natural width (max-content) wider than the window
+    // would be allocated anyway and clipped, instead of the content fitting the window.
     if let Some(viewport) = scrolled
         .child()
         .and_then(|c| c.downcast::<gtk::Viewport>().ok())
     {
         viewport.set_vscroll_policy(gtk::ScrollablePolicy::Natural);
-        viewport.set_hscroll_policy(gtk::ScrollablePolicy::Natural);
+        viewport.set_hscroll_policy(gtk::ScrollablePolicy::Minimum);
     }
     scrolled.upcast::<gtk::Widget>().into_glib_ptr()
 }
