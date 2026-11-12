@@ -46,8 +46,14 @@ for (const name of ['crypto', 'performance', 'fetch', 'XMLHttpRequest']) {
 // NativeScript's build injects these decorators/globals; they are no-ops for the
 // value-layer tests, which never construct a real native view.
 g.NativeClass ??= (target: unknown) => target;
+g.__native ??= (instance: unknown) => instance;
 g.__decorate ??= undefined;
 g.zonedCallback ??= (cb: unknown) => cb;
 g.Deprecated ??= () => () => {};
 g.Experimental ??= () => () => {};
 g.Interfaces ??= runtimeProxy('Interfaces');
+
+// The NativeScript runtime gives WeakRef a `get` alias of `deref`; core calls it.
+(WeakRef.prototype as any).get ??= function (this: WeakRef<object>) {
+  return this.deref();
+};
