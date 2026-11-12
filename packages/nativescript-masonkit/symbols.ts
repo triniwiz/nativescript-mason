@@ -1,4 +1,6 @@
 export const native_ = Symbol('[[native]]');
+// On a Mason element: its native view's style slot, when the create call delivered it.
+export const slot_ = Symbol('[[slot]]');
 export const style_ = Symbol('[[style]]');
 // On a mason Style: the element's own display, kept from before `display` was first set.
 export const elementDisplay_ = Symbol('[[elementDisplay]]');

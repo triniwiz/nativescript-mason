@@ -41,9 +41,13 @@ export class Tree {
 
   readonly native: org.nativescript.mason.masonkit.Mason | NSCMason;
 
+  /** Android: style slot of the view the last createView or createTextView call made, or -1. */
+  lastSlot: number;
+
   createView(context?): org.nativescript.mason.masonkit.View | MasonView;
 
-  createTextView(context?, type?: TextType): org.nativescript.mason.masonkit.TextView | MasonText;
+  /** Android: `text`, when given, is the new view's textContent (one native call instead of two). */
+  createTextView(context?, type?: TextType, text?: string): org.nativescript.mason.masonkit.TextView | MasonText;
 
   createImageView(context?): org.nativescript.mason.masonkit.Img | MasonImg;
 
