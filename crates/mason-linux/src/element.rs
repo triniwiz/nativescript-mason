@@ -9,7 +9,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, graphene, gsk};
 use mason_core::style::StyleKeys;
-use mason_core::{AvailableSpace, NodeRef, Size};
+use mason_core::{AvailableSpace, Id, NodeRef, Size};
 use std::cell::{Cell, RefCell};
 
 #[repr(i32)]
@@ -171,8 +171,14 @@ impl Element {
         self.imp().node.borrow().clone()
     }
 
+    /// The node's id without cloning the `NodeRef` (and its Arcs), for per-frame reads.
+    pub fn node_id(&self) -> Option<Id> {
+        self.imp().node.borrow().as_ref().map(NodeRef::id)
+    }
+
+    // Measure, allocate and paint call this per element; borrowing skips the NodeRef's Arc clones.
     pub fn style(&self) -> StyleView<'static> {
-        StyleView(self.try_node().map_or(&[][..], |n| engine::style(&n)))
+        StyleView(self.imp().node.borrow().as_ref().map_or(&[][..], engine::style))
     }
 
     pub fn from_widget(widget: &gtk::Widget) -> Option<Element> {
@@ -201,7 +207,7 @@ impl Element {
     }
 
     pub fn is_layout_root(&self) -> bool {
-        self.try_node().map_or(true, |n| engine::is_root(&n))
+        self.imp().node.borrow().as_ref().map_or(true, engine::is_root)
     }
 
     pub fn css(&self) -> std::cell::RefMut<'_, CssState> {
@@ -413,18 +419,18 @@ impl Element {
 
     /// Size of this element's border box from the last layout.
     pub fn layout_size(&self) -> (f32, f32) {
-        self.try_node().map_or((0.0, 0.0), |n| {
-            let l = engine::layout(n.id());
+        self.node_id().map_or((0.0, 0.0), |id| {
+            let l = engine::layout(id);
             (l.size.width, l.size.height)
         })
     }
 
     /// Border box grown to hold the scrollable overflow.
     pub fn scroll_extent(&self) -> (f32, f32) {
-        let Some(node) = self.try_node() else {
+        let Some(id) = self.node_id() else {
             return (0.0, 0.0);
         };
-        let l = engine::layout(node.id());
+        let l = engine::layout(id);
         let o = &l.scrollable_overflow_rect;
         // the overflow rect starts at the padding box corner and includes the end padding
         let w = l.border.left + o.right + l.border.right;

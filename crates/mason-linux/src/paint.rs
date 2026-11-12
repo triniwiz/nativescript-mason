@@ -179,7 +179,9 @@ fn push_clip(s: &gtk::Snapshot, rect: &gsk::RoundedRect, rounded_clip: bool) {
 }
 
 pub fn snapshot_element(el: &Element, s: &gtk::Snapshot) {
-    let Some(_) = el.try_node() else { return };
+    if el.node_id().is_none() {
+        return;
+    }
     let style = el.style();
     // display: none takes no space, and draws nothing
     if style.u8(StyleKeys::DISPLAY) == 0 {

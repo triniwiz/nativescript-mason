@@ -31,9 +31,7 @@ pub fn layout(id: Id) -> Layout {
 }
 
 pub fn is_root(node: &NodeRef) -> bool {
-    mason()
-        .get_root(node.id())
-        .map_or(true, |root| root.id() == node.id())
+    mason().is_root(node.id())
 }
 
 /// The node's own style bytes; a shared default buffer is copied first.

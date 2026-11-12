@@ -1087,6 +1087,12 @@ impl Mason {
         self.0.root(node)
     }
 
+    /// Whether the node has no parent. Cheaper than comparing against `get_root`, which walks
+    /// the whole parent chain and builds a `NodeRef`.
+    pub fn is_root(&self, node: Id) -> bool {
+        self.0.parents().get(node).copied().flatten().is_none()
+    }
+
     pub fn reset_arena_defaults(&mut self) {
         self.0.reset_arena_defaults();
     }
