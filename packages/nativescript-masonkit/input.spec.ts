@@ -3,7 +3,7 @@ import { native_ } from './symbols';
 import { masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { Input } from './input';
 import { TextArea } from './textarea';
-import { acceptProperty, appearanceProperty, multipleProperty, parseAppearance, syncCheckedPseudoClass } from './input/common';
+import { acceptProperty, appearanceProperty, multipleProperty, parseAppearance, placeholderProperty, syncCheckedPseudoClass } from './input/common';
 
 function inputWithNative(nativeView: Record<string, unknown>) {
   const input = new Input() as any;
@@ -36,6 +36,22 @@ describe('HTML input property bridge', () => {
     expect(input.value).toBe('hello');
     expect(input.placeholder).toBe('Search');
     expect(input.type).toBe('search');
+  });
+});
+
+describe('placeholder', () => {
+  it.each([
+    ['input', Input],
+    ['textarea', TextArea],
+  ])('sends an unset %s placeholder to the native view as an empty string', (_name, Element) => {
+    const setPlaceholder = vi.fn();
+    const element = new Element() as any;
+    element[native_] = { setPlaceholder };
+
+    element[placeholderProperty.setNative](undefined);
+    element[placeholderProperty.setNative](null);
+
+    expect(setPlaceholder.mock.calls).toEqual([[''], ['']]);
   });
 });
 

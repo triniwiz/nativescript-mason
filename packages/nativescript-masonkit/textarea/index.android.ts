@@ -29,7 +29,7 @@ export class TextArea extends TextAreaBase {
 
   [placeholderProperty.setNative](value) {
     if (this._view) {
-      this._view.setPlaceholder(value);
+      this._view.setPlaceholder(value ?? '');
     }
   }
 

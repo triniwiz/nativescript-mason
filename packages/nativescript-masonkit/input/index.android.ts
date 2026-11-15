@@ -129,7 +129,7 @@ export class Input extends InputElementBase {
 
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
-      this._view.setPlaceholder(value);
+      this._view.setPlaceholder(value ?? '');
     }
   }
 
