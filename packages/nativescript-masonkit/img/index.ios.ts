@@ -1,4 +1,4 @@
-import { CSSType, knownFolders } from '@nativescript/core';
+import { CSSType, knownFolders, PropertyChangeData } from '@nativescript/core';
 import { ImageBase, srcProperty, setMeasuredFromNative } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
@@ -12,11 +12,11 @@ export class Img extends ImageBase {
   constructor() {
     super();
     this[isMasonView_] = true;
-    // Like an HTMLImageElement, load as soon as src is set, attached or not: spartan's avatar
-    // attaches its image only after the load event.
-    this.on('srcChange', (args: any) => {
-      if (!this.nativeViewProtected) this[srcProperty.setNative](args.value);
-    });
+    this.on('srcChange', this._loadSrcWhileDetached, this);
+  }
+
+  private _loadSrcWhileDetached(args: PropertyChangeData) {
+    if (!this.nativeViewProtected) this[srcProperty.setNative](args.value);
   }
 
   get _view() {
