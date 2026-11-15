@@ -131,6 +131,15 @@ import { reconcileTextRuns } from './text-runs';
 
 declare const kotlin: any;
 
+function hasPseudoClasses(child: any): boolean {
+  return child?.cssPseudoClasses instanceof Set;
+}
+
+function setPseudoClass(view: any, name: string, on: boolean) {
+  if (on) view.addSinglePseudoClass(name);
+  else view.deleteSinglePseudoClass(name);
+}
+
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
   return ret._styleHelper as MasonStyle;
@@ -1523,6 +1532,56 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   addChild(child: any) {
+    const edges = this._edgeChildren();
+    this._masonAddChild(child);
+    this._syncEdgeChildren(edges, child);
+  }
+
+  insertChild(child: any, atIndex: number) {
+    const edges = this._edgeChildren();
+    this._masonInsertChild(child, atIndex);
+    this._syncEdgeChildren(edges, child);
+  }
+
+  replaceChild(child: any, atIndex: number) {
+    const edges = this._edgeChildren();
+    const replaced = this._children[atIndex];
+    this._masonReplaceChild(child, atIndex);
+    this._syncEdgeChildren(edges, child, replaced);
+  }
+
+  removeChild(child: any) {
+    const edges = this._edgeChildren();
+    this._masonRemoveChild(child);
+    this._syncEdgeChildren(edges, child);
+  }
+
+  removeChildren() {
+    const edges = this._edgeChildren();
+    this._masonRemoveChildren();
+    this._syncEdgeChildren(edges);
+  }
+
+  private _edgeChildren(): [any, any] {
+    const children = this._children as any[];
+    let first = -1;
+    while (++first < children.length && !hasPseudoClasses(children[first]));
+    let last = children.length;
+    while (--last > first && !hasPseudoClasses(children[last]));
+    return [children[first], children[last]];
+  }
+
+  private _syncEdgeChildren([oldFirst, oldLast]: [any, any], ...touched: any[]) {
+    const [first, last] = this._edgeChildren();
+    for (const view of new Set([oldFirst, oldLast, first, last, ...touched])) {
+      if (!hasPseudoClasses(view)) continue;
+      setPseudoClass(view, 'first-child', view === first);
+      setPseudoClass(view, 'last-child', view === last);
+      setPseudoClass(view, 'only-child', view === first && view === last);
+    }
+  }
+
+  private _masonAddChild(child: any) {
     if (!(child instanceof NSView)) this._masonSettleNativeAdds();
     if (child && child[isPlaceholder_] && child._view) {
       if (__ANDROID__) {
@@ -1708,7 +1767,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return super._childIndexToNativeChildIndex(index);
   }
 
-  insertChild(child: any, atIndex: number) {
+  private _masonInsertChild(child: any, atIndex: number) {
     this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
@@ -1740,7 +1799,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  replaceChild(child: any, atIndex: number) {
+  private _masonReplaceChild(child: any, atIndex: number) {
     this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
     if (child && child[isPlaceholder_] && child._view) {
@@ -1791,7 +1850,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  removeChild(child: any) {
+  private _masonRemoveChild(child: any) {
     this._masonSettleNativeAdds();
     this._invalidateAttachCursor();
     // A placeholder (e.g. Br) was never `_addView`-ed, so remove its native node directly.
@@ -1895,7 +1954,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  removeChildren() {
+  private _masonRemoveChildren() {
     const children = this._children as any[];
     if (children.length === 0) {
       return;
