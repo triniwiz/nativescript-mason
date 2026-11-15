@@ -4,19 +4,44 @@ import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
 
+declare const kotlin: any;
+
+// org.nativescript.mason.masonkit.LoadingState values.
+const enum LoadingState {
+  Loading = 0,
+  Loaded = 1,
+}
+
 @CSSType('img')
 export class Img extends ImageBase {
   [style_];
   _inBatch = false;
+  private _nativeSrc: string;
   constructor() {
     super();
     this[isMasonView_] = true;
+    // Like an HTMLImageElement, load as soon as src is set, attached or not: spartan's avatar
+    // attaches its image only after the load event.
+    this.on('srcChange', (args: any) => {
+      if (!this.nativeViewProtected) this[srcProperty.setNative](args.value);
+    });
   }
 
   get _view() {
     if (!this[native_]) {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-      const view = Tree.instance.createImageView(context);
+      const view = Tree.instance.createImageView(context) as org.nativescript.mason.masonkit.Img;
+      const owner = new WeakRef(this);
+      view.setOnStateChange(
+        new kotlin.jvm.functions.Function1({
+          invoke(state: org.nativescript.mason.masonkit.LoadingState) {
+            const img = owner.get();
+            const value = state.getValue();
+            if (img && value !== LoadingState.Loading) img.notify({ eventName: value === LoadingState.Loaded ? 'load' : 'error', object: img });
+            return null;
+          },
+        }),
+      );
       this[native_] = view;
       return view;
     }
@@ -41,8 +66,10 @@ export class Img extends ImageBase {
   }
 
   [srcProperty.setNative](value) {
+    if (value === this._nativeSrc) return;
     const nativeView = this._view as org.nativescript.mason.masonkit.Img;
     if (nativeView) {
+      this._nativeSrc = value;
       if (typeof value === 'string' && value.startsWith('~/')) {
         nativeView.setSrc(knownFolders.currentApp().path + '/' + value.slice(2));
       } else {

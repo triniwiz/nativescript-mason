@@ -8,9 +8,15 @@ import { style_, isMasonView_, isTextChild_, native_ } from '../symbols';
 export class Img extends ImageBase {
   [style_];
   _inBatch = false;
+  private _nativeSrc: string;
   constructor() {
     super();
     this[isMasonView_] = true;
+    // Like an HTMLImageElement, load as soon as src is set, attached or not: spartan's avatar
+    // attaches its image only after the load event.
+    this.on('srcChange', (args: any) => {
+      if (!this.nativeViewProtected) this[srcProperty.setNative](args.value);
+    });
   }
 
   get _view() {
@@ -18,6 +24,7 @@ export class Img extends ImageBase {
       const view = Tree.instance.createImageView() as never as MasonImg;
       view.onStateChange = (state) => {
         this.requestLayout();
+        if (state !== MasonLoadingState.Loading) this.notify({ eventName: state === MasonLoadingState.Loaded ? 'load' : 'error', object: this });
       };
       view.didLayout = () => {
         this.requestLayout();
@@ -55,8 +62,10 @@ export class Img extends ImageBase {
   }
 
   [srcProperty.setNative](value) {
+    if (value === this._nativeSrc) return;
     const nativeView = this._view as MasonImg;
     if (nativeView) {
+      this._nativeSrc = value;
       if (typeof value === 'string' && value.startsWith('~/')) {
         nativeView.src = knownFolders.currentApp().path + '/' + value.slice(2);
       } else {
