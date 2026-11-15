@@ -131,8 +131,7 @@ import { reconcileTextRuns } from './text-runs';
 
 declare const kotlin: any;
 
-// Elements, as opposed to text runs, which CSS's structural pseudo-classes skip.
-function isElementChild(child: any): boolean {
+function hasPseudoClasses(child: any): boolean {
   return child?.cssPseudoClasses instanceof Set;
 }
 
@@ -1566,18 +1565,16 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   private _edgeChildren(): [any, any] {
     const children = this._children as any[];
     let first = -1;
-    while (++first < children.length && !isElementChild(children[first]));
+    while (++first < children.length && !hasPseudoClasses(children[first]));
     let last = children.length;
-    while (--last > first && !isElementChild(children[last]));
+    while (--last > first && !hasPseudoClasses(children[last]));
     return [children[first], children[last]];
   }
 
-  // Only the old and new edge children, and the children a mutation moved, can change
-  // :first-child, :last-child or :only-child, so a mutation never walks the child list.
-  private _syncEdgeChildren([oldFirst, oldLast]: [any, any], ...moved: any[]) {
+  private _syncEdgeChildren([oldFirst, oldLast]: [any, any], ...touched: any[]) {
     const [first, last] = this._edgeChildren();
-    for (const view of new Set([oldFirst, oldLast, first, last, ...moved])) {
-      if (!isElementChild(view)) continue;
+    for (const view of new Set([oldFirst, oldLast, first, last, ...touched])) {
+      if (!hasPseudoClasses(view)) continue;
       setPseudoClass(view, 'first-child', view === first);
       setPseudoClass(view, 'last-child', view === last);
       setPseudoClass(view, 'only-child', view === first && view === last);
