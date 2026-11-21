@@ -122,11 +122,13 @@ namespace winrt::NativeScript::Mason::implementation
     void Mason::ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index)
     {
         Css::ReparentChild(parent, child, index);
+        mason_events::SubtreeChanged(parent);
     }
 
     void Mason::RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child)
     {
         Css::RemoveChild(parent, child);
+        mason_events::SubtreeChanged(parent);
     }
 
     static void SetPercent(winrt::Microsoft::UI::Xaml::UIElement const& element, bool horizontal, float fraction)

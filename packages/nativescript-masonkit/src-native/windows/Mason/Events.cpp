@@ -871,7 +871,13 @@ namespace mason_events
         SyncHitBrush(element);
         RefreshHitTest(element);
         // An ancestor set to none may now have (or have lost) an auto descendant.
-        for (auto cur = mux::Media::VisualTreeHelper::GetParent(element); cur; cur = mux::Media::VisualTreeHelper::GetParent(cur))
+        if (auto parent = mux::Media::VisualTreeHelper::GetParent(element)) SubtreeChanged(parent);
+    }
+
+    void SubtreeChanged(mux::DependencyObject const& parent)
+    {
+        if (PointerNone().empty()) return;
+        for (auto cur = parent; cur; cur = mux::Media::VisualTreeHelper::GetParent(cur))
         {
             if (auto ui = cur.try_as<mux::UIElement>(); ui && IsNone(ui)) RefreshHitTest(ui);
         }
