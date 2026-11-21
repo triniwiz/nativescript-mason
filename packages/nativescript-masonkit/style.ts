@@ -974,8 +974,11 @@ const setFloat32 = (view: DataView, offset: number, value: number) => {
 // Core's Windows currentApp() is the package folder; the app's files are in its app\ folder.
 export function windowsAppFile(url: string): string {
   if (!url.startsWith('~/')) return url;
-  if (__LINUX__) return knownFolders.currentApp().path + '/' + url.slice(2);
-  return knownFolders.currentApp().path + '\\app\\' + url.slice(2).replace(/\//g, '\\');
+  const app = knownFolders.currentApp().path;
+  if (__LINUX__) return app + '/' + url.slice(2);
+  // Core's currentApp() is the package's app\ folder; older cores gave the package root.
+  const root = /[\\/]app[\\/]?$/i.test(app) ? app.replace(/[\\/]$/, '') : app + '\\app';
+  return root + '\\' + url.slice(2).replace(/\//g, '\\');
 }
 
 // Split a comma-separated list at top level only (commas inside parentheses, e.g. rgba(0,0,0,.5),
