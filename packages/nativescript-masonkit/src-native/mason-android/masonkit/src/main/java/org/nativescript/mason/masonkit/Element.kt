@@ -159,6 +159,7 @@ interface Element : EventTarget {
   }
 
   fun compute() {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
@@ -173,6 +174,7 @@ interface Element : EventTarget {
   }
 
   fun compute(widthArg: Float, heightArg: Float) {
+    node.mason.settleViewsWithoutStyle()
     // NaN (no constraint) is computed as max-content, which the cache can hold.
     val width = if (widthArg.isNaN()) -2f else widthArg
     val height = if (heightArg.isNaN()) -2f else heightArg
@@ -198,6 +200,7 @@ interface Element : EventTarget {
   }
 
   fun computeMaxContent() {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
@@ -212,6 +215,7 @@ interface Element : EventTarget {
   }
 
   fun computeMinContent() {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
@@ -324,6 +328,7 @@ interface Element : EventTarget {
   fun computeAndLayout(): MasonLayoutTree = TextDefaultAttributes.batch { computeAndLayoutUnbatched() }
 
   private fun computeAndLayoutUnbatched(): MasonLayoutTree {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     if (mason.inCompute) return node.layoutTree // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
@@ -352,6 +357,7 @@ interface Element : EventTarget {
    * return a `Layout` (recursive) representation of the root.
    */
   fun layout(): Layout {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     val floats = try {
       NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
@@ -366,6 +372,7 @@ interface Element : EventTarget {
     TextDefaultAttributes.batch { computeAndLayoutUnbatched(width, height) }
 
   private fun computeAndLayoutUnbatched(width: Float, height: Float): MasonLayoutTree {
+    node.mason.settleViewsWithoutStyle()
     val mason = node.mason
     if (mason.inCompute) {
       return node.layoutTree // nested compute → skip to avoid Rust RWLock deadlock

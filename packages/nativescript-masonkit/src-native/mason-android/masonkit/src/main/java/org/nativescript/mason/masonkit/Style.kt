@@ -4434,6 +4434,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     // style writes reach Kotlin (via syncStyle → setStateFromHalves).
     val firstSync = !isValueInitialized
     isValueInitialized = true
+    node.settleInlineRuns()
 
     updateTextStyle()
 

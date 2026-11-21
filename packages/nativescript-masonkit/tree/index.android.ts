@@ -70,49 +70,92 @@ export class Tree {
     return this._base;
   }
 
-  createView(context) {
-    return this.native.createView(context);
+  private _slotMailbox: Int32Array | undefined;
+  private _textTypes: any[] = [];
+  /** Style slot of the view the last createView or createTextView call made, or -1. */
+  lastSlot = -1;
+
+  private _takeSlot(): void {
+    // @ts-ignore - typings regenerate from the AAR separately.
+    const mailbox = (this._slotMailbox ??= new Int32Array((ArrayBuffer as any).from(this.native.getSlotMailbox())));
+    this.lastSlot = mailbox[0];
   }
 
-  createTextView(context, type?: TextType) {
-    switch (type) {
-      case TextType.P:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.P);
-      case TextType.Span:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Span);
-      case TextType.Code:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Code);
-      case TextType.H1:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H1);
-      case TextType.H2:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H2);
-      case TextType.H3:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H3);
-      case TextType.H4:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H4);
-      case TextType.H5:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H5);
-      case TextType.H6:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.H6);
-      case TextType.Li:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Li);
-      case TextType.Blockquote:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Blockquote);
-      case TextType.B:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.B);
-      case TextType.Pre:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Pre);
-      case TextType.Strong:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Strong);
-      case TextType.Em:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Em);
-      case TextType.I:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.I);
-      case TextType.A:
-        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.A);
-      default:
-        return this.native.createTextView(context);
+  createView(context) {
+    // @ts-ignore - typings regenerate from the AAR separately.
+    const view = this.native.createViewWithSlot(context);
+    this._takeSlot();
+    return view;
+  }
+
+  createTextView(context, type?: TextType, text?: string) {
+    const key = type ?? TextType.None;
+    let nativeType = this._textTypes[key];
+    if (nativeType === undefined) {
+      // Each enum constant is a Java static field read; read it once per type.
+      const types = org.nativescript.mason.masonkit.enums.TextType;
+      switch (key) {
+        case TextType.P:
+          nativeType = types.P;
+          break;
+        case TextType.Span:
+          nativeType = types.Span;
+          break;
+        case TextType.Code:
+          nativeType = types.Code;
+          break;
+        case TextType.H1:
+          nativeType = types.H1;
+          break;
+        case TextType.H2:
+          nativeType = types.H2;
+          break;
+        case TextType.H3:
+          nativeType = types.H3;
+          break;
+        case TextType.H4:
+          nativeType = types.H4;
+          break;
+        case TextType.H5:
+          nativeType = types.H5;
+          break;
+        case TextType.H6:
+          nativeType = types.H6;
+          break;
+        case TextType.Li:
+          nativeType = types.Li;
+          break;
+        case TextType.Blockquote:
+          nativeType = types.Blockquote;
+          break;
+        case TextType.B:
+          nativeType = types.B;
+          break;
+        case TextType.Pre:
+          nativeType = types.Pre;
+          break;
+        case TextType.Strong:
+          nativeType = types.Strong;
+          break;
+        case TextType.Em:
+          nativeType = types.Em;
+          break;
+        case TextType.I:
+          nativeType = types.I;
+          break;
+        case TextType.A:
+          nativeType = types.A;
+          break;
+        default:
+          nativeType = types.None;
+          break;
+      }
+      this._textTypes[key] = nativeType;
     }
+    // @ts-ignore - typings regenerate from the AAR separately.
+    const view = text ? this.native.createTextViewWithSlot(context, nativeType, text) : this.native.createTextViewWithSlot(context, nativeType);
+    this._takeSlot();
+    return view;
   }
 
   createImageView(context) {

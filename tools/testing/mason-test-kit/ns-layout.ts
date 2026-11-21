@@ -16,3 +16,9 @@ export const layout = {
   toDeviceIndependentPixels: (value: number) => value / screenScale,
   round: (value: number) => Math.round(value),
 };
+
+// `Utils.android`: Android specs build native views against a fake context.
+export const android = {
+  getCurrentActivity: () => undefined,
+  getApplicationContext: () => ({}),
+};

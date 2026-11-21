@@ -1957,6 +1957,7 @@ class NodeHelper(val mason: Mason) {
     }
 
     fun compute(node: Node) {
+      node.mason.settleViewsWithoutStyle()
       try {
         NativeHelpers.nativeNodeCompute(
           node.mason.nativePtr, node.nativePtr

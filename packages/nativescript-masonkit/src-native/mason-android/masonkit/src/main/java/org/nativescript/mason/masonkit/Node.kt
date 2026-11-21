@@ -572,10 +572,13 @@ open class Node internal constructor(
   private var normalizingRuns = false
   private var runsEstablished = false
 
+  // Set on a view JavaScript created: it attaches children before its first style sync, while
+  // display still reads the buffer default, so runs built then are often torn down at the sync.
+  internal var awaitingFirstStyle = false
+
   /** Whether this node groups its inline-level children into shared runs. */
   internal fun establishesInlineRuns(): Boolean {
-    // Reads the buffer even before the first style sync: display is already right there.
-    if (view is TextContainer || view !is ViewGroup) return false
+    if (awaitingFirstStyle || view is TextContainer || view !is ViewGroup) return false
     return when (style.display) {
       Display.Block, Display.InlineBlock -> true
       else -> false
@@ -798,6 +801,13 @@ open class Node internal constructor(
     val inRun = layoutParent?.isAnonymous == true
     val shouldJoin = if (owner.establishesInlineRuns()) owner.joinsInlineRun(this, inRun) else false
     if (inRun != shouldJoin) owner.normalizeInlineRuns()
+  }
+
+  /** Groups the children of a node that was waiting for its first style, by the display it has now. */
+  internal fun settleInlineRuns() {
+    if (!awaitingFirstStyle) return
+    awaitingFirstStyle = false
+    if (runsEstablished != establishesInlineRuns()) normalizeInlineRuns()
   }
 
   fun getNativePtr(): Long {

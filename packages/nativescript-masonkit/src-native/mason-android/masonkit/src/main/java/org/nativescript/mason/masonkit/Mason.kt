@@ -489,6 +489,64 @@ class Mason {
     return View(context, this)
   }
 
+  /**
+   * Style slot of the view the last create*WithSlot call made (-1 outside the shared Mason). JavaScript maps
+   * this buffer once and reads the slot from it, which saves a call per view.
+   */
+  val slotMailbox: ByteBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder())
+
+  private fun <T : Element> postSlot(element: T): T {
+    val slot = if (this === shared) element.style.prepareSlot() else -1
+    if (slot >= 0) {
+      while (slotElements.size <= slot) slotElements.add(null)
+      slotElements[slot] = WeakReference(element)
+    }
+    slotMailbox.putInt(0, slot)
+    return element
+  }
+
+  // A slot returns to the arena when its node dies; the next create*WithSlot owner overwrites the entry.
+  private val slotElements = ArrayList<WeakReference<Element>?>()
+
+  /**
+   * Style syncs queued by JavaScript, five ints each: slot, then the four dirty words of
+   * [Element.syncStyleParts]. JavaScript maps this buffer once and calls [syncStyleSlots] once per flush.
+   */
+  val syncQueue: ByteBuffer = ByteBuffer.allocateDirect(SYNC_QUEUE_ENTRIES * 5 * 4).order(ByteOrder.nativeOrder())
+
+  fun syncStyleSlots(count: Int) {
+    // Copied first: a sync can run JavaScript that queues and flushes again.
+    val queued = IntArray(count.coerceIn(0, SYNC_QUEUE_ENTRIES) * 5)
+    syncQueue.asIntBuffer().get(queued)
+    var i = 0
+    while (i < queued.size) {
+      slotElements.getOrNull(queued[i])?.get()
+        ?.syncStyleParts(queued[i + 1], queued[i + 2], queued[i + 3], queued[i + 4])
+      i += 5
+    }
+  }
+
+  fun createViewWithSlot(context: Context): View = postSlot(createView(context)).also {
+    it.node.awaitingFirstStyle = true
+    awaitingFirstStyle.add(it.node)
+  }
+
+  private val awaitingFirstStyle = ArrayList<Node>()
+
+  /** Settles views still waiting for their first style sync; a layout must see their runs. */
+  internal fun settleViewsWithoutStyle() {
+    if (inCompute || awaitingFirstStyle.isEmpty()) return
+    val pending = awaitingFirstStyle.toList()
+    awaitingFirstStyle.clear()
+    for (node in pending) node.settleInlineRuns()
+  }
+
+  fun createTextViewWithSlot(context: Context, type: TextType): TextView = postSlot(createTextView(context, type))
+
+  /** A text view already holding [text]: saves JavaScript a separate setTextContent call per view. */
+  fun createTextViewWithSlot(context: Context, type: TextType, text: String): TextView =
+    postSlot(createTextView(context, type).also { it.textContent = text })
+
   @JvmOverloads
   fun createListView(context: Context, isOrdered: Boolean = false): ListView {
     return ListView(context, this).apply {
@@ -694,6 +752,7 @@ class Mason {
 
   companion object {
     private const val LOG_EVENTS = false
+    private const val SYNC_QUEUE_ENTRIES = 1024
 
     internal fun initLib() {
       NativeHelpers.initLib()
