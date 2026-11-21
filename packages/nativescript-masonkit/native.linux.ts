@@ -496,7 +496,7 @@ function classForKind(kind: number): any {
   }
 }
 
-const EVENT_STRINGS = { Type: 0, Data: 1, InputType: 2, Key: 3 };
+const EVENT_STRINGS = { Type: 0, Data: 1, InputType: 2, Key: 3, PointerType: 5 };
 const EVENT_FLAGS = { Bubbles: 0, Cancelable: 1, DefaultPrevented: 3, PropagationStopped: 4, ImmediatePropagationStopped: 5, Repeat: 6, CtrlKey: 7, ShiftKey: 8, AltKey: 9, MetaKey: 10 };
 
 export class Event extends PointerBase {
@@ -538,6 +538,10 @@ export class Event extends PointerBase {
     return mason_gtk_event_number(this, 13);
   }
 
+  get RelatedTarget(): Element | null {
+    return elementOf(mason_gtk_event_target(this, 2));
+  }
+
   PreventDefault() {
     mason_gtk_event_call(this, 0);
   }
@@ -558,6 +562,23 @@ for (const [name, which] of Object.entries(EVENT_STRINGS)) {
     },
   });
 }
+
+// Pointer event numbers (see mason_gtk_event_number).
+const POINTER_NUMBERS = { PointerId: 14, ClientX: 16, ClientY: 17, OffsetX: 18, OffsetY: 19, MovementX: 20, MovementY: 21, Buttons: 22, Pressure: 23, Width: 24, Height: 25 };
+
+for (const [name, which] of Object.entries(POINTER_NUMBERS)) {
+  Object.defineProperty(Event.prototype, name, {
+    get(this: Event) {
+      return mason_gtk_event_number(this, which);
+    },
+  });
+}
+
+Object.defineProperty(Event.prototype, 'IsPrimary', {
+  get(this: Event) {
+    return mason_gtk_event_number(this, 15) !== 0;
+  },
+});
 
 for (const [name, which] of Object.entries(EVENT_FLAGS)) {
   Object.defineProperty(Event.prototype, name, {
@@ -628,6 +649,22 @@ export class Mason {
   RemoveEventListener(element: Element, type: string, id: number): boolean {
     listeners.delete(id);
     return isElement(element) ? mason_gtk_remove_event_listener(element, type, id) : false;
+  }
+
+  SetPointerEvents(element: Element, value: number) {
+    if (isElement(element)) mason_gtk_set_pointer_events(element, value | 0);
+  }
+
+  SetPointerCapture(element: Element, pointerId: number): boolean {
+    return isElement(element) ? mason_gtk_pointer_capture(element, pointerId | 0, 0) : false;
+  }
+
+  ReleasePointerCapture(element: Element, pointerId: number) {
+    if (isElement(element)) mason_gtk_pointer_capture(element, pointerId | 0, 1);
+  }
+
+  HasPointerCapture(element: Element, pointerId: number): boolean {
+    return isElement(element) ? mason_gtk_pointer_capture(element, pointerId | 0, 2) : false;
   }
 
   ElementFromPoint(element: Element, x: number, y: number): Element | null {

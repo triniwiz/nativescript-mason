@@ -147,6 +147,9 @@ class MasonGestureRecognizer: MasonGestureRecognizerBase {
       for recognizer in view.gestureRecognizers where recognizer is MasonGestureRecognizer && recognizer.state == .possible {
         recognizer.state = .failed
       }
+      for case let recognizer as MasonPointerRecognizer in view.gestureRecognizers where recognizer.state == .possible {
+        recognizer.finishTracked(up)
+      }
       if owner == nil, let element = view as? MasonElement { owner = element }
       current = view.superview
     }

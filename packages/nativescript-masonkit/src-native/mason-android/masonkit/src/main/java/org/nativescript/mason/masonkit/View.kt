@@ -143,19 +143,20 @@ open class View @JvmOverloads constructor(
   }
 
 
-  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-    // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
-    if (clipPathRejectsTouch(this, style, ev)) return false
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean = dispatchMasonTouch(ev) { event ->
     // higher zIndex should receive touch first
     if (hasZIndexedChildren) {
       for (i in zSortedChildren.size - 1 downTo 0) {
         val child = zSortedChildren[i]
         if (child.visibility != VISIBLE) continue
-        if (dispatchToChild(child, ev)) return true
+        if (dispatchToChild(child, event)) return@dispatchMasonTouch true
       }
     }
-    return super.dispatchTouchEvent(ev)
+    super.dispatchTouchEvent(event)
   }
+
+  override fun dispatchHoverEvent(event: MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   private fun dispatchToChild(child: android.view.View, ev: MotionEvent): Boolean {
     // Check if the touch point is within the child's bounds (standard Android behavior)

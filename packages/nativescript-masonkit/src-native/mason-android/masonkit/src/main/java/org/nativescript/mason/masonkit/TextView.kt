@@ -216,7 +216,7 @@ open class TextView @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
 
   override fun onDraw(canvas: Canvas) {
     // Text changed since the last measure (no layout pass in between) is applied here.
@@ -496,6 +496,13 @@ open class TextView @JvmOverloads constructor(
     return null
   }
 
+  /** The inline element this view draws at (x, y), in view coordinates. */
+  internal fun inlineNodeAt(x: Float, y: Float): Node? {
+    val layout = drawnLayout ?: return null
+    val point = toLayoutPoint(x, y) ?: return null
+    return engine.inlineNodeAt(layout, point.x, point.y)
+  }
+
   // An inline element being pressed: an inline box or a flattened element such as <a>.
   private var inlineTarget: Node? = null
   private var inlineTracking = false
@@ -681,8 +688,8 @@ open class TextView @JvmOverloads constructor(
     override fun findFocus(focus: Int): AccessibilityNodeInfo? = compat.findFocus(focus)?.unwrap()
   }
 
-  override fun dispatchHoverEvent(event: MotionEvent): Boolean {
-    return inlineAccessibility?.dispatchHoverEvent(event) == true || super.dispatchHoverEvent(event)
+  override fun dispatchHoverEvent(event: MotionEvent): Boolean = dispatchMasonHover(event) {
+    inlineAccessibility?.dispatchHoverEvent(it) == true || super.dispatchHoverEvent(it)
   }
 
   var textContent: String

@@ -10,6 +10,7 @@ import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontFaceSet
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.PointerEvent
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -42,6 +43,9 @@ class Mason {
 
   private val nodeEventListeners =
     WeakHashMap<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
+
+  // Pointer listeners added and not removed; until one exists touches skip pointer dispatch.
+  internal var pointerListenerCount = 0
 
   // True while Rust holds a lock during compute — prevents re-entrant
   // compute calls on the UI thread (e.g. layout → dirty → layout).
@@ -272,6 +276,7 @@ class Mason {
     val byId = byType.getOrPut(type) { mutableMapOf() }
 
     byId[id] = listener
+    if (type in PointerEvent.TYPES) pointerListenerCount++
     if (LOG_EVENTS) {
       Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
     }
@@ -283,9 +288,10 @@ class Mason {
     type: String,
     id: UUID
   ) {
-    nodeEventListeners[node]
+    val removed = nodeEventListeners[node]
       ?.get(type)
       ?.remove(id)
+    if (removed != null && type in PointerEvent.TYPES && pointerListenerCount > 0) pointerListenerCount--
   }
 
   /** Calls only the target's own listeners, for events that don't bubble (scroll, scrollend). */
@@ -306,6 +312,17 @@ class Mason {
     var current: Node? = node
     while (current != null) {
       if (nodeEventListeners[current]?.get(type)?.isNotEmpty() == true) return true
+      current = current.parent
+    }
+    return false
+  }
+
+  /** True when [node] or one of its ancestors listens for any of [types]. */
+  internal fun hasListenerOnPath(node: Node, types: Set<String>): Boolean {
+    var current: Node? = node
+    while (current != null) {
+      val byType = nodeEventListeners[current]
+      if (byType != null && types.any { byType[it]?.isNotEmpty() == true }) return true
       current = current.parent
     }
     return false

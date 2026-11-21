@@ -62,10 +62,40 @@ internal object HitTesting {
   }
 
   fun elementFromPoint(root: View, x: Float, y: Float): View? {
-    return hitTest(root, x, y)
+    return hitTest(root, x, y, null)
   }
 
-  private fun hitTest(view: View, x: Float, y: Float): View? {
+  /** Whether a descendant of [view] takes a touch at (x, y): a pointer-events: none element passes the rest through. */
+  fun childTakesPoint(view: View, x: Float, y: Float): Boolean {
+    if (view !is ViewGroup) return false
+    val children = zSortedChildren(view)
+    for (i in children.size - 1 downTo 0) {
+      val child = children[i]
+      val point = childPoint(view, child, x, y)
+      if (hitTest(child, point[0], point[1], null) != null) return true
+    }
+    return false
+  }
+
+  /** The node a pointer at (x, y) in [root] targets: the element under it, or the inline element a text view draws there. */
+  fun pointerTarget(root: View, x: Float, y: Float): Node? {
+    val point = FloatArray(2)
+    val hit = hitTest(root, x, y, point) ?: return null
+    var view: View? = hit
+    while (view != null && view !is Element) {
+      if (view === root) return null
+      view = view.parent as? View
+    }
+    val element = view as? Element ?: return null
+    var node: Node? = (if (view === hit && view is TextView) view.inlineNodeAt(point[0], point[1]) else null) ?: element.node
+    while (node != null && node.pointerEvents == PointerEvents.NONE) node = node.parent
+    return node
+  }
+
+  private fun takesPointer(view: View): Boolean =
+    (view as? Element)?.node?.pointerEvents != PointerEvents.NONE
+
+  private fun hitTest(view: View, x: Float, y: Float, point: FloatArray?): View? {
     if (view.visibility != View.VISIBLE || view.width <= 0 || view.height <= 0) return null
     if (clippedOutside(view, x, y)) return null
 
@@ -73,12 +103,17 @@ internal object HitTesting {
       val children = zSortedChildren(view)
       for (i in children.size - 1 downTo 0) {
         val child = children[i]
-        val point = childPoint(view, child, x, y)
-        val hit = hitTest(child, point[0], point[1])
+        val childPoint = childPoint(view, child, x, y)
+        val hit = hitTest(child, childPoint[0], childPoint[1], point)
         if (hit != null) return hit
       }
     }
 
-    return if (contains(view, x, y)) view else null
+    if (!contains(view, x, y) || !takesPointer(view)) return null
+    point?.let {
+      it[0] = x
+      it[1] = y
+    }
+    return view
   }
 }

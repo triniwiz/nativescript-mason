@@ -394,6 +394,8 @@ interface IViewBase {
   maskBorderRepeat: string;
   maskBorderMode: string;
   caretColor: string | Color;
+  /** `none` leaves the element itself out of hit testing; children set back to `auto` still take touches. Inherited. */
+  pointerEvents: 'auto' | 'none';
   elementFromPoint(x: number, y: number): ViewBase | null;
 }
 
@@ -447,6 +449,65 @@ class VBase extends ViewBase implements IViewBase {
   scrollBy(options?: ScrollToOptions): void;
   scrollBy(x: number, y: number): void;
   scrollIntoView(arg?: boolean | ScrollIntoViewOptions): void;
+
+  /**
+   * Pointer events for `pointerId` go to this element until it's released or the pointer goes up.
+   * Touch and pen pointers are captured to their `pointerdown` target already. Throws a
+   * `NotFoundError` for a pointer that isn't down (or, for a mouse, has no button pressed).
+   */
+  setPointerCapture(pointerId: number): void;
+  releasePointerCapture(pointerId: number): void;
+  hasPointerCapture(pointerId: number): boolean;
+}
+
+/**
+ * DOM PointerEvent, raised for `pointerdown`, `pointermove`, `pointerup`, `pointercancel`,
+ * `pointerover`, `pointerout`, `pointerenter`, `pointerleave`, `gotpointercapture` and
+ * `lostpointercapture`. Coordinates are CSS pixels; `clientX/Y` are relative to the window and
+ * `offsetX/Y` to the target element.
+ */
+export interface PointerEvent {
+  readonly type: string;
+  readonly target: ViewBase | null;
+  readonly currentTarget: ViewBase | null;
+  readonly relatedTarget: ViewBase | null;
+  readonly bubbles: boolean;
+  readonly cancelable: boolean;
+  readonly defaultPrevented: boolean;
+  readonly timeStamp: number;
+  readonly pointerId: number;
+  readonly pointerType: 'mouse' | 'pen' | 'touch' | '';
+  readonly isPrimary: boolean;
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly screenX: number;
+  readonly screenY: number;
+  readonly pageX: number;
+  readonly pageY: number;
+  readonly x: number;
+  readonly y: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+  readonly movementX: number;
+  readonly movementY: number;
+  readonly button: number;
+  readonly buttons: number;
+  readonly width: number;
+  readonly height: number;
+  readonly pressure: number;
+  readonly tangentialPressure: number;
+  readonly tiltX: number;
+  readonly tiltY: number;
+  readonly twist: number;
+  readonly ctrlKey: boolean;
+  readonly shiftKey: boolean;
+  readonly altKey: boolean;
+  readonly metaKey: boolean;
+  getCoalescedEvents(): PointerEvent[];
+  getPredictedEvents(): PointerEvent[];
+  preventDefault(): void;
+  stopPropagation(): void;
+  stopImmediatePropagation(): void;
 }
 
 export type ScrollBehavior = 'auto' | 'instant' | 'smooth';

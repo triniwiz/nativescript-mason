@@ -111,6 +111,13 @@ interface Element : EventTarget {
     return HitTesting.elementFromPoint(view, x, y)
   }
 
+  /** Pointer events for [pointerId] target this element until it's released or the pointer goes up. */
+  fun setPointerCapture(pointerId: Int): Boolean = PointerDispatch.setCapture(node, pointerId)
+
+  fun releasePointerCapture(pointerId: Int) = PointerDispatch.releaseCapture(node, pointerId)
+
+  fun hasPointerCapture(pointerId: Int): Boolean = PointerDispatch.hasCapture(node, pointerId)
+
   fun layoutFlat(): MasonLayoutTree {
     if (node.nativePtr == 0L) {
       return MasonLayoutTree.empty

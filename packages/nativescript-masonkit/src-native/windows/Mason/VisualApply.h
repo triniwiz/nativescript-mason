@@ -23,6 +23,11 @@
 #include "VisualState.h"
 #include "Node.h"
 
+namespace mason_events
+{
+    bool IsPointerNone(winrt::Windows::Foundation::IInspectable const& element);
+}
+
 namespace mason_visual
 {
     namespace nsm = winrt::NativeScript::Mason;
@@ -588,8 +593,9 @@ namespace mason_visual
         }
         else if (panel && current && current == state.installed)
         {
-            // Transparent rather than null keeps the element hit-testable for tap handlers.
-            auto shared = SharedSolid(0);
+            // Transparent rather than null keeps the element hit-testable for tap handlers;
+            // pointer-events: none wants null so input reaches what's beneath.
+            auto shared = mason_events::IsPointerNone(element) ? muxm::Brush{ nullptr } : SharedSolid(0);
             if (current != shared) panel.Background(shared);
             state.installed = shared;
         }

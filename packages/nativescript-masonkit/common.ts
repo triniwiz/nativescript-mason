@@ -121,7 +121,7 @@ import {
   logicalLonghands,
 } from './properties';
 import { masonLayout } from './display-density';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, remapLogicalBoxes_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, remapLogicalBoxes_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_, pointerEvents_ } from './symbols';
 import { Tree } from './tree';
 import { masonDelegate, masonEngine, removeNativeChild } from './panel-helpers';
 import { TextNode } from './text-node';
@@ -166,7 +166,12 @@ function nativeViewFor(owner: any): any {
   return owner?.nativeViewProtected ?? owner?.[native_];
 }
 
+const POINTER_EVENTS = new Set(['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'gotpointercapture', 'lostpointercapture']);
+
 function masonNativeEventName(eventName: string): string | null {
+  // Pointer names in any case, for renderers that pass `onPointerDown` on as `pointerDown`.
+  const lower = eventName.toLowerCase();
+  if (POINTER_EVENTS.has(lower)) return lower;
   switch (eventName) {
     case 'tap':
     case 'click':
@@ -1048,11 +1053,60 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (node) node.touchAction = flags;
   }
 
+  [pointerEvents_]: number | undefined;
+
+  /** Hands `pointer-events` to the native element: `none` (1) leaves it out of hit testing. */
+  _applyPointerEvents() {
+    const value = this[pointerEvents_];
+    const native = this[native_] as any;
+    if (value === undefined || !native) return;
+    if (__WINDOWS__ || __LINUX__) {
+      masonEngine().SetPointerEvents?.(native, value);
+      return;
+    }
+    const node = native.node ?? (__IOS__ ? (this as any).ios?.node : undefined);
+    if (node) node.pointerEvents = value;
+  }
+
+  /** Pointer events for `pointerId` target this element until it's released or the pointer goes up. */
+  setPointerCapture(pointerId: number): void {
+    const native = this[native_] as any;
+    if (!native) return;
+    let ok = false;
+    if (__ANDROID__) ok = native.setPointerCapture(pointerId);
+    else if (__APPLE__) ok = native.mason_setPointerCapture(pointerId);
+    else if (__WINDOWS__ || __LINUX__) ok = !!masonEngine().SetPointerCapture?.(native, pointerId);
+    if (!ok) {
+      // The DOM throws NotFoundError for a pointer that isn't active.
+      const error = new Error(`No active pointer with the id ${pointerId}`);
+      error.name = 'NotFoundError';
+      throw error;
+    }
+  }
+
+  releasePointerCapture(pointerId: number): void {
+    const native = this[native_] as any;
+    if (!native) return;
+    if (__ANDROID__) native.releasePointerCapture(pointerId);
+    else if (__APPLE__) native.mason_releasePointerCapture(pointerId);
+    else if (__WINDOWS__ || __LINUX__) masonEngine().ReleasePointerCapture?.(native, pointerId);
+  }
+
+  hasPointerCapture(pointerId: number): boolean {
+    const native = this[native_] as any;
+    if (!native) return false;
+    if (__ANDROID__) return native.hasPointerCapture(pointerId);
+    if (__APPLE__) return native.mason_hasPointerCapture(pointerId);
+    if (__WINDOWS__ || __LINUX__) return !!masonEngine().HasPointerCapture?.(native, pointerId);
+    return false;
+  }
+
   _masonPendingScroll: { left: number; top: number; smooth: boolean } | undefined;
 
   initNativeView(): void {
     super.initNativeView();
     this._applyTouchAction();
+    this._applyPointerEvents();
     const scroll = this._masonPendingScroll;
     if (scroll) {
       this._masonPendingScroll = undefined;
@@ -4461,7 +4515,140 @@ export class KeyboardEvent extends Event {
   }
 }
 
+// Reads a native PointerEvent field: a Kotlin getter, an Obj-C property, or a WinRT/GTK PascalCase property.
+function pointerField(event: Event, name: string, androidGetter: string, pascal: string): any {
+  const native = event[native_];
+  if (!native) return undefined;
+  if (__ANDROID__) return native[androidGetter]?.();
+  if (__APPLE__) return native[name];
+  if (__WINDOWS__ || __LINUX__) return native[pascal];
+  return undefined;
+}
+
+/** DOM PointerEvent. Coordinates are CSS pixels; client coordinates are relative to the window. */
+export class PointerEvent extends Event {
+  private _num(name: string): number {
+    const pascal = name[0].toUpperCase() + name.slice(1);
+    return pointerField(this, name, 'get' + pascal, pascal) ?? 0;
+  }
+
+  private _flag(name: string): boolean {
+    const pascal = name[0].toUpperCase() + name.slice(1);
+    return !!pointerField(this, name, 'get' + pascal, pascal);
+  }
+
+  get pointerId(): number {
+    return this._num('pointerId');
+  }
+  get pointerType(): string {
+    return pointerField(this, 'pointerType', 'getPointerType', 'PointerType') ?? '';
+  }
+  get isPrimary(): boolean {
+    return !!pointerField(this, 'isPrimary', 'isPrimary', 'IsPrimary');
+  }
+  get clientX(): number {
+    return this._num('clientX');
+  }
+  get clientY(): number {
+    return this._num('clientY');
+  }
+  get screenX(): number {
+    return this._num('screenX');
+  }
+  get screenY(): number {
+    return this._num('screenY');
+  }
+  get pageX(): number {
+    return this.clientX;
+  }
+  get pageY(): number {
+    return this.clientY;
+  }
+  get x(): number {
+    return this.clientX;
+  }
+  get y(): number {
+    return this.clientY;
+  }
+  /** Relative to the target element's top-left corner. */
+  get offsetX(): number {
+    return this._num('offsetX');
+  }
+  get offsetY(): number {
+    return this._num('offsetY');
+  }
+  get movementX(): number {
+    return this._num('movementX');
+  }
+  get movementY(): number {
+    return this._num('movementY');
+  }
+  get button(): number {
+    return this._num('button');
+  }
+  set button(_: number) {}
+  get buttons(): number {
+    return this._num('buttons');
+  }
+  get width(): number {
+    return this._num('width') || 1;
+  }
+  get height(): number {
+    return this._num('height') || 1;
+  }
+  get pressure(): number {
+    return this._num('pressure');
+  }
+  get tangentialPressure(): number {
+    return this._num('tangentialPressure');
+  }
+  get tiltX(): number {
+    return this._num('tiltX');
+  }
+  get tiltY(): number {
+    return this._num('tiltY');
+  }
+  get twist(): number {
+    return this._num('twist');
+  }
+  get ctrlKey(): boolean {
+    return this._flag('ctrlKey');
+  }
+  get shiftKey(): boolean {
+    return this._flag('shiftKey');
+  }
+  get altKey(): boolean {
+    return this._flag('altKey');
+  }
+  get metaKey(): boolean {
+    return this._flag('metaKey');
+  }
+
+  /** pointerover/out/enter/leave: the element the pointer came from or went to. */
+  get relatedTarget(): any {
+    const related = pointerField(this, 'relatedTarget', 'getRelatedTarget', 'RelatedTarget');
+    if (!related) return null;
+    const known = nativeOwnerFor(related);
+    if (known) return known;
+    // It can be anywhere in the tree, not just under the listener.
+    let root = this['_target'];
+    while (root?.parent) root = root.parent;
+    const found: any = findOwnerForNativeView(root, related);
+    found?._rememberNativeOwner?.(related);
+    return found;
+  }
+
+  getCoalescedEvents(): PointerEvent[] {
+    return [this];
+  }
+
+  getPredictedEvents(): PointerEvent[] {
+    return [];
+  }
+}
+
 function wrapNativeEvent(type: string): Event {
+  if (POINTER_EVENTS.has(type)) return new PointerEvent();
   switch (type) {
     case 'beforeinput':
     case 'input':

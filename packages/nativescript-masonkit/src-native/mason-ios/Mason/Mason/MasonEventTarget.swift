@@ -36,6 +36,8 @@ extension MasonEventTarget {
         ensureClickGesture()
       } else if event == "scroll" || event == "scrollend" {
         node.listensForScroll = true
+      } else if MasonPointerEvent.types.contains(event) {
+        ensurePointerRecognizer()
       }
       return id
     }

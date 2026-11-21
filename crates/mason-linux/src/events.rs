@@ -34,6 +34,21 @@ pub struct EventInit {
     pub x: f64,
     pub y: f64,
     pub button: i32,
+    // Pointer events (see pointer.rs); client coordinates are relative to the window.
+    pub buttons: i32,
+    pub pointer_id: i32,
+    pub pointer_type: String,
+    pub is_primary: bool,
+    pub client_x: f64,
+    pub client_y: f64,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub movement_x: f64,
+    pub movement_y: f64,
+    pub pressure: f64,
+    pub width: f64,
+    pub height: f64,
+    pub related: glib::WeakRef<Element>,
 }
 
 mod imp {
@@ -112,24 +127,29 @@ impl Listeners {
     }
 }
 
+impl Element {
+    pub fn has_listener(&self, kind: &str) -> bool {
+        self.listeners().has(kind)
+    }
+}
+
+/// The element `el`'s events bubble to: a nested text's host, else its Mason parent.
+pub(crate) fn parent(el: &Element) -> Option<Element> {
+    el.text_state()
+        .as_ref()
+        .and_then(|s| s.host.upgrade())
+        .or_else(|| Element::mason_parent(el.upcast_ref()))
+}
+
 /// The Mason element chain from `el` up, nested texts through their hosts.
-fn chain(el: &Element) -> Vec<Element> {
+pub(crate) fn chain(el: &Element) -> Vec<Element> {
     let mut out = vec![el.clone()];
     let mut cur = el.clone();
-    loop {
-        let next = cur
-            .text_state()
-            .as_ref()
-            .and_then(|s| s.host.upgrade())
-            .or_else(|| Element::mason_parent(cur.upcast_ref()));
-        match next {
-            Some(n) => {
-                out.push(n.clone());
-                cur = n;
-            }
-            None => return out,
-        }
+    while let Some(n) = parent(&cur) {
+        out.push(n.clone());
+        cur = n;
     }
+    out
 }
 
 fn now() -> f64 {
@@ -137,7 +157,7 @@ fn now() -> f64 {
 }
 
 /// Calls `current`'s listeners for the event.
-fn call(event: &Event, current: &Element) {
+pub(crate) fn call(event: &Event, current: &Element) {
     let Some(dispatcher) = DISPATCHER.with(|c| c.get()) else {
         return;
     };
@@ -255,8 +275,6 @@ const CLICK: &[&str] = &[
     "click",
     "tap",
     "dblclick",
-    "pointerdown",
-    "pointerup",
     "mousedown",
     "mouseup",
     "touchstart",
@@ -264,15 +282,10 @@ const CLICK: &[&str] = &[
     "mason:active",
 ];
 const MOTION: &[&str] = &[
-    "pointermove",
     "mousemove",
     "touchmove",
-    "pointerenter",
-    "pointerleave",
     "mouseenter",
     "mouseleave",
-    "pointerover",
-    "pointerout",
     "mouseover",
     "mouseout",
 ];
@@ -280,7 +293,9 @@ const KEY: &[&str] = &["keydown", "keyup", "keypress"];
 const FOCUS: &[&str] = &["focus", "blur", "focusin", "focusout"];
 
 fn controller_group(kind: &str) -> Option<&'static str> {
-    if CLICK.contains(&kind) {
+    if crate::pointer::TYPES.contains(&kind) {
+        Some("pointer")
+    } else if CLICK.contains(&kind) {
         Some("click")
     } else if MOTION.contains(&kind) {
         Some("motion")
@@ -316,7 +331,7 @@ fn install(listener: &Element, group: &str) -> gtk::EventController {
                     drop(event);
                 }
                 let mut stopped = false;
-                for kind in ["pointerdown", "mousedown", "touchstart"] {
+                for kind in ["mousedown", "touchstart"] {
                     if has(kind) {
                         stopped |= pointer(&host, &el, kind, x, y, state, button - 1);
                     }
@@ -340,7 +355,7 @@ fn install(listener: &Element, group: &str) -> gtk::EventController {
                     dispatch_quiet(&el, "mason:active", "0");
                 }
                 let mut stopped = false;
-                for kind in ["pointerup", "mouseup", "touchend"] {
+                for kind in ["mouseup", "touchend"] {
                     if has(kind) {
                         stopped |= pointer(&host, &el, kind, x, y, state, button - 1);
                     }
@@ -374,7 +389,7 @@ fn install(listener: &Element, group: &str) -> gtk::EventController {
                     return;
                 };
                 let state = c.current_event_state();
-                for kind in ["pointermove", "mousemove", "touchmove"] {
+                for kind in ["mousemove", "touchmove"] {
                     if el.listeners().has(kind) {
                         pointer(&host, &el, kind, x, y, state, -1);
                     }
@@ -391,7 +406,7 @@ fn install(listener: &Element, group: &str) -> gtk::EventController {
                     ..Default::default()
                 };
                 modifiers(&mut init, c.current_event_state());
-                for kind in ["pointerenter", "mouseenter", "pointerover", "mouseover"] {
+                for kind in ["mouseenter", "mouseover"] {
                     if el.listeners().has(kind) {
                         dispatch_one(
                             &el,
@@ -407,7 +422,7 @@ fn install(listener: &Element, group: &str) -> gtk::EventController {
             let l = weak.clone();
             motion.connect_leave(move |_| {
                 let Some(el) = l.upgrade() else { return };
-                for kind in ["pointerleave", "mouseleave", "pointerout", "mouseout"] {
+                for kind in ["mouseleave", "mouseout"] {
                     if el.listeners().has(kind) {
                         dispatch_one(
                             &el,
@@ -555,12 +570,18 @@ fn key_name(keyval: gtk::gdk::Key) -> String {
     }
 }
 
-/// An event for `el`'s listeners only.
-fn dispatch_one(el: &Element, init: EventInit) -> Event {
+/// An event targeted at `target`, not yet dispatched.
+pub(crate) fn make(target: &Element, init: EventInit) -> Event {
     let event: Event = glib::Object::new();
     event.imp().init.replace(init);
-    event.imp().target.set(Some(el));
+    event.imp().target.set(Some(target));
     event.imp().time.set(now());
+    event
+}
+
+/// An event for `el`'s listeners only.
+pub(crate) fn dispatch_one(el: &Element, init: EventInit) -> Event {
+    let event = make(el, init);
     call(&event, el);
     event
 }
@@ -613,10 +634,15 @@ pub fn add_listener(el: &Element, kind: &str) -> i32 {
         group.is_some_and(|g| !el.listeners().controllers.iter().any(|(k, _)| k == g));
     el.listeners().list.push((kind.to_string(), id));
     if let (true, Some(group)) = (needs_controller, group) {
-        let controller = install(el, group);
-        el.listeners()
-            .controllers
-            .push((group.to_string(), controller));
+        let controllers = if group == "pointer" {
+            crate::pointer::install(&anchor(el))
+        } else {
+            vec![install(el, group)]
+        };
+        let mut listeners = el.listeners();
+        for controller in controllers {
+            listeners.controllers.push((group.to_string(), controller));
+        }
     }
     id
 }
@@ -632,7 +658,7 @@ pub fn remove_listener(el: &Element, kind: &str, id: i32) -> bool {
             .iter()
             .any(|(k, _)| controller_group(k) == Some(group));
         if !still {
-            if let Some(pos) = listeners.controllers.iter().position(|(g, _)| g == group) {
+            while let Some(pos) = listeners.controllers.iter().position(|(g, _)| g == group) {
                 let (_, controller) = listeners.controllers.remove(pos);
                 if let Some(w) = controller.widget() {
                     w.remove_controller(&controller);

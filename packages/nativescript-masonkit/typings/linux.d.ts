@@ -15,6 +15,10 @@ declare module '@nativescript/core/ui/core/view/gtk-layout' {
 }
 
 
+declare function mason_gtk_set_pointer_events(element: interop.Pointer | interop.Reference<any> | ArrayBufferLike | ArrayBufferView | null, value: number): void;
+
+declare function mason_gtk_pointer_capture(element: interop.Pointer | interop.Reference<any> | ArrayBufferLike | ArrayBufferView | null, pointerId: number, op: number): boolean;
+
 declare function mason_gtk_add_event_listener(element: interop.Pointer | interop.Reference<any> | ArrayBufferLike | ArrayBufferView | null, type: string | interop.Pointer | interop.Reference<any> | ArrayBufferLike | ArrayBufferView | null): number;
 
 declare function mason_gtk_css_apply_transform(element: interop.Pointer | interop.Reference<any> | ArrayBufferLike | ArrayBufferView | null, m11: number, m12: number, m21: number, m22: number, dx: number, dy: number): void;

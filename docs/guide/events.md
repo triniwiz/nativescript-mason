@@ -62,6 +62,8 @@ In the Solid renderer, use the `on:` namespace (`on:click`, `on:input`, `on:scro
 | `scroll`, `scrollend` | Scroll containers | No |
 | `keydown`, `compositionstart`, `compositionupdate`, `compositionend` | Text inputs on Windows | Yes |
 | `toggle` | `details`, see [details and summary](/elements/details) | No |
+| `pointerdown`, `pointermove`, `pointerup`, `pointercancel`, `pointerover`, `pointerout`, `gotpointercapture`, `lostpointercapture` | Any element, see [Pointer events](#pointer-events) | Yes |
+| `pointerenter`, `pointerleave` | Any element | No |
 
 Adding a `click` listener is what makes an element tappable, so you do not need a button to make a card clickable:
 
@@ -78,7 +80,7 @@ Any other event name (for example `loaded`, `unloaded`, `layoutChanged`) goes th
 | `type` | Event name, for example `'click'`. Also available as `eventName`. |
 | `target` | The element the event started at. |
 | `currentTarget` | The element whose listener is running. Also available as `object`. |
-| `bubbles`, `cancelable` | Event flags. `click` and `beforeinput` are always cancelable. |
+| `bubbles`, `cancelable` | Event flags. `click` and `beforeinput` are always cancelable. `bubbles` is `false` on events MasonKit bubbles itself, so a framework's DOM layer doesn't bubble them a second time. |
 | `defaultPrevented` | `true` after `preventDefault()` on a cancelable event. |
 | `timeStamp` | When the event was created. |
 | `isComposing` | `true` during IME composition. |
@@ -107,6 +109,58 @@ zip.addEventListener('beforeinput', (e: InputEvent) => {
 ```
 
 On Windows, `keydown` receives a `KeyboardEvent` (`key`, `repeat`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey`) and the composition events receive a `CompositionEvent` (`data`).
+
+## Pointer events
+
+Every element raises the DOM pointer events for touch, mouse and pen input once something listens for them. Listeners receive a `PointerEvent`:
+
+```ts
+import { PointerEvent } from '@triniwiz/nativescript-masonkit';
+
+knob.addEventListener('pointerdown', (e: PointerEvent) => {
+  knob.setPointerCapture(e.pointerId);
+});
+knob.addEventListener('pointermove', (e: PointerEvent) => {
+  if (knob.hasPointerCapture(e.pointerId)) moveTo(e.clientX);
+});
+```
+
+| Member | Description |
+|---|---|
+| `pointerId` | Stable while the pointer is down. The mouse is `1`; touches and pens count up from `2`. |
+| `pointerType` | `'touch'`, `'mouse'` or `'pen'`. |
+| `isPrimary` | `true` for the mouse and for the first touch (or pen) of a gesture. |
+| `clientX`, `clientY` (`pageX`, `pageY`, `x`, `y`) | CSS pixels from the top-left of the window. |
+| `offsetX`, `offsetY` | CSS pixels from the top-left of the target element. |
+| `movementX`, `movementY` | Distance since the pointer's last event. |
+| `button`, `buttons` | The button that changed (`-1` for moves) and the buttons held, as in the DOM. A touch is button `0` while down. |
+| `pressure`, `width`, `height`, `tiltX`, `tiltY`, `twist` | Contact details where the platform reports them; otherwise the DOM defaults (`0.5` pressure while pressed, `1` by `1` contact). |
+| `ctrlKey`, `shiftKey`, `altKey`, `metaKey` | Modifier keys. |
+| `relatedTarget` | For `pointerover`/`out`/`enter`/`leave`, the element the pointer came from or went to. |
+
+They follow the DOM's rules:
+
+- A pointer is over its target before `pointerdown` (`pointerover`, `pointerenter`) and leaves it after `pointerup` or `pointercancel` (`pointerout`, `pointerleave`). A mouse stays over elements and raises them as it moves.
+- Touches and pens are captured to their `pointerdown` target, so its `pointermove` and `pointerup` go there even off the element. `setPointerCapture(pointerId)` sends a pointer's events to another element until `releasePointerCapture` or the pointer goes up; it throws `NotFoundError` for a pointer that isn't down.
+- When a scroll container takes over a drag, the pointers inside it get `pointercancel`. Use [`touch-action`](/guide/scrolling#controlling-gestures-with-touch-action) to keep a drag for yourself.
+- `click` still fires after `pointerup` as before.
+
+Mouse hover (with no button down) is reported on Android, macOS, iPad and Mac Catalyst pointers, Windows and Linux.
+
+### `pointer-events` (CSS)
+
+`pointer-events: none` makes an element ignore taps and pointers: they go to whatever is beneath it, and `elementFromPoint` skips it. It is inherited, and a descendant set back to `pointer-events: auto` still takes touches, whose events bubble through the `none` element as usual.
+
+```css
+.overlay {
+  pointer-events: none;
+}
+.overlay .close {
+  pointer-events: auto;
+}
+```
+
+On Windows, a `none` element that paints a background and has an `auto` descendant still covers native controls beneath its background; MasonKit's own events (`click`, pointer events) go to the element beneath. Without a background (the usual overlay or toolbar wrapper), input reaches native controls too.
 
 ## Bubbling
 

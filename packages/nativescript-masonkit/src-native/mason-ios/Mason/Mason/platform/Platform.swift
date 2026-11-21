@@ -155,7 +155,51 @@ open class MasonViewBase: NSView {
     for child in subviews.reversed() {
       if let hit = child.hitTest(local) { return hit }
     }
+    // pointer-events: none: not hit itself, its children still are.
+    if let element = self as? MasonElement, element.node.pointerEvents == MasonPointerEventsValue.none { return nil }
     return self
+  }
+
+  /// Set once the element has pointer listeners: mouse movement raises pointer events.
+  internal var masonTracksPointer = false {
+    didSet { if masonTracksPointer != oldValue { updateTrackingAreas() } }
+  }
+  private var masonTrackingArea: NSTrackingArea?
+
+  open override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let area = masonTrackingArea {
+      removeTrackingArea(area)
+      masonTrackingArea = nil
+    }
+    guard masonTracksPointer else { return }
+    let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil)
+    addTrackingArea(area)
+    masonTrackingArea = area
+  }
+
+  open override func mouseMoved(with event: NSEvent) {
+    super.mouseMoved(with: event)
+    if masonTracksPointer { masonHover(event) }
+  }
+
+  open override func mouseEntered(with event: NSEvent) {
+    super.mouseEntered(with: event)
+    if masonTracksPointer { masonHover(event) }
+  }
+
+  open override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event)
+    if masonTracksPointer { MasonPointerDispatch.shared.hoverEnded(id: MasonPointerDispatch.mouseId) }
+  }
+
+  private func masonHover(_ event: NSEvent) {
+    guard let window, let content = window.contentView, NSEvent.pressedMouseButtons & 1 == 0 else { return }
+    let raw = event.locationInWindow
+    MasonPointerDispatch.shared.hover(id: MasonPointerDispatch.mouseId, type: "mouse", MasonPointerRecognizer.macSample(event, phase: 3)) {
+      let hit = content.hitTest(content.superview?.convert(raw, from: nil) ?? raw)
+      return MasonPointerDispatch.target(hitView: hit, point: hit?.convert(raw, from: nil) ?? .zero)
+    }
   }
 
   @objc dynamic open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {}

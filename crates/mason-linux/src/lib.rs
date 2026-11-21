@@ -12,6 +12,7 @@ mod image;
 mod input;
 mod mask;
 mod paint;
+mod pointer;
 mod scroll;
 mod text;
 mod textnode;

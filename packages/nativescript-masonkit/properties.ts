@@ -44,7 +44,7 @@ import {
 } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
-import { elementDisplay_, isMasonView_, remapLogicalBoxes_, touchAction_ } from './symbols';
+import { elementDisplay_, isMasonView_, pointerEvents_, remapLogicalBoxes_, touchAction_ } from './symbols';
 
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
@@ -397,6 +397,30 @@ export const touchActionProperty = new CssProperty<Style, string>({
     if (view && view[isMasonView_]) {
       view[touchAction_] = parseTouchAction(newValue);
       (view as ViewBase)._applyTouchAction?.();
+    }
+  },
+});
+
+/** CSS `pointer-events` as the native value: 0 = auto, 1 = none. SVG keywords act like auto. */
+export function parsePointerEvents(value: string): number {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase() === 'none'
+    ? 1
+    : 0;
+}
+
+// Inherited, as in CSS: `none` reaches the subtree until a descendant sets `auto` again.
+export const pointerEventsProperty = new InheritedCssProperty<Style, string>({
+  name: 'pointerEvents',
+  cssName: 'pointer-events',
+  defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const ref = target?.viewRef;
+    const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
+    if (view && view[isMasonView_]) {
+      view[pointerEvents_] = parsePointerEvents(newValue);
+      (view as ViewBase)._applyPointerEvents?.();
     }
   },
 });
@@ -2617,6 +2641,7 @@ listStyleProperty.register(Style);
 registerAlongsideCore(whiteSpaceProperty);
 objectFitProperty.register(Style);
 touchActionProperty.register(Style);
+pointerEventsProperty.register(Style);
 textJustifyProperty.register(Style);
 textDecorationThicknessProperty.register(Style);
 textDecorationLineProperty.register(Style);

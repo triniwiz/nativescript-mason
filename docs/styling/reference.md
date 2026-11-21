@@ -78,6 +78,7 @@ Lengths accept a bare number (CSS px), `px`, `dip`, `dppx` (device pixel), `pt`,
 | `padding`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left` | length, percentage | no | | [Box model](/styling/box-model) |
 | `padding-block`, `padding-inline`, `padding-block-start`, `padding-block-end`, `padding-inline-start`, `padding-inline-end` | as `padding` | no | Logical | [Box model](/styling/box-model) |
 | `place-content`, `place-items`, `place-self` | `<align> [<justify>]` | no | Shorthands | [Grid](/styling/grid) |
+| `pointer-events` | `auto`, `none` | yes | `none` leaves the element out of hit testing while children set back to `auto` still take touches; SVG keywords act as `auto`. On Windows, input on a `none` element that paints a background and has `auto` descendants reaches what's beneath only through Mason events, not native controls | [Events](/guide/events#pointer-events-css) |
 | `position` | `static`, `relative`, `absolute`, `fixed`, `sticky` | no | `fixed` and `sticky` don't stay in place while scrolling on Linux | [Positioning](/styling/positioning) |
 | `scrollbar-width` | a number | no | A width, not the CSS `auto`/`thin`/`none` keywords | [Scrolling](/guide/scrolling) |
 | `text-align` | `left`, `right`, `center`, `justify`, `start`, `end` | yes | | [Typography](/styling/typography#text-align) |

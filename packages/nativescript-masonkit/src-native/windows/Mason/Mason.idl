@@ -58,6 +58,13 @@ namespace NativeScript.Mason
 
         Object ElementFromPoint(Microsoft.UI.Xaml.UIElement element, Single x, Single y);
 
+        // CSS pointer-events: 0 auto, 1 none (the element itself takes no input, its children still can).
+        void SetPointerEvents(Microsoft.UI.Xaml.UIElement element, Int32 value);
+        // Pointer capture; SetPointerCapture is false for a pointer that isn't down.
+        Boolean SetPointerCapture(Microsoft.UI.Xaml.UIElement element, Int32 pointerId);
+        void ReleasePointerCapture(Microsoft.UI.Xaml.UIElement element, Int32 pointerId);
+        Boolean HasPointerCapture(Microsoft.UI.Xaml.UIElement element, Int32 pointerId);
+
         // Scroll offsets and sizes, in DIPs. Size reads run a pending layout pass first.
         Double ScrollLeft(Microsoft.UI.Xaml.UIElement element);
         Double ScrollTop(Microsoft.UI.Xaml.UIElement element);

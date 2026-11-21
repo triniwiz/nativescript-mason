@@ -164,6 +164,26 @@ namespace winrt::NativeScript::Mason::implementation
         mason_events::Remove(element, type, id);
     }
 
+    void Mason::SetPointerEvents(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t value)
+    {
+        mason_events::SetPointerEvents(element, value);
+    }
+
+    bool Mason::SetPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        return mason_events::SetPointerCapture(element, pointerId);
+    }
+
+    void Mason::ReleasePointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        mason_events::ReleasePointerCapture(element, pointerId);
+    }
+
+    bool Mason::HasPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        return mason_events::HasPointerCapture(element, pointerId);
+    }
+
     double Mason::ScrollLeft(winrt::Microsoft::UI::Xaml::UIElement const& element)
     {
         return mason_scroll::Offset(element, false);
