@@ -135,6 +135,11 @@ class Scroll @JvmOverloads constructor(
     post(fireScrollEvents)
   }
 
+  // Scrolling took the touch over, as a browser does: pointers inside are cancelled.
+  override fun onDragStarted() {
+    PointerDispatch.cancelInside(this)
+  }
+
   override fun onScrollMotionEnded() {
     if (node.listensForScroll && scrolledSinceEnd) queueScrollEvents()
   }
@@ -172,7 +177,10 @@ class Scroll @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
+
+  override fun dispatchHoverEvent(event: android.view.MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   // A descendant's text moved or changed: a text-clipped background paints through it.
   override fun onDescendantInvalidated(child: android.view.View, target: android.view.View) {

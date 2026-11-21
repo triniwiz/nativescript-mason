@@ -91,6 +91,10 @@ open class Node internal constructor(
   @JvmField
   var touchAction: Int = TouchAction.AUTO
 
+  /** CSS `pointer-events` as a [PointerEvents] value; `none` makes the element itself untappable. */
+  @JvmField
+  var pointerEvents: Int = PointerEvents.AUTO
+
   // Sticky (only ever set true, never cleared) hint that this node's own
   // view is a TextContainer or some descendant's is, maintained by
   // appendChild. Lets invalidateDescendantTextViews skip walking subtrees

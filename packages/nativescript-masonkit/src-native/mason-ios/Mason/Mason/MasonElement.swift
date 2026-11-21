@@ -1092,7 +1092,8 @@ class MasonElementHelpers: NSObject {
       }
     }
 
-    return contains(view, point) ? view : nil
+    let skipped = (view as? MasonElement)?.node.pointerEvents == MasonPointerEventsValue.none
+    return contains(view, point) && !skipped ? view : nil
   }
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){

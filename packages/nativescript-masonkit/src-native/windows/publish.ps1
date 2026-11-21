@@ -33,7 +33,7 @@ $archFolder = @{ 'x64' = 'x64'; 'ARM64' = 'arm64' }
 # Resolve MSBuild via vswhere.
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $vswhere)) { throw "vswhere not found - install Visual Studio 2022/2026 with the C++ (Desktop) workload." }
-$msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+$msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
 if (-not $msbuild) { throw 'MSBuild.exe not found via vswhere.' }
 
 $cargo = (Get-Command cargo -ErrorAction SilentlyContinue).Source

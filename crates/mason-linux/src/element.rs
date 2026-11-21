@@ -73,6 +73,8 @@ mod imp {
         /// Size of the last allocation, and whether a `mason:layout` is queued for it.
         pub allocated: Cell<(i32, i32)>,
         pub layout_pending: Cell<bool>,
+        /// CSS `pointer-events`: 1 (`none`) leaves the element itself out of hit testing.
+        pub pointer_events: Cell<i32>,
     }
 
     #[glib::object_subclass]
@@ -113,8 +115,12 @@ mod imp {
             crate::events::notify_layout(&obj, width, height);
         }
 
+        // GTK picks children before asking the parent, so a pointer-events: none element's
+        // children are still hit.
         fn contains(&self, x: f64, y: f64) -> bool {
-            self.parent_contains(x, y) && crate::mask::clip_contains(&self.obj(), x, y)
+            self.pointer_events.get() != 1
+                && self.parent_contains(x, y)
+                && crate::mask::clip_contains(&self.obj(), x, y)
         }
 
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
@@ -195,6 +201,14 @@ impl Element {
     }
 
     /// The nearest Mason element above this widget.
+    pub fn pointer_events(&self) -> i32 {
+        self.imp().pointer_events.get()
+    }
+
+    pub fn set_pointer_events(&self, value: i32) {
+        self.imp().pointer_events.set(value);
+    }
+
     pub fn mason_parent(widget: &gtk::Widget) -> Option<Element> {
         let mut cur = widget.parent();
         while let Some(w) = cur {

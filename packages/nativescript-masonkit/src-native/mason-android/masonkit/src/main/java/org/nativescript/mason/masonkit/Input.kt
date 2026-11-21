@@ -93,7 +93,10 @@ class Input @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
+
+  override fun dispatchHoverEvent(event: android.view.MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   override fun dispatchDraw(canvas: Canvas) {
     // Draw children's outset box shadows at parent level, after this view's own

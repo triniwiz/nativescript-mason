@@ -269,6 +269,9 @@ public class MasonNode: NSObject {
   /// `auto`). A Mason scroll view only pans along an axis every element from
   /// the touched one up to it allows.
   @objc public var touchAction: Int = 7
+  /// CSS `pointer-events`: 1 (`none`) leaves the element itself out of hit testing.
+  @objc public var pointerEvents: Int = 0
+  internal var listensForPointer: Bool = false
   internal var hasClickGesture: Bool = false
   // Set when a "scroll"/"scrollend" listener is added; until then scrolling queues no events.
   internal var listensForScroll: Bool = false

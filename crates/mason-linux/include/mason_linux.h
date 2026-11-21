@@ -43,6 +43,8 @@ void mason_gtk_print_tree(void *element);
 int32_t mason_gtk_add_event_listener(void *element, const char *type);
 bool mason_gtk_remove_event_listener(void *element, const char *type, int32_t id);
 void *mason_gtk_element_from_point(void *element, float x, float y);
+void mason_gtk_set_pointer_events(void *element, int32_t value);
+bool mason_gtk_pointer_capture(void *element, int32_t pointer_id, int32_t op);
 
 const char *mason_gtk_event_string(void *event, int32_t which);
 double mason_gtk_event_number(void *event, int32_t which);

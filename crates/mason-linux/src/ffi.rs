@@ -290,6 +290,30 @@ pub unsafe extern "C" fn mason_gtk_remove_event_listener(
     element(el).is_some_and(|e| events::remove_listener(&e, &string(kind), id))
 }
 
+/// CSS `pointer-events`: 0 auto, 1 none.
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_set_pointer_events(el: W, value: i32) {
+    if let Some(el) = element(el) {
+        el.set_pointer_events(value);
+    }
+}
+
+/// Pointer capture: op 0 sets it (false for a pointer that isn't down), 1 releases it, 2 asks.
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_pointer_capture(el: W, pointer_id: i32, op: i32) -> bool {
+    let Some(el) = element(el) else {
+        return false;
+    };
+    match op {
+        0 => crate::pointer::set_capture(&el, pointer_id),
+        1 => {
+            crate::pointer::release_capture(&el, pointer_id);
+            true
+        }
+        _ => crate::pointer::has_capture(&el, pointer_id),
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn mason_gtk_element_from_point(el: W, x: f32, y: f32) -> W {
     let Some(el) = element(el) else {
@@ -308,7 +332,7 @@ pub unsafe extern "C" fn mason_gtk_element_from_point(el: W, x: f32, y: f32) -> 
     std::ptr::null_mut()
 }
 
-/// Event fields: 0 type, 1 data, 2 inputType, 3 key, 4 files ("\n"-joined).
+/// Event fields: 0 type, 1 data, 2 inputType, 3 key, 4 files ("\n"-joined), 5 pointerType.
 #[no_mangle]
 pub unsafe extern "C" fn mason_gtk_event_string(
     ev: *mut glib::gobject_ffi::GObject,
@@ -324,12 +348,15 @@ pub unsafe extern "C" fn mason_gtk_event_string(
         1 => init.data.clone(),
         2 => init.input_type.clone(),
         3 => init.key.clone(),
+        5 => init.pointer_type.clone(),
         _ => init.files.join("\n"),
     })
 }
 
 /// Event numbers: 0 bubbles, 1 cancelable, 2 time, 3 defaultPrevented, 4 propagationStopped,
-/// 5 immediatePropagationStopped, 6 repeat, 7 ctrl, 8 shift, 9 alt, 10 meta, 11 x, 12 y, 13 button.
+/// 5 immediatePropagationStopped, 6 repeat, 7 ctrl, 8 shift, 9 alt, 10 meta, 11 x, 12 y, 13 button;
+/// pointer events: 14 pointerId, 15 isPrimary, 16 clientX, 17 clientY, 18 offsetX, 19 offsetY,
+/// 20 movementX, 21 movementY, 22 buttons, 23 pressure, 24 width, 25 height.
 #[no_mangle]
 pub unsafe extern "C" fn mason_gtk_event_number(
     ev: *mut glib::gobject_ffi::GObject,
@@ -356,11 +383,23 @@ pub unsafe extern "C" fn mason_gtk_event_number(
         11 => init.x,
         12 => init.y,
         13 => init.button as f64,
+        14 => init.pointer_id as f64,
+        15 => b(init.is_primary),
+        16 => init.client_x,
+        17 => init.client_y,
+        18 => init.offset_x,
+        19 => init.offset_y,
+        20 => init.movement_x,
+        21 => init.movement_y,
+        22 => init.buttons as f64,
+        23 => init.pressure,
+        24 => init.width,
+        25 => init.height,
         _ => 0.0,
     }
 }
 
-/// 0 target, 1 currentTarget.
+/// 0 target, 1 currentTarget, 2 relatedTarget.
 #[no_mangle]
 pub unsafe extern "C" fn mason_gtk_event_target(
     ev: *mut glib::gobject_ffi::GObject,
@@ -370,10 +409,10 @@ pub unsafe extern "C" fn mason_gtk_event_target(
     let Ok(ev) = ev.downcast::<events::Event>() else {
         return std::ptr::null_mut();
     };
-    let target = if which == 0 {
-        ev.target()
-    } else {
-        ev.current_target()
+    let target = match which {
+        0 => ev.target(),
+        2 => crate::pointer::related_target(&ev),
+        _ => ev.current_target(),
     };
     target.map_or(std::ptr::null_mut(), |t| {
         t.upcast_ref::<gtk::Widget>().as_ptr()
