@@ -1,7 +1,7 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
 import { displayDensity, masonLayout } from './display-density';
-import { isMasonView_, style_ } from './symbols';
+import { isMasonView_, native_, slot_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { arrayBufferOf, masonEngine } from './panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
@@ -1696,17 +1696,49 @@ function fontStretchFromValue(v: number): string {
 const pendingSyncs: Style[] = [];
 let syncsQueued = false;
 
+// Android: syncs of one flush go to native as (slot, four dirty words) rows in a buffer shared with
+// Kotlin, then one call applies them all, instead of one call per style.
+let syncQueue: Int32Array | undefined;
+let syncQueueRows = 0;
+let syncQueueOpen = false;
+
+function queueSlotSync(slot: number, d0: number, d1: number, d2: number, d3: number): void {
+  // @ts-ignore - typings regenerate from the AAR separately.
+  const queue = (syncQueue ??= new Int32Array((<any>ArrayBuffer).from((androidMason ??= org.nativescript.mason.masonkit.Mason.getShared()).getSyncQueue())));
+  if ((syncQueueRows + 1) * 5 > queue.length) sendSlotSyncs();
+  const at = syncQueueRows++ * 5;
+  queue[at] = slot;
+  queue[at + 1] = d0;
+  queue[at + 2] = d1;
+  queue[at + 3] = d2;
+  queue[at + 4] = d3;
+}
+
+function sendSlotSyncs(): void {
+  const rows = syncQueueRows;
+  if (rows === 0) return;
+  syncQueueRows = 0;
+  androidMason.syncStyleSlots(rows);
+}
+
 function flushStyleSyncs() {
   syncsQueued = false;
   // A sync can dirty another style, which then queues a flush of its own.
   const styles = pendingSyncs.splice(0);
   let failure: unknown;
+  syncQueueOpen = __ANDROID__;
   for (const style of styles) {
     try {
       style._flushScheduledSync();
     } catch (e) {
       failure ??= e;
     }
+  }
+  syncQueueOpen = false;
+  try {
+    sendSlotSyncs();
+  } catch (e) {
+    failure ??= e;
   }
   if (failure !== undefined) throw failure;
 }
@@ -1753,13 +1785,13 @@ let styleSlots: boolean | undefined;
 let androidMason: any;
 
 /** The view's own style slot index (taking one if it shares a default), or -1. */
-function styleSlot(nativeView: any): number {
+function styleSlot(nativeView: any, masonView = false): number {
   if (__ANDROID__) {
     if (styleSlots === undefined) {
       androidMason = org.nativescript.mason.masonkit.Mason.getShared();
       styleSlots = typeof androidMason.prepareStyleSlot === 'function';
     }
-    return styleSlots && nativeView instanceof android.view.View ? androidMason.prepareStyleSlot(nativeView) : -1;
+    return styleSlots && (masonView || nativeView instanceof android.view.View) ? androidMason.prepareStyleSlot(nativeView) : -1;
   }
   if (styleSlots === undefined && nativeView) {
     styleSlots = typeof nativeView.mason_prepareStyleSlot === 'function';
@@ -1772,7 +1804,7 @@ function styleChunk(chunk: number): ArrayBuffer | undefined {
   let buffer = styleChunks[chunk];
   if (buffer === undefined) {
     if (__ANDROID__) {
-      const data = androidMason.styleChunk(chunk);
+      const data = (androidMason ??= org.nativescript.mason.masonkit.Mason.getShared()).styleChunk(chunk);
       if (!data) return undefined;
       buffer = (<any>ArrayBuffer).from(data);
     } else {
@@ -1901,6 +1933,8 @@ export class Style {
   private _hasDirty = false;
   private inBatch = false;
   private _syncScheduled = false;
+  /** Android: the slot native knows this style's element by, when the create call delivered one. */
+  private _queueSlot = -1;
   // Buffer bytes before this turn's first write. Frameworks often undo and
   // redo the same values (NativeScript-Vue re-applies every inline style key
   // each render); if the bytes end up unchanged the native sync is skipped.
@@ -1973,7 +2007,10 @@ export class Style {
   private loadBuffer() {
     this._bufferRequested = true;
     if (__ANDROID__ || __APPLE__) {
-      const slot = styleSlot(this.nativeView);
+      const owner = this.view_ as any;
+      const delivered = owner && owner[native_] === this.nativeView ? owner[slot_] : undefined;
+      const slot = delivered >= 0 ? delivered : styleSlot(this.nativeView, !!owner?.[isMasonView_]);
+      if (delivered >= 0) this._queueSlot = delivered;
       const chunk = slot >= 0 ? styleChunk((slot / STYLE_SLOTS_PER_CHUNK) | 0) : undefined;
       if (chunk) {
         this.setBuffer(chunk, (slot % STYLE_SLOTS_PER_CHUNK) * StyleKeys.STYLE_BUFFER_SIZE, StyleKeys.STYLE_BUFFER_SIZE);
@@ -2572,6 +2609,10 @@ export class Style {
   }
 
   private _sendSync() {
+    if (__ANDROID__ && syncQueueOpen && this._queueSlot >= 0) {
+      queueSlotSync(this._queueSlot, this._d0, this._d1, this._d2, this._d3);
+      return;
+    }
     if (__ANDROID__) {
       //@ts-ignore
       const view = this.view?.android ?? (this.view._view as never as org.nativescript.mason.masonkit.Element);

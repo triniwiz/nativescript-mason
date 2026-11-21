@@ -2,7 +2,7 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
-import { style_, isMasonView_, native_, isPlaceholder_ } from '../symbols';
+import { style_, isMasonView_, native_, isPlaceholder_, slot_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {
@@ -18,6 +18,7 @@ export class View extends ViewBase {
       const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
       const view = Tree.instance.createView(context) as never;
       this[native_] = view;
+      this[slot_] = Tree.instance.lastSlot;
       return view;
     }
     return this[native_] as never as org.nativescript.mason.masonkit.View;
