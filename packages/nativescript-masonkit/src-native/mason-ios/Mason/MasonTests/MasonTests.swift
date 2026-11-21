@@ -1222,3 +1222,41 @@ final class HTMLParserTests: XCTestCase {
     XCTAssertFalse(hasViewportUnit("url(vw.png)"))
   }
 }
+
+/// `<img src="~/...">` reaches `Img.src` as an absolute path (img/index.ios.ts).
+final class ImgLocalSourceTests: XCTestCase {
+  private func load(_ src: String) -> (LoadingState, Img) {
+    let img = NSCMason.shared.createImageView()
+    let done = expectation(description: "load settles")
+    var result: LoadingState = .Loading
+    img.onStateChange = { state, _ in
+      guard state != .Loading else { return }
+      result = state
+      done.fulfill()
+    }
+    img.src = src
+    wait(for: [done], timeout: 10)
+    return (result, img)
+  }
+
+  func testAbsolutePathLoads() throws {
+    let size = CGSize(width: 4, height: 3)
+    let png = UIGraphicsImageRenderer(size: size).image { ctx in
+      UIColor.red.setFill()
+      ctx.fill(CGRect(origin: .zero, size: size))
+    }.pngData()!
+    let path = NSTemporaryDirectory() + "mason-img-\(UUID().uuidString).png"
+    try png.write(to: URL(fileURLWithPath: path))
+    defer { try? FileManager.default.removeItem(atPath: path) }
+
+    let (state, img) = load(path)
+    XCTAssertEqual(state, .Loaded)
+    XCTAssertNotNil(img.image)
+  }
+
+  func testMissingFileIsAnError() {
+    let (state, img) = load(NSTemporaryDirectory() + "mason-img-missing-\(UUID().uuidString).png")
+    XCTAssertEqual(state, .Error)
+    XCTAssertNil(img.image)
+  }
+}
