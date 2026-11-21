@@ -47,13 +47,62 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.VerticalAlign
+import java.text.BreakIterator
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** U+200B ZERO WIDTH SPACE breaks a line without being whitespace (Java
- *  classifies it as a format char), so `isWhitespace` alone reports a whole
- *  ZWSP-joined run as one unbreakable word. */
-private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
+private class LineBreakIterator {
+  private var locale: Locale? = null
+  private var iterator: BreakIterator? = null
+
+  fun over(text: String, locale: Locale): BreakIterator {
+    if (locale != this.locale) {
+      iterator = BreakIterator.getLineInstance(locale)
+      this.locale = locale
+    }
+    return iterator!!.apply { setText(text) }
+  }
+
+  companion object {
+    val current = object : ThreadLocal<LineBreakIterator>() {
+      override fun initialValue() = LineBreakIterator()
+    }
+  }
+}
+
+// Minikin breaks after these only when it hyphenates (its Hyphenator::isLineBreakingHyphen, and U+00AD).
+private fun Char.breaksOnlyWhenHyphenating(): Boolean = when (this) {
+  '-', '\u00AD', '\u058A', '\u05BE', '\u1400', '\u2010', '\u2013', '\u2027', '\u2E17', '\u2E40' -> true
+  else -> false
+}
+
+// Minikin breaks a URL or an email address by its own rules.
+private fun urlOrEmailEnd(text: String, start: Int): Int {
+  var end = start
+  var found = false
+  while (end < text.length && text[end] in '!'..'~') {
+    if (text[end] == '@' || text.startsWith("://", end)) found = true
+    end++
+  }
+  return if (found) end else start
+}
+
+private fun staticLayoutBreaks(text: String, locale: Locale, hyphenates: Boolean): IntArray {
+  val iterator = LineBreakIterator.current.get()!!.over(text, locale)
+  val breaks = IntArray(text.length)
+  var count = 0
+  var wholeUntil = urlOrEmailEnd(text, 0)
+  var b = iterator.next()
+  while (b != BreakIterator.DONE) {
+    if (b == text.length || (b >= wholeUntil && (hyphenates || !text[b - 1].breaksOnlyWhenHyphenating()))) {
+      breaks[count++] = b
+      wholeUntil = urlOrEmailEnd(text, b)
+    }
+    b = iterator.next()
+  }
+  return breaks.copyOf(count)
+}
 
 private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
   var w = 0f
@@ -96,58 +145,42 @@ private fun isLineEndSpace(ch: Char): Boolean =
   ch == ' ' || ch == '	' || ch == ' ' ||
     (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
 
-private fun hasSoftWrapOpportunity(text: CharSequence, softHyphens: Boolean = false): Boolean {
-  for (i in 0 until text.length) {
-    if (text[i].isSoftWrapOpportunity() || (softHyphens && text[i] == '\u00AD')) return true
-  }
-  return false
-}
-
 // Text widths round up to 1/64 px, not a whole pixel, so fractional densities don't drift.
 private fun ceilFine(v: Float): Float = ceil(v * 64f - 0.01f) / 64f
 
 // A wrap width that a fractional box width fits in; flooring it re-wraps the last word.
 internal fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
 
-/**
- * Compute the widest segment between soft wrap opportunities in [text] without
- * allocating a split array.
- * When [useLayout] is true, uses [Layout.getDesiredWidth] for rich text;
- * otherwise uses [Paint.measureText] for plain text.
- */
-private fun maxWordWidth(
+private fun widestPiece(
   text: CharSequence,
+  breaks: IntArray,
   paint: TextPaint,
-  useLayout: Boolean,
-  advances: FloatArray? = null,
-  softHyphens: Boolean = false
+  inline: Boolean,
+  advances: FloatArray?,
+  hyphenates: Boolean,
+  indent: Int
 ): Float {
-  var maxW = 0f
-  val len = text.length
-  val chars = CharArray(len)
-  TextUtils.getChars(text, 0, len, chars, 0)
   // A piece ending at a soft hyphen carries the hyphen drawn there.
-  val hyphenWidth = if (softHyphens) paint.measureText("\u2010") else 0f
+  val hyphenWidth = if (hyphenates) paint.measureText("\u2010") else 0f
+  var widest = 0f
+  var first = 0f
   var start = 0
-  var i = 0
-  while (i <= len) {
-    val isShy = softHyphens && i < len && chars[i] == '\u00AD'
-    val isWs = i < len && (chars[i].isSoftWrapOpportunity() || isShy)
-    if (i == len || isWs) {
-      if (i > start) {
-        // Measure the range directly; slicing a Spannable per word copies
-        // overlapping spans and turns this loop quadratic.
-        var w = if (advances != null) advanceSum(advances, start, i)
-        else if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
-        else paint.measureText(text, start, i)
-        if (isShy) w += hyphenWidth
-        if (w > maxW) maxW = w
-      }
-      start = i + 1
+  for (b in breaks) {
+    var end = b
+    val shy = text[end - 1] == '\u00AD'
+    if (shy) end--
+    while (end > start && text[end - 1].isWhitespace()) end--
+    if (end > start) {
+      var w = if (advances != null) advanceSum(advances, start, end)
+      else if (inline) Layout.getDesiredWidth(text, start, end, paint)
+      else paint.measureText(text, start, end)
+      if (shy) w += hyphenWidth
+      if (start == 0) first = w
+      if (w > widest) widest = w
     }
-    i++
+    start = b
   }
-  return ceilFine(maxW)
+  return maxOf(widest, first + indent)
 }
 
 class TextEngine(val container: TextContainer) {
@@ -732,7 +765,8 @@ class TextEngine(val container: TextContainer) {
     val constraint: Int,
     val isInline: Boolean,
     // What a percentage text-indent resolves against.
-    val indentBasis: Float
+    val indentBasis: Float,
+    val wraps: Boolean
   )
 
   private fun computeWidthConstraint(
@@ -840,7 +874,7 @@ class TextEngine(val container: TextContainer) {
       availableWidth.isFinite() && availableWidth > 0f -> availableWidth
       else -> 0f
     }
-    return MeasureWidthSpec(widthConstraint, isInline, indentBasis)
+    return MeasureWidthSpec(widthConstraint, isInline, indentBasis, allowWrap)
   }
 
   private fun measureLayout(
@@ -877,14 +911,13 @@ class TextEngine(val container: TextContainer) {
     measuredMaxLines = maxLines
     measuredExclusions = exclusions
 
-    val breaksAtSoftHyphens = style.resolvedHyphens.toInt() != 1
-    val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
-      !(spec.isInline && !hasSoftWrapOpportunity(spannable, breaksAtSoftHyphens))
-    ) {
-      val advances = if (spec.isInline) advancesFor(spannable, paint) else null
-      val widest = maxWordWidth(spannable, paint, spec.isInline, advances, breaksAtSoftHyphens)
-      // The first word also carries the indent.
-      if (indent != 0) maxOf(widest, firstWordWidth(spannable, paint, advances) + indent) else widest
+    val measuredWidth = if (spec.wraps && spec.constraint == Int.MAX_VALUE && availableWidth == -1f) {
+      val hyphenates = hyphenationFrequency(spannable) != Layout.HYPHENATION_FREQUENCY_NONE
+      val breaks = staticLayoutBreaks(spannable.toString(), paint.textLocale, hyphenates)
+      if (spec.isInline && breaks.size <= 1) lineWidth
+      else widestPiece(
+        spannable, breaks, paint, spec.isInline, advancesFor(spannable, paint), hyphenates, indent
+      ).let { if (spec.isInline) ceilFine(it) else ceil(it) }
     } else {
       lineWidth
     }
@@ -2026,13 +2059,6 @@ class TextEngine(val container: TextContainer) {
 
   // Max lines the last measured layout was clamped to.
   private var measuredMaxLines = 0
-
-  private fun firstWordWidth(text: CharSequence, paint: TextPaint, advances: FloatArray?): Float {
-    var end = 0
-    while (end < text.length && !text[end].isSoftWrapOpportunity()) end++
-    if (end == 0) return 0f
-    return ceilFine(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
-  }
 
   private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
