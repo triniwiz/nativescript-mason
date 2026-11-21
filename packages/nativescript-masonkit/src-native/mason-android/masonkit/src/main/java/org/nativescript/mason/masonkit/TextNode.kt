@@ -95,6 +95,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     private var lastBase = 0f
     private var lastBottom = 0f
     private var boxLineTop = NO_LINE
+    private var inAscent = 0
+    private var inDescent = 0
+    private var outAscent = 0
+    private var outDescent = 0
+    private var insideRun = false
+    private var aboveInAscent = 0
+    private var aboveInDescent = 0
+    private var aboveOutAscent = 0
+    private var aboveOutDescent = 0
 
     var afterBoxLine = false
       private set
@@ -109,9 +118,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val top = v - spanstartv
       if (top <= 0) {
         afterBoxLine = false
+        insideRun = false
         boxLineTop = NO_LINE
       } else if (top != lastTop) {
-        afterBoxLine = lastTop == boxLineTop && startsInsideRun(text, start, end)
+        insideRun = startsInsideRun(text, start, end)
+        afterBoxLine = lastTop == boxLineTop && insideRun
+        aboveInAscent = inAscent
+        aboveInDescent = inDescent
+        aboveOutAscent = outAscent
+        aboveOutDescent = outDescent
       }
       val line = LineScan.of(text, start, end)
       if (line.hasBoxes) boxLineTop = top
@@ -123,6 +138,12 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val spanned = text as? Spanned ?: return false
       if (start <= 0 || text[start - 1] == '\n') return false
       return spanned.nextSpanTransition(start - 1, end, MetricAffectingSpan::class.java) != start
+    }
+
+    fun restoreCarried(fm: Paint.FontMetricsInt) {
+      if (!insideRun || fm.ascent != aboveOutAscent || fm.descent != aboveOutDescent) return
+      fm.ascent = aboveInAscent
+      fm.descent = aboveInDescent
     }
 
     fun apply(fm: Paint.FontMetricsInt, spanstartv: Int, v: Int, height: Float) {
@@ -138,13 +159,18 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       lastTop = top
       lastBase = base
       lastBottom = bottom
+      inAscent = fm.ascent
+      inDescent = fm.descent
       val diff = (bottom.roundToInt() - top) - (fm.descent - fm.ascent)
-      if (diff == 0) return
-      val half = diff / 2
-      fm.ascent -= half
-      fm.descent += (diff - half)
-      fm.top = fm.ascent
-      fm.bottom = fm.descent
+      if (diff != 0) {
+        val half = diff / 2
+        fm.ascent -= half
+        fm.descent += (diff - half)
+        fm.top = fm.ascent
+        fm.bottom = fm.descent
+      }
+      outAscent = fm.ascent
+      outDescent = fm.descent
     }
 
     private companion object {
@@ -330,7 +356,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       if (m.descent - m.ascent <= 0 || fontSizeDip <= 0f || paint == null) return
       resolve(paint)
       val line = boxes.enterLine(text, start, end, spanstartv, lineHeight)
-      if (boxes.afterBoxLine) line.lineMetrics(paint, m)
+      if (boxes.afterBoxLine) line.lineMetrics(paint, m) else boxes.restoreCarried(m)
       val own = m.descent - m.ascent
       val height = if (m.ascent == intAscent && m.descent == intDescent) exact else own.toFloat()
       boxes.apply(m, spanstartv, lineHeight, height)
