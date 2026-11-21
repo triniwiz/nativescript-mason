@@ -431,7 +431,8 @@ public class Img: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObj
     let generation = loadGeneration
     if svg != nil { svg = nil }
     if let src = src, loadSvg(src, generation, current) { return }
-    guard let src = src, let url = URL(string: src) else {
+    // (`~/` sources arrive as absolute paths: a URL without a scheme loads nothing)
+    guard let src = src, let url = src.hasPrefix("/") ? URL(fileURLWithPath: src) : URL(string: src) else {
       if let current = current {
         CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
           self.state = .Loaded
@@ -464,17 +465,19 @@ public class Img: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObj
       }
     }else {
       SDWebImageManager.shared.loadImage(with: url, progress: nil) { image, _ , error, type, finished, _ in
+        // a source that gave no image is an error, as an <img>'s `error` event
+        let loaded: LoadingState = image != nil ? .Loaded : .Error
         if let current = current {
           CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
-            self.state = .Loaded
+            self.state = loaded
             self.image = image
-            self.onStateChange?(.Loaded, error)
+            self.onStateChange?(loaded, error)
           }
           CFRunLoopWakeUp(current)
         }else {
-          self.state = .Loaded
+          self.state = loaded
           self.image = image
-          self.onStateChange?(.Loaded, error)
+          self.onStateChange?(loaded, error)
         }
       }
     }
