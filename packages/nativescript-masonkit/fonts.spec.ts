@@ -35,6 +35,11 @@ describe('pickFontFamily', () => {
     expect(pickFontFamily(`Missing, cursive`, installed())).toBe('cursive');
   });
 
+  it('uses the name the resolver gives for a family', () => {
+    const fontNames: Record<string, string> = { 'BebasNeue-Regular': 'Bebas Neue' };
+    expect(pickFontFamily(`Missing, BebasNeue-Regular, sans-serif`, (family) => fontNames[family])).toBe('Bebas Neue');
+  });
+
   it('falls back to the first family named', () => {
     expect(pickFontFamily(`'Missing One', "Missing Two"`, installed())).toBe('Missing One');
   });

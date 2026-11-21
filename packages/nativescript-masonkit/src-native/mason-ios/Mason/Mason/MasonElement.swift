@@ -109,6 +109,10 @@ public protocol MasonElement: NSObjectProtocol {
 private let ctFontCache: NSCache<NSString, CTFont> = {
   let cache = NSCache<NSString, CTFont>()
   cache.countLimit = 256
+  // A font registered later (e.g. a `FontFace` that finished loading) can change a family's face.
+  _ = NotificationCenter.default.addObserver(forName: NSNotification.Name(kCTFontManagerRegisteredFontsChangedNotification as String), object: nil, queue: nil) { [weak cache] _ in
+    cache?.removeAllObjects()
+  }
   return cache
 }()
 
@@ -125,6 +129,30 @@ private func systemFontDesign(_ postScriptName: String) -> UIFontDescriptor.Syst
   if postScriptName.contains("NewYork") { return .serif }
   if postScriptName.contains("Rounded") { return .rounded }
   return nil
+}
+
+/// The app's face for `family` when the family also has system faces, else nil.
+///
+/// An app-registered font can share its family name with a hidden system font (iOS ships a
+/// Bebas Neue in CoreUI), and matching by family alone picks the system face. As with an
+/// `@font-face` rule, the app's faces win: the nearest weight, in the requested style if any.
+private func appFace(family: String, weight: CGFloat, italic: Bool) -> CTFontDescriptor? {
+  let query = CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family] as CFDictionary)
+  let mandatory: Set<String> = [kCTFontFamilyNameAttribute as String]
+  guard let faces = CTFontDescriptorCreateMatchingFontDescriptors(query, mandatory as CFSet) as? [CTFontDescriptor] else { return nil }
+  // Faces registered from data have no URL.
+  let appFaces = faces.filter { face in
+    guard let url = CTFontDescriptorCopyAttribute(face, kCTFontURLAttribute) as? URL else { return true }
+    return !url.path.contains("/System/Library/")
+  }
+  guard !appFaces.isEmpty, appFaces.count < faces.count else { return nil }
+  func distance(_ face: CTFontDescriptor) -> CGFloat {
+    let traits = CTFontDescriptorCopyAttribute(face, kCTFontTraitsAttribute) as? [CFString: Any]
+    let faceWeight = (traits?[kCTFontWeightTrait] as? NSNumber)?.doubleValue ?? 0
+    let symbolic = CTFontSymbolicTraits(rawValue: (traits?[kCTFontSymbolicTrait] as? NSNumber)?.uint32Value ?? 0)
+    return abs(CGFloat(faceWeight) - weight) + (symbolic.contains(.traitItalic) == italic ? 0 : 10)
+  }
+  return appFaces.min { distance($0) < distance($1) }
 }
 
 private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -198,6 +226,9 @@ private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.W
     // name only if the family can't be determined.
     let baseCT = CTFontCreateWithGraphicsFont(cgFont, fontSize, nil, nil)
     if let familyName = CTFontCopyFamilyName(baseCT) as String? {
+      if let face = appFace(family: familyName, weight: weightValue, italic: symbolicTraits.contains(.traitItalic)) {
+        return CTFontCreateWithFontDescriptor(face, fontSize, nil)
+      }
       attributes[kCTFontFamilyNameAttribute] = familyName as CFString
     } else {
       attributes[kCTFontNameAttribute] = postScriptName as CFString
