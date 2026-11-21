@@ -1,4 +1,8 @@
 import { registerAppFontsDirectory } from './fonts';
+import { Application, eachDescendant, Utils } from '@nativescript/core';
+import { updateAccessibilityProperties } from '@nativescript/core/application';
+import { setA11yUpdatePropertiesCallback } from '@nativescript/core/application/helpers-common';
+import { deferredA11ySetup } from './a11y-setup';
 
 export { View } from './view';
 export { Img } from './img';
@@ -38,6 +42,45 @@ export function setBoxShadowRenderMode(mode: BoxShadowRenderMode): void {
  */
 export function setBoxShadowSoftwareRasterScale(scale: number | null): void {
   org.nativescript.mason.masonkit.NodeHelper.getShared().setBoxShadowSoftwareRasterScale(scale ?? 0);
+}
+
+let accessibilityManager: android.view.accessibility.AccessibilityManager | undefined;
+let accessibilityOn = false;
+
+function eachLoadedView(visit: (view: any) => void): void {
+  const root = Application.getRootView();
+  if (!root) return;
+  for (const top of [root, ...root._getRootModalViews()]) {
+    visit(top);
+    eachDescendant(top, (child) => {
+      visit(child);
+      return true;
+    });
+  }
+}
+
+const a11ySetup = deferredA11ySetup({
+  setup: updateAccessibilityProperties,
+  serviceOn() {
+    if (!accessibilityManager) {
+      accessibilityManager = Utils.android.getApplicationContext().getSystemService(android.content.Context.ACCESSIBILITY_SERVICE);
+      accessibilityOn = accessibilityManager.isEnabled();
+      accessibilityManager.addAccessibilityStateChangeListener(
+        new android.view.accessibility.AccessibilityManager.AccessibilityStateChangeListener({
+          onAccessibilityStateChanged(enabled: boolean) {
+            accessibilityOn = enabled;
+            if (enabled) a11ySetup.serviceTurnedOn();
+          },
+        }),
+      );
+    }
+    return accessibilityOn;
+  },
+  eachLoadedView,
+});
+
+if (typeof setA11yUpdatePropertiesCallback === 'function' && typeof updateAccessibilityProperties === 'function') {
+  setA11yUpdatePropertiesCallback(a11ySetup.update);
 }
 
 registerAppFontsDirectory();
