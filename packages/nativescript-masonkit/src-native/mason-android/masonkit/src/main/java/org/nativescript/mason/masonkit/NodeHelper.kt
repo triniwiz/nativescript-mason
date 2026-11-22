@@ -1957,13 +1957,15 @@ class NodeHelper(val mason: Mason) {
     }
 
     fun compute(node: Node) {
-      TextEngine.flushPreparedTexts()
+      val mason = node.mason
+      val nested = mason.inCompute
+      if (!nested) mason.beginCompute()
       try {
         NativeHelpers.nativeNodeCompute(
           node.mason.nativePtr, node.nativePtr
         )
       } finally {
-        node.mason.computeFinished()
+        if (nested) mason.computeFinished() else mason.endCompute()
       }
     }
   }

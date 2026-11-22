@@ -1261,12 +1261,12 @@ open class Node internal constructor(
 
   @JvmOverloads
   open fun appendChild(child: Node, attach: Boolean = true) {
-    TextEngine.recheckPreparedTextOnAttach(this, child)
     if (establishesInlineRuns()) {
       runsEstablished = true
       val last = children.lastOrNull()
       if (joinsInlineRun(child, last != null && isRunContainer(last))) {
         appendToRun(child)
+        TextEngine.recheckPreparedTextOnAttach(this, child)
         return
       }
     }
@@ -1321,6 +1321,7 @@ open class Node internal constructor(
 
       onNodeAttached?.let { it() }
     }
+    TextEngine.recheckPreparedTextOnAttach(this, child)
   }
 
   fun appendChild(view: View) {
@@ -1342,9 +1343,12 @@ open class Node internal constructor(
     if (reference == child) {
       return
     }
+    replaceAuthorChild(nodes, index, reference, child)
     TextEngine.recheckPreparedTextOnDetach(this, reference)
     TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
 
+  private fun replaceAuthorChild(nodes: List<Node>, index: Int, reference: Node, child: Node) {
     if (establishesInlineRuns()) {
       val author = nodes.toMutableList()
       detachForRebuild(reference)
@@ -1565,7 +1569,6 @@ open class Node internal constructor(
   }
 
   fun addChildAt(child: Node, index: Int) {
-    TextEngine.recheckPreparedTextOnAttach(this, child)
     if (index <= -1) {
       appendChild(child)
       return
@@ -1575,6 +1578,11 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
+    insertAuthorChild(child, index)
+    TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
+
+  private fun insertAuthorChild(child: Node, index: Int) {
     val authorChildren = getChildren()
 
     if (establishesInlineRuns()) {
@@ -1809,12 +1817,12 @@ open class Node internal constructor(
     if (index >= children.size) {
       return null
     }
-    TextEngine.recheckPreparedTextOnDetach(this, children[index])
     if (establishesInlineRuns()) {
       val author = children.toMutableList()
       val removed = author.removeAt(index)
       detachForRebuild(removed)
       normalizeInlineRuns(author)
+      TextEngine.recheckPreparedTextOnDetach(this, removed)
       return removed
     }
     return removeAuthorChild(children[index])
@@ -1854,6 +1862,7 @@ open class Node internal constructor(
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
       NodeUtils.invalidateLayout(this)
     }
+    TextEngine.recheckPreparedTextOnDetach(this, removed)
     return removed
   }
 
@@ -1923,7 +1932,6 @@ open class Node internal constructor(
       return removeChildAt(idx)
     }
     if (!child.isAnonymous && child.layoutParent === this) {
-      TextEngine.recheckPreparedTextOnDetach(this, child)
       return removeAuthorChild(child)
     }
     val nodes = getChildren()

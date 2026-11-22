@@ -275,7 +275,7 @@ class TextEngine(val container: TextContainer) {
     }
     set(value) {
       mIncludePadding = value
-      if (PreparedText.enabled) queueOwnRecheck(node)
+      if (PreparedText.enabled) recheckTexts(node, children = false)
       (container.node.view as? Element)?.invalidateLayout()
     }
 
@@ -3137,72 +3137,44 @@ class TextEngine(val container: TextContainer) {
     // Prepared texts invalidated during a compute, which writes no Rust node data.
     private val deferredClears = java.util.WeakHashMap<TextEngine, Boolean>()
 
-    private enum class RecheckScope { Own, OwnAndChildren }
-
-    private val pendingRechecks = java.util.WeakHashMap<Node, RecheckScope>()
-
-    private fun queueRecheck(node: Node, scope: RecheckScope) {
-      if (scope == RecheckScope.OwnAndChildren || node !in pendingRechecks) pendingRechecks[node] = scope
-    }
-
-    @JvmStatic
-    internal fun flushPreparedTexts() {
-      runDeferredClears()
-      runQueuedRechecks()
-    }
-
-    private fun runDeferredClears() {
+    internal fun runDeferredClears() {
       if (deferredClears.isEmpty()) return
       for (engine in deferredClears.keys.toList()) engine.clearPreparedText()
-    }
-
-    private fun runQueuedRechecks() {
-      if (pendingRechecks.isEmpty() || !PreparedText.enabled) return
-      for (node in pendingRechecks.keys.toList()) {
-        val waitsUntilShown = node.style.display == Display.None
-        if (waitsUntilShown) continue
-        val scope = pendingRechecks.remove(node) ?: continue
-        recheckTextOf(node)
-        if (scope == RecheckScope.Own) continue
-        for (child in node.children) {
-          recheckTextOf(child)
-          if (child.isAnonymous) for (member in child.children) recheckTextOf(member)
-        }
-      }
     }
 
     private fun recheckTextOf(node: Node) {
       (node.view as? TextView)?.engine?.recheckPreparedText()
     }
 
-    private fun queueOwnRecheck(node: Node) {
-      val engine = (node.view as? TextView)?.engine ?: return
-      if (!engine.warmMeasuresWillCheck) queueRecheck(node, RecheckScope.Own)
+    // Hidden texts read as unqualified; showing the node changes its display, which rechecks them.
+    private fun recheckTexts(node: Node, children: Boolean) {
+      if ((!children && node.view !is TextView) || node.style.display == Display.None) return
+      recheckTextOf(node)
+      if (!children) return
+      for (child in node.children) {
+        recheckTextOf(child)
+        if (child.isAnonymous) for (member in child.children) recheckTextOf(member)
+      }
     }
 
-    private fun queueChildRechecks(node: Node) {
-      if (node.everParentOfCheckedText) queueRecheck(node, RecheckScope.OwnAndChildren)
-    }
-
-    private fun queueRechecksBesideFloat(parent: Node, child: Node) {
-      if (parent.everParentOfCheckedText && child.isFloated) queueRecheck(parent, RecheckScope.OwnAndChildren)
+    private fun recheckChildTexts(parent: Node) {
+      if (parent.everParentOfCheckedText) recheckTexts(parent, children = true)
     }
 
     internal fun recheckPreparedTextAround(node: Node, floatChanged: Boolean) {
       if (!PreparedText.enabled) return
-      queueOwnRecheck(node)
-      queueChildRechecks(node)
-      if (floatChanged) node.parent?.let(::queueChildRechecks)
+      recheckTexts(node, children = node.everParentOfCheckedText)
+      if (floatChanged) node.parent?.let(::recheckChildTexts)
     }
 
     internal fun recheckPreparedTextOnAttach(parent: Node, child: Node) {
       if (!PreparedText.enabled) return
-      queueOwnRecheck(child)
-      queueRechecksBesideFloat(parent, child)
+      recheckTexts(child, children = false)
+      if (child.isFloated) recheckChildTexts(parent)
     }
 
     internal fun recheckPreparedTextOnDetach(parent: Node, child: Node) {
-      if (PreparedText.enabled) queueRechecksBesideFloat(parent, child)
+      if (PreparedText.enabled && child.isFloated) recheckChildTexts(parent)
     }
 
     private fun staleEngines(root: Node): List<TextEngine> =
@@ -3210,7 +3182,6 @@ class TextEngine(val container: TextContainer) {
 
     @JvmStatic
     internal fun warmMeasures(forRoot: Node) {
-      flushPreparedTexts()
       flushPendingTextStyles(forRoot)
       Style.flushPendingMetrics(forRoot)
       if (staleMeasures.isEmpty()) return

@@ -56,13 +56,13 @@ class Mason {
     private set
 
   internal fun beginCompute() {
-    TextEngine.flushPreparedTexts()
     inCompute = true
   }
 
   internal fun endCompute() {
     inCompute = false
     computeFinished()
+    TextEngine.runDeferredClears()
   }
 
   internal fun computeFinished() {

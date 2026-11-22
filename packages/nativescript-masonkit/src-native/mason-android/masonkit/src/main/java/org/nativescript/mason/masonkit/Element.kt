@@ -360,11 +360,12 @@ interface Element : EventTarget {
    */
   fun layout(): Layout {
     val mason = node.mason
-    TextEngine.flushPreparedTexts()
+    val nested = mason.inCompute
+    if (!nested) mason.beginCompute()
     val floats = try {
       NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
     } finally {
-      mason.computeFinished()
+      if (nested) mason.computeFinished() else mason.endCompute()
     }
     if (floats.isEmpty()) return Layout.empty
     return Layout.fromFloatArray(floats, 0).second

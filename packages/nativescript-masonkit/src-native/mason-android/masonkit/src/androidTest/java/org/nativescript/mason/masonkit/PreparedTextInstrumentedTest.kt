@@ -391,17 +391,52 @@ class PreparedTextInstrumentedTest {
       val mason = Mason()
       val root = mason.createView(context)
       val p = mason.createTextView(context, TextType.P).apply { textContent = "Short" }
+      var changeText = false
+      val leaf = object : android.view.View(context) {
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+          if (changeText) {
+            changeText = false
+            p.textContent = LONG
+          }
+          setMeasuredDimension(10, 10)
+        }
+      }
       root.addView(p)
+      root.addView(leaf)
       layOutAndDraw(root, 600)
-      mason.inCompute = true
-      p.textContent = LONG
-      mason.inCompute = false
+      val short = p.node.size()
+      changeText = true
       root.compute(500f, -1f)
+      Assert.assertFalse("text changed during the compute", changeText)
+      root.compute(400f, -1f)
       root.node.computeCacheDirty = true
       root.layoutFlat()
-      p.node.size()
+      p.node.size().also { Assert.assertNotEquals("measured long, prepared text $preparedText", short, it) }
     }
     Assert.assertEquals(size(false), size(true))
+  }
+
+  @Test
+  fun aParagraphIsPreparedOnlyWhileNoFloatIsBesideIt() = withPreparedText(true) {
+    for (display in listOf(Display.Block, Display.Flex)) {
+      val mason = Mason()
+      val root = mason.createView(context).apply { style.display = display }
+      val p = mason.createTextView(context, TextType.P).apply { textContent = LONG }
+      val box = mason.createView(context).apply {
+        style.float = CSSFloat.Left
+        style.setSizeWidth(200f, Dimension.Kind.Points.value)
+        style.setSizeHeight(120f, Dimension.Kind.Points.value)
+      }
+      root.addView(p)
+      layOutAndDraw(root, 600)
+      Assert.assertNotNull("$display: prepared alone", p.engine.preparedText)
+      root.addView(box)
+      layOutAndDraw(root, 600)
+      Assert.assertNull("$display: prepared beside the float", p.engine.preparedText)
+      root.removeView(box)
+      layOutAndDraw(root, 600)
+      Assert.assertNotNull("$display: prepared once the float is gone", p.engine.preparedText)
+    }
   }
 
   @Test
