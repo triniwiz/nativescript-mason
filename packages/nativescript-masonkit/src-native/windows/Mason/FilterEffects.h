@@ -299,6 +299,15 @@ namespace mason_filter
         entry->version = NextVersion();
     }
 
+    // Whether the element's clip-path clips its own visual rather than masking the filter's sprite,
+    // which is drawn in the parent's decoration layer, over all of the parent's children.
+    inline bool ClipsOwnVisual(mux::UIElement const& element)
+    {
+        if (!mason_cssmask::ClipOnly(element)) return false;
+        auto* entry = Find(element);
+        return !entry || entry->filter.empty();
+    }
+
     inline winrt::hstring TagOf(mux::UIElement const& element)
     {
         return winrt::hstring{ L"mason-filter-" + std::to_wstring(reinterpret_cast<uintptr_t>(winrt::get_abi(element.as<wf::IUnknown>()))) };
@@ -318,7 +327,7 @@ namespace mason_filter
     {
         auto* entry = Find(element);
         if (!entry) return;
-        const bool masked = mason_cssmask::HasMask(element);
+        const bool masked = mason_cssmask::HasMask(element) && !ClipsOwnVisual(element);
         if ((entry->filter.empty() && !masked) || width <= 0.0f || height <= 0.0f)
         {
             Unshow(*entry, element);
