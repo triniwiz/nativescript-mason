@@ -464,4 +464,72 @@ final class LayerPaintTests: XCTestCase {
     XCTAssertEqual(color(b, 50 + 25, 50), "blue")
   }
 
+  // MARK: - backdrop-filter on other element views
+
+  /// An element view with a rgba(26, 20, 48, .9) background and `backdrop-filter: blur(8px)` over
+  /// a red scene: its own paint stays above the backdrop, before and after a repaint, and goes back
+  /// onto its layer when the backdrop is removed.
+  private func assertPaintsOverBackdrop(_ v: UIView, _ style: MasonStyle, file: StaticString = #filePath, line: UInt = #line) throws {
+    let host = UIView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
+    host.backgroundColor = .red
+    v.frame = CGRect(x: 10, y: 10, width: 100, height: 100)
+    style.backgroundColor = 0xE61A1430
+    host.addSubview(v)
+    // Laid out first, so the paint checked below is at its final size.
+    host.layoutIfNeeded()
+    XCTAssertEqual(v.bounds.size, CGSize(width: 100, height: 100), file: file, line: line)
+    v.layer.setNeedsDisplay()
+    v.layer.displayIfNeeded()
+    XCTAssertNotNil(v.layer.contents, "the view paints its background", file: file, line: line)
+
+    func check(_ when: String) throws {
+      let image = try bitmap(host.bounds.size) { ctx in host.layer.render(in: ctx) }
+      let p = image.rgba(image.width / 2, image.height / 2)
+      // 0.9 * (26, 20, 48) + 0.1 * red.
+      XCTAssertEqual(p.r, 49, accuracy: 8, "\(when): \(p)", file: file, line: line)
+      XCTAssertEqual(p.g, 18, accuracy: 8, "\(when): \(p)", file: file, line: line)
+      XCTAssertEqual(p.b, 43, accuracy: 8, "\(when): \(p)", file: file, line: line)
+      let sublayers = try XCTUnwrap(v.layer.sublayers, file: file, line: line)
+      let backdrop = try XCTUnwrap(sublayers.firstIndex { $0.name == CSSFilters.backdropLayerName }, file: file, line: line)
+      let paint = try XCTUnwrap(CSSFilters.BackdropPaint.layer(of: v.layer), when, file: file, line: line)
+      XCTAssertGreaterThan(try XCTUnwrap(sublayers.firstIndex(of: paint), file: file, line: line), backdrop, file: file, line: line)
+      XCTAssertNil(v.layer.contents, "\(when): own contents draw under the backdrop", file: file, line: line)
+    }
+
+    style.backdropFilter = "blur(8px)"
+    try check("backdrop added")
+    v.layer.setNeedsDisplay()
+    v.layer.displayIfNeeded()
+    try check("repainted")
+
+    style.backdropFilter = ""
+    XCTAssertNil(CSSFilters.BackdropPaint.layer(of: v.layer), file: file, line: line)
+    XCTAssertNotNil(v.layer.contents, "the view paints on its own layer again", file: file, line: line)
+  }
+
+  func testBackdropFilterStaysUnderTextBackground() throws {
+    let text = MasonText(mason: NSCMason.shared, type: .Span)
+    try assertPaintsOverBackdrop(text, text.style)
+  }
+
+  func testBackdropFilterStaysUnderButtonBackground() throws {
+    let button = NSCMason.shared.createButton()
+    try assertPaintsOverBackdrop(button, button.style)
+  }
+
+  func testBackdropPaintFollowsWhatAViewSetsOnItsLayer() throws {
+    let host = UIView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
+    let v = view(100, 100) { _ in }
+    host.addSubview(v)
+    v.style.backdropFilter = "blur(8px)"
+    // Set straight on the layer, as UIKit views and their subclasses do.
+    v.layer.backgroundColor = UIColor.blue.cgColor
+    XCTAssertNil(v.layer.backgroundColor)
+    XCTAssertEqual(CSSFilters.BackdropPaint.layer(of: v.layer)?.backgroundColor, UIColor.blue.cgColor)
+    let image = try XCTUnwrap(UIImage(systemName: "star")?.cgImage)
+    v.layer.contents = image
+    XCTAssertNil(v.layer.contents)
+    XCTAssertTrue((CSSFilters.BackdropPaint.layer(of: v.layer)?.contents as! CGImage?) === image)
+  }
+
 }

@@ -217,6 +217,7 @@ public class CSSFilters {
     private weak var backdropView: UIView?
     private var backdropRenderLayer: CALayer?
     private var backdropClipPathProvider: (() -> UIBezierPath?)?
+    private var backdropPaintObservations: [NSKeyValueObservation] = []
 
     // MARK: - element filter state
     /// The painted area in the view's local points, relative to its bounds origin.
@@ -254,10 +255,11 @@ public class CSSFilters {
     /// Stops live backdrop rendering and removes the render layer. Does not touch `filters`.
     private func tearDownBackdropRendering() {
       BackdropScheduler.shared.remove(self)
+      backdropPaintObservations.removeAll()
       backdropRenderLayer?.removeFromSuperlayer()
       backdropRenderLayer = nil
       backdropClipPathProvider = nil
-      (backdropView as? MasonUIView)?.syncBackdropPaint()
+      if let view = backdropView { BackdropPaint.sync(view.backingLayer) }
       backdropView = nil
     }
 
@@ -488,7 +490,7 @@ public class CSSFilters {
       view.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName })?.removeFromSuperlayer()
       tearDownBackdropRendering()
       // The box's background and contents go above the backdrop, or back once it is gone.
-      defer { (view as? MasonUIView)?.syncBackdropPaint() }
+      defer { BackdropPaint.sync(view.backingLayer) }
 
       let active = filters.contains { if case .dropShadow = $0 { return false } else { return true } }
       guard active else { return }
@@ -502,6 +504,7 @@ public class CSSFilters {
       backdropView = view
       backdropClipPathProvider = clipPathProvider
       setupBackdropRenderLayer(on: view)
+      backdropPaintObservations = BackdropPaint.observe(view.backingLayer)
       renderBackdropFrame()
       BackdropScheduler.shared.add(self)
     }
@@ -560,8 +563,113 @@ public class CSSFilters {
       CATransaction.begin()
       CATransaction.setDisableActions(true)
       if renderLayer.frame != view.bounds { renderLayer.frame = view.bounds }
+      if let paint = BackdropPaint.layer(of: view.backingLayer), paint.frame != view.backingLayer.bounds {
+        paint.frame = view.backingLayer.bounds
+      }
       renderLayer.contents = cgImage
       CATransaction.commit()
+    }
+  }
+
+  /// A view's own background colour and contents while a backdrop-filter is active. A layer's
+  /// background and contents draw under all its sublayers, but CSS puts the backdrop under the
+  /// background, borders and content, so they move to a sublayer just above the backdrop layer.
+  /// Works on any view's layer: the observers catch whatever the view paints on its own layer.
+  enum BackdropPaint {
+    static let layerName = "mason.backdropPaint"
+    /// Set while paint is being moved, so the moves don't re-enter the observers.
+    private static var moving = false
+
+    static func layer(of host: CALayer) -> CALayer? {
+      host.sublayers?.first { $0.name == layerName }
+    }
+
+    /// Moves the paint above the backdrop layer, or back onto `host` once the backdrop is gone.
+    static func sync(_ host: CALayer) {
+      let backdrop = host.sublayers?.first { $0.name == CSSFilters.backdropLayerName }
+      let existing = layer(of: host)
+      guard backdrop != nil || existing != nil else { return }
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      moving = true
+      defer {
+        moving = false
+        CATransaction.commit()
+      }
+      guard let backdrop = backdrop else {
+        let paint = existing!
+        host.backgroundColor = paint.backgroundColor
+        host.contents = paint.contents
+        paint.removeFromSuperlayer()
+        return
+      }
+      let paint = existing ?? {
+        let l = CALayer()
+        l.name = layerName
+        return l
+      }()
+      if let sublayers = host.sublayers, let i = sublayers.firstIndex(of: backdrop),
+         i + 1 >= sublayers.count || sublayers[i + 1] !== paint {
+        host.insertSublayer(paint, above: backdrop)
+      }
+      if existing == nil {
+        paint.backgroundColor = host.backgroundColor
+        paint.contents = host.contents
+        host.backgroundColor = nil
+        host.contents = nil
+      }
+      matchGeometry(paint, host)
+    }
+
+    /// Clears the moved paint before `host` repaints, for a view that may leave its layer's
+    /// background or contents unset (setting an unchanged value notifies no observer).
+    static func willRepaint(_ host: CALayer) {
+      guard let paint = layer(of: host) else { return }
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      paint.backgroundColor = nil
+      paint.contents = nil
+      CATransaction.commit()
+    }
+
+    /// Moves a background or contents the view sets on its own layer while the backdrop is up.
+    static func observe(_ host: CALayer) -> [NSKeyValueObservation] {
+      [
+        host.observe(\.contents) { host, _ in
+          move(host) { paint in
+            paint.contents = host.contents
+            host.contents = nil
+          }
+        },
+        host.observe(\.backgroundColor) { host, _ in
+          move(host) { paint in
+            paint.backgroundColor = host.backgroundColor
+            host.backgroundColor = nil
+          }
+        },
+      ]
+    }
+
+    private static func move(_ host: CALayer, _ body: (CALayer) -> Void) {
+      guard !moving, let paint = layer(of: host) else { return }
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      moving = true
+      body(paint)
+      matchGeometry(paint, host)
+      moving = false
+      CATransaction.commit()
+    }
+
+    private static func matchGeometry(_ paint: CALayer, _ host: CALayer) {
+      if paint.frame != host.bounds { paint.frame = host.bounds }
+      paint.contentsScale = host.contentsScale
+      paint.contentsGravity = host.contentsGravity
+      paint.contentsRect = host.contentsRect
+      paint.contentsCenter = host.contentsCenter
+      paint.cornerRadius = host.cornerRadius
+      paint.maskedCorners = host.maskedCorners
+      paint.cornerCurve = host.cornerCurve
     }
   }
 

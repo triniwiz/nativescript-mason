@@ -4467,7 +4467,7 @@ public class MasonStyle: NSObject {
         if let current = mBackdropFilterStorage, !current.filters.isEmpty {
           current.reset()
           node.view?.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName })?.removeFromSuperlayer()
-          (node.view as? MasonUIView)?.syncBackdropPaint()
+          if let view = node.view { CSSFilters.BackdropPaint.sync(view.backingLayer) }
         }
         return
       }
@@ -4494,7 +4494,7 @@ public class MasonStyle: NSObject {
     if let backdropLayer = view.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName }) {
       // The box's own paint, moved just above the backdrop, stays where the view's layer paints.
       let host = view.backingLayer
-      let paint = (view as? MasonUIView)?._backdropPaintLayer.flatMap { $0.superlayer === host ? $0 : nil }
+      let paint = CSSFilters.BackdropPaint.layer(of: host)
       if backdropLayer.frame != bounds || (paint.map { $0.frame != host.bounds } ?? false) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
