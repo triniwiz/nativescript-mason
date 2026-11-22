@@ -1,6 +1,6 @@
-import { widthProperty, heightProperty, minWidthProperty, minHeightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty } from '@nativescript/core/ui/styling/style-properties';
+import { widthProperty, heightProperty, minWidthProperty, minHeightProperty, maxWidthProperty, maxHeightProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, visibilityProperty } from '@nativescript/core/ui/styling/style-properties';
 import { alignSelfProperty, flexGrowProperty, flexShrinkProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { aspectRatioProperty, bottomProperty, flexBasisProperty, gridColumnEndProperty, gridColumnStartProperty, gridRowEndProperty, gridRowStartProperty, justifySelfProperty, leftProperty, positionProperty, rightProperty, topProperty } from './properties';
+import { aspectRatioProperty, bottomProperty, displayProperty, flexBasisProperty, gridColumnEndProperty, gridColumnStartProperty, gridRowEndProperty, gridRowStartProperty, justifySelfProperty, leftProperty, positionProperty, rightProperty, topProperty } from './properties';
 import { Style } from './style';
 import { isMasonView_ } from './symbols';
 
@@ -58,6 +58,27 @@ const writeGrid: Write = (helper, style) => {
   helper.gridArea = `${style.gridRowStart ?? 'auto'} / ${style.gridColumnStart ?? 'auto'} / ${style.gridRowEnd ?? 'auto'} / ${style.gridColumnEnd ?? 'auto'}`;
 };
 
+// Saved per native leaf because a detached view may keep its Mason node.
+const foreignDisplayDefaults = new WeakMap<object, Style['display']>();
+
+function writeVisibility(helper: Style, style: any): void {
+  const native = style.viewRef.get().nativeViewProtected;
+  let defaultDisplay = foreignDisplayDefaults.get(native);
+  if (defaultDisplay === undefined) {
+    defaultDisplay = helper.display;
+    foreignDisplayDefaults.set(native, defaultDisplay);
+  }
+  const visibility = style.visibility;
+  // NativeScript collapse removes ordinary controls from layout. Mason's CSS
+  // visibility only controls drawing, so also suppress the layout box.
+  const display = visibility === 'collapse' ? 'none' : (style.display ?? defaultDisplay);
+  if (helper.display === display && helper.visibility === visibility) return;
+  helper.batch((leaf) => {
+    if (leaf.display !== display) leaf.display = display;
+    if (leaf.visibility !== visibility) leaf.visibility = visibility;
+  });
+}
+
 const entries: Array<[LayoutProperty, Write]> = [];
 function add(properties: unknown[], write: (property: LayoutProperty) => Write): void {
   for (const property of properties as LayoutProperty[]) entries.push([property, write(property)]);
@@ -70,6 +91,10 @@ add([minWidthProperty, minHeightProperty], (p) => (__WINDOWS__ ? skip : scalar(p
 add([flexGrowProperty, flexShrinkProperty, flexBasisProperty, aspectRatioProperty, positionProperty, leftProperty, rightProperty, topProperty, bottomProperty], scalar);
 add([alignSelfProperty, justifySelfProperty], selfAlign);
 add(gridEdges, () => writeGrid);
+// WinUI's panel already skips XAML children whose Visibility is Collapsed.
+if (!__WINDOWS__) {
+  add([displayProperty, visibilityProperty], () => writeVisibility);
+}
 
 const foreignProtos = new WeakMap<object, object>();
 // A leaf outlives a detach.
