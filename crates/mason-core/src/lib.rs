@@ -22,6 +22,8 @@ pub use taffy::Overflow;
 mod layout_cache;
 mod node;
 mod pass_lock;
+#[cfg(target_os = "android")]
+pub mod prepared_text;
 
 #[cfg(target_vendor = "apple")]
 use crate::node::AppleNode;
@@ -573,6 +575,26 @@ impl Mason {
         }
         // measure fn changed; invalidate cached layout
         self.0.mark_dirty(node);
+    }
+
+    /// Measures the node from `text` instead of its JVM measure, or from the JVM measure again
+    /// when `text` is `None`. Takes the node data's write lock, so never call it during a compute.
+    #[cfg(target_os = "android")]
+    pub fn set_prepared_text(&mut self, node: Id, text: Option<prepared_text::PreparedText>) {
+        if let Some(nd) = self.0.node_data_mut().get_mut(node) {
+            // A node with inline segments lays out from them, and segments the JVM measure sent
+            // for earlier content can name children since removed.
+            if text.is_some() {
+                nd.inline_segments.get_mut().clear();
+            }
+            nd.prepared_text = text.map(std::sync::Arc::new);
+        }
+        self.0.mark_dirty(node);
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn prepared_text_lines(&self, node: Id, width: f32) -> Option<Vec<prepared_text::LineBox>> {
+        Some(self.0.node_data().get(node)?.prepared_text.as_ref()?.line_boxes(width))
     }
 
     /// Alias for [`set_measure`]; kept for ABI compatibility.
