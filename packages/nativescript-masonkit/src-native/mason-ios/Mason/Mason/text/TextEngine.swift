@@ -377,10 +377,6 @@ public class TextEngine: NSObject {
   
 
   private static let whitespaceRegex = try! NSRegularExpression(pattern: "\\s+")
-  // Soft wrap opportunities for min-content, which is wider than `\s`: U+200B
-  // ZERO WIDTH SPACE breaks a line without being whitespace, so splitting on
-  // whitespace alone reported a whole ZWSP-joined run as one unbreakable word.
-  private static let softWrapRegex = try! NSRegularExpression(pattern: "[\\s\\x{200B}]+")
   private static let horizontalWsRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "[ \\t]+", options: [])
 
   private static func splitByWhitespace(
@@ -431,12 +427,40 @@ public class TextEngine: NSObject {
     return ceil(widest)
   }
 
+  /// The pieces of `string` between line-break opportunities, each with its trailing white space:
+  /// UAX #14 (ICU) line-break units from CFStringTokenizer, which is where CoreText breaks lines.
+  /// So text breaks between ideographs, kana and Hangul syllables, after `/` and around an em
+  /// dash, as well as at spaces and U+200B.
+  internal static func lineBreakPieces(_ string: String) -> [NSRange] {
+    let cf = string as CFString
+    let length = CFStringGetLength(cf)
+    guard length > 0 else { return [] }
+    guard let tokenizer = CFStringTokenizerCreate(kCFAllocatorDefault, cf, CFRange(location: 0, length: length),
+                                                  kCFStringTokenizerUnitLineBreak, CFLocaleCopyCurrent()) else {
+      return [NSRange(location: 0, length: length)]
+    }
+    var starts = Set<Int>([0])
+    while CFStringTokenizerAdvanceToNextToken(tokenizer) != [] {
+      let range = CFStringTokenizerGetCurrentTokenRange(tokenizer)
+      if range.location != kCFNotFound, range.location < length { starts.insert(range.location) }
+    }
+    let sorted = starts.sorted()
+    return sorted.enumerated().map { i, start in
+      NSRange(location: start, length: (i + 1 < sorted.count ? sorted[i + 1] : length) - start)
+    }
+  }
+
+  /// White space after the last word of a line hangs: it doesn't widen min-content.
+  private static func hangs(_ unit: unichar) -> Bool {
+    unit == 0x200B || (UnicodeScalar(unit).map { CharacterSet.whitespacesAndNewlines.contains($0) } ?? false)
+  }
+
   /// `firstLineIndent` (text-indent) widens the first word, which starts the first line.
   internal static func minContentWidth(for text: NSAttributedString, firstLineIndent: CGFloat = 0) -> CGFloat {
     let nsText = text.string as NSString
     let length = nsText.length
-    let matches = softWrapRegex.matches(in: text.string, range: NSRange(location: 0, length: length))
-    if matches.isEmpty { return max(0, desiredWidth(text) + firstLineIndent) }
+    let pieces = lineBreakPieces(text.string)
+    if pieces.count <= 1 { return max(0, desiredWidth(text) + firstLineIndent) }
 
     // One line for the whole string: a word's width is the caret distance across
     // it. Mixed-direction text has no such distance, so it measures word by word.
@@ -460,12 +484,11 @@ public class TextEngine: NSObject {
       }
       maxWidth = max(maxWidth, width)
     }
-    var last = 0
-    for match in matches {
-      word(last, match.range.location)
-      last = match.range.location + match.range.length
+    for piece in pieces {
+      var end = piece.location + piece.length
+      while end > piece.location, hangs(nsText.character(at: end - 1)) { end -= 1 }
+      word(piece.location, end)
     }
-    word(last, length)
 
     if maxWidth == 0, text.length > 0 {
       return max(0, desiredWidth(text) + firstLineIndent)
