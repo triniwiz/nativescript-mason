@@ -242,57 +242,8 @@ public class MasonUIView: MasonViewBase, MasonEventTarget, MasonElement, MasonEl
     }
   }
 
-  /// The box's own background colour and drawn contents while a backdrop-filter is active.
-  /// A layer's background and contents draw under all its sublayers, but CSS puts the
-  /// backdrop under the background, so they move to a sublayer just above the backdrop.
-  internal private(set) var _backdropPaintLayer: CALayer?
-
-  /// Moves the box's paint above the backdrop layer, or back onto the view's layer once the
-  /// backdrop is gone. `repainted`: the view's layer was just painted, so its paint is current.
-  internal func syncBackdropPaint(repainted: Bool = false) {
-    let host = backingLayer
-    let backdrop = host.sublayers?.first { $0.name == CSSFilters.backdropLayerName }
-    let attached = _backdropPaintLayer.map { $0.superlayer === host } ?? false
-    guard backdrop != nil || attached else { return }
-    CATransaction.begin()
-    CATransaction.setDisableActions(true)
-    defer { CATransaction.commit() }
-    guard let backdrop = backdrop else {
-      let paint = _backdropPaintLayer!
-      if !repainted {
-        host.backgroundColor = paint.backgroundColor
-        host.contents = paint.contents
-      }
-      paint.backgroundColor = nil
-      paint.contents = nil
-      paint.removeFromSuperlayer()
-      return
-    }
-    let paint = _backdropPaintLayer ?? {
-      let l = CALayer()
-      l.name = "mason.backdropPaint"
-      _backdropPaintLayer = l
-      return l
-    }()
-    if let sublayers = host.sublayers, let i = sublayers.firstIndex(of: backdrop),
-       i + 1 >= sublayers.count || sublayers[i + 1] !== paint {
-      host.insertSublayer(paint, above: backdrop)
-    }
-    if repainted || !attached {
-      paint.backgroundColor = host.backgroundColor
-      paint.contents = host.contents
-      host.backgroundColor = nil
-      host.contents = nil
-    }
-    paint.frame = host.bounds
-    paint.contentsScale = host.contentsScale
-    paint.contentsGravity = host.contentsGravity
-    paint.contentsRect = host.contentsRect
-    paint.contentsCenter = host.contentsCenter
-    paint.cornerRadius = host.cornerRadius
-    paint.maskedCorners = host.maskedCorners
-    paint.cornerCurve = host.cornerCurve
-  }
+  /// The box's own paint, moved above its backdrop-filter layer (see `CSSFilters.BackdropPaint`).
+  internal var _backdropPaintLayer: CALayer? { CSSFilters.BackdropPaint.layer(of: backingLayer) }
 
   // A border on the view's own layer has to move to a sublayer once something sits on top of it.
   public override func didAddSubview(_ subview: UIView) {
@@ -2466,12 +2417,13 @@ final class MasonViewLayer: CALayer {
 
   override func display() {
     (delegate as? MasonUIView)?.style.refreshShadowMode(self)
-    let view = delegate as? MasonUIView
-    if let view = view, view.applyLayerPaintIfEligible() {
+    // The layer paint leaves an unchanged background or contents unset, which the backdrop's
+    // observers cannot see: start from none.
+    CSSFilters.BackdropPaint.willRepaint(self)
+    if let view = delegate as? MasonUIView, view.applyLayerPaintIfEligible() {
       contents = nil
-    } else {
-      super.display()
+      return
     }
-    view?.syncBackdropPaint(repainted: true)
+    super.display()
   }
 }
