@@ -104,6 +104,34 @@ open class TextView @JvmOverloads constructor(
 
   private val textPaint: TextPaint = ThemelessContext.textPaint(context)
 
+  private var preparedRunPaint: TextPaint? = null
+
+  internal fun preparedPaint(run: Spans.RunStyleSpan?): TextPaint {
+    if (run == null) return textPaint
+    val paint = preparedRunPaint ?: TextPaint().also { preparedRunPaint = it }
+    paint.set(textPaint)
+    run.updateDrawState(paint)
+    return paint
+  }
+
+  // The float content width layout measured the text at; the view's width is whole pixels.
+  private val layoutContentWidth: Float
+    get() = node.run { computedWidth - computedPaddingLeft - computedPaddingRight - computedBorderLeft - computedBorderRight }
+
+  private fun drawPreparedLines(c: Canvas, prepared: PreparedRun): Boolean {
+    val lines = prepared.lines(layoutContentWidth) ?: return false
+    val paint = preparedPaint(prepared.runStyle)
+    val x = paddingLeft + (containerAlignmentShift(lines, width - paddingLeft - paddingRight) ?: 0f)
+    val y = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
+    val text = prepared.text
+    for (i in 0 until lines.lineCount) {
+      val start = lines.lineStart(i)
+      val end = lines.lineEnd(i)
+      c.drawTextRun(text, start, end, start, end, x, y + lines.lineBaseline(i), false, paint)
+    }
+    return true
+  }
+
   override fun getPaint(): TextPaint = textPaint
 
   val paint: TextPaint
@@ -219,13 +247,21 @@ open class TextView @JvmOverloads constructor(
     dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
 
   override fun onDraw(canvas: Canvas) {
-    // Text changed since the last measure (no layout pass in between) is applied here.
-    engine.applyTextIfNeeded()
+    engine.flushTextStyleIfNeeded()
+    val prepared = engine.preparedRun
+    if (prepared == null) engine.applyTextIfNeeded()
     // Suppress view-level border only when this TextView will be flattened
     // and the blockquote bar is drawn as an inline span.
     val ignoreBorder =
       (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
     ViewUtils.onDraw(this, canvas, style, ignoreBorder) { c ->
+      if (prepared != null) {
+        if (drawPreparedLines(c, prepared)) {
+          forgetDrawnLayout()
+          return@onDraw
+        }
+        engine.applyTextIfNeeded()
+      }
       val layout = resolveDrawnLayout() ?: return@onDraw
       drawResolvedLayout(c, layout, true)
       layoutInlineBoxes(layout)
@@ -306,13 +342,20 @@ open class TextView @JvmOverloads constructor(
     return layout
   }
 
+  private fun verticalOffset(layout: android.text.Layout, contentH: Int): Float = verticalOffset(
+    layout.lineCount, layout.height, contentH
+  ) { layout.getLineBaseline(0) + (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f }
+
+  private fun verticalOffset(lines: PreparedLines, contentH: Int): Float = verticalOffset(
+    lines.lineCount, lines.height, contentH
+  ) { lines.lineBaseline(0) + (lines.lineAscent(0) + lines.lineDescent(0)) / 2f }
+
   // One line is centred in the content box; more start at its top unless the view centres them.
-  private fun verticalOffset(layout: android.text.Layout, contentH: Int): Float =
-    if (layout.lineCount == 1 && contentH > 0) {
-      val glyphCenter = layout.getLineBaseline(0) + (layout.getLineAscent(0) + layout.getLineDescent(0)) / 2f
-      contentH / 2f - glyphCenter
-    } else if (centersVertically && contentH > layout.height) {
-      (contentH - layout.height) / 2f
+  private inline fun verticalOffset(lineCount: Int, textHeight: Int, contentH: Int, glyphCenter: () -> Float): Float =
+    if (lineCount == 1 && contentH > 0) {
+      contentH / 2f - glyphCenter()
+    } else if (centersVertically && contentH > textHeight) {
+      (contentH - textHeight) / 2f
     } else 0f
 
   /** The last line's baseline from the top of a [width] by [height] content box, where it is drawn. */
@@ -358,8 +401,34 @@ open class TextView @JvmOverloads constructor(
   }
 
   private fun containerAlignmentShift(layout: android.text.Layout, contentWidth: Int): Float? {
-    if (contentWidth <= 0 || layout.lineCount == 0 || !style.isValueInitialized) return null
-    val factor = when (style.display) {
+    val factor = containerAlignmentFactor()
+    if (factor == 0f || contentWidth <= 0 || layout.lineCount == 0) return null
+    var left = Float.MAX_VALUE
+    var right = -Float.MAX_VALUE
+    for (i in 0 until layout.lineCount) {
+      left = minOf(left, layout.getLineLeft(i))
+      right = maxOf(right, layout.getLineRight(i))
+    }
+    return alignmentShift(factor, left, right, contentWidth)
+  }
+
+  // Prepared lines are start-aligned and left to right, so they start at 0.
+  private fun containerAlignmentShift(lines: PreparedLines, contentWidth: Int): Float? {
+    val factor = containerAlignmentFactor()
+    if (factor == 0f || contentWidth <= 0) return null
+    return alignmentShift(factor, 0f, lines.widest, contentWidth)
+  }
+
+  private fun alignmentShift(factor: Float, left: Float, right: Float, contentWidth: Int): Float? {
+    val free = contentWidth - (right - left)
+    if (free <= 0f) return null
+    return factor * free - left
+  }
+
+  // How far across the free space the view's own flex or grid alignment puts its text.
+  private fun containerAlignmentFactor(): Float {
+    if (!style.isValueInitialized) return 0f
+    return when (style.display) {
       Display.Flex, Display.InlineFlex -> when (style.flexDirection) {
         FlexDirection.Row -> justifyFactor(style.justifyContent, reversed = false)
         FlexDirection.RowReverse -> justifyFactor(style.justifyContent, reversed = true)
@@ -376,16 +445,6 @@ open class TextView @JvmOverloads constructor(
       }
       else -> 0f
     }
-    if (factor == 0f) return null
-    var left = Float.MAX_VALUE
-    var right = -Float.MAX_VALUE
-    for (i in 0 until layout.lineCount) {
-      left = minOf(left, layout.getLineLeft(i))
-      right = maxOf(right, layout.getLineRight(i))
-    }
-    val free = contentWidth - (right - left)
-    if (free <= 0f) return null
-    return factor * free - left
   }
 
   private fun justifyFactor(value: JustifyContent, reversed: Boolean): Float = when (value) {
@@ -642,6 +701,13 @@ open class TextView @JvmOverloads constructor(
   private var inlineAccessibility: InlineAccessibility? = null
   private var inlineAccessibilityLayout: android.text.Layout? = null
 
+  private fun forgetDrawnLayout() {
+    if (drawnLayout == null) return
+    drawnLayout = null
+    inlineAccessibilityLayout = null
+    inlineAccessibility?.invalidateRoot()
+  }
+
   // Installed only while accessibility is on and the text holds inline elements.
   private fun updateInlineAccessibility() {
     val layout = drawnLayout ?: return
@@ -862,11 +928,12 @@ open class TextView @JvmOverloads constructor(
   private fun provideTextStructure(structure: ViewStructure, text: CharSequence) {
     provideViewStructure(structure)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
-    val drawn = floatAwareStaticLayout ?: cachedStaticLayout
-    if (drawn == null || drawn.lineCount <= 1 || drawn.text.length != text.length || engine.isVerticalWritingMode) {
+    val lines = engine.preparedRun?.lines(layoutContentWidth)
+      ?: (floatAwareStaticLayout ?: cachedStaticLayout)?.takeIf { it.text.length == text.length }?.let(::LayoutLines)
+    if (lines == null || lines.lineCount <= 1 || engine.isVerticalWritingMode) {
       structure.setText(text, -1, -1)
     } else {
-      provideVisibleLines(structure, text, drawn)
+      provideVisibleLines(structure, text, lines)
     }
     var style = 0
     val typefaceStyle = textPaint.typeface?.style ?: Typeface.NORMAL
@@ -882,25 +949,36 @@ open class TextView @JvmOverloads constructor(
     }
   }
 
-  private fun provideVisibleLines(structure: ViewStructure, text: CharSequence, layout: android.text.Layout) {
+  private fun provideVisibleLines(structure: ViewStructure, text: CharSequence, lines: TextLines) {
     val location = IntArray(2)
     getLocationInWindow(location)
     var root: android.view.View = this
     while (true) root = root.parent as? android.view.View ?: break
     val top = if (location[1] >= 0) 0 else -location[1]
-    fun lineAt(y: Int) = layout.getLineForVertical(y - paddingTop + scrollY)
+    fun lineAt(y: Int) = lines.lineForVertical(y - paddingTop + scrollY)
     val topLine = lineAt(top)
     val bottomLine = lineAt(top + root.height - 1)
     val contextLines = (bottomLine - topLine) / 2
-    val topChar = layout.getLineStart((topLine - contextLines).coerceAtLeast(0))
-    val bottomChar = layout.getLineEnd((bottomLine + contextLines).coerceAtMost(layout.lineCount - 1))
+    val topChar = lines.lineStart((topLine - contextLines).coerceAtLeast(0))
+    val bottomChar = lines.lineEnd((bottomLine + contextLines).coerceAtMost(lines.lineCount - 1))
     val visible = if (topChar > 0 || bottomChar < text.length) text.subSequence(topChar, bottomChar) else text
     structure.setText(visible, -1 - topChar, -1 - topChar)
     val count = bottomLine - topLine + 1
     structure.setTextLines(
-      IntArray(count) { layout.getLineStart(topLine + it) },
-      IntArray(count) { layout.getLineBaseline(topLine + it) + paddingTop }
+      IntArray(count) { lines.lineStart(topLine + it) },
+      IntArray(count) { lines.lineBaseline(topLine + it) + paddingTop }
     )
+  }
+
+  private class LayoutLines(private val layout: android.text.Layout) : TextLines {
+    override val lineCount: Int
+      get() = layout.lineCount
+
+    override fun lineStart(line: Int) = layout.getLineStart(line)
+    override fun lineEnd(line: Int) = layout.getLineEnd(line)
+    override fun lineTop(line: Int) = layout.getLineTop(line)
+    override fun lineBaseline(line: Int) = layout.getLineBaseline(line)
+    override fun lineForVertical(y: Int) = layout.getLineForVertical(y)
   }
 
   private fun provideViewStructure(structure: ViewStructure) {

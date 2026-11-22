@@ -3,8 +3,10 @@ package org.nativescript.mason.masonkit
 import android.text.TextPaint
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
@@ -15,6 +17,17 @@ import kotlin.math.roundToInt
 class NormalLineHeightInstrumentedTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
   private val density = context.resources.displayMetrics.density
+  private val preparedText = PreparedText.enabled
+
+  @Before
+  fun useStaticLayout() {
+    PreparedText.enabled = false
+  }
+
+  @After
+  fun restore() {
+    PreparedText.enabled = preparedText
+  }
 
   private fun probe(sizeDip: Float) = TextPaint().also { it.textSize = sizeDip * density }
 

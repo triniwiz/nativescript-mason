@@ -55,6 +55,11 @@ class Mason {
   internal var computeEpoch = 0
     private set
 
+  internal fun beginCompute() {
+    TextEngine.flushPreparedTexts()
+    inCompute = true
+  }
+
   internal fun endCompute() {
     inCompute = false
     computeFinished()

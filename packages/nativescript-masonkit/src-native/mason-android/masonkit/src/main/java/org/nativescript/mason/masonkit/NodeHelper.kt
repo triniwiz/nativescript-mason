@@ -1957,6 +1957,7 @@ class NodeHelper(val mason: Mason) {
     }
 
     fun compute(node: Node) {
+      TextEngine.flushPreparedTexts()
       try {
         NativeHelpers.nativeNodeCompute(
           node.mason.nativePtr, node.nativePtr

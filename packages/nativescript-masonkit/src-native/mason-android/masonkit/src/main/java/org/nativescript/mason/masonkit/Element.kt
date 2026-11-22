@@ -169,7 +169,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
     } finally {
@@ -194,7 +194,7 @@ interface Element : EventTarget {
 
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
     } finally {
@@ -208,7 +208,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -222,7 +222,7 @@ interface Element : EventTarget {
     val mason = node.mason
     if (mason.inCompute) return // re-entrant compute → skip to avoid Rust RWLock deadlock
     dirtyRequestedForeignLeaves()
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
     } finally {
@@ -336,7 +336,7 @@ interface Element : EventTarget {
     dirtyRequestedForeignLeaves()
     TextEngine.warmMeasures(node)
     var applied = true
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       val layout = NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
       if (layout.isEmpty()) {
@@ -360,6 +360,7 @@ interface Element : EventTarget {
    */
   fun layout(): Layout {
     val mason = node.mason
+    TextEngine.flushPreparedTexts()
     val floats = try {
       NativeHelpers.nativeNodeComputeAndLayout(mason.nativePtr, node.nativePtr)
     } finally {
@@ -396,7 +397,7 @@ interface Element : EventTarget {
 
     TextEngine.warmMeasures(node)
     var applied = true
-    mason.inCompute = true
+    mason.beginCompute()
     try {
       val tree = node.layoutTree
       var size = NativeHelpers.nativeNodeComputeWithSizeAndLayoutInto(
