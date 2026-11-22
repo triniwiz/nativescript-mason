@@ -8,9 +8,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct CMason CMason;
+typedef Mason CMason;
 
-typedef struct CMasonNode CMasonNode;
+typedef NodeRef CMasonNode;
 
 /**
  * User-agent default (font-size, margin) for a block text tag ("p",
@@ -34,7 +34,7 @@ typedef struct CMasonInlineTextSegment {
 } CMasonInlineTextSegment;
 
 typedef struct CMasonInlineChildSegment {
-  const struct CMasonNode *node;
+  const CMasonNode *node;
   float descent;
 } CMasonInlineChildSegment;
 
@@ -88,7 +88,7 @@ typedef struct CMasonMinMax {
   float max_value;
 } CMasonMinMax;
 
-struct CMason *mason_init(void);
+CMason *mason_init(void);
 
 /**
  * Like `mason_init`, but pre-reserves storage for `capacity` nodes up
@@ -99,23 +99,23 @@ struct CMason *mason_init(void);
  * and ~2x extra peak memory on very large trees. `capacity` is a soft
  * hint, not a hard limit - the tree still grows past it if needed.
  */
-struct CMason *mason_init_with_capacity(uintptr_t capacity);
+CMason *mason_init_with_capacity(uintptr_t capacity);
 
-void mason_clear(struct CMason *mason);
+void mason_clear(CMason *mason);
 
 /**
  * Fills `out` with [live nodes, total buffers, active buffers, shared buffers, free slots,
  * buffer memory, live C node wrappers], the same counters Android's Mason.debugStats reports.
  */
-void mason_debug_stats(struct CMason *mason, int64_t *out, uintptr_t len);
+void mason_debug_stats(CMason *mason, int64_t *out, uintptr_t len);
 
-void mason_release(struct CMason *mason);
+void mason_release(CMason *mason);
 
-void mason_print_tree(struct CMason *mason, struct CMasonNode *node);
+void mason_print_tree(CMason *mason, CMasonNode *node);
 
-void mason_set_device_scale(struct CMason *mason, float scale);
+void mason_set_device_scale(CMason *mason, float scale);
 
-void mason_set_preflight(struct CMason *mason, bool enabled);
+void mason_set_preflight(CMason *mason, bool enabled);
 
 bool mason_get_preflight(void);
 
@@ -124,39 +124,27 @@ bool mason_ua_default_for_tag(const char *tag, struct CMasonUaDefault *out);
 /**
  * The bytes of the shared default style slot.
  */
-uint8_t *mason_default_style_ptr(struct CMason *mason);
+uint8_t *mason_default_style_ptr(CMason *mason);
 
-void mason_node_set_segments(struct CMason *mason,
-                             struct CMasonNode *node,
+void mason_node_set_segments(CMason *mason,
+                             CMasonNode *node,
                              struct CMasonSegment *segments,
                              uintptr_t segments_len);
 
-void mason_node_clear_segments(struct CMason *mason, struct CMasonNode *node);
+void mason_node_clear_segments(CMason *mason, CMasonNode *node);
 
-bool mason_node_is_equal(struct CMasonNode *node_a, struct CMasonNode *node_b);
+bool mason_node_is_equal(CMasonNode *node_a, CMasonNode *node_b);
 
 void mason_node_array_destroy(struct NodeArray *array);
 
-void mason_node_destroy(struct CMasonNode *node);
+void mason_node_destroy(CMasonNode *node);
 
-struct CMasonNode *mason_node_new_image_node(struct CMason *mason);
+CMasonNode *mason_node_new_image_node(CMason *mason);
 
-struct CMasonNode *mason_node_new_button_node(struct CMason *mason);
-
-#if !defined(TARGET_OS_ANDROID)
-struct CMasonNode *mason_node_new_button_node_with_context(struct CMason *mason,
-                                                           void *measure_data,
-                                                           long long (*measure)(const void*,
-                                                                                float,
-                                                                                float,
-                                                                                float,
-                                                                                float));
-#endif
-
-struct CMasonNode *mason_node_new_node(struct CMason *mason, bool anonymous);
+CMasonNode *mason_node_new_button_node(CMason *mason);
 
 #if !defined(TARGET_OS_ANDROID)
-struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
+CMasonNode *mason_node_new_button_node_with_context(CMason *mason,
                                                     void *measure_data,
                                                     long long (*measure)(const void*,
                                                                          float,
@@ -165,120 +153,121 @@ struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
                                                                          float));
 #endif
 
-struct CMasonNode *mason_node_new_node_with_children(struct CMason *mason,
-                                                     struct CMasonNode **children,
-                                                     uintptr_t children_size);
-
-struct CMasonNode *mason_node_new_text_node(struct CMason *mason, bool anonymous);
+CMasonNode *mason_node_new_node(CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
-struct CMasonNode *mason_node_new_text_node_with_context(struct CMason *mason,
-                                                         void *measure_data,
-                                                         long long (*measure)(const void*,
-                                                                              float,
-                                                                              float,
-                                                                              float,
-                                                                              float));
+CMasonNode *mason_node_new_node_with_context(CMason *mason,
+                                             void *measure_data,
+                                             long long (*measure)(const void*,
+                                                                  float,
+                                                                  float,
+                                                                  float,
+                                                                  float));
 #endif
 
-struct CMasonNode *mason_node_new_text_node_with_children(struct CMason *mason,
-                                                          struct CMasonNode **children,
-                                                          uintptr_t children_size);
+CMasonNode *mason_node_new_node_with_children(CMason *mason,
+                                              CMasonNode **children,
+                                              uintptr_t children_size);
 
-struct CMasonNode *mason_node_new_line_break_node(struct CMason *mason);
+CMasonNode *mason_node_new_text_node(CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
-struct CMasonNode *mason_node_new_line_break_node_with_context(struct CMason *mason,
-                                                               void *measure_data,
-                                                               long long (*measure)(const void*,
-                                                                                    float,
-                                                                                    float,
-                                                                                    float,
-                                                                                    float));
+CMasonNode *mason_node_new_text_node_with_context(CMason *mason,
+                                                  void *measure_data,
+                                                  long long (*measure)(const void*,
+                                                                       float,
+                                                                       float,
+                                                                       float,
+                                                                       float));
 #endif
 
-struct CMasonNode *mason_node_new_list_item_node(struct CMason *mason);
+CMasonNode *mason_node_new_text_node_with_children(CMason *mason,
+                                                   CMasonNode **children,
+                                                   uintptr_t children_size);
+
+CMasonNode *mason_node_new_line_break_node(CMason *mason);
 
 #if !defined(TARGET_OS_ANDROID)
-struct CMasonNode *mason_node_new_list_item_node_with_context(struct CMason *mason,
-                                                              void *measure_data,
-                                                              long long (*measure)(const void*,
-                                                                                   float,
-                                                                                   float,
-                                                                                   float,
-                                                                                   float));
+CMasonNode *mason_node_new_line_break_node_with_context(CMason *mason,
+                                                        void *measure_data,
+                                                        long long (*measure)(const void*,
+                                                                             float,
+                                                                             float,
+                                                                             float,
+                                                                             float));
 #endif
 
-void *mason_node_layout(struct CMason *mason, struct CMasonNode *node, void *(*layout)(const float*,
-                                                                                       uintptr_t));
+CMasonNode *mason_node_new_list_item_node(CMason *mason);
+
+#if !defined(TARGET_OS_ANDROID)
+CMasonNode *mason_node_new_list_item_node_with_context(CMason *mason,
+                                                       void *measure_data,
+                                                       long long (*measure)(const void*,
+                                                                            float,
+                                                                            float,
+                                                                            float,
+                                                                            float));
+#endif
+
+void *mason_node_layout(CMason *mason, CMasonNode *node, void *(*layout)(const float*, uintptr_t));
 
 /**
  * 0 horizontal-tb, 1 vertical-rl, 2 vertical-lr.
  */
-uint8_t mason_node_get_writing_mode(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_writing_mode(CMason *mason, CMasonNode *node);
 
 /**
  * text-orientation of the node's vertical text: 0 mixed, 1 upright, 2 sideways.
  */
-uint8_t mason_node_get_text_orientation(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_text_orientation(CMason *mason, CMasonNode *node);
 
-uint8_t mason_node_get_text_combine_upright(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_text_combine_upright(CMason *mason, CMasonNode *node);
 
-uint8_t mason_node_get_text_spacing_trim(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_text_spacing_trim(CMason *mason, CMasonNode *node);
 
-uint8_t mason_node_get_white_space(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_white_space(CMason *mason, CMasonNode *node);
 
-uint8_t mason_node_get_direction(struct CMason *mason, struct CMasonNode *node);
+uint8_t mason_node_get_direction(CMason *mason, CMasonNode *node);
 
-void mason_node_get_unrounded_size(struct CMason *mason,
-                                   struct CMasonNode *node,
-                                   float *width,
-                                   float *height);
+void mason_node_get_unrounded_size(CMason *mason, CMasonNode *node, float *width, float *height);
 
-void *mason_node_layout_shallow(struct CMason *mason,
-                                struct CMasonNode *node,
-                                void *(*layout)(const float*, uintptr_t));
+void *mason_node_layout_shallow(CMason *mason, CMasonNode *node, void *(*layout)(const float*,
+                                                                                 uintptr_t));
 
-void *mason_node_get_float_rects(struct CMason *mason,
-                                 struct CMasonNode *node,
-                                 void *(*callback)(const float*));
+void *mason_node_get_float_rects(CMason *mason, CMasonNode *node, void *(*callback)(const float*));
 
-struct CMasonBuffer *mason_node_get_float_rects_buffer(struct CMason *mason,
-                                                       struct CMasonNode *node);
+struct CMasonBuffer *mason_node_get_float_rects_buffer(CMason *mason, CMasonNode *node);
 
 /**
  * Writes up to `capacity` floats of the container's float exclusions
  * (`[left, top, width, height, side]` margin boxes, see `Mason::get_float_exclusions`)
  * into `out` and returns how many there are in total.
  */
-uintptr_t mason_node_get_float_exclusions(struct CMason *mason,
-                                          struct CMasonNode *node,
+uintptr_t mason_node_get_float_exclusions(CMason *mason,
+                                          CMasonNode *node,
                                           float *out,
                                           uintptr_t capacity);
 
 void mason_node_release_float_rects_buffer(struct CMasonBuffer *buffer);
 
-void mason_node_compute_wh(struct CMason *mason,
-                           struct CMasonNode *node,
-                           float width,
-                           float height);
+void mason_node_compute_wh(CMason *mason, CMasonNode *node, float width, float height);
 
-void mason_node_compute_size(struct CMason *mason,
-                             struct CMasonNode *node,
+void mason_node_compute_size(CMason *mason,
+                             CMasonNode *node,
                              struct AvailableSpace width,
                              struct AvailableSpace height);
 
-void mason_node_compute_max_content(struct CMason *mason, struct CMasonNode *node);
+void mason_node_compute_max_content(CMason *mason, CMasonNode *node);
 
-void mason_node_compute_min_content(struct CMason *mason, struct CMasonNode *node);
+void mason_node_compute_min_content(CMason *mason, CMasonNode *node);
 
-void mason_node_compute(struct CMason *mason, struct CMasonNode *node);
+void mason_node_compute(CMason *mason, CMasonNode *node);
 
 /**
  * Combined compute-with-size + layout in a single FFI crossing.
  */
-void *mason_node_compute_wh_and_layout(struct CMason *mason,
-                                       struct CMasonNode *node,
+void *mason_node_compute_wh_and_layout(CMason *mason,
+                                       CMasonNode *node,
                                        float width,
                                        float height,
                                        void *(*layout)(const float*, uintptr_t));
@@ -286,103 +275,93 @@ void *mason_node_compute_wh_and_layout(struct CMason *mason,
 /**
  * Combined compute (auto size) + layout in a single FFI crossing.
  */
-void *mason_node_compute_and_layout(struct CMason *mason,
-                                    struct CMasonNode *node,
-                                    void *(*layout)(const float*, uintptr_t));
+void *mason_node_compute_and_layout(CMason *mason, CMasonNode *node, void *(*layout)(const float*,
+                                                                                     uintptr_t));
 
 /**
  * Combined compute-max-content + layout in a single FFI crossing.
  */
-void *mason_node_compute_max_content_and_layout(struct CMason *mason,
-                                                struct CMasonNode *node,
+void *mason_node_compute_max_content_and_layout(CMason *mason,
+                                                CMasonNode *node,
                                                 void *(*layout)(const float*, uintptr_t));
 
 /**
  * Combined compute-min-content + layout in a single FFI crossing.
  */
-void *mason_node_compute_min_content_and_layout(struct CMason *mason,
-                                                struct CMasonNode *node,
+void *mason_node_compute_min_content_and_layout(CMason *mason,
+                                                CMasonNode *node,
                                                 void *(*layout)(const float*, uintptr_t));
 
-struct CMasonNode *mason_node_get_child_at(struct CMason *mason,
-                                           struct CMasonNode *node,
-                                           uintptr_t index);
+CMasonNode *mason_node_get_child_at(CMason *mason, CMasonNode *node, uintptr_t index);
 
-void mason_node_set_children(struct CMason *mason,
-                             struct CMasonNode *node,
-                             struct CMasonNode *const *children,
+void mason_node_set_children(CMason *mason,
+                             CMasonNode *node,
+                             CMasonNode *const *children,
                              uintptr_t children_size);
 
-void mason_node_add_children(struct CMason *mason,
-                             struct CMasonNode *node,
-                             struct CMasonNode *const *children,
+void mason_node_add_children(CMason *mason,
+                             CMasonNode *node,
+                             CMasonNode *const *children,
                              uintptr_t children_size);
 
-void mason_node_prepend_children(struct CMason *mason,
-                                 struct CMasonNode *node,
-                                 struct CMasonNode *const *children,
+void mason_node_prepend_children(CMason *mason,
+                                 CMasonNode *node,
+                                 CMasonNode *const *children,
                                  uintptr_t children_size);
 
-void mason_node_prepend(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
+void mason_node_prepend(CMason *mason, CMasonNode *node, CMasonNode *child);
 
-void mason_node_add_child(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
+void mason_node_add_child(CMason *mason, CMasonNode *node, CMasonNode *child);
 
-struct CMasonNode *mason_node_replace_child_at(struct CMason *mason,
-                                               struct CMasonNode *node,
-                                               struct CMasonNode *child,
-                                               uintptr_t index);
+CMasonNode *mason_node_replace_child_at(CMason *mason,
+                                        CMasonNode *node,
+                                        CMasonNode *child,
+                                        uintptr_t index);
 
-void mason_node_add_child_at(struct CMason *mason,
-                             struct CMasonNode *node,
-                             struct CMasonNode *child,
-                             uintptr_t index);
+void mason_node_add_child_at(CMason *mason, CMasonNode *node, CMasonNode *child, uintptr_t index);
 
-void mason_node_insert_child_before(struct CMason *mason,
-                                    struct CMasonNode *node,
-                                    struct CMasonNode *child,
-                                    struct CMasonNode *reference);
+void mason_node_insert_child_before(CMason *mason,
+                                    CMasonNode *node,
+                                    CMasonNode *child,
+                                    CMasonNode *reference);
 
-void mason_node_insert_child_after(struct CMason *mason,
-                                   struct CMasonNode *node,
-                                   struct CMasonNode *child,
-                                   struct CMasonNode *reference);
+void mason_node_insert_child_after(CMason *mason,
+                                   CMasonNode *node,
+                                   CMasonNode *child,
+                                   CMasonNode *reference);
 
-bool mason_node_dirty(struct CMason *mason, struct CMasonNode *node);
+bool mason_node_dirty(CMason *mason, CMasonNode *node);
 
-void mason_node_mark_dirty(struct CMason *mason, struct CMasonNode *node);
+void mason_node_mark_dirty(CMason *mason, CMasonNode *node);
 
-void mason_node_set_pseudo_states(struct CMason *mason, struct CMasonNode *node, uint16_t flags);
+void mason_node_set_pseudo_states(CMason *mason, CMasonNode *node, uint16_t flags);
 
 /**
  * `<details>`/`<summary>` role (0 none, 1 details, 2 summary) and whether a details is open.
  */
-void mason_node_set_details(struct CMason *mason, struct CMasonNode *node, uint8_t role, bool open);
+void mason_node_set_details(CMason *mason, CMasonNode *node, uint8_t role, bool open);
 
-uint16_t mason_node_get_pseudo_states(struct CMason *mason, struct CMasonNode *node);
+uint16_t mason_node_get_pseudo_states(CMason *mason, CMasonNode *node);
 
-bool mason_node_has_pseudo_state(struct CMason *mason, struct CMasonNode *node, uint16_t flag);
+bool mason_node_has_pseudo_state(CMason *mason, CMasonNode *node, uint16_t flag);
 
 /**
  * Return the node's state buffer as raw pointer + length.
  * The state buffer holds pseudo flags and other per-node state.
  */
-const uint8_t *mason_node_get_state_buffer(struct CMason *mason,
-                                           struct CMasonNode *node,
-                                           uintptr_t *out_len);
+const uint8_t *mason_node_get_state_buffer(CMason *mason, CMasonNode *node, uintptr_t *out_len);
 
 /**
  * Return a mutable pointer to the node's state buffer.
  */
-uint8_t *mason_node_get_state_buffer_mut(struct CMason *mason,
-                                         struct CMasonNode *node,
-                                         uintptr_t *out_len);
+uint8_t *mason_node_get_state_buffer_mut(CMason *mason, CMasonNode *node, uintptr_t *out_len);
 
 /**
  * Return an existing pseudo style buffer (read-only raw pointer + length).
  * Returns null if no pseudo buffer exists for the given flags.
  */
-const uint8_t *mason_node_get_pseudo_style_buffer(struct CMason *mason,
-                                                  struct CMasonNode *node,
+const uint8_t *mason_node_get_pseudo_style_buffer(CMason *mason,
+                                                  CMasonNode *node,
                                                   uint16_t flags,
                                                   uintptr_t *out_len);
 
@@ -391,43 +370,39 @@ const uint8_t *mason_node_get_pseudo_style_buffer(struct CMason *mason,
  * Clones from the base style if this is the first call for the given pseudo state.
  * Returns a raw mutable pointer + length for direct buffer writes.
  */
-uint8_t *mason_node_prepare_pseudo_style_buffer(struct CMason *mason,
-                                                struct CMasonNode *node,
+uint8_t *mason_node_prepare_pseudo_style_buffer(CMason *mason,
+                                                CMasonNode *node,
                                                 uint16_t flags,
                                                 uintptr_t *out_len);
 
-bool mason_node_is_children_same(struct CMason *mason,
-                                 struct CMasonNode *node,
-                                 struct CMasonNode *const *children,
+bool mason_node_is_children_same(CMason *mason,
+                                 CMasonNode *node,
+                                 CMasonNode *const *children,
                                  uintptr_t children_size);
 
-void mason_node_remove_children(struct CMason *mason, struct CMasonNode *node);
+void mason_node_remove_children(CMason *mason, CMasonNode *node);
 
-struct CMasonNode *mason_node_remove_child_at(struct CMason *mason,
-                                              struct CMasonNode *node,
-                                              uintptr_t index);
+CMasonNode *mason_node_remove_child_at(CMason *mason, CMasonNode *node, uintptr_t index);
 
-struct CMasonNode *mason_node_remove_child(struct CMason *mason,
-                                           struct CMasonNode *node,
-                                           struct CMasonNode *child);
+CMasonNode *mason_node_remove_child(CMason *mason, CMasonNode *node, CMasonNode *child);
 
-struct NodeArray *mason_node_get_children(struct CMason *mason, struct CMasonNode *node);
+struct NodeArray *mason_node_get_children(CMason *mason, CMasonNode *node);
 
 #if !defined(TARGET_OS_ANDROID)
-void mason_node_set_context(struct CMason *mason,
-                            struct CMasonNode *node,
+void mason_node_set_context(CMason *mason,
+                            CMasonNode *node,
                             void *measure_data,
                             long long (*measure)(const void*, float, float, float, float));
 #endif
 
 #if !defined(TARGET_OS_ANDROID)
-void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
+void mason_node_remove_context(CMason *mason, CMasonNode *node);
 #endif
 
-void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
+void mason_node_set_apple_node(CMason *mason, CMasonNode *node, void *apple_node);
 
-void mason_style_update_non_buffer_data(struct CMason *mason,
-                                        struct CMasonNode *node,
+void mason_style_update_non_buffer_data(CMason *mason,
+                                        CMasonNode *node,
                                         const char *grid_auto_rows,
                                         const char *grid_auto_columns,
                                         const char *grid_column,
@@ -441,8 +416,8 @@ void mason_style_update_non_buffer_data(struct CMason *mason,
                                         const char *grid_area,
                                         const char *grid_template_areas);
 
-void mason_style_set_with_values(struct CMason *mason,
-                                 struct CMasonNode *node,
+void mason_style_set_with_values(CMason *mason,
+                                 CMasonNode *node,
                                  signed char display,
                                  signed char position,
                                  signed char direction,
@@ -531,8 +506,8 @@ void mason_style_set_with_values(struct CMason *mason,
  * Sets only a node's size, min/max size and margins; the rest of its style is left as is.
  * Types as in `mason_style_set_with_values`: 0 auto, 1 length, 2 percent (a 0-1 fraction).
  */
-void mason_style_set_box_size(struct CMason *mason,
-                              struct CMasonNode *node,
+void mason_style_set_box_size(CMason *mason,
+                              CMasonNode *node,
                               signed char width_type,
                               float width_value,
                               signed char height_type,
@@ -550,54 +525,52 @@ void mason_style_set_box_size(struct CMason *mason,
                               float margin_right_value,
                               float margin_bottom_value);
 
-void mason_style_prepare_style_for_mut(struct CMason *mason, struct CMasonNode *node);
+void mason_style_prepare_style_for_mut(CMason *mason, CMasonNode *node);
 
 void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
 
-const uint8_t *mason_style_get_style_data(struct CMason *mason,
-                                          struct CMasonNode *node,
-                                          uintptr_t *out_len);
+const uint8_t *mason_style_get_style_data(CMason *mason, CMasonNode *node, uintptr_t *out_len);
 
-struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
+struct CMasonBuffer *mason_style_get_style_buffer(CMason *mason, CMasonNode *node);
 
 /**
  * Gives the node its own style slot if it shares one; returns the slot's bytes.
  */
-uint8_t *mason_style_prepare_mut_ptr(struct CMason *mason, struct CMasonNode *node);
+uint8_t *mason_style_prepare_mut_ptr(CMason *mason, CMasonNode *node);
 
 /**
  * Gives the node its own style slot if it shares one; returns the slot index, or -1.
  */
-int32_t mason_style_prepare_slot(struct CMason *mason, struct CMasonNode *node);
+int32_t mason_style_prepare_slot(CMason *mason, CMasonNode *node);
 
 /**
  * The bytes of one arena chunk (64 style slots), or null past the last chunk.
  */
-uint8_t *mason_style_chunk(struct CMason *mason, int32_t chunk, uintptr_t *out_len);
+uint8_t *mason_style_chunk(CMason *mason, int32_t chunk, uintptr_t *out_len);
 
-char *mason_style_get_grid_area_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_area_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_template_areas_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_template_areas_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_auto_rows_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_auto_rows_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_auto_columns_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_auto_columns_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_column_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_column_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_column_start_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_column_start_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_column_end_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_column_end_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_row_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_row_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_row_start_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_row_start_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_row_end_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_row_end_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_template_rows_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_template_rows_css(CMason *mason, CMasonNode *node);
 
-char *mason_style_get_grid_template_columns_css(struct CMason *mason, struct CMasonNode *node);
+char *mason_style_get_grid_template_columns_css(CMason *mason, CMasonNode *node);
 
 struct CMasonMinMax mason_util_create_track_sizing_function_with_type_value(int32_t track_type,
                                                                             float track_value);
