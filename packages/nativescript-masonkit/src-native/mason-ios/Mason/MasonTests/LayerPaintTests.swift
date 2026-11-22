@@ -297,9 +297,15 @@ final class LayerPaintTests: XCTestCase {
     }
     v.frame.origin = CGPoint(x: 10, y: 10)
     host.addSubview(v)
-    // The backdrop snapshot hides the box; a layout pending during it would show it again.
-    host.layoutIfNeeded()
     return (host, v)
+  }
+
+  /// The pixel at the centre of a layer's image contents.
+  private func centre(_ contents: Any?) throws -> (r: Int, g: Int, b: Int, a: Int) {
+    let image = try XCTUnwrap(contents) as! CGImage
+    let size = CGSize(width: image.width, height: image.height)
+    let b = try bitmap(size) { ctx in ctx.draw(image, in: CGRect(origin: .zero, size: size)) }
+    return b.rgba(b.width / 2, b.height / 2)
   }
 
   private func display(_ v: MasonUIView) {
@@ -350,6 +356,19 @@ final class LayerPaintTests: XCTestCase {
     v.style.backdropFilter = ""
     XCTAssertNil(v._backdropPaintLayer?.superlayer)
     XCTAssertNotNil(v.layer.contents, "the box paints on its own layer again")
+  }
+
+  func testBackdropOfABoxThatStillNeedsLayoutLeavesTheBoxOut() throws {
+    let (host, v) = backdropBox()
+    XCTAssertTrue(v.superview === host)
+    XCTAssertTrue(v.layer.needsLayout(), "the snapshot runs the pending layout")
+    v.style.backdropFilter = "blur(8px)"
+    let backdrop = try XCTUnwrap(v.layer.sublayers?.first { $0.name == CSSFilters.backdropLayerName })
+    let p = try centre(backdrop.contents)
+    XCTAssertEqual(p.r, 255, accuracy: 8, "only the red scene is behind the box: \(p)")
+    XCTAssertEqual(p.g, 0, accuracy: 8, "\(p)")
+    XCTAssertEqual(p.b, 0, accuracy: 8, "\(p)")
+    XCTAssertFalse(v.layer.isHidden)
   }
 
   func testRemovingBackdropFilterRestoresLayerPaintedBackground() throws {
