@@ -252,7 +252,8 @@ namespace mason_shadow
     inline void Sync(mux::UIElement const& element, float width, float height, mason_shape::Radii const& radii, float scale, State& state)
     {
         auto* entry = Registry().empty() ? nullptr : Find(element);
-        if (!entry || entry->shadows.empty() || width <= 0.0f || height <= 0.0f)
+        // An empty box still casts its spread and blur, as a zero-height line's shade does.
+        if (!entry || entry->shadows.empty() || width < 0.0f || height < 0.0f)
         {
             if (state.layer) mason_deco::SetLayer(element, L"mason-shadow", nullptr);
             state = {};
