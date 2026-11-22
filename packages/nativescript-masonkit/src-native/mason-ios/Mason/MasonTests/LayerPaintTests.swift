@@ -285,6 +285,83 @@ final class LayerPaintTests: XCTestCase {
     XCTAssertFalse(behind.applyLayerPaintIfEligible(), "negative z-index child under the gradient layer")
   }
 
+  // MARK: - backdrop-filter
+
+  /// A semi-transparent box with `backdrop-filter: blur(8px)` over a red scene.
+  private func backdropBox(_ configure: (MasonStyle) -> Void = { _ in }) -> (host: UIView, box: MasonUIView) {
+    let host = UIView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
+    host.backgroundColor = .red
+    let v = view(100, 100) {
+      $0.backgroundColor = 0xE61A1430 // rgba(26, 20, 48, .9)
+      configure($0)
+    }
+    v.frame.origin = CGPoint(x: 10, y: 10)
+    host.addSubview(v)
+    // The backdrop snapshot hides the box; a layout pending during it would show it again.
+    host.layoutIfNeeded()
+    return (host, v)
+  }
+
+  private func display(_ v: MasonUIView) {
+    v.layer.setNeedsDisplay()
+    v.layer.displayIfNeeded()
+  }
+
+  /// CSS paints the backdrop under the box's background: the dark fill, not the red scene, shows.
+  private func assertBackgroundOverBackdrop(_ host: UIView, _ v: MasonUIView, file: StaticString = #filePath, line: UInt = #line) throws {
+    let image = try bitmap(host.bounds.size) { ctx in host.layer.render(in: ctx) }
+    let p = image.rgba(image.width / 2, image.height / 2)
+    // 0.9 * (26, 20, 48) + 0.1 * red.
+    XCTAssertEqual(p.r, 49, accuracy: 8, "\(p)", file: file, line: line)
+    XCTAssertEqual(p.g, 18, accuracy: 8, "\(p)", file: file, line: line)
+    XCTAssertEqual(p.b, 43, accuracy: 8, "\(p)", file: file, line: line)
+
+    let sublayers = try XCTUnwrap(v.layer.sublayers, file: file, line: line)
+    let backdrop = try XCTUnwrap(sublayers.first { $0.name == CSSFilters.backdropLayerName }, file: file, line: line)
+    XCTAssertNotNil(backdrop.contents, "the backdrop rendered", file: file, line: line)
+    XCTAssertNil(v.layer.backgroundColor, "a layer's own background draws under its sublayers", file: file, line: line)
+    XCTAssertNil(v.layer.contents, "a layer's own contents draw under its sublayers", file: file, line: line)
+    let paint = try XCTUnwrap(v._backdropPaintLayer, file: file, line: line)
+    let paintIndex = try XCTUnwrap(sublayers.firstIndex(of: paint), file: file, line: line)
+    XCTAssertGreaterThan(paintIndex, try XCTUnwrap(sublayers.firstIndex(of: backdrop)), file: file, line: line)
+    XCTAssertEqual(paint.frame, v.layer.bounds, file: file, line: line)
+  }
+
+  func testBackdropFilterStaysUnderLayerPaintedBackground() throws {
+    let (host, v) = backdropBox()
+    v.style.backdropFilter = "blur(8px)"
+    display(v)
+    XCTAssertTrue(v.applyLayerPaintIfEligible(), "expected the layer paint path")
+    display(v)
+    try assertBackgroundOverBackdrop(host, v)
+  }
+
+  func testBackdropFilterStaysUnderDrawnBackground() throws {
+    let (host, v) = backdropBox { $0.borderRadius = "20px / 10px" }
+    XCTAssertFalse(v.applyLayerPaintIfEligible(), "expected the draw(_:) path")
+    display(v)
+    XCTAssertNotNil(v.layer.contents)
+    // Added after the box painted, then repainted.
+    v.style.backdropFilter = "blur(8px)"
+    try assertBackgroundOverBackdrop(host, v)
+    display(v)
+    try assertBackgroundOverBackdrop(host, v)
+
+    v.style.backdropFilter = ""
+    XCTAssertNil(v._backdropPaintLayer?.superlayer)
+    XCTAssertNotNil(v.layer.contents, "the box paints on its own layer again")
+  }
+
+  func testRemovingBackdropFilterRestoresLayerPaintedBackground() throws {
+    let (_, v) = backdropBox()
+    v.style.backdropFilter = "blur(8px)"
+    display(v)
+    XCTAssertNil(v.layer.backgroundColor)
+    v.style.backdropFilter = ""
+    XCTAssertNil(v._backdropPaintLayer?.superlayer)
+    XCTAssertNotNil(v.layer.backgroundColor, "the box paints on its own layer again")
+  }
+
   // MARK: - Gradient geometry
 
   func testLengthStopsArePlacedOnTheGradientLine() {

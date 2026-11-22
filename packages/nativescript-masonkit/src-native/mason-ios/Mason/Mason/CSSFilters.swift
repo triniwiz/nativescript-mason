@@ -15,6 +15,8 @@ import CoreImage.CIFilterBuiltins
 import Metal
 
 public class CSSFilters {
+  /// The sublayer a backdrop-filter paints into, at the bottom of the view's layer.
+  static let backdropLayerName = "_mason_backdrop_layer"
   
   enum Filter {
     case blur(radius: CGFloat)
@@ -255,6 +257,7 @@ public class CSSFilters {
       backdropRenderLayer?.removeFromSuperlayer()
       backdropRenderLayer = nil
       backdropClipPathProvider = nil
+      (backdropView as? MasonUIView)?.syncBackdropPaint()
       backdropView = nil
     }
 
@@ -482,8 +485,10 @@ public class CSSFilters {
       isApplying = true
       defer { isApplying = false }
 
-      view.backingLayer.sublayers?.first(where: { $0.name == "_mason_backdrop_layer" })?.removeFromSuperlayer()
+      view.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName })?.removeFromSuperlayer()
       tearDownBackdropRendering()
+      // The box's background and contents go above the backdrop, or back once it is gone.
+      defer { (view as? MasonUIView)?.syncBackdropPaint() }
 
       let active = filters.contains { if case .dropShadow = $0 { return false } else { return true } }
       guard active else { return }
@@ -503,7 +508,7 @@ public class CSSFilters {
 
     private func setupBackdropRenderLayer(on view: UIView) {
       let renderLayer = CALayer()
-      renderLayer.name = "_mason_backdrop_layer"
+      renderLayer.name = CSSFilters.backdropLayerName
       renderLayer.frame = view.bounds
       renderLayer.masksToBounds = true
       renderLayer.contentsScale = CGFloat(NSCMason.scale)
