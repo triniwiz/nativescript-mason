@@ -277,6 +277,12 @@ public class MasonTextArea: MasonTextInput, MasonEventTarget, MasonElement, Maso
 		let fontChange = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
 		let textAlign = state.contains(.textAlign)
 
+#if canImport(UIKit)
+		if state.contains(.textShadow) {
+			textShadows = style.textShadows
+		}
+#endif
+
 		if fontColor {
 			textColor = UIColor.colorFromARGB(style.resolvedColor)
 		}
