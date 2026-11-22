@@ -1351,24 +1351,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SetTextShadow(hstring const& shadows)
     {
-        std::vector<mason_dwrite::Shadow> parsed;
-        const std::wstring_view spec = shadows;
-        size_t pos = 0;
-        while (pos < spec.size())
-        {
-            size_t end = spec.find(L';', pos);
-            if (end == std::wstring_view::npos) end = spec.size();
-            const std::wstring part(spec.substr(pos, end - pos));
-            float inset = 0.0f, spread = 0.0f;
-            double argb = 0.0;
-            mason_dwrite::Shadow s;
-            if (swscanf_s(part.c_str(), L"%f,%f,%f,%f,%f,%lf", &inset, &s.x, &s.y, &s.blur, &spread, &argb) == 6)
-            {
-                s.color = static_cast<uint32_t>(argb);
-                if ((s.color >> 24) != 0) parsed.push_back(s);
-            }
-            pos = end + 1;
-        }
+        auto parsed = mason_dwrite::ParseShadows(shadows);
         if (parsed == m_shadows) return;
         m_shadows = std::move(parsed);
         m_paragraphDirty = true;

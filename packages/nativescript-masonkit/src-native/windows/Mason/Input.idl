@@ -25,6 +25,8 @@ namespace NativeScript.Mason
         void SetFontFamily(String families);
         void SetPlaceholderColor(UInt32 argb);
         void ClearPlaceholderColor();
+        // CSS text-shadow on the field's text and placeholder, encoded as for Text.SetTextShadow.
+        void SetTextShadow(String shadows);
 
         // beforeinput, input, change, focus, blur and keydown, as in the DOM. The id removes it.
         Int64 AddEventListener(String type, EventListener listener);

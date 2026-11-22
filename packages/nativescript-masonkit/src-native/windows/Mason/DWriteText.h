@@ -340,6 +340,30 @@ namespace mason_dwrite
         bool operator==(Shadow const&) const = default;
     };
 
+    // The text-shadow list style.ts encodes (encodeBoxShadows): "inset,x,y,blur,spread,argb" per
+    // shadow, ';'-separated. Transparent shadows are dropped.
+    inline std::vector<Shadow> ParseShadows(std::wstring_view spec)
+    {
+        std::vector<Shadow> parsed;
+        size_t pos = 0;
+        while (pos < spec.size())
+        {
+            size_t end = spec.find(L';', pos);
+            if (end == std::wstring_view::npos) end = spec.size();
+            const std::wstring part(spec.substr(pos, end - pos));
+            float inset = 0.0f, spread = 0.0f;
+            double argb = 0.0;
+            Shadow s;
+            if (swscanf_s(part.c_str(), L"%f,%f,%f,%f,%f,%lf", &inset, &s.x, &s.y, &s.blur, &spread, &argb) == 6)
+            {
+                s.color = static_cast<uint32_t>(argb);
+                if ((s.color >> 24) != 0) parsed.push_back(s);
+            }
+            pos = end + 1;
+        }
+        return parsed;
+    }
+
     struct Box
     {
         uint32_t position{ 0 };
