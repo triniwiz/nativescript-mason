@@ -2051,6 +2051,8 @@ class TextEngine(val container: TextContainer) {
     }
     if (style.resolvedTextIndent != 0f || style.resolvedHyphens.toInt() == 2) return null
     if (includePadding || lineClamp > 0 || style.textOverflowEllipsis) return null
+    // The JVM measure wraps at a max-width in points even for a max-content size.
+    if (style.maxWidth.let { it is Dimension.Points && it.points > 0f }) return null
     if (spacingTrimModes(1, style.resolvedTextSpacingTrim.toInt(), emptyList()) != null) return null
     val parentFloats = try {
       node.parent?.style?.float.let { it != null && it != org.nativescript.mason.masonkit.enums.Float.None }
@@ -2296,7 +2298,6 @@ class TextEngine(val container: TextContainer) {
     var bottom = primary.bottom
     val fm = singleLineTextMetrics
     fm.leading = primary.leading
-    // The text-range overload is API 34.
     if (oneLineLayoutsGetFallbackExtents) {
       p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
       top = minOf(top, fm.top)

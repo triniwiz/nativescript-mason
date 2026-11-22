@@ -462,6 +462,77 @@ class PreparedTextInstrumentedTest {
     }
   }
 
+  // Wide enough that the text's automatic minimum width does not hide its flex base size.
+  private fun maxWidthRowBoxes(preparedText: Boolean, limit: (View, TextView) -> Unit) = withPreparedText(preparedText) {
+    val mason = Mason()
+    val row = mason.createView(context).apply { style.display = Display.Flex }
+    val text = mason.createTextView(context, TextType.P).apply { textContent = LONG }
+    val box = mason.createView(context).apply { style.flexBasis = Dimension.Points(400f) }
+    row.addView(text)
+    row.addView(box)
+    limit(row, text)
+    layOutAndDraw(row, 600)
+    "text ${text.node.size()}, box ${box.node.size()} at ${box.node.computedX}"
+  }
+
+  @Test
+  fun aFlexItemWithAMaxWidthSharesItsRowAsWithStaticLayout() {
+    fun boxes(preparedText: Boolean) = maxWidthRowBoxes(preparedText) { _, text ->
+      text.style.maxWidth = Dimension.Points(400f)
+    }
+    Assert.assertEquals(boxes(false), boxes(true))
+  }
+
+  @Test
+  fun aMaxWidthWrittenAfterPreparationSharesTheRowAsWithStaticLayout() {
+    fun boxes(preparedText: Boolean) = maxWidthRowBoxes(preparedText) { row, text ->
+      layOutAndDraw(row, 600)
+      Assert.assertEquals("prepared before the max-width", preparedText, text.engine.preparedText != null)
+      text.writeStyleThenSync(StateKeys.MAX_SIZE) {
+        it.put(StyleKeys.MAX_WIDTH_TYPE, Dimension.Kind.Points.value)
+        it.putFloat(StyleKeys.MAX_WIDTH_VALUE, 400f)
+      }
+    }
+    Assert.assertEquals(boxes(false), boxes(true))
+  }
+
+  private fun <T> squeezedToNoWidth(preparedText: Boolean, inspect: (TextView, Bitmap) -> T) = withPreparedText(preparedText) {
+    val mason = Mason()
+    val row = mason.createView(context).apply { style.display = Display.Flex }
+    val text = mason.createTextView(context, TextType.P).apply {
+      style.flexBasis = Dimension.Points(0f)
+      style.setMinSizeWidth(0f, Dimension.Kind.Points.value)
+      textContent = "Squeezed out of its row"
+    }
+    val wide = mason.createView(context).apply {
+      style.flexShrink = 0f
+      style.setSizeWidth(600f, Dimension.Kind.Points.value)
+    }
+    row.addView(text)
+    row.addView(wide)
+    val bitmap = layOutAndDraw(row, 600)
+    Assert.assertEquals("text width", 0f, text.node.computedWidth)
+    Assert.assertEquals("prepared", preparedText, text.engine.preparedText != null)
+    inspect(text, bitmap)
+  }
+
+  @Test
+  fun textSqueezedToNoWidthIsDrawnAsWithStaticLayout() {
+    val laidOut = squeezedToNoWidth(false) { _, bitmap -> bitmap }
+    Assert.assertTrue(squeezedToNoWidth(true) { _, bitmap -> bitmap }.sameAs(laidOut))
+  }
+
+  @Test
+  fun textSqueezedToNoWidthReportsNoLinesToContentCapture() {
+    for (preparedText in listOf(false, true)) {
+      val lines = squeezedToNoWidth(preparedText) { text, _ ->
+        RecordingViewStructure().also { text.onProvideContentCaptureStructure(it, 0) }
+          .calls.filter { it.startsWith("setTextLines") }
+      }
+      Assert.assertEquals("lines, prepared text $preparedText", emptyList<String>(), lines)
+    }
+  }
+
   private fun collectRemovedNodes() {
     repeat(3) {
       Runtime.getRuntime().gc()

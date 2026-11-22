@@ -212,6 +212,10 @@ impl PreparedText {
     }
 
     pub fn line_boxes(&self, width: f32) -> Vec<LineBox> {
+        // TextView builds no StaticLayout to draw in a box with no width.
+        if !(width > 0.0 && width.is_finite()) {
+            return Vec::new();
+        }
         let limit = ceil_constraint(width);
         let lines = self.lines(limit);
         let boring_layout = self.drawn_as_boring_layout(&lines, limit);

@@ -4449,7 +4449,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       val androidView = node.view as? android.view.View
       androidView?.layoutDirection = toAndroidLayoutDirection(direction)
     }
-    if (flowChanged || directionDirty) {
+    if (flowChanged || directionDirty || stateKeys.hasFlag(StateKeys.MAX_SIZE)) {
       TextEngine.recheckPreparedTextAround(node, stateKeys.hasFlag(StateKeys.FLOAT))
     }
 
