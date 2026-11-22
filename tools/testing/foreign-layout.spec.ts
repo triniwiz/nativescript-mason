@@ -53,6 +53,12 @@ function nativeTransport() {
       leaves.set(
         native as object,
         new Proxy({} as any, {
+          get(target, key, receiver) {
+            if (key === 'batch') return (write: (leaf: Style) => void) => write(receiver);
+            if (key === 'display') return target.display ?? 'block';
+            if (key === 'visibility') return target.visibility ?? 'visible';
+            return Reflect.get(target, key, receiver);
+          },
           set(target, key, value) {
             writes.push([String(key), value]);
             return Reflect.set(target, key, value);
@@ -103,6 +109,38 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(native.leaf(view)).toMatchObject({ width: 30, height: 43 });
     style.width = unsetValue;
     expect(native.leaf(view)).toMatchObject({ width: 43, height: 43 });
+  });
+
+  it('keeps hidden children in layout and restores authored display after collapse', () => {
+    const native = nativeTransport();
+    const { view, style } = foreign();
+    style['css:visibility'] = 'collapse';
+    adopt(view);
+    expect(native.leaf(view)).toMatchObject({ display: 'none', visibility: 'collapse' });
+    style['css:display'] = 'inline-block';
+    style.visibility = 'hidden';
+    expect(native.leaf(view)).toMatchObject({ display: 'inline-block', visibility: 'hidden' });
+    style.visibility = unsetValue;
+    expect(native.leaf(view)).toMatchObject({ display: 'inline-block', visibility: 'visible' });
+    style['css:visibility'] = 'collapse';
+    expect(native.leaf(view)).toMatchObject({ display: 'none', visibility: 'collapse' });
+    style['css:display'] = 'none';
+    style['css:visibility'] = unsetValue;
+    expect(native.leaf(view)).toMatchObject({ display: 'none', visibility: 'visible' });
+    style['css:display'] = unsetValue;
+    expect(native.leaf(view)).toMatchObject({ display: 'block', visibility: 'visible' });
+  });
+
+  it('restores the layout box when collapse is cleared while detached', () => {
+    const native = nativeTransport();
+    const { view, style } = foreign();
+    adopt(view);
+    style.visibility = 'collapse';
+    releaseForeignLayout(view);
+    style.visibility = unsetValue;
+    expect(native.leaf(view)).toMatchObject({ display: 'none', visibility: 'collapse' });
+    adopt(view);
+    expect(native.leaf(view)).toMatchObject({ display: 'block', visibility: 'visible' });
   });
 
   it('reads px as a CSS pixel, as Mason views do, in core and the leaf alike', () => {

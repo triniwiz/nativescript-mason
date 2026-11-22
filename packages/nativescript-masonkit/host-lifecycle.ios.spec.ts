@@ -11,7 +11,7 @@ weakRef.get ??= function (this: WeakRef<object>) {
 };
 
 beforeEach(() => {
-  vi.spyOn(Style, 'fromView').mockImplementation(() => ({}) as Style);
+  vi.spyOn(Style, 'fromView').mockImplementation(() => ({ display: 'block', visibility: 'visible' }) as Style);
   vi.spyOn(CustomLayoutView.prototype, '_removeViewFromNativeVisualTree').mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
