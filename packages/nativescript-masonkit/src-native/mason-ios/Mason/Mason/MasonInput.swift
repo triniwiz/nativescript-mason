@@ -73,7 +73,7 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
     let font = state.contains(.fontWeight) || state.contains(.fontStyle) || state.contains(.fontFamily)
     switch self.type {
     case .Text, .Email, .Password, .Tel, .Url, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
-      if color || caretColorChanged || size || font || state.contains(.textAlign) {
+      if color || caretColorChanged || size || font || state.contains(.textAlign) || state.contains(.textShadow) {
         syncTextStyle()
       }
     case .Button, .Reset:
@@ -688,6 +688,14 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
       passwordInput.textAlignment = alignment
       var placeholderAttrs: [NSAttributedString.Key: Any] = [.foregroundColor: placeholderColor]
       if let font = font { placeholderAttrs[.font] = font }
+#if canImport(UIKit)
+      // A UITextField takes a single shadow per character: the first, top-most CSS layer.
+      let shadow = style.textShadows.first?.nsShadow
+      var textAttrs = passwordInput.defaultTextAttributes
+      textAttrs[.shadow] = shadow
+      passwordInput.defaultTextAttributes = textAttrs
+      placeholderAttrs[.shadow] = shadow
+#endif
       passwordInput.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: placeholderAttrs)
     case .Text, .Email, .Url, .Tel, .Number, .Search, .Time, .DatetimeLocal, .Month, .Week:
       if let font = font { textInput.font = font }
@@ -695,6 +703,9 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
       textInput.tintColor = caret
       textInput.textAlignment = alignment
       textInput.placeholderLabel.textColor = placeholderColor
+#if canImport(UIKit)
+      textInput.textShadows = style.textShadows
+#endif
     default:
       break
     }

@@ -18,6 +18,41 @@ struct TextShadow {
   let offsetY: CGFloat
   let blurRadius: CGFloat
   let color: UIColor
+
+  /// How far `shadows` reach past the glyphs on each side, blur included.
+  static func outsets(_ shadows: [TextShadow]) -> UIEdgeInsets {
+    var out = UIEdgeInsets.zero
+    for s in shadows {
+      let blur = ceil(s.blurRadius * 2)
+      out.left = max(out.left, blur - s.offsetX)
+      out.right = max(out.right, blur + s.offsetX)
+      out.top = max(out.top, blur - s.offsetY)
+      out.bottom = max(out.bottom, blur + s.offsetY)
+    }
+    return out
+  }
+
+  /// Paints `draw` once per shadow, last shadow first so the first ends up on top as in CSS,
+  /// the same way `TextEngine` paints text-shadow. The caller paints the text itself afterwards.
+  static func paint(_ shadows: [TextShadow], in context: CGContext, _ draw: () -> Void) {
+    for s in shadows.reversed() {
+      context.saveGState()
+      context.setShadow(offset: CGSize(width: s.offsetX, height: -s.offsetY), blur: s.blurRadius, color: s.color.cgColor)
+      draw()
+      context.restoreGState()
+    }
+  }
+
+#if canImport(UIKit)
+  /// One shadow as a text attribute, for text views that take a single shadow.
+  var nsShadow: NSShadow {
+    let shadow = NSShadow()
+    shadow.shadowOffset = CGSize(width: offsetX, height: offsetY)
+    shadow.shadowBlurRadius = blurRadius
+    shadow.shadowColor = color
+    return shadow
+  }
+#endif
 }
 
 struct BoxShadow: Hashable {
