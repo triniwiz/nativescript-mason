@@ -289,6 +289,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Input::Rebuild()
     {
         Children().Clear();
+        m_textShadows.Reset();
         m_swatch = nullptr;
         m_fileButton = nullptr;
         m_fileLabel = nullptr;
@@ -729,6 +730,13 @@ namespace winrt::NativeScript::Mason::implementation
         ApplyPlaceholderColor();
     }
 
+    void Input::SetTextShadow(hstring const& shadows)
+    {
+        if (!m_textShadows.Set(mason_dwrite::ParseShadows(shadows))) return;
+        // Sync after the field's template is applied and arranged.
+        InvalidateArrange();
+    }
+
     void Input::ApplyPlaceholderColor()
     {
         auto control = m_control ? m_control.try_as<muxc::Control>() : nullptr;
@@ -849,6 +857,7 @@ namespace winrt::NativeScript::Mason::implementation
                 }
             }
             m_control.Arrange(winrt::Windows::Foundation::Rect{ left, top, width, height });
+            if (IsField(m_control)) m_textShadows.Sync(m_control);
         }
         mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;

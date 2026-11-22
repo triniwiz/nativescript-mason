@@ -2,6 +2,7 @@
 #include "Input.g.h"
 #include "FormEvents.h"
 #include "FormStyle.h"
+#include "FormTextShadow.h"
 #include "Invalidation.h"
 #include "VisualState.h"
 #include <memory>
@@ -36,6 +37,7 @@ namespace winrt::NativeScript::Mason::implementation
         void Accept(hstring const& value) { m_accept = value; }
         void SetPlaceholderColor(uint32_t argb);
         void ClearPlaceholderColor();
+        void SetTextShadow(hstring const& shadows);
 
         int64_t AddEventListener(hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
         bool RemoveEventListener(hstring const& type, int64_t id);
@@ -77,6 +79,7 @@ namespace winrt::NativeScript::Mason::implementation
         hstring m_fontFamily;
         std::shared_ptr<mason_form::Events> m_events;
         mason_form::TextStyle m_textApplied;
+        mason_form::TextShadows m_textShadows;
         winrt::Microsoft::UI::Xaml::Controls::Border m_swatch{ nullptr };
         winrt::Microsoft::UI::Xaml::Controls::Button m_fileButton{ nullptr };
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_fileLabel{ nullptr };
