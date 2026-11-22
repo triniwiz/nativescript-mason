@@ -877,6 +877,9 @@ public class CSSFilters {
     var root: UIView = view
     while let superview = root.superview { root = superview }
     guard root !== view else { return nil }
+    // render(in:) lays out what still needs it, and layout shows the view again (applyToView
+    // reasserts isHidden), so the box would land in its own backdrop: lay out before hiding it.
+    root.backingLayer.layoutIfNeeded()
 
     let frameInRoot = view.convert(view.bounds, to: root)
     guard frameInRoot.width > 0 && frameInRoot.height > 0 else { return nil }
