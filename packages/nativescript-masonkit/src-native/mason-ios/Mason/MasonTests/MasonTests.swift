@@ -311,6 +311,24 @@ final class MasonTests: XCTestCase {
     XCTAssertEqual(minContentWidth, longWidth, accuracy: 0.5)
   }
 
+  // Text breaks where CoreText breaks it (UAX #14), not only at spaces: between ideographs and
+  // kana, and after a slash. A word with no break opportunity keeps its whole width.
+  func test_text_engine_min_content_width_breaks_where_core_text_breaks() {
+    let japaneseFont = CTFontCreateWithName("HiraginoSans-W3" as CFString, 17, nil)
+    let japanese = NSAttributedString(string: "日本語の文章は空白なしで折り返します", attributes: [.font: japaneseFont])
+    let oneIdeograph = typographicWidth(NSAttributedString(string: "語", attributes: [.font: japaneseFont]))
+    let japaneseMin = TextEngine.minContentWidth(for: japanese)
+    XCTAssertLessThan(japaneseMin, typographicWidth(japanese) / 4)
+    XCTAssertLessThanOrEqual(japaneseMin, ceil(oneIdeograph * 2) + 1)
+
+    let attrs: [NSAttributedString.Key: Any] = [.font: CTFontCreateWithName("Helvetica" as CFString, 17, nil)]
+    let list = NSAttributedString(string: "red/green/yellow/purple", attributes: attrs)
+    XCTAssertLessThan(TextEngine.minContentWidth(for: list), typographicWidth(list) / 2)
+
+    let word = NSAttributedString(string: "unbreakable", attributes: attrs)
+    XCTAssertEqual(TextEngine.minContentWidth(for: word), typographicWidth(word), accuracy: 1)
+  }
+
   func test_text_engine_inline_child_baseline_from_bottom_matches_css_alignment_defaults() {
     let parentFont = FontMetrics(
       ascent: 20,
