@@ -1454,7 +1454,7 @@
 			repositoryURL = "https://github.com/NativeScript/font-manager";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.23;
+				minimumVersion = 1.0.24;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

@@ -44,7 +44,7 @@
   },
   "bootstrapper": "@nativescript/plugin-seed",
   "dependencies": {
-    "@nativescript/font-manager": "^1.0.23"
+    "@nativescript/font-manager": "^1.0.24"
   },
   "peerDependencies": {
     "@angular/core": ">=19.0.0",
