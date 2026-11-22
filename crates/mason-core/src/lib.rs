@@ -22,7 +22,6 @@ pub use taffy::Overflow;
 mod layout_cache;
 mod node;
 mod pass_lock;
-#[cfg(target_os = "android")]
 pub mod prepared_text;
 
 #[cfg(target_vendor = "apple")]

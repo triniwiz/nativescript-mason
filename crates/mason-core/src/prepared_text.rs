@@ -304,3 +304,161 @@ impl PreparedText {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const METRICS: LineMetrics = LineMetrics {
+        ascent: -30,
+        descent: 8,
+        height: 43.066,
+        min_height: 0.0,
+    };
+
+    fn prepared(text: &str, advances: Vec<f32>, breaks: &[u32], flow: Flow) -> PreparedText {
+        let text: Vec<u16> = text.encode_utf16().collect();
+        PreparedText::new(&text, advances, breaks, METRICS, flow)
+    }
+
+    fn evenly(text: &str, advance: f32, breaks: &[u32], flow: Flow) -> PreparedText {
+        prepared(
+            text,
+            vec![advance; text.encode_utf16().count()],
+            breaks,
+            flow,
+        )
+    }
+
+    fn ten_words() -> PreparedText {
+        evenly(
+            "a b c d e f g h i j",
+            10.0,
+            &[2, 4, 6, 8, 10, 12, 14, 16, 18, 19],
+            Flow::Block,
+        )
+    }
+
+    fn lines(text: &PreparedText, width: f32) -> Vec<(u32, u32, f32)> {
+        text.line_boxes(width)
+            .iter()
+            .map(|line| (line.start, line.end, line.width))
+            .collect()
+    }
+
+    fn measure(text: &PreparedText, width: AvailableSpace) -> Size<f32> {
+        text.measure(
+            Size::NONE,
+            Size {
+                width,
+                height: AvailableSpace::MaxContent,
+            },
+        )
+    }
+
+    #[test]
+    fn no_lines_in_a_box_with_no_width() {
+        let text = evenly("Two words", 10.0, &[4, 9], Flow::Block);
+        for width in [0.0, -10.0, f32::NAN] {
+            assert_eq!(lines(&text, width), [], "lines at {width}");
+        }
+    }
+
+    #[test]
+    fn trailing_spaces_hang_past_the_line_end() {
+        let text = evenly("abc de   ", 10.0, &[4, 9], Flow::Block);
+        assert_eq!(lines(&text, 65.0), [(0, 9, 60.0)], "at the end of the text");
+        let text = evenly("abc     def", 10.0, &[8, 11], Flow::Block);
+        assert_eq!(
+            lines(&text, 35.0),
+            [(0, 8, 30.0), (8, 11, 30.0)],
+            "between words"
+        );
+    }
+
+    #[test]
+    fn a_word_wider_than_the_line_breaks_inside_and_the_next_word_joins_its_end() {
+        let text = evenly("abcdefg h ijkl", 10.0, &[8, 10, 14], Flow::Block);
+        assert_eq!(
+            lines(&text, 55.0),
+            [(0, 5, 50.0), (5, 10, 40.0), (10, 14, 40.0)]
+        );
+    }
+
+    #[test]
+    fn line_tops_round_the_running_sum_of_the_line_height() {
+        let tops: Vec<i32> = ten_words()
+            .line_boxes(15.0)
+            .iter()
+            .map(|line| line.baseline + line.ascent)
+            .collect();
+        assert_eq!(tops, [0, 43, 86, 129, 172, 215, 258, 301, 345, 388]);
+    }
+
+    #[test]
+    fn min_content_width() {
+        let min_content = |text: &PreparedText| measure(text, AvailableSpace::MinContent).width;
+        assert_eq!(
+            min_content(&evenly("word", 10.3, &[4], Flow::Inline)),
+            42.0,
+            "inline text with no break: its one-line width rounded up"
+        );
+        assert_eq!(
+            min_content(&evenly("ab cde", 10.3, &[3, 6], Flow::Inline)),
+            30.90625,
+            "inline text: its widest piece rounded up to a 64th"
+        );
+        assert_eq!(
+            min_content(&evenly("ab cde", 10.3, &[3, 6], Flow::Block)),
+            31.0,
+            "block text: its widest piece rounded up to a pixel"
+        );
+    }
+
+    #[test]
+    fn no_break_after_a_line_breaking_hyphen() {
+        let text = evenly("well-known ab", 10.0, &[5, 11, 13], Flow::Block);
+        assert_eq!(lines(&text, 75.0), [(0, 7, 70.0), (7, 13, 60.0)]);
+    }
+
+    #[test]
+    fn one_line_text_is_whole_pixels_wide_only_where_it_fits_a_boring_layout() {
+        let fits = prepared("ab", vec![15.25, 15.25], &[2], Flow::Block);
+        let just_over = prepared("ab", vec![15.25, 15.375], &[2], Flow::Block);
+        let definite = AvailableSpace::Definite(31.0);
+        assert_eq!(
+            measure(&fits, definite).width,
+            31.0,
+            "0.5 px narrower than the width: measured as a BoringLayout"
+        );
+        assert_eq!(
+            measure(&just_over, definite).width,
+            30.625,
+            "under 0.5 px narrower: measured as a StaticLayout line"
+        );
+        assert_eq!(
+            lines(&just_over, 31.0),
+            [(0, 2, 31.0)],
+            "drawn as a BoringLayout once its rounded width fits"
+        );
+        let wide = prepared("W", vec![30.5], &[1], Flow::Block);
+        assert_eq!(
+            lines(&wide, 30.0),
+            [(0, 1, 30.5)],
+            "wider than the width: drawn as a StaticLayout line"
+        );
+    }
+
+    #[test]
+    fn max_content_is_the_one_line_width_without_trailing_spaces_rounded_up() {
+        let text = evenly("ab cde  ", 10.3, &[3, 8], Flow::Block);
+        let size = measure(&text, AvailableSpace::MaxContent);
+        assert_eq!((size.width, size.height), (62.0, 43.0));
+    }
+
+    #[test]
+    fn a_measure_at_a_definite_width_wraps_to_it() {
+        let size = measure(&ten_words(), AvailableSpace::Definite(15.0));
+        assert_eq!((size.width, size.height), (10.0, 431.0));
+    }
+}
