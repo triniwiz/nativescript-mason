@@ -1,0 +1,11 @@
+[package]
+name = "mason-portable-css"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+mason-core = { path = "../mason-core" }

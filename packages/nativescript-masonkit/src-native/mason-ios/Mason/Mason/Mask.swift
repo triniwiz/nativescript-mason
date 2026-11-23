@@ -21,27 +21,77 @@ private let maxMaskPixels: CGFloat = 4096 * 4096
 
 // MARK: - Keywords
 
+// <style-keys:mask-keywords> generated from tools/scripts/style-keys/style-keys.schema
+enum MaskBox: Equatable {
+  case borderBox
+  case paddingBox
+  case contentBox
+  case noClip
+
+  static func fromCode(_ code: UInt8) -> MaskBox? {
+    switch code {
+    case 0: return .borderBox
+    case 1: return .paddingBox
+    case 2: return .contentBox
+    case 3: return .noClip
+    default: return nil
+    }
+  }
+
+  static func parse(_ value: String, allowNoClip: Bool) -> MaskBox? {
+    guard let field = NSCMason.expandCssShorthand("keyword:mask-clip", value: value)?.first,
+          let code = UInt8(field) else { return nil }
+    let box = fromCode(code)
+    return box == .noClip && !allowNoClip ? nil : box
+  }
+}
+
 enum MaskMode: String {
   case matchSource = "match-source"
   case alpha
   case luminance
 
+  static func fromCode(_ code: UInt8) -> MaskMode? {
+    switch code {
+    case 0: return .matchSource
+    case 1: return .alpha
+    case 2: return .luminance
+    default: return nil
+    }
+  }
+
   static func parse(_ value: String) -> MaskMode? {
-    MaskMode(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    guard let field = NSCMason.expandCssShorthand("keyword:mask-mode", value: value)?.first,
+          let code = UInt8(field) else { return nil }
+    return fromCode(code)
   }
 }
 
-/// How a layer combines with the layers below it (the layer is the source).
 enum MaskComposite: String {
   case add
   case subtract
   case intersect
   case exclude
 
-  static func parse(_ value: String) -> MaskComposite? {
-    MaskComposite(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+  static func fromCode(_ code: UInt8) -> MaskComposite? {
+    switch code {
+    case 0: return .add
+    case 1: return .subtract
+    case 2: return .intersect
+    case 3: return .exclude
+    default: return nil
+    }
   }
 
+  static func parse(_ value: String) -> MaskComposite? {
+    guard let field = NSCMason.expandCssShorthand("keyword:mask-composite", value: value)?.first,
+          let code = UInt8(field) else { return nil }
+    return fromCode(code)
+  }
+}
+// </style-keys:mask-keywords>
+
+extension MaskComposite {
   var blendMode: CGBlendMode {
     switch self {
     case .add: return .normal
@@ -52,25 +102,7 @@ enum MaskComposite: String {
   }
 }
 
-/// `mask-origin` / `mask-clip` boxes. HTML elements have no SVG boxes, and CSS maps
-/// `fill-box`/`stroke-box`/`view-box` to `border-box` there; `margin-box` is treated the same.
-enum MaskBox: Equatable {
-  case borderBox
-  case paddingBox
-  case contentBox
-  /// `mask-clip: no-clip`: the layer is not clipped to any box.
-  case noClip
-
-  static func parse(_ value: String, allowNoClip: Bool) -> MaskBox? {
-    switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-    case "border-box", "fill-box", "stroke-box", "view-box", "margin-box": return .borderBox
-    case "padding-box": return .paddingBox
-    case "content-box": return .contentBox
-    case "no-clip": return allowNoClip ? .noClip : nil
-    default: return nil
-    }
-  }
-
+extension MaskBox {
   var backgroundBox: BackgroundClip {
     switch self {
     case .paddingBox: return .paddingBox
@@ -104,6 +136,47 @@ final class MaskLayer {
 
   /// `match-source` is alpha for images and gradients (luminance only applies to SVG `<mask>`).
   var usesLuminance: Bool { mode == .luminance }
+}
+
+private final class NativeMaskProgram {
+  let handle: OpaquePointer
+
+  init?(_ values: [String], em: CGFloat = CGFloat(NSCMason.rootFontSize), color: UInt32 = 0xff000000) {
+    let strings = values.map { strdup($0) }
+    defer { strings.forEach { free($0) } }
+    guard !strings.contains(where: { $0 == nil }) else { return nil }
+    let input = strings.map { $0.map { UnsafePointer<CChar>($0) } }
+    let viewport = NSCMason.viewportSize
+    let result = input.withUnsafeBufferPointer {
+      mason_css_mask_parse($0.baseAddress, color, NSCMason.scale, Float(em), NSCMason.rootFontSize,
+                           Float(viewport.width), Float(viewport.height))
+    }
+    guard let result else { return nil }
+    handle = result
+  }
+
+  deinit { mason_css_mask_release(handle) }
+
+  static func install(_ program: NativeMaskProgram?, on style: MasonStyle) {
+    let node = style.node
+    guard !node.isPlaceholder else { return }
+    let mason = node.mason
+    if mason.inCompute { mason.deferStyleRecords(style) }
+    else { style.prepareMut() }
+    mason_css_mask_install(mason.inCompute ? nil : mason.nativePtr, node.nativePtr, program?.handle)
+  }
+
+  func layers() -> [MaskLayer] {
+    let rows = mason_css_mask_layers(handle)
+    return UnsafeBufferPointer(start: rows.data, count: Int(rows.count)).enumerated().map { index, row in
+      let paint = readBackgroundLayer(row.paint) { mason_css_mask_gradient(handle, UInt(index)) }
+      let layer = MaskLayer(paint: paint, isNone: row.paint.image_kind == 0)
+      layer.clip = MaskBox.fromCode(row.clip) ?? .borderBox
+      layer.mode = MaskMode.fromCode(row.mode) ?? .matchSource
+      layer.composite = MaskComposite.fromCode(row.composite) ?? .add
+      return layer
+    }
+  }
 }
 
 // MARK: - Mask border
@@ -162,16 +235,21 @@ final class Mask {
     if values == resolved { return false }
     let old = values
     values = resolved
-    if old.map({ Array($0[0..<8]) }) != Array(resolved[0..<8]) {
-      layers = Mask.parseLayers(image: resolved[0], size: resolved[1], position: resolved[2], repeat: resolved[3],
-                                origin: resolved[4], clip: resolved[5], mode: resolved[6], composite: resolved[7])
+    let maskRange = 0..<MaskInputRecord.stride
+    if old.map({ Array($0[maskRange]) }) != Array(resolved[maskRange]) {
+      let program = NativeMaskProgram(Array(resolved[maskRange]), em: style.emBasis, color: style.color)
+      NativeMaskProgram.install(program, on: style)
+      layers = program?.layers() ?? []
     }
     if old?[8] != resolved[8] {
-      clip = resolved[8].isEmpty ? nil : ClipPathValue.parse(resolved[8], em: style.emBasis)
+      let program = resolved[8] == style.clipPath ? style.clipPathProgram : NativeClipPath(resolved[8])
+      clip = program?.project(em: style.emBasis)
     }
-    if old.map({ Array($0[9..<15]) }) != Array(resolved[9..<15]) {
-      border = Mask.parseBorder(source: resolved[9], slice: resolved[10], width: resolved[11], outset: resolved[12],
-                                repeat: resolved[13], mode: resolved[14], em: style.emBasis)
+    let borderRange = 9..<(9 + NineSliceInputRecord.stride)
+    if old.map({ Array($0[borderRange]) }) != Array(resolved[borderRange]) {
+      let program = NativeNineSlice.maskBorder(Array(resolved[borderRange]), color: style.color)
+      NativeNineSlice.install(program, on: style, mask: true)
+      border = program.flatMap { Mask.border($0, em: style.emBasis) }
     }
     return true
   }
@@ -179,50 +257,20 @@ final class Mask {
   /// A mask border, or nil for `none` or a source that is not an image.
   static func parseBorder(source: String, slice: String, width: String, outset: String, repeat: String,
                           mode: String, em: CGFloat = 16) -> MaskBorder? {
-    if source.isEmpty { return nil }
-    let spec = NineSliceSpec.maskBorder(source: source, slice: slice, width: width, outset: outset, repeat: `repeat`, em: em)
-    let image = NineSliceImage(spec)
-    guard image.source != nil else { return nil }
-    return MaskBorder(image: image, luminance: mode.trimmingCharacters(in: .whitespaces).lowercased() == "luminance")
+    NativeNineSlice.maskBorder([source, slice, width, outset, `repeat`, mode]).flatMap { border($0, em: em) }
+  }
+
+  private static func border(_ program: NativeNineSlice, em: CGFloat) -> MaskBorder? {
+    guard let source = program.source() else { return nil }
+    let (spec, luminance) = program.spec(em: em)
+    return MaskBorder(image: NineSliceImage(spec, source: source), luminance: luminance)
   }
 
   /// Layers of a `mask-image` list with the per-layer longhands applied, each list repeating
   /// cyclically as CSS does. Invalid entries keep their initial value.
   static func parseLayers(image: String, size: String = "", position: String = "", repeat: String = "",
                           origin: String = "", clip: String = "", mode: String = "", composite: String = "") -> [MaskLayer] {
-    let items = splitBackgroundLayers(image).filter { !$0.isEmpty }
-    let layers: [MaskLayer] = items.map { item in
-      let lower = item.lowercased()
-      if lower == "none" {
-        return MaskLayer(paint: BackgroundLayer(), isNone: true)
-      }
-      let paint = parseLayer(item)
-      // An entry that is neither an image nor a gradient is invalid; it paints nothing.
-      let isImage = paint.image != nil || paint.gradient != nil
-      paint.backgroundColor = nil
-      paint.position = nil
-      paint.size = nil
-      paint.repeatType = .repeatXY
-      paint.attachment = .scroll
-      paint.origin = .borderBox
-      paint.clip = .borderBox
-      return MaskLayer(paint: paint, isNone: !isImage)
-    }
-    if layers.isEmpty { return [] }
-
-    func each(_ list: String, _ apply: (MaskLayer, String) -> Void) {
-      let parts = splitBackgroundLayers(list).filter { !$0.isEmpty }
-      if parts.isEmpty { return }
-      for (i, layer) in layers.enumerated() { apply(layer, parts[i % parts.count]) }
-    }
-    each(size) { layer, v in if let s = parseSize(v) { layer.paint.size = s } }
-    each(position) { layer, v in if let p = parsePosition(splitTopLevelWhitespace(v)) { layer.paint.position = p } }
-    each(`repeat`) { layer, v in if let r = parseMaskRepeat(v) { layer.paint.repeatType = r } }
-    each(origin) { layer, v in if let o = MaskBox.parse(v, allowNoClip: false) { layer.paint.origin = o.backgroundBox } }
-    each(clip) { layer, v in if let c = MaskBox.parse(v, allowNoClip: true) { layer.clip = c } }
-    each(mode) { layer, v in if let m = MaskMode.parse(v) { layer.mode = m } }
-    each(composite) { layer, v in if let c = MaskComposite.parse(v) { layer.composite = c } }
-    return layers
+    NativeMaskProgram([image, size, position, `repeat`, origin, clip, mode, composite])?.layers() ?? []
   }
 
   /// Device scale to rasterize a `size`-point mask at.
@@ -493,19 +541,13 @@ final class MasonMaskLayer: CALayer {
 // MARK: - Style hookup
 
 extension MasonStyle {
-  // In `Mask.update` order.
-  static let maskPropertyNames = ["mask-image", "mask-size", "mask-position", "mask-repeat",
-                                  "mask-origin", "mask-clip", "mask-mode", "mask-composite", "clip-path",
-                                  "mask-border-source", "mask-border-slice", "mask-border-width",
-                                  "mask-border-outset", "mask-border-repeat", "mask-border-mode"]
-
   /// True while a mask or clip path applies; the outset shadow is hidden then, as CSS clips it.
   internal var isMasked: Bool { mMaskStorage?.isActive == true }
 
   /// The mask longhands in effect: an active pseudo state's value, else the element's own.
   private func resolvedMaskValues() -> [String] {
-    var values = [maskImage, maskSize, maskPosition, maskRepeat, maskOrigin, maskClip, maskMode, maskComposite, clipPath,
-                  maskBorderSource, maskBorderSlice, maskBorderWidth, maskBorderOutset, maskBorderRepeat, maskBorderMode]
+    var values = maskInputs
+    values.insert(clipPath, at: MaskInputRecord.stride)
     guard hasPseudoMask else { return values }
     // One read: pseudoMask is an FFI round-trip.
     let mask = node.pseudoMask

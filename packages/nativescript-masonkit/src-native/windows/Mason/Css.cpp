@@ -1,6 +1,10 @@
 #include "pch.h"
 #include "Css.h"
 #include "CssImageResult.h"
+#include "Node.h"
+#include "StyleKeys.h"
+#include "Text.h"
+#include "Input.h"
 #include "Css.g.cpp"
 #include "CssImageResult.g.cpp"
 
@@ -17,6 +21,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <wincodec.h>
 #include <cctype>
 #include <cstdio>
@@ -354,6 +359,30 @@ namespace
         return mason_visual::CurrentColor(element);
     }
 
+    void ApplyPaintEffect(mux::UIElement const& element, uint8_t kind, double const* values, size_t len)
+    {
+        using namespace mason_css_records;
+        if (kind == kBoxShadow)
+        {
+            std::vector<mason_shadow::Shadow> shadows;
+            shadows.reserve(len / shadow::kStride);
+            for (size_t i = 0; i < len; i += shadow::kStride)
+            {
+                const auto* v = values + i;
+                const auto argb = static_cast<uint32_t>(v[shadow::kColor]);
+                if ((argb >> 24) == 0) continue;
+                shadows.push_back({ static_cast<float>(v[shadow::kInset]), static_cast<float>(v[shadow::kX]), static_cast<float>(v[shadow::kY]),
+                    static_cast<float>(v[shadow::kBlur]), static_cast<float>(v[shadow::kSpread]), argb });
+            }
+            mason_shadow::Set(element, std::move(shadows));
+            return;
+        }
+        const CMasonStyleRecords records{ values, len, nullptr };
+        const auto spec = std::unique_ptr<char, decltype(&mason_util_destroy_string)>(
+            mason_css_windows_filter_spec(&records), mason_util_destroy_string);
+        mason_filter::Set(element, kind == kBackdropFilter, spec ? winrt::to_hstring(spec.get()) : hstring{});
+    }
+
     winrt::fire_and_forget LoadSvg(imaging::SvgImageSource svg, std::string text)
     {
         using namespace winrt::Windows::Security::Cryptography;
@@ -403,6 +432,99 @@ namespace winrt::NativeScript::Mason::implementation
         if (!element) return;
         mason_filter::Set(element, true, filter);
         element.InvalidateArrange();
+    }
+
+    void Css::SetCssEffect(mux::UIElement const& element, hstring const& name, hstring const& value,
+        float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        using namespace mason_css_records;
+        if (!element) return;
+        const bool boxShadow = name == L"box-shadow";
+        const bool backdrop = name == L"backdrop-filter";
+        if (!boxShadow && !backdrop && name != L"filter") return;
+        const auto input = winrt::to_string(value);
+        const uint32_t color = ResolveCurrentColor(element);
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        auto* node = projected ? winrt::get_self<implementation::Node>(projected) : nullptr;
+        const auto kind = boxShadow ? kBoxShadow : backdrop ? kBackdropFilter : kFilter;
+        const auto records = mason_css_set_style_records(node ? node->MasonPtr() : nullptr,
+            node ? node->NodePtr() : nullptr, kind,
+            input.c_str(), 1.0f, fontSize, rootFontSize, viewportWidth, viewportHeight, color);
+        struct Release
+        {
+            CMasonStyleRecords records;
+            ~Release() { mason_css_style_records_release(records); }
+        } release{ records };
+        ApplyPaintEffect(element, kind, records.values, records.len);
+        element.InvalidateArrange();
+    }
+
+    void Css::SetCssEffects(mux::UIElement const& element, hstring const& payload,
+        float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        using namespace mason_css_records;
+        namespace json = winrt::Windows::Data::Json;
+        if (!element) return;
+        json::JsonArray writes{ nullptr };
+        if (!json::JsonArray::TryParse(payload, writes)) return;
+        const auto count = writes.Size();
+        if (count == 0 || count % css_effect_write::kStride != 0) return;
+        std::string fields;
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const auto value = writes.GetAt(i);
+            if (value.ValueType() != json::JsonValueType::String) return;
+            const auto field = winrt::to_string(value.GetString());
+            if (field.find('\0') != std::string::npos) return;
+            if (i != 0) fields.push_back('\0');
+            fields.append(field);
+        }
+
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        auto* node = projected ? winrt::get_self<implementation::Node>(projected) : nullptr;
+        const auto batch = std::unique_ptr<CMasonCssEffects, decltype(&mason_css_effect_batch_release)>(
+            mason_css_effect_batch_apply(node ? node->MasonPtr() : nullptr, node ? node->NodePtr() : nullptr,
+                { reinterpret_cast<const uint8_t*>(fields.data()), fields.size() }, 1.0f, fontSize,
+                rootFontSize, viewportWidth, viewportHeight, ResolveCurrentColor(element)),
+            mason_css_effect_batch_release);
+        if (!batch) return;
+        bool paintChanged = false;
+        for (auto kind : { kFilter, kBackdropFilter, kBoxShadow, kTextShadow })
+        {
+            const auto effect = mason_css_effect_batch_get(batch.get(), kind);
+            if (!effect.present) continue;
+            const std::unique_ptr<CMasonCssFilter, decltype(&mason_css_filter_release)> filter(
+                effect.filter, mason_css_filter_release);
+            if (kind == kTextShadow)
+            {
+                if (auto text = element.try_as<nsm::Text>())
+                    winrt::get_self<implementation::Text>(text)->ApplyTextShadowRecords(effect.values, effect.len);
+                else if (auto input = element.try_as<nsm::Input>())
+                    winrt::get_self<implementation::Input>(input)->ApplyTextShadowRecords(effect.values, effect.len);
+                continue;
+            }
+            ApplyPaintEffect(element, kind, effect.values, effect.len);
+            paintChanged = true;
+        }
+        if (paintChanged) element.InvalidateArrange();
+    }
+
+    void Css::SetCssTransform(mux::UIElement const& element, hstring const& value,
+        float width, float height, float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        if (!element) return;
+        const auto input = winrt::to_string(value);
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        auto* node = projected ? winrt::get_self<implementation::Node>(projected) : nullptr;
+        float m[6];
+        if (mason_css_transform_affine(node ? node->MasonPtr() : nullptr, node ? node->NodePtr() : nullptr,
+            input.c_str(), width, height, fontSize, rootFontSize, viewportWidth, viewportHeight, m))
+            ApplyTransform(element, m[0], m[1], m[2], m[3], m[4], m[5]);
+        else
+            ClearTransform(element);
     }
 
     void Css::ApplyShadow(mux::UIElement const& element, double ox, double oy, double blur, uint32_t argb, double)
@@ -904,10 +1026,53 @@ namespace
 
 namespace winrt::NativeScript::Mason::implementation
 {
+    hstring Css::ExpandCssShorthand(hstring const& name, hstring const& value)
+    {
+        const auto property = winrt::to_string(name);
+        const auto css = winrt::to_string(value);
+        const auto fields = mason_css_shorthand_expand(property.c_str(), css.c_str());
+        if (!fields.owner) return {};
+        const std::unique_ptr<CMasonCssShorthandOwner, decltype(&mason_css_shorthand_release)>
+            owner(fields.owner, mason_css_shorthand_release);
+        winrt::Windows::Data::Json::JsonArray result;
+        for (size_t i = 0; i < fields.len; ++i)
+        {
+            const auto field = fields.data[i];
+            const std::string_view text(reinterpret_cast<char const*>(field.bytes), field.len);
+            result.Append(winrt::Windows::Data::Json::JsonValue::CreateStringValue(winrt::to_hstring(text)));
+        }
+        return result.Stringify();
+    }
+
+    hstring Css::ResolveCssLength(hstring const& value, int32_t kind, float scale, float fontSize,
+        float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        if (kind < mason_css_parse_kinds::kLength || kind >= mason_css_parse_kinds::kCount) return {};
+        const auto css = winrt::to_string(value);
+        const auto fields = mason_css_parse(css.c_str(), static_cast<uint8_t>(kind), scale, fontSize,
+            rootFontSize, viewportWidth, viewportHeight, 0);
+        const auto release = [fields](double const*) { mason_css_values_release(fields); };
+        const std::unique_ptr<double const, decltype(release)> owner(fields.values, release);
+        if (!fields.values) return {};
+        winrt::Windows::Data::Json::JsonArray result;
+        for (size_t i = 0; i < fields.len; ++i)
+            result.Append(winrt::Windows::Data::Json::JsonValue::CreateNumberValue(fields.values[i]));
+        return result.Stringify();
+    }
+
     void Css::SetMask(mux::UIElement const& element, hstring const& spec)
     {
         if (!element) return;
         auto parsed = std::make_shared<mason_cssmask::Spec>(mason_cssmask::Parse(spec, LoadMaskImage));
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        if (projected)
+        {
+            auto* node = winrt::get_self<implementation::Node>(projected);
+            mason_css_clip_path_install(node->MasonPtr(), node->NodePtr(), parsed->clipProgram.get());
+            mason_css_mask_install(node->MasonPtr(), node->NodePtr(), parsed->maskProgram.get());
+            mason_css_nine_slice_install(node->MasonPtr(), node->NodePtr(), parsed->nineSliceProgram.get(), true);
+        }
         if (mason_cssmask::SetMask(element, std::move(parsed)))
         {
             mason_filter::Touch(element);
@@ -926,10 +1091,134 @@ namespace winrt::NativeScript::Mason::implementation
         element.InvalidateArrange();
     }
 
+    double Css::SetCssBackground(mux::UIElement const& element, hstring const& request)
+    {
+        using namespace mason_cssmask;
+        namespace result = mason_css_records::css_background_result;
+        namespace write = mason_css_records::css_background_write;
+        if (!element) return -1.0;
+        json::JsonObject input{ nullptr };
+        if (!json::JsonObject::TryParse(request, input)) return -1.0;
+        const auto writes = Arr(input, L"writes");
+        if (input.HasKey(L"writes") && !writes) return -1.0;
+        const auto units = Arr(input, L"units");
+        const auto argb = units && units.Size() > 4 ? units.GetAt(4) : json::IJsonValue{ nullptr };
+        const auto color = argb && argb.ValueType() == json::JsonValueType::Number ? argb.GetNumber() : double{0xff000000};
+        const auto currentColor = color >= 0.0 && color <= UINT32_MAX ? static_cast<uint32_t>(color) : uint32_t{0xff000000};
+        mason_cssmask::Image gradientContext;
+        gradientContext.fontSize = Num(units, 0, 16.0f);
+        gradientContext.rootFontSize = Num(units, 1, 16.0f);
+        gradientContext.viewportWidth = Num(units, 2);
+        gradientContext.viewportHeight = Num(units, 3);
+        std::string fields;
+        bool first = true;
+        const auto appendField = [&](std::string_view field)
+        {
+            if (field.find('\0') != std::string_view::npos) return false;
+            if (!first) fields.push_back('\0');
+            first = false;
+            fields.append(field);
+            return true;
+        };
+        if (writes)
+        {
+            if (writes.Size() == 0 || writes.Size() % write::kStride != 0) return -1.0;
+            for (auto const& field : writes)
+            {
+                if (field.ValueType() != json::JsonValueType::String || !appendField(winrt::to_string(field.GetString())))
+                    return -1.0;
+            }
+        }
+        else
+        {
+            // The original request replaces the complete CSS background.
+            appendField("background");
+            if (!appendField(winrt::to_string(input.GetNamedString(L"css", L"none")))) return -1.0;
+            appendField("");
+            if (auto overrides = Arr(input, L"longhands"))
+            {
+                for (auto const& entry : overrides)
+                {
+                    if (entry.ValueType() != json::JsonValueType::Array) continue;
+                    auto pair = entry.GetArray();
+                    if (pair.Size() != 2 || pair.GetAt(0).ValueType() != json::JsonValueType::String ||
+                        pair.GetAt(1).ValueType() != json::JsonValueType::String) continue;
+                    const auto name = "background-" + winrt::to_string(pair.GetStringAt(0));
+                    const auto value = winrt::to_string(pair.GetStringAt(1));
+                    if (!appendField(name) || !appendField(value)) return -1.0;
+                    appendField("");
+                }
+            }
+        }
+        const auto* entry = writes ? Find(element) : nullptr;
+        const auto previous = entry ? entry->backgroundProgram : nullptr;
+        int64_t applied[result::kStride]{};
+        auto program = std::shared_ptr<CMasonCssBackground>(mason_css_background_desktop_update(previous.get(),
+            { reinterpret_cast<const uint8_t*>(fields.data()), fields.size() }, currentColor, gradientContext.fontSize,
+            gradientContext.rootFontSize, gradientContext.viewportWidth, gradientContext.viewportHeight, applied, result::kStride),
+            mason_css_background_release);
+        if (!program || (!writes && applied[result::kShorthandValue] < 0)) return -1.0;
+        const double backgroundColor = applied[result::kColor] >= 0 ? static_cast<double>(applied[result::kColor]) : -1.0;
+        if (applied[result::kLayersChanged] == 0)
+        {
+            Ensure(element).backgroundProgram = std::move(program);
+            return backgroundColor;
+        }
+        auto parsed = std::make_shared<Spec>();
+        parsed->background = program;
+        auto* background = program.get();
+        const auto appRoot = input.GetNamedString(L"appRoot", L"");
+        const auto records = mason_css_background_layers(background);
+        parsed->layers.reserve(records.count);
+        for (size_t index = 0; index < records.count; ++index)
+        {
+            auto const& record = records.data[index];
+            Layer layer;
+            layer.background = &record;
+            if (record.image_kind == 1)
+            {
+                const std::string image(reinterpret_cast<const char*>(record.image.bytes), record.image.len);
+                std::wstring source{ winrt::to_hstring(image) };
+                if (source.starts_with(L"~/"))
+                {
+                    std::replace(source.begin() + 2, source.end(), L'/', L'\\');
+                    source.replace(0, 2, std::wstring_view(appRoot));
+                }
+                layer.image = LoadMaskImage(source);
+            }
+            else if (record.image_kind == 2)
+            {
+                layer.image = ReadCssGradient(mason_css_background_gradient(background, index), gradientContext);
+                if (!layer.image.Drawable()) return -1.0;
+            }
+            if (layer.Clip() == TextClip) parsed->hasTextClip = true;
+            parsed->layers.push_back(std::move(layer));
+        }
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        if (projected)
+        {
+            auto* node = winrt::get_self<implementation::Node>(projected);
+            mason_css_background_install(node->MasonPtr(), node->NodePtr(), background);
+        }
+        Ensure(element).backgroundProgram = std::move(program);
+        mason_cssmask::SetBackground(element, std::move(parsed));
+        mason_filter::Touch(element);
+        element.InvalidateArrange();
+        return backgroundColor;
+    }
+
     void Css::SetBorderImage(mux::UIElement const& element, hstring const& spec)
     {
         if (!element) return;
         auto parsed = mason_cssmask::Parse(spec, LoadMaskImage);
+        auto owner = element.try_as<nsm::IMasonElement>();
+        auto projected = owner ? owner.Node() : nsm::Node{ nullptr };
+        if (projected)
+        {
+            auto* node = winrt::get_self<implementation::Node>(projected);
+            mason_css_nine_slice_install(node->MasonPtr(), node->NodePtr(), parsed.nineSliceProgram.get(), false);
+        }
         mason_cssmask::SetBorderImage(element, parsed.border ? std::make_shared<mason_cssmask::NineSlice>(std::move(*parsed.border)) : nullptr);
         mason_filter::Touch(element);
         element.InvalidateArrange();

@@ -1,7 +1,9 @@
 //! Visual CSS resolved in TS (Windows' Css class), painted by paint.rs.
 
 use gtk::{graphene, gsk};
+use mason_core::style::css::{background, gradient, LengthContext};
 use serde_json::Value;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
 pub struct Stop {
@@ -11,6 +13,7 @@ pub struct Stop {
 
 #[derive(Clone, Debug)]
 pub enum Image {
+    Gradient(Arc<gradient::Gradient>, LengthContext),
     /// CSS angle in degrees; `corner` is a `to <corner>` direction (sign per axis).
     Linear {
         angle: f32,
@@ -33,6 +36,65 @@ pub enum Image {
     Url {
         src: String,
     },
+}
+
+impl Image {
+    pub fn from_css(
+        image: &background::Image,
+        context: LengthContext,
+        app_root: &str,
+    ) -> Option<Self> {
+        match image {
+            background::Image::Url(src) => Some(Self::Url {
+                src: match src.strip_prefix("~/") {
+                    Some(path) => format!("{}/{path}", app_root.trim_end_matches('/')),
+                    None => src.to_string(),
+                },
+            }),
+            background::Image::Gradient(gradient) => {
+                Some(Self::Gradient(gradient.clone()?, context))
+            }
+        }
+    }
+
+    pub fn resolve_gradient(&self, width: f32, height: f32) -> Option<Self> {
+        let Self::Gradient(gradient, context) = self else {
+            return None;
+        };
+        let layout = gradient.layout(width, height, *context);
+        use gradient::GradientKind;
+        let line = match gradient.kind {
+            GradientKind::Linear => layout.linear_line(width, height).1,
+            GradientKind::Radial => layout.radii[0],
+            GradientKind::Conic => 1.,
+        };
+        let stops = gradient
+            .resolve_stops(line, *context)
+            .into_iter()
+            .map(|(argb, offset)| Stop { argb, offset })
+            .collect();
+        let center = (layout.center[0] / width, layout.center[1] / height);
+        Some(match gradient.kind {
+            GradientKind::Linear => Self::Linear {
+                angle: layout.angle,
+                corner: (layout.corner[0] != 0. && layout.corner[1] != 0.)
+                    .then_some((layout.corner[0], layout.corner[1])),
+                stops,
+                repeating: gradient.repeating,
+            },
+            GradientKind::Radial => Self::Radial {
+                center,
+                radius: (layout.radii[0] / width, layout.radii[1] / height),
+                stops,
+                repeating: gradient.repeating,
+            },
+            GradientKind::Conic => Self::Conic {
+                angle: layout.angle,
+                center,
+                stops,
+            },
+        })
+    }
 }
 
 /// px plus a percentage of what it resolves against.
@@ -68,6 +130,45 @@ pub struct Layer {
     pub origin: u8,
     /// as origin, 4 text.
     pub clip: u8,
+}
+
+impl Layer {
+    pub fn from_css(layer: &background::Layer, context: LengthContext, app_root: &str) -> Self {
+        let length = |axis: &background::Axis| {
+            let (fraction, px) = axis.components(context);
+            Len {
+                px,
+                pct: fraction * 100.,
+            }
+        };
+        let size = match layer.size.as_ref() {
+            Some(background::Size::Cover) => LayerSize::Cover,
+            Some(background::Size::Contain) => LayerSize::Contain,
+            Some(background::Size::Explicit([x, y])) => {
+                LayerSize::Explicit(x.as_ref().map(length), y.as_ref().map(length))
+            }
+            None => LayerSize::Auto,
+        };
+        let [x, y] = layer
+            .position
+            .each_ref()
+            .map(|axis| axis.as_ref().map(length).unwrap_or_default());
+        Self {
+            image: layer
+                .image
+                .as_ref()
+                .and_then(|image| Image::from_css(image, context, app_root)),
+            size,
+            position: (x, y),
+            repeat: (layer.repeat[0] as u8, layer.repeat[1] as u8),
+            origin: layer.origin as u8,
+            clip: if layer.clip == background::BoxKind::Text {
+                4
+            } else {
+                layer.clip as u8
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -109,6 +210,7 @@ pub struct CssState {
     pub brush_fit: i32,
     pub brush_align: (i32, i32),
     pub layers: Vec<Layer>,
+    pub background: background::BackgroundProgram,
     pub shadows: Vec<Shadow>,
     pub text_shadows: Vec<Shadow>,
     pub filters: Vec<Filter>,

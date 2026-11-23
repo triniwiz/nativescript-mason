@@ -480,7 +480,7 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }
       val fontFace = attributes.font
       val typeface = fontFace?.resolvedTypeface
-      if (setColor || measureSize != null || letterSpacing != null || typeface != null) {
+      if (setColor || measureSize != null || letterSpacing != null || typeface != null || attributes.fontFeatures != null) {
         spannable.setSpan(
           Spans.RunStyleSpan(
             attributes,

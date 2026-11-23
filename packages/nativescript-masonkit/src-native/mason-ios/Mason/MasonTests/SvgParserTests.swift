@@ -285,9 +285,9 @@ final class SvgParserTests: XCTestCase {
 
   func testStrokeAttributes() throws {
     let d = try doc("""
-      <svg viewBox="0 0 10 10"><path d="M0 0L5 5" fill="none" stroke="#123456" stroke-width="2.5"
-        stroke-opacity=".5" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"
-        stroke-dasharray="1 2 3" stroke-dashoffset="1"/></svg>
+      <svg viewBox="0 0 10 10"><path d="M0 0L5 5" fill="none" stroke="#123456" stroke-width="15.625%"
+        stroke-opacity="50%" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"
+        stroke-dasharray="1,2+3" stroke-dashoffset="0.125ex"/></svg>
       """)
     let s = try XCTUnwrap(d.shapes.first)
     XCTAssertFalse(s.hasFill)
@@ -333,7 +333,7 @@ final class SvgParserTests: XCTestCase {
   func testUrlPaintUsesItsFallback() throws {
     let d = try doc("""
       <svg viewBox="0 0 1 1"><defs><pattern id="p"/></defs>
-        <path fill="url(#p) blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>
+        <path fill="url('#p') blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>
       """)
     XCTAssertEqual(d.shapes.count, 2)
     XCTAssertEqual(d.shapes[0].fill, .color(0xFF00_00FF))
@@ -365,7 +365,7 @@ final class SvgParserTests: XCTestCase {
 
   func testTransforms() throws {
     let d = try doc("""
-      <svg viewBox="0 0 10 10"><g transform="translate(2 3)"><rect width="1" height="1" transform="scale(2)"/></g>
+      <svg viewBox="0 0 10 10"><g transform="translate(2+3)"><rect width="1" height="1" transform="scale(2)"/></g>
         <rect width="1" height="1" transform="rotate(90 5 5)"/></svg>
       """)
     XCTAssertEqual(d.shapes[0].transform, CGAffineTransform(a: 2, b: 0, c: 0, d: 2, tx: 2, ty: 3))
@@ -734,7 +734,7 @@ final class SvgParserTests: XCTestCase {
       <svg viewBox="0 0 10 10"><style>
         /* comment {} */ @media print { rect { fill: black } }
         .a { fill: red } rect { fill: blue; stroke: green } #x { fill: #00ff00 } rect.b { stroke-width: 3 }
-        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .e { fill: white }
+        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .\\65 { fill: white }
         </style>
         <rect class="a" width="1" height="1"/>
         <rect width="1" height="1"/>
@@ -743,6 +743,7 @@ final class SvgParserTests: XCTestCase {
         <rect class="a" style="fill: white" width="1" height="1"/>
         <rect class="c" style="fill: white" width="1" height="1"/>
         <rect class="e" width="1" height="1"/>
+        <rect class="c" style="fill: red !/**/ important" width="1" height="1"/>
       </svg>
       """)
     let s = d.shapes
@@ -756,6 +757,7 @@ final class SvgParserTests: XCTestCase {
     XCTAssertEqual(s[4].fill, .color(0xFFFF_FFFF))
     XCTAssertEqual(s[5].fill, .color(0xFFFF_FF00))
     XCTAssertEqual(s[6].fill, .color(0xFFFF_FFFF))
+    XCTAssertEqual(s[7].fill, .color(0xFFFF_0000))
   }
 
   func testStyleSheetInCdataAndAppliesToStops() throws {

@@ -6,16 +6,18 @@ import { ViewBase } from './common';
 import './properties';
 
 function applyStylesheetTransform(style: any, value: string) {
-  for (const [name, longhand] of _expandCssShorthand('transform', value) ?? []) {
+  for (const [name, longhand] of _expandCssShorthand('transform', value, false, style) ?? []) {
     style[`css:${name}`] = longhand;
   }
 }
 
 describe('a stylesheet transform', () => {
-  it('reaches a mason view as written, percentages included', () => {
+  it.each(['translateX(-35%)', 'translateX(min(50%, 10px))'])('reaches a mason view as written (%s)', (css) => {
     const { style } = masonHost();
-    applyStylesheetTransform(style, 'translateX(-35%)');
-    expect(style.transform).toBe('translateX(-35%)');
+    expect(_expandCssShorthand('transform', css)).toBeUndefined();
+    expect(_expandCssShorthand('transform', css, false, style)).toEqual([['-mason-transform-declaration', css]]);
+    applyStylesheetTransform(style, css);
+    expect(style.transform).toBe(css);
   });
 
   it('still gives a core view its longhands', () => {

@@ -40,6 +40,15 @@ describe('the .css stylesheet path reaches the mason style buffer', () => {
     (style as any)['max-width'] = '25%';
     expect(under.getFloat32(styleKey('MAX_WIDTH_VALUE'))).toBeCloseTo(0.25, 4);
   });
+
+  it('preserves an oblique font angle through the CSS property', () => {
+    const { under, style } = masonHost();
+    (style as any)['font-style'] = 'oblique -0.125turn';
+    expect(under.getUint8(styleKey('FONT_STYLE_TYPE'))).toBe(2);
+    expect(under.getInt32(styleKey('FONT_STYLE_SLANT'))).toBe(-45);
+    const plain = coreHost();
+    expect(() => ((plain.style as any)['font-style'] = 'oblique -0.125turn')).toThrow();
+  });
 });
 
 describe('an inherited keyword reaches the buffer even when it is the initial value', () => {

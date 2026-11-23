@@ -13,6 +13,7 @@ use taffy::{
 };
 pub use ua_defaults::*;
 
+// <style-keys:border-style-conversions> generated from tools/scripts/style-keys/style-keys.schema
 pub const fn border_style_from_enum(value: i8) -> Option<BorderStyle> {
     match value {
         0 => Some(BorderStyle::None),
@@ -28,20 +29,11 @@ pub const fn border_style_from_enum(value: i8) -> Option<BorderStyle> {
         _ => None,
     }
 }
+
 pub const fn border_style_to_enum(value: BorderStyle) -> i8 {
-    match value {
-        BorderStyle::None => 0,
-        BorderStyle::Hidden => 1,
-        BorderStyle::Dotted => 2,
-        BorderStyle::Dashed => 3,
-        BorderStyle::Solid => 4,
-        BorderStyle::Double => 5,
-        BorderStyle::Groove => 6,
-        BorderStyle::Ridge => 7,
-        BorderStyle::Inset => 8,
-        BorderStyle::Outset => 9,
-    }
+    value as i8
 }
+// </style-keys:border-style-conversions>
 
 pub const fn box_sizing_from_enum(value: i8) -> Option<BoxSizing> {
     match value {

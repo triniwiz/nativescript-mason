@@ -32,6 +32,21 @@ final class NineSliceTests: XCTestCase {
 
   // MARK: - Parsing
 
+  func testSettersKeepIndependentRustRecords() {
+    let view = makeView()
+    let sibling = makeView()
+    view.style.borderImage = "\(square) 10"
+    XCTAssertEqual(view.style.getUInt32(StyleKeys.BORDER_IMAGE_REVISION), 1)
+    XCTAssertEqual(sibling.style.getUInt32(StyleKeys.BORDER_IMAGE_REVISION), 0)
+    view.style.maskBorderSource = square
+    view.style.maskBorderSlice = "6 fill"
+    let maskRevision = view.style.getUInt32(StyleKeys.MASK_BORDER_REVISION)
+    XCTAssertGreaterThan(maskRevision, 0)
+    view.style.borderImage = "none"
+    XCTAssertEqual(view.style.getUInt32(StyleKeys.BORDER_IMAGE_REVISION), 2)
+    XCTAssertEqual(view.style.getUInt32(StyleKeys.MASK_BORDER_REVISION), maskRevision)
+  }
+
   func testBorderImageShorthand() throws {
     let spec = try XCTUnwrap(NineSliceSpec.parseBorderImage("url(a.png) 30 fill / 10px / 2 round space"))
     XCTAssertEqual(spec.source, "url(a.png)")
@@ -69,6 +84,29 @@ final class NineSliceTests: XCTestCase {
     XCTAssertEqual(NineSliceSpec.parseBorderImage("none")?.source, .some(nil), "none is valid and draws nothing")
     // Quoted SVG data with spaces survives tokenizing.
     XCTAssertEqual(NineSliceSpec.parseBorderImage("\(square) 10")?.source, square)
+  }
+
+  func testImageBorderMathUsesImageAndAreaSizes() throws {
+    let slice = "max(10%, 25%) fill"
+    let width = "min(25%, 30px) calc(10% + 2px)"
+    let outset = "calc(1em - 10px)"
+    let border = try XCTUnwrap(NineSliceSpec.parseBorderImage("url(a) \(slice) / \(width) / \(outset)", em: 20))
+    let mask = NineSliceSpec.maskBorder(source: "url(a)", slice: slice, width: width, outset: outset, repeat: "stretch", em: 20)
+    let cases: [(CGRect, CGFloat, CGFloat)] = [
+      (CGRect(x: 0, y: 0, width: 100, height: 60), 20, 14),
+      (CGRect(x: 0, y: 0, width: 220, height: 140), 30, 26),
+    ]
+    for spec in [border, mask] {
+      for (box, top, right) in cases {
+        let area = spec.area(box: box, borders: .zero)
+        XCTAssertEqual(area, box.insetBy(dx: -10, dy: -10))
+        let result = NineSlice.resolve(spec, area: area, borders: .zero, units: CGSize(width: 30, height: 24), pointsPerUnit: 1)
+        XCTAssertEqual(result.slices.top, 6, accuracy: 0.001)
+        XCTAssertEqual(result.slices.right, 7.5, accuracy: 0.001)
+        XCTAssertEqual(result.widths.top, top, accuracy: 0.001)
+        XCTAssertEqual(result.widths.right, right, accuracy: 0.001)
+      }
+    }
   }
 
   func testInvalidBorderImage() {

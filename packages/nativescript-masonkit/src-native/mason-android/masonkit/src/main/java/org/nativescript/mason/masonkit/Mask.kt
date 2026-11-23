@@ -21,63 +21,83 @@ import kotlin.math.ceil
  */
 
 /** The `mask-*` longhands, indexed like [Mask]'s storage: the layer list, then `mask-border-*`. */
+// <style-keys:mask-names> generated from tools/scripts/style-keys/style-keys.schema
 internal val MASK_CSS_NAMES = arrayOf(
-  "mask-image", "mask-size", "mask-position", "mask-repeat",
-  "mask-origin", "mask-clip", "mask-mode", "mask-composite",
-  "mask-border-source", "mask-border-slice", "mask-border-width",
-  "mask-border-outset", "mask-border-repeat", "mask-border-mode",
+  "mask-image",
+  "mask-size",
+  "mask-position",
+  "mask-repeat",
+  "mask-origin",
+  "mask-clip",
+  "mask-mode",
+  "mask-composite",
+  "mask-border-source",
+  "mask-border-slice",
+  "mask-border-width",
+  "mask-border-outset",
+  "mask-border-repeat",
+  "mask-border-mode",
 )
+// </style-keys:mask-names>
 
 /** How many of [MASK_CSS_NAMES] describe the `mask-image` layers. */
-private const val MASK_LAYER_LONGHANDS = 8
+private const val MASK_LAYER_LONGHANDS = MaskInputRecord.STRIDE
 
-/** `mask-mode`. Mason only draws images and gradients, for which `match-source` is alpha. */
-enum class MaskMode(val css: String) {
-  MATCH_SOURCE("match-source"), ALPHA("alpha"), LUMINANCE("luminance");
-
-  companion object {
-    fun parse(value: String): MaskMode? = entries.firstOrNull { it.css == value.trim().lowercase() }
-  }
-}
-
-/** `mask-composite`: how a layer combines with the layers below it. */
-enum class MaskComposite(val css: String) {
-  ADD("add"), SUBTRACT("subtract"), INTERSECT("intersect"), EXCLUDE("exclude");
-
-  // A function, not a constructor value: JVM unit tests can't load android.graphics enums.
-  internal fun porterDuff(): PorterDuff.Mode = when (this) {
-    ADD -> PorterDuff.Mode.SRC_OVER
-    SUBTRACT -> PorterDuff.Mode.SRC_OUT
-    INTERSECT -> PorterDuff.Mode.SRC_IN
-    EXCLUDE -> PorterDuff.Mode.XOR
-  }
-
-  companion object {
-    fun parse(value: String): MaskComposite? = entries.firstOrNull { it.css == value.trim().lowercase() }
-  }
-}
-
-/** `mask-clip`. The SVG boxes and `margin-box` have no meaning for a Mason box: border box. */
+// <style-keys:mask-keywords> generated from tools/scripts/style-keys/style-keys.schema
 enum class MaskClip(val css: String) {
-  BORDER_BOX("border-box"), PADDING_BOX("padding-box"), CONTENT_BOX("content-box"), NO_CLIP("no-clip");
+  BORDER_BOX("border-box"),
+  PADDING_BOX("padding-box"),
+  CONTENT_BOX("content-box"),
+  NO_CLIP("no-clip");
 
   companion object {
-    fun parse(value: String): MaskClip? = when (value.trim().lowercase()) {
-      "border-box", "fill-box", "stroke-box", "view-box", "margin-box" -> BORDER_BOX
-      "padding-box" -> PADDING_BOX
-      "content-box" -> CONTENT_BOX
-      "no-clip" -> NO_CLIP
-      else -> null
-    }
+    internal fun fromCode(code: Int): MaskClip? = entries.getOrNull(code)
+
+    fun parse(value: String): MaskClip? =
+      Mason.expandCssShorthand("keyword:mask-clip", value)?.firstOrNull()?.toIntOrNull()?.let(::fromCode)
   }
 }
 
-/** `mask-origin`, with the same fallbacks as [MaskClip]. */
-internal fun parseMaskOrigin(value: String): BackgroundOrigin? = when (value.trim().lowercase()) {
-  "border-box", "fill-box", "stroke-box", "view-box", "margin-box" -> BackgroundOrigin.BORDER_BOX
-  "padding-box" -> BackgroundOrigin.PADDING_BOX
-  "content-box" -> BackgroundOrigin.CONTENT_BOX
-  else -> null
+enum class MaskMode(val css: String) {
+  MATCH_SOURCE("match-source"),
+  ALPHA("alpha"),
+  LUMINANCE("luminance");
+
+  companion object {
+    internal fun fromCode(code: Int): MaskMode? = entries.getOrNull(code)
+
+    fun parse(value: String): MaskMode? =
+      Mason.expandCssShorthand("keyword:mask-mode", value)?.firstOrNull()?.toIntOrNull()?.let(::fromCode)
+  }
+}
+
+enum class MaskComposite(val css: String) {
+  ADD("add"),
+  SUBTRACT("subtract"),
+  INTERSECT("intersect"),
+  EXCLUDE("exclude");
+
+  companion object {
+    internal fun fromCode(code: Int): MaskComposite? = entries.getOrNull(code)
+
+    fun parse(value: String): MaskComposite? =
+      Mason.expandCssShorthand("keyword:mask-composite", value)?.firstOrNull()?.toIntOrNull()?.let(::fromCode)
+  }
+}
+// </style-keys:mask-keywords>
+
+internal fun MaskComposite.porterDuff(): PorterDuff.Mode = when (this) {
+  MaskComposite.ADD -> PorterDuff.Mode.SRC_OVER
+  MaskComposite.SUBTRACT -> PorterDuff.Mode.SRC_OUT
+  MaskComposite.INTERSECT -> PorterDuff.Mode.SRC_IN
+  MaskComposite.EXCLUDE -> PorterDuff.Mode.XOR
+}
+
+internal fun parseMaskOrigin(value: String): BackgroundOrigin? = when (MaskClip.parse(value)) {
+  MaskClip.BORDER_BOX -> BackgroundOrigin.BORDER_BOX
+  MaskClip.PADDING_BOX -> BackgroundOrigin.PADDING_BOX
+  MaskClip.CONTENT_BOX -> BackgroundOrigin.CONTENT_BOX
+  MaskClip.NO_CLIP, null -> null
 }
 
 class MaskLayer(
@@ -88,123 +108,11 @@ class MaskLayer(
   var composite: MaskComposite = MaskComposite.ADD,
 )
 
-/**
- * Splits a comma-separated layer list at the top level. Unlike [splitLayers] it skips
- * quoted text, so an unencoded SVG data URL keeps its commas and parentheses.
- */
-internal fun splitMaskList(value: String): List<String> {
-  val out = mutableListOf<String>()
-  var depth = 0
-  var quote = 0.toChar()
-  var start = 0
-  var i = 0
-  while (i < value.length) {
-    val c = value[i]
-    if (quote != 0.toChar()) {
-      if (c == '\\') i++ else if (c == quote) quote = 0.toChar()
-    } else when (c) {
-      '"', '\'' -> quote = c
-      '(' -> depth++
-      ')' -> depth = maxOf(0, depth - 1)
-      ',' -> if (depth == 0) {
-        out.add(value.substring(start, i))
-        start = i + 1
-      }
-    }
-    i++
-  }
-  out.add(value.substring(start))
-  return out
-}
-
-/** The URL inside `url(...)`, unquoted and with CSS escapes resolved, or null. */
-internal fun extractCssUrl(token: String): String? {
-  val t = token.trim()
-  if (!t.regionMatches(0, "url(", 0, 4, ignoreCase = true)) return null
-  var i = 4
-  while (i < t.length && t[i].isWhitespace()) i++
-  if (i >= t.length) return null
-  val q = t[i]
-  if (q != '"' && q != '\'') {
-    val end = t.lastIndexOf(')')
-    return if (end < i) null else t.substring(i, end).trim()
-  }
-  val sb = StringBuilder()
-  i++
-  while (i < t.length) {
-    val c = t[i]
-    when {
-      c == q -> return sb.toString()
-      c == '\\' && i + 1 < t.length -> {
-        // `\22` style hex escapes (plus one optional space), else the next char literally.
-        var j = i + 1
-        while (j < t.length && j - i <= 6 && Character.digit(t[j], 16) >= 0) j++
-        if (j > i + 1) {
-          sb.appendCodePoint(t.substring(i + 1, j).toInt(16))
-          if (j < t.length && t[j] == ' ') j++
-          i = j
-        } else {
-          if (t[i + 1] != '\n') sb.append(t[i + 1])
-          i += 2
-        }
-        continue
-      }
-      else -> sb.append(c)
-    }
-    i++
-  }
-  return null
-}
-
-private val MASK_GRADIENT_REGEX =
-  Regex("""^(repeating-)?(linear|radial|conic)-gradient\(([\s\S]*)\)$""", RegexOption.IGNORE_CASE)
-
-/** `[repeating-](linear|radial|conic)-gradient(...)`, or null. */
-internal fun parseMaskGradient(token: String): Gradient? {
-  val m = MASK_GRADIENT_REGEX.matchEntire(token.trim()) ?: return null
-  val repeating = m.groupValues[1].isNotEmpty()
-  val type = m.groupValues[2].lowercase()
-  val body = m.groupValues[3]
-  if (type != "conic") return parseGradient("$type-gradient($body)")?.copy(repeating = repeating)
-
-  val items = splitTopLevelCommas(body).map { it.trim() }.filter { it.isNotEmpty() }
-  if (items.isEmpty()) return null
-  // `from 90deg at 25% 25% in oklab`: the prelude shares the first argument.
-  val extracted = ColorInterpolation.extract(items.first())
-  val first = (extracted?.first ?: items.first()).trim()
-  val lower = first.lowercase()
-  val direction = if (lower.startsWith("from ") || lower.startsWith("at ")) first else null
-  val stops = if (direction != null || extracted != null) items.drop(1) else items
-  if (stops.isEmpty()) return null
-  return Gradient("conic", direction, expandColorStops(stops), extracted?.second, repeating)
-}
-
-/** One `mask-image` entry: null when it isn't a supported image (the declaration is invalid). */
-internal fun parseMaskImageSource(token: String): BackgroundLayer? {
-  val t = token.trim()
-  val lower = t.lowercase()
-  val layer = when {
-    lower.startsWith("url(") -> {
-      val url = extractCssUrl(t) ?: return null
-      // An empty url() is a transparent layer, like an image that fails to load.
-      if (url.isEmpty()) BackgroundLayer() else BackgroundLayer(image = url)
-    }
-
-    lower.contains("gradient(") -> BackgroundLayer(gradient = parseMaskGradient(t) ?: return null)
-    else -> return null
-  }
-  layer.origin = BackgroundOrigin.BORDER_BOX
-  return layer
-}
+internal fun parseMaskGradient(token: String): Gradient? = parseGradient(token)
 
 /** `mask-repeat`: one or two keywords. Null when invalid. */
 internal fun parseMaskRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
-/**
- * The mask layers for a set of longhands (empty strings are initial values). The image list
- * decides the layer count; every other list repeats cyclically. No layers means no mask:
- * `none` everywhere, or an image list that doesn't parse.
- */
 internal fun parseMaskLayers(
   image: String,
   size: String = "",
@@ -214,32 +122,53 @@ internal fun parseMaskLayers(
   clip: String = "",
   mode: String = "",
   composite: String = "",
-): List<MaskLayer> {
-  val images = splitMaskList(image).map { it.trim() }
-  // A `none` layer is transparent black, but only matters next to a real image.
-  if (images.all { it.isEmpty() || it.equals("none", ignoreCase = true) }) return emptyList()
-  val layers = ArrayList<MaskLayer>(images.size)
-  for (token in images) {
-    if (token.isEmpty() || token.equals("none", ignoreCase = true)) {
-      layers.add(MaskLayer(null))
-      continue
+): List<MaskLayer> =
+  NativeMaskProgram.parse(arrayOf(image, size, position, repeat, origin, clip, mode, composite), Color.BLACK)
+    ?.layers(LengthContext.forStyleMask()).orEmpty()
+
+private class NativeMaskProgram private constructor(private val handle: Long) {
+  fun layers(context: LengthContext): List<MaskLayer> {
+    val result = Mason.nativeMaskRead(
+      this, handle, context.scale, context.emBasis, context.rootFontSize, context.viewportWidth, context.viewportHeight
+    ) ?: return emptyList()
+    val paint = NativePaintRead(result)
+    val values = paint.values
+    val stride = BackgroundRecord.STRIDE + MaskLayerRecord.STRIDE
+    return List(paint.count) { row ->
+      val start = row * stride
+      val mask = start + BackgroundRecord.STRIDE
+      val source = if (values[start + BackgroundRecord.IMAGE_KIND] == 0.0) null
+      else readBackgroundLayer(paint, start, row, context.emBasis)
+      MaskLayer(
+        source,
+        clip = MaskClip.fromCode(values[mask + MaskLayerRecord.CLIP].toInt()) ?: MaskClip.BORDER_BOX,
+        mode = MaskMode.fromCode(values[mask + MaskLayerRecord.MODE].toInt()) ?: MaskMode.MATCH_SOURCE,
+        composite = MaskComposite.fromCode(values[mask + MaskLayerRecord.COMPOSITE].toInt()) ?: MaskComposite.ADD,
+      )
     }
-    layers.add(MaskLayer(parseMaskImageSource(token) ?: return emptyList()))
   }
 
-  fun cyclic(value: String, apply: (MaskLayer, String) -> Unit) {
-    val parts = splitMaskList(value).map { it.trim() }.filter { it.isNotEmpty() }
-    if (parts.isEmpty()) return
-    layers.forEachIndexed { i, layer -> apply(layer, parts[i % parts.size]) }
+  companion object {
+    fun parse(values: Array<String>, color: Int): NativeMaskProgram? {
+      val handle = Mason.nativeMaskParse(values, color)
+      if (handle == 0L) return null
+      return NativeMaskProgram(handle).also { Mason.shared.gc.track(it) { Mason.nativeMaskRelease(handle) } }
+    }
+
+    fun install(program: NativeMaskProgram?, style: Style) {
+      val node = style.node
+      if (node.isPlaceholder) return
+      val mason = node.mason
+      if (mason.inCompute) mason.deferStyleRecords(style)
+      else style.prepareMut()
+      Mason.nativeMaskInstall(program, program?.handle ?: 0L, if (mason.inCompute) 0L else mason.nativePtr, node.nativePtr)
+    }
   }
-  cyclic(size) { l, v -> parseSize(v)?.let { l.source?.size = it } }
-  cyclic(position) { l, v -> parsePosition(splitTopLevelWhitespace(v))?.let { l.source?.position = it } }
-  cyclic(repeat) { l, v -> parseMaskRepeat(v)?.let { l.source?.repeat = it } }
-  cyclic(origin) { l, v -> parseMaskOrigin(v)?.let { l.source?.origin = it } }
-  cyclic(clip) { l, v -> MaskClip.parse(v)?.let { l.clip = it } }
-  cyclic(mode) { l, v -> MaskMode.parse(v)?.let { l.mode = it } }
-  cyclic(composite) { l, v -> MaskComposite.parse(v)?.let { l.composite = it } }
-  return layers
+}
+
+private fun LengthContext.Companion.forStyleMask(): LengthContext {
+  val mason = Mason.shared
+  return LengthContext(mason.scale, mason.rootFontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight)
 }
 
 /** Alpha = luminance of the layer drawn over black, i.e. luminance x alpha. */
@@ -256,6 +185,7 @@ private const val MAX_NO_CLIP_OUTSET = 1024f
 class Mask internal constructor(private val style: Style) {
 
   companion object {
+    // <style-keys:mask-constants> generated from tools/scripts/style-keys/style-keys.schema
     const val IMAGE = 0
     const val SIZE = 1
     const val POSITION = 2
@@ -270,6 +200,7 @@ class Mask internal constructor(private val style: Style) {
     const val BORDER_OUTSET = 11
     const val BORDER_REPEAT = 12
     const val BORDER_MODE = 13
+    // </style-keys:mask-constants>
   }
 
   /** Longhands as set, indexed like [MASK_CSS_NAMES]; empty is the initial value. */
@@ -280,8 +211,9 @@ class Mask internal constructor(private val style: Style) {
   private var layers: List<MaskLayer> = emptyList()
 
   /** `mask-border`, with its source (null without one); multiplied into the layers' mask. */
-  private var border: BorderImageSpec? = null
+  private var border: NativeNineSlice? = null
   private var borderSource: NineSliceSource? = null
+  private var borderContext: LengthContext? = null
   private var version = 0
 
   /** A pseudo-class rule set a mask longhand; until then only [base] is consulted. */
@@ -293,8 +225,12 @@ class Mask internal constructor(private val style: Style) {
   operator fun get(index: Int): String = base[index]
 
   fun set(index: Int, value: String) {
-    base[index] = value.trim()
+    setBase(index, value)
     changed()
+  }
+
+  internal fun setBase(index: Int, value: String) {
+    base[index] = value.trim()
   }
 
   internal fun changed() {
@@ -331,19 +267,18 @@ class Mask internal constructor(private val style: Style) {
       }
     }
     if (layersDirty) {
-      layers = parseMaskLayers(
-        builtFrom[IMAGE]!!, builtFrom[SIZE]!!, builtFrom[POSITION]!!, builtFrom[REPEAT]!!,
-        builtFrom[ORIGIN]!!, builtFrom[CLIP]!!, builtFrom[MODE]!!, builtFrom[COMPOSITE]!!
-      )
+      val input = Array(MASK_LAYER_LONGHANDS) { builtFrom[it]!! }
+      val program = NativeMaskProgram.parse(input, style.color)
+      NativeMaskProgram.install(program, style)
+      layers = program?.layers(LengthContext.forStyle(style)).orEmpty()
       version++
     }
     if (borderDirty) {
-      val spec = parseBorderImageLonghands(
-        builtFrom[BORDER_SOURCE]!!, builtFrom[BORDER_SLICE]!!, builtFrom[BORDER_WIDTH]!!,
-        builtFrom[BORDER_OUTSET]!!, builtFrom[BORDER_REPEAT]!!, builtFrom[BORDER_MODE]!!, mask = true
-      )
+      val input = Array(NineSliceInputRecord.STRIDE) { builtFrom[BORDER_SOURCE + it]!! }
+      val spec = NativeNineSlice.parseMaskBorder(input, style.color)
+      NativeNineSlice.install(spec, style, mask = true)
       // Keep the loaded image while only the geometry longhands change.
-      if (spec?.source != border?.source) borderSource = spec?.let { NineSliceSource(it.source) }
+      if (spec?.source != border?.source) borderSource = spec?.image()
       border = spec
       version++
     }
@@ -351,7 +286,7 @@ class Mask internal constructor(private val style: Style) {
   }
 
   /** The mask border for the current state, unless its image can't be displayed (then it's ignored). */
-  private fun currentBorder(): BorderImageSpec? = border?.takeUnless { borderSource?.failed == true }
+  private fun currentBorder(): NativeNineSlice? = border?.takeUnless { borderSource?.failed == true }
 
   internal fun isActive(): Boolean = currentLayers().isNotEmpty() || currentBorder() != null
 
@@ -387,7 +322,14 @@ class Mask internal constructor(private val style: Style) {
     val layers = currentLayers()
     // A mask-border image that turns out undisplayable is ignored rather than masking all.
     if (this.border != null) borderSource?.load(view.context, view)
-    val border = currentBorder()
+    val border = currentBorder()?.let { program ->
+      val context = LengthContext.forStyle(style)
+      if (context != borderContext) {
+        borderContext = context
+        version++
+      }
+      program.read(context)
+    }
     if (layers.isEmpty() && border == null) {
       release()
       return -1
@@ -570,7 +512,7 @@ class Mask internal constructor(private val style: Style) {
         if (layer.clip == MaskClip.NO_CLIP) paintRect.set(rect) else clipBox(layer.clip, fw, fh, paintRect)
         canvas.clipRect(paintRect)
         val area = Background.positioningArea(source, view, node, fw, fh)
-        drawBackground(view.context, view, source, canvas, paintRect, area, color)
+        drawBackground(view.context, view, source, canvas, paintRect, area, color, style.resolvedFontSize)
       }
       canvas.restoreToCount(save)
     }

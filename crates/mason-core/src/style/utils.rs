@@ -7,6 +7,7 @@ use crate::utils::{
 use taffy::geometry::Point;
 
 use crate::style::StyleKeys;
+use crate::style::css::layout_length;
 use crate::Style;
 use taffy::style::{
     LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction,
@@ -23,6 +24,7 @@ pub fn length_percentage_auto_from_type_value(value_type: i8, value: f32) -> Len
         0 => LengthPercentageAuto::auto(),
         1 => LengthPercentageAuto::length(value),
         2 => LengthPercentageAuto::percent(value),
+        layout_length::BUFFER_TYPE => LengthPercentageAuto::calc(layout_length::handle_from_buffer(value)),
         _ => unreachable!(),
     }
 }
@@ -36,6 +38,7 @@ pub fn length_percentage_auto_to_type_value(value: LengthPercentageAuto) -> (i8,
     match raw.tag() {
         CompactLength::LENGTH_TAG => (1, raw.value()),
         CompactLength::PERCENT_TAG => (2, raw.value()),
+        CompactLength::CALC_TAG => (layout_length::BUFFER_TYPE, layout_length::handle_to_buffer(raw.calc_value())),
         _ => unreachable!(),
     }
 }
@@ -49,6 +52,7 @@ pub fn length_percentage_auto_to_format_type_value(value: LengthPercentageAuto) 
     match raw.tag() {
         CompactLength::LENGTH_TAG => std::format!("{:?}", raw.value()),
         CompactLength::PERCENT_TAG => std::format!("{:?}%", raw.value()),
+        CompactLength::CALC_TAG => layout_length::describe(raw.calc_value()),
         _ => unreachable!(),
     }
 }
@@ -59,6 +63,7 @@ pub fn length_percentage_to_type_value(value: LengthPercentage) -> (i8, f32) {
     match raw.tag() {
         CompactLength::LENGTH_TAG => (0, raw.value()),
         CompactLength::PERCENT_TAG => (1, raw.value()),
+        CompactLength::CALC_TAG => (layout_length::BUFFER_TYPE, layout_length::handle_to_buffer(raw.calc_value())),
         _ => unreachable!(),
     }
 }
@@ -69,6 +74,7 @@ pub fn length_percentage_to_format_type_value(value: LengthPercentage) -> String
     match raw.tag() {
         CompactLength::LENGTH_TAG => std::format!("{:?}", raw.value()),
         CompactLength::PERCENT_TAG => std::format!("{:?}%", raw.value()),
+        CompactLength::CALC_TAG => layout_length::describe(raw.calc_value()),
         _ => unreachable!(),
     }
 }
@@ -79,6 +85,7 @@ pub fn length_percentage_from_type_value(value_type: i8, value: f32) -> LengthPe
     match value_type {
         0 => LengthPercentage::length(value),
         1 => LengthPercentage::percent(value),
+        layout_length::BUFFER_TYPE => LengthPercentage::calc(layout_length::handle_from_buffer(value)),
         _ => unreachable!(),
     }
 }
@@ -86,7 +93,6 @@ pub fn length_percentage_from_type_value(value_type: i8, value: f32) -> LengthPe
 #[inline(always)]
 #[track_caller]
 pub fn dimension_from_type_value(value_type: i8, value: f32) -> Dimension {
-    // todo handle calc when supported
     match value_type {
         0 => Dimension::auto(),
         1 => Dimension::length(value),
@@ -98,6 +104,7 @@ pub fn dimension_from_type_value(value_type: i8, value: f32) -> Dimension {
         7 => Dimension::fit_content_percent(value),
         8 => Dimension::stretch(),
         9 => Dimension::content(),
+        layout_length::BUFFER_TYPE => Dimension::calc(layout_length::handle_from_buffer(value)),
         _ => unreachable!(),
     }
 }
@@ -118,6 +125,7 @@ pub fn dimension_to_type_value(value: Dimension) -> (i8, f32) {
         CompactLength::FIT_CONTENT_PERCENT_TAG => (7, raw.value()),
         CompactLength::STRETCH_TAG => (8, 0.0),
         CompactLength::CONTENT_TAG => (9, 0.0),
+        CompactLength::CALC_TAG => (layout_length::BUFFER_TYPE, layout_length::handle_to_buffer(raw.calc_value())),
         _ => unreachable!(),
     }
 }
@@ -138,6 +146,7 @@ pub fn dimension_to_format_type_value(value: Dimension) -> String {
         CompactLength::FIT_CONTENT_PERCENT_TAG => std::format!("fit-content({:?}%)", raw.value()),
         CompactLength::STRETCH_TAG => "stretch".to_string(),
         CompactLength::CONTENT_TAG => "content".to_string(),
+        CompactLength::CALC_TAG => layout_length::describe(raw.calc_value()),
         _ => unreachable!(),
     }
 }

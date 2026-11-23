@@ -246,33 +246,35 @@ extension Background {
   // MARK: - Gradient Drawing
   private func drawGradient(layer: BackgroundLayer, context: CGContext, paintRect: CGRect, area: CGRect) {
     guard let gradient = layer.gradient else { return }
+    let units = Gradient.Units(fontSize: style.resolvedFontSize)
     // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-    let (width, height) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height))
+    let (width, height) = roundedTileSize(layer, area: area, resolveBitmapSize(
+      layer.size, imgW: area.width, imgH: area.height, areaW: area.width, areaH: area.height, units: units))
     if width <= 0 || height <= 0 { return }
 
-    // if size changed since last shader creation, clear cache
-    if layer.shader != nil && (layer.shaderWidth != width || layer.shaderHeight != height) {
+    if layer.shader != nil && (layer.shaderWidth != width || layer.shaderHeight != height || layer.shaderUnits != units) {
       layer.shader = nil
     }
 
-    let kind = gradient.type.lowercased()
+    let kind = gradient.type
+    let layout = gradient.layout(width: width, height: height, units: units)
     var lineStart = CGPoint.zero, lineEnd = CGPoint.zero
     var radial = RadialGradientShape(center: .zero, rx: 1, ry: 1)
     // Stops placed with a length are fractions of this.
     var lineLength: CGFloat = 0
     switch kind {
     case "linear":
-      (lineStart, lineEnd) = linearGradientPoints(direction: gradient.direction, width: width, height: height)
+      (lineStart, lineEnd) = linearGradientPoints(layout: layout, width: width, height: height)
       lineLength = hypot(lineEnd.x - lineStart.x, lineEnd.y - lineStart.y)
     case "radial":
-      radial = resolveRadialGradientShape(direction: gradient.direction, width: width, height: height)
+      radial = RadialGradientShape(layout: layout)
       lineLength = radial.rx
     default:
       break
     }
 
     if layer.shader == nil {
-      let parsed = parseGradientStops(gradient.stops, lineLength: lineLength)
+      let parsed = gradient.paintStops(lineLength: lineLength, units: units)
       if parsed.colors.isEmpty { return }
       var (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
       layer.shaderExtent = 1
@@ -296,13 +298,14 @@ extension Background {
       layer.shaderLocations = locations
       layer.shaderWidth = width
       layer.shaderHeight = height
+      layer.shaderUnits = units
     }
     guard let shader = layer.shader else { return }
 
     let options: CGGradientDrawingOptions = [.drawsBeforeStartLocation, .drawsAfterEndLocation]
     context.saveGState()
     context.clip(to: paintRect)
-    forEachTile(layer, paintRect: paintRect, area: area, drawW: width, drawH: height) { x, y in
+    forEachTile(layer, paintRect: paintRect, area: area, drawW: width, drawH: height, units: units) { x, y in
     context.saveGState()
     context.clip(to: CGRect(x: x, y: y, width: width, height: height))
     context.translateBy(x: x, y: y)
@@ -317,7 +320,7 @@ extension Background {
                                  endRadius: radial.rx * layer.shaderExtent, options: options)
     case "conic":
       drawConicGradient(context: context, colors: layer.shaderColors, locations: layer.shaderLocations,
-                        direction: gradient.direction, width: width, height: height)
+                        layout: layout, width: width, height: height)
     default:
       break
     }
@@ -327,10 +330,10 @@ extension Background {
   }
 
   /// Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer.
-  private func forEachTile(_ layer: BackgroundLayer, paintRect: CGRect, area: CGRect, drawW: CGFloat, drawH: CGFloat, _ draw: (CGFloat, CGFloat) -> Void) {
+  private func forEachTile(_ layer: BackgroundLayer, paintRect: CGRect, area: CGRect, drawW: CGFloat, drawH: CGFloat, units: Gradient.Units, _ draw: (CGFloat, CGFloat) -> Void) {
     let pos = layer.position
-    let offsetX = pos?.x.resolve(area: area.width, drawSize: drawW) ?? 0
-    let offsetY = pos?.y.resolve(area: area.height, drawSize: drawH) ?? 0
+    let offsetX = pos?.x.resolve(area: area.width, drawSize: drawW, units: units) ?? 0
+    let offsetY = pos?.y.resolve(area: area.height, drawSize: drawH, units: units) ?? 0
     let xs = backgroundTileStarts(layer.repeatType.x, areaStart: area.minX, areaLength: area.width,
                                   clipStart: paintRect.minX, clipEnd: paintRect.maxX, tile: drawW, offset: offsetX)
     let ys = backgroundTileStarts(layer.repeatType.y, areaStart: area.minY, areaLength: area.height,
@@ -357,7 +360,9 @@ extension Background {
       return
     }
     // Intrinsic size in points: 1 SVG px is 1 CSS px.
-    let (drawWidth, drawHeight) = roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height))
+    let units = Gradient.Units(fontSize: style.resolvedFontSize)
+    let (drawWidth, drawHeight) = roundedTileSize(layer, area: area, resolveBitmapSize(
+      layer.size, imgW: doc.width, imgH: doc.height, areaW: area.width, areaH: area.height, units: units))
     if drawWidth <= 0 || drawHeight <= 0 { return }
     let scale = max(CGFloat(NSCMason.scale), 1)
     let fit = min(1, maxSvgRasterPx / (max(drawWidth, drawHeight) * scale))
@@ -380,7 +385,9 @@ extension Background {
   /// `drawSize`, when given, is the already-resolved tile size in points.
   private func drawBitmap(layer: BackgroundLayer, bitmap: UIImage, context: CGContext, paintRect: CGRect, area: CGRect, drawSize: (CGFloat, CGFloat)? = nil) {
     // Intrinsic size in points: a 1x image is 1 CSS px per pixel.
-    let (drawWidth, drawHeight) = drawSize ?? roundedTileSize(layer, area: area, resolveBitmapSize(layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height))
+    let units = Gradient.Units(fontSize: style.resolvedFontSize)
+    let (drawWidth, drawHeight) = drawSize ?? roundedTileSize(layer, area: area, resolveBitmapSize(
+      layer.size, imgW: bitmap.size.width, imgH: bitmap.size.height, areaW: area.width, areaH: area.height, units: units))
     if drawWidth <= 0 || drawHeight <= 0 { return }
 
     // UIImage.draw keeps UIKit orientation in both UIView.draw and CALayer.draw(in:) contexts.
@@ -388,7 +395,7 @@ extension Background {
     context.clip(to: paintRect)
     UIGraphicsPushContext(context)
     let blend = layer.blendMode.cgBlendMode
-    forEachTile(layer, paintRect: paintRect, area: area, drawW: drawWidth, drawH: drawHeight) { px, py in
+    forEachTile(layer, paintRect: paintRect, area: area, drawW: drawWidth, drawH: drawHeight, units: units) { px, py in
       bitmap.draw(in: CGRect(x: px, y: py, width: drawWidth, height: drawHeight), blendMode: blend, alpha: 1)
     }
     UIGraphicsPopContext()
@@ -445,7 +452,7 @@ func backgroundTileStarts(_ style: RepeatStyle, areaStart: CGFloat, areaLength: 
 }
 
 /// Resolve `background-size` against the positioning area (points), keeping the image ratio for `auto`.
-func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, areaW: CGFloat, areaH: CGFloat) -> (CGFloat, CGFloat) {
+func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, areaW: CGFloat, areaH: CGFloat, units: Gradient.Units? = nil) -> (CGFloat, CGFloat) {
   guard let size = size, imgW > 0, imgH > 0 else { return (imgW, imgH) }
   let ratio = imgW / imgH
   switch size.keyword {
@@ -458,8 +465,8 @@ func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, ar
   default:
     break
   }
-  let w = size.width.map { $0.fraction * areaW + $0.points }
-  let h = size.height.map { $0.fraction * areaH + $0.points }
+  let w = size.width?.resolve(area: areaW, drawSize: 0, units: units)
+  let h = size.height?.resolve(area: areaH, drawSize: 0, units: units)
   switch (w, h) {
   case let (w?, h?): return (w, h)
   case let (w?, nil): return (w, w / ratio)
@@ -469,38 +476,29 @@ func resolveBitmapSize(_ size: BackgroundSize?, imgW: CGFloat, imgH: CGFloat, ar
 }
 
 /// The CSS gradient line for a `width` x `height` box.
-func linearGradientPoints(direction: String?, width: CGFloat, height: CGFloat) -> (CGPoint, CGPoint) {
-  let (dx, dy) = linearGradientDirection(direction, width: width, height: height)
+func linearGradientPoints(layout: CMasonCssGradientLayout, width: CGFloat, height: CGFloat) -> (CGPoint, CGPoint) {
+  let dx: CGFloat
+  let dy: CGFloat
+  let diagonal = hypot(width, height)
+  if layout.corner_x != 0, layout.corner_y != 0, diagonal > 0 {
+    dx = CGFloat(layout.corner_x) * height / diagonal
+    dy = CGFloat(layout.corner_y) * width / diagonal
+  } else {
+    let angle = CGFloat(layout.angle).truncatingRemainder(dividingBy: 360)
+    switch angle < 0 ? angle + 360 : angle {
+    case 0: (dx, dy) = (0, -1)
+    case 90: (dx, dy) = (1, 0)
+    case 180: (dx, dy) = (0, 1)
+    case 270: (dx, dy) = (-1, 0)
+    default:
+      let radians = angle * .pi / 180
+      (dx, dy) = (sin(radians), -cos(radians))
+    }
+  }
   let half = (abs(width * dx) + abs(height * dy)) / 2
   let cx = width / 2
   let cy = height / 2
   return (CGPoint(x: cx - dx * half, y: cy - dy * half), CGPoint(x: cx + dx * half, y: cy + dy * half))
-}
-
-/// Unit vector of the gradient line (y down); `to bottom` when unset or unreadable.
-private func linearGradientDirection(_ direction: String?, width: CGFloat, height: CGFloat) -> (CGFloat, CGFloat) {
-  let dir = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-  if dir.hasPrefix("to ") {
-    var x: CGFloat = 0
-    var y: CGFloat = 0
-    for word in dir.dropFirst(3).split(separator: " ") {
-      switch word {
-      case "top": y = -1
-      case "bottom": y = 1
-      case "left": x = -1
-      case "right": x = 1
-      default: return (0, 1)
-      }
-    }
-    if x != 0 && y != 0 {
-      let n = hypot(width, height)
-      return n > 0 ? (x * height / n, y * width / n) : (0, 1)
-    }
-    return x == 0 && y == 0 ? (0, 1) : (x, y)
-  }
-  guard let turns = cssAngleInTurns(dir) else { return (0, 1) }
-  let rad = CGFloat(turns) * 2 * .pi
-  return (sin(rad), -cos(rad))
 }
 
 /// A repeating gradient's stops tiled across 0...1: the first-to-last stop span repeats both
@@ -582,25 +580,11 @@ func sampleGradient(_ colors: [CGColor], _ locations: [CGFloat], _ t: CGFloat) -
 
 /// A conic gradient over a `width` x `height` tile. CoreGraphics has none, so it is drawn as
 /// thin wedges around the centre (about 2pt of arc each at the far corner).
-private func drawConicGradient(context: CGContext, colors: [CGColor], locations: [CGFloat], direction: String?, width: CGFloat, height: CGFloat) {
+private func drawConicGradient(context: CGContext, colors: [CGColor], locations: [CGFloat],
+                               layout: CMasonCssGradientLayout, width: CGFloat, height: CGFloat) {
   guard !colors.isEmpty else { return }
-  var from: Double = 0
-  var center = CGPoint(x: width / 2, y: height / 2)
-  if let dir = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-    var rest = dir
-    var position: String? = nil
-    if let at = dir.range(of: "at "), at.lowerBound == dir.startIndex || dir[dir.index(before: at.lowerBound)] == " " {
-      position = String(dir[at.upperBound...]).trimmingCharacters(in: .whitespaces)
-      rest = String(dir[..<at.lowerBound])
-    }
-    let tokens = rest.split(separator: " ").map(String.init)
-    if let i = tokens.firstIndex(of: "from"), i + 1 < tokens.count, let turns = cssAngleInTurns(tokens[i + 1]) {
-      from = turns
-    }
-    if let position = position, !position.isEmpty {
-      center = resolvePositionKeywords(position, width: width, height: height)
-    }
-  }
+  let from = Double(layout.angle) / 360
+  let center = CGPoint(x: CGFloat(layout.center_x), y: CGFloat(layout.center_y))
   let radius = [
     hypot(center.x, center.y), hypot(width - center.x, center.y),
     hypot(center.x, height - center.y), hypot(width - center.x, height - center.y)
@@ -630,24 +614,6 @@ private func drawConicGradient(context: CGContext, colors: [CGColor], locations:
   context.restoreGState()
 }
 
-/// Resolve the centre point of a radial-gradient from the CSS direction string.
-///
-/// Accepted formats: "circle at top left", "ellipse at 30% 70%",
-/// "at center", "circle", etc.  Defaults to the element centre (50% 50%).
-func resolveRadialGradientCenter(direction: String?, width: CGFloat, height: CGFloat) -> CGPoint {
-  let defaultCenter = CGPoint(x: width / 2, y: height / 2)
-  guard let dir = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
-    return defaultCenter
-  }
-
-  // Extract the portion after "at " (`at 30% 70%` alone has no shape before it)
-  guard let atRange = dir.hasPrefix("at ") ? dir.range(of: "at ") : dir.range(of: " at ") else { return defaultCenter }
-  let positionStr = String(dir[atRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-  if positionStr.isEmpty { return defaultCenter }
-
-  return resolvePositionKeywords(positionStr, width: width, height: height)
-}
-
 /// A radial gradient's centre and ending shape radii, in points.
 struct RadialGradientShape: Equatable {
   var center: CGPoint
@@ -662,168 +628,12 @@ struct RadialGradientShape: Equatable {
   }
 }
 
-/// The ending shape of `radial-gradient(<shape> <size> at <position>, ...)` per CSS Images 3:
-/// `circle` or `ellipse`, a size keyword (default `farthest-corner`) or explicit radii.
-func resolveRadialGradientShape(direction: String?, width: CGFloat, height: CGFloat) -> RadialGradientShape {
-  let center = resolveRadialGradientCenter(direction: direction, width: width, height: height)
-  var prelude = direction?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-  if prelude.hasPrefix("at ") {
-    prelude = ""
-  } else if let at = prelude.range(of: " at ") {
-    prelude = String(prelude[..<at.lowerBound])
+extension RadialGradientShape {
+  init(layout: CMasonCssGradientLayout) {
+    center = CGPoint(x: CGFloat(layout.center_x), y: CGFloat(layout.center_y))
+    rx = max(0.01, CGFloat(layout.radius_x))
+    ry = max(0.01, CGFloat(layout.radius_y))
   }
-  var circle = false, ellipse = false
-  var keyword = "farthest-corner"
-  var radii: [CGFloat] = []
-  for token in prelude.split(separator: " ").map(String.init) {
-    switch token {
-    case "circle": circle = true
-    case "ellipse": ellipse = true
-    case "closest-side", "closest-corner", "farthest-side", "farthest-corner": keyword = token
-    default:
-      switch parseLengthPercentage(token) {
-      case .Points(let px)?: radii.append(CGFloat(px) / CGFloat(NSCMason.scale))
-      case .Percent(let f)?: radii.append(CGFloat(f) * (radii.isEmpty ? width : height))
-      default: break
-      }
-    }
-  }
-  // One length and no shape keyword is a circle.
-  if !ellipse && radii.count == 1 { circle = true }
-  let minRadius: CGFloat = 0.01
-  if circle, let r = radii.first {
-    return RadialGradientShape(center: center, rx: max(r, minRadius), ry: max(r, minRadius))
-  }
-  if !circle && radii.count >= 2 {
-    return RadialGradientShape(center: center, rx: max(radii[0], minRadius), ry: max(radii[1], minRadius))
-  }
-  let closest = keyword.hasPrefix("closest")
-  let sx = closest ? min(center.x, width - center.x) : max(center.x, width - center.x)
-  let sy = closest ? min(center.y, height - center.y) : max(center.y, height - center.y)
-  var rx: CGFloat, ry: CGFloat
-  if circle {
-    let r = keyword.hasSuffix("corner") ? hypot(sx, sy) : (closest ? min(sx, sy) : max(sx, sy))
-    rx = r
-    ry = r
-  } else {
-    // A corner ellipse keeps the side ellipse's aspect ratio and passes through the corner.
-    let k: CGFloat = keyword.hasSuffix("corner") ? sqrt(2) : 1
-    rx = sx * k
-    ry = sy * k
-  }
-  return RadialGradientShape(center: center, rx: max(rx, minRadius), ry: max(ry, minRadius))
-}
-
-/// Convert a CSS background-position value (keyword or percentage based) to
-/// absolute pixel coordinates.
-private func resolvePositionKeywords(_ position: String, width: CGFloat, height: CGFloat) -> CGPoint {
-  let parts = position.split(separator: " ").map { String($0) }
-
-  func resolveToken(_ token: String, horizontal: Bool) -> CGFloat {
-    switch token {
-    case "left":   return 0
-    case "right":  return width
-    case "top":    return 0
-    case "bottom": return height
-    case "center": return horizontal ? width / 2 : height / 2
-    default:
-      if token.hasSuffix("%"), let pct = Double(token.dropLast()) {
-        return CGFloat(pct / 100) * (horizontal ? width : height)
-      }
-      let cleaned = token.hasSuffix("px") ? String(token.dropLast(2)) : token
-      if let px = Double(cleaned) { return CGFloat(px) }
-      return horizontal ? width / 2 : height / 2
-    }
-  }
-
-  if parts.count == 1 {
-    switch parts[0] {
-    case "top":    return CGPoint(x: width / 2, y: 0)
-    case "bottom": return CGPoint(x: width / 2, y: height)
-    default:
-      let x = resolveToken(parts[0], horizontal: true)
-      return CGPoint(x: x, y: height / 2)
-    }
-  }
-
-  return CGPoint(
-    x: resolveToken(parts[0], horizontal: true),
-    y: resolveToken(parts[1], horizontal: false)
-  )
-}
-
-// MARK: - Gradient Stop Parsing
-/// Parse gradient stop strings (e.g. "transparent 66%", "red 20px", "rgba(0,0,0,0.5)").
-/// Returns parallel arrays of CGColor and CGFloat positions following CSS inference rules.
-/// A length is placed as a fraction of `lineLength` (points), and is unplaced without one.
-func parseGradientStops(_ stops: [String], lineLength: CGFloat = 0) -> (colors: [CGColor], locations: [CGFloat]) {
-  var parsedColors: [CGColor?] = []
-  var parsedPositions: [CGFloat?] = []
-  for raw in stops {
-    let trimmed = raw.trimmingCharacters(in: .whitespaces)
-    var depth = 0
-    var lastSpace: String.Index? = nil
-    for idx in trimmed.indices {
-      let ch = trimmed[idx]
-      if ch == "(" { depth += 1 }
-      else if ch == ")" { depth -= 1 }
-      else if ch == " " && depth == 0 { lastSpace = idx }
-    }
-    if let spaceIdx = lastSpace {
-      let colorPart = String(trimmed[trimmed.startIndex..<spaceIdx])
-      let posPart = String(trimmed[trimmed.index(after: spaceIdx)...]).trimmingCharacters(in: .whitespaces)
-      let color = colorMap[colorPart]?.cgColor ?? UIColor(css: colorPart)?.cgColor
-      var position: CGFloat? = nil
-      if posPart.hasSuffix("%"), let val = Double(posPart.dropLast()) {
-        position = CGFloat(val / 100.0)
-      } else if let val = Double(posPart) {
-        position = CGFloat(val <= 1.0 ? val : val / 100.0)
-      } else if lineLength > 0, case .Points(let px)? = parseLengthPercentage(posPart) {
-        position = CGFloat(px) / CGFloat(NSCMason.scale) / lineLength
-      }
-      parsedColors.append(color)
-      parsedPositions.append(position)
-    } else {
-      parsedColors.append(colorMap[trimmed]?.cgColor ?? UIColor(css: trimmed)?.cgColor)
-      parsedPositions.append(nil)
-    }
-  }
-  // CSS position inference: unspecified stops distribute evenly between anchored neighbors.
-  let n = parsedPositions.count
-  if n > 0 {
-    if parsedPositions[0] == nil { parsedPositions[0] = 0.0 }
-    if parsedPositions[n - 1] == nil { parsedPositions[n - 1] = 1.0 }
-    // A stop placed before an earlier one moves up to it.
-    var furthest = -CGFloat.greatestFiniteMagnitude
-    for k in 0..<n {
-      guard let p = parsedPositions[k] else { continue }
-      if p < furthest { parsedPositions[k] = furthest } else { furthest = p }
-    }
-    // Forward pass: fill runs of nil between anchors by linear interpolation.
-    var i = 0
-    while i < n {
-      if parsedPositions[i] == nil {
-        var j = i + 1
-        while j < n && parsedPositions[j] == nil { j += 1 }
-        let start = parsedPositions[i - 1] ?? 0.0
-        let end = parsedPositions[j < n ? j : n - 1] ?? 1.0
-        let steps = j - i + 1
-        for k in i..<j {
-          parsedPositions[k] = start + (end - start) * CGFloat(k - i + 1) / CGFloat(steps)
-        }
-        i = j
-      } else {
-        i += 1
-      }
-    }
-  }
-  let validPairs = zip(parsedColors, parsedPositions).compactMap { (c, p) -> (CGColor, CGFloat)? in
-    guard let color = c, let pos = p else { return nil }
-    return (color, pos)
-  }
-  let colors = validPairs.map { $0.0 }
-  let locations = validPairs.map { $0.1 }
-  return (colors, locations)
 }
 
 // MARK: - Image Loading

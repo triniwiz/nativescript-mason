@@ -163,6 +163,48 @@ namespace winrt::NativeScript::Mason::implementation
             sGridTemplateAreas.c_str());
     }
 
+    void Style::SetGridCss(int32_t property, hstring const& value,
+        float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        auto input = std::to_string(property);
+        input.push_back('\0');
+        const auto css = U8(value);
+        if (css.find('\0') != std::string::npos) return;
+        input.append(css);
+        mason_css_apply_grid(m_mason, m_node,
+            { reinterpret_cast<const uint8_t*>(input.data()), input.size() },
+            fontSize, rootFontSize, viewportWidth, viewportHeight);
+    }
+
+    bool Style::ApplyLayoutLength(hstring const& property, hstring const& value,
+        float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        const auto name = U8(property);
+        const auto css = U8(value);
+        return mason_css_apply_layout_length(m_mason, m_node, name.c_str(), css.c_str(),
+            fontSize, rootFontSize, viewportWidth, viewportHeight);
+    }
+
+    hstring Style::LayoutLengthCss(hstring const& property)
+    {
+        return TakeCss(mason_css_copy_layout_length(m_mason, m_node, U8(property).c_str()));
+    }
+
+    bool Style::ApplyLayoutLengthForState(uint32_t flags, hstring const& property, hstring const& value,
+        float fontSize, float rootFontSize, float viewportWidth, float viewportHeight)
+    {
+        const auto name = U8(property);
+        const auto css = U8(value);
+        return mason_css_apply_layout_length_for_state(m_mason, m_node, static_cast<uint16_t>(flags),
+            name.c_str(), css.c_str(), fontSize, rootFontSize, viewportWidth, viewportHeight);
+    }
+
+    hstring Style::LayoutLengthCssForState(uint32_t flags, hstring const& property)
+    {
+        return TakeCss(mason_css_copy_layout_length_for_state(m_mason, m_node,
+            static_cast<uint16_t>(flags), U8(property).c_str()));
+    }
+
     void Style::PrepareForMutation()
     {
         if (m_mason == nullptr || m_node == nullptr) return;

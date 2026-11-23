@@ -8,6 +8,30 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef struct CMasonCssBackground CMasonCssBackground;
+
+typedef struct CMasonCssBackgroundLonghand CMasonCssBackgroundLonghand;
+
+typedef struct CMasonCssClipPath CMasonCssClipPath;
+
+typedef struct CMasonCssEffects CMasonCssEffects;
+
+typedef struct CMasonCssFilter CMasonCssFilter;
+
+typedef struct CMasonCssGradient CMasonCssGradient;
+
+typedef struct CMasonCssMask CMasonCssMask;
+
+typedef struct CMasonCssNineSlice CMasonCssNineSlice;
+
+typedef struct CMasonCssPaintOffset CMasonCssPaintOffset;
+
+typedef struct CMasonCssRecordsOwner CMasonCssRecordsOwner;
+
+typedef struct CMasonCssShorthandOwner CMasonCssShorthandOwner;
+
+typedef struct CMasonCssTransform CMasonCssTransform;
+
 typedef Mason CMason;
 
 typedef NodeRef CMasonNode;
@@ -25,6 +49,115 @@ typedef struct CMasonUaDefault {
   float margin_left;
   float margin_right;
 } CMasonUaDefault;
+
+typedef struct CMasonCssValues {
+  const double *values;
+  uintptr_t len;
+} CMasonCssValues;
+
+typedef struct CMasonCssText {
+  const uint8_t *bytes;
+  uintptr_t len;
+} CMasonCssText;
+
+typedef struct CMasonStyleRecords {
+  const double *values;
+  uintptr_t len;
+  struct CMasonCssRecordsOwner *owner;
+} CMasonStyleRecords;
+
+typedef struct CMasonCssEffectView {
+  struct CMasonCssText value;
+  const double *values;
+  uintptr_t len;
+  uint32_t current_color;
+  bool present;
+  struct CMasonCssFilter *filter;
+} CMasonCssEffectView;
+
+typedef struct CMasonCssShorthand {
+  const struct CMasonCssText *data;
+  uintptr_t len;
+  struct CMasonCssShorthandOwner *owner;
+} CMasonCssShorthand;
+
+typedef struct CMasonCssGradientInfo {
+  /**
+   * 0 = linear, 1 = radial, 2 = conic.
+   */
+  uint8_t kind;
+  bool repeating;
+  uintptr_t stop_count;
+  struct CMasonCssText direction;
+  struct CMasonCssText space;
+  struct CMasonCssText hue;
+} CMasonCssGradientInfo;
+
+typedef struct CMasonCssGradientStop {
+  uint32_t color;
+  float position;
+} CMasonCssGradientStop;
+
+typedef struct CMasonCssGradientLayout {
+  float angle;
+  float corner_x;
+  float corner_y;
+  float center_x;
+  float center_y;
+  float radius_x;
+  float radius_y;
+} CMasonCssGradientLayout;
+
+typedef struct CMasonCssOffset {
+  float fraction;
+  float pixels;
+  bool present;
+  /**
+   * Borrowed for the lifetime of this record.
+   */
+  const struct CMasonCssPaintOffset *math;
+} CMasonCssOffset;
+
+typedef struct CMasonCssBackgroundLayer {
+  /**
+   * 0 = no image, 1 = URL, 2 = CSS gradient.
+   */
+  uint8_t image_kind;
+  struct CMasonCssText image;
+  bool has_color;
+  uint32_t color;
+  uint8_t repeat_x;
+  uint8_t repeat_y;
+  struct CMasonCssOffset position_x;
+  struct CMasonCssOffset position_y;
+  /**
+   * 0 = omitted, 1 = explicit, 2 = contain, 3 = cover.
+   */
+  uint8_t size_kind;
+  struct CMasonCssOffset width;
+  struct CMasonCssOffset height;
+  uint8_t origin;
+  uint8_t clip;
+  uint8_t attachment;
+  uint8_t blend;
+} CMasonCssBackgroundLayer;
+
+typedef struct CMasonCssMaskLayer {
+  struct CMasonCssBackgroundLayer paint;
+  uint8_t clip;
+  uint8_t mode;
+  uint8_t composite;
+} CMasonCssMaskLayer;
+
+typedef struct CMasonCssMaskLayers {
+  const struct CMasonCssMaskLayer *data;
+  uintptr_t count;
+} CMasonCssMaskLayers;
+
+typedef struct CMasonCssBackgroundLayers {
+  const struct CMasonCssBackgroundLayer *data;
+  uintptr_t count;
+} CMasonCssBackgroundLayers;
 
 typedef struct CMasonInlineTextSegment {
   float width;
@@ -125,6 +258,754 @@ bool mason_ua_default_for_tag(const char *tag, struct CMasonUaDefault *out);
  * The bytes of the shared default style slot.
  */
 uint8_t *mason_default_style_ptr(CMason *mason);
+
+/**
+ * Parse a CSS shadow list (kind 0), filter chain (kind 1), length (kinds 2–4), transform origin (5), object position (6), line height (7), letter spacing (8), text indent (9), or word spacing (10). Release the returned
+ * values with mason_css_values_release. See mason_core::style::css for record layouts.
+ *
+ * # Safety
+ * input must be null or a valid NUL-terminated C string.
+ */
+struct CMasonCssValues mason_css_parse(const char *input,
+                                       uint8_t kind,
+                                       float scale,
+                                       float font_size,
+                                       float root_font_size,
+                                       float viewport_width,
+                                       float viewport_height,
+                                       uint32_t current_color);
+
+/**
+ * # Safety
+ * values must be an unreleased result of an API returning owned CMasonCssValues.
+ */
+void mason_css_values_release(struct CMasonCssValues values);
+
+/**
+ * Applies the sparse grid batch in source order.
+ * # Safety
+ * Handles are null or matching live Mason and node handles. Input points to input.len valid bytes.
+ */
+void mason_css_apply_grid(CMason *mason,
+                          const CMasonNode *node,
+                          struct CMasonCssText input,
+                          float font_size,
+                          float root_font_size,
+                          float viewport_width,
+                          float viewport_height);
+
+/**
+ * Stores one parsed layout value on the node's style.
+ * # Safety
+ * The handles must be null or refer to the same live tree. Non-null strings must be NUL-terminated.
+ */
+bool mason_css_apply_layout_length(CMason *mason,
+                                   const CMasonNode *node,
+                                   const char *property,
+                                   const char *value,
+                                   float font_size,
+                                   float root_font_size,
+                                   float viewport_width,
+                                   float viewport_height);
+
+/**
+ * Stores one parsed layout value on the base or pseudo style.
+ * # Safety
+ * The handles must be null or refer to the same live tree. Non-null strings must be NUL-terminated.
+ */
+bool mason_css_apply_layout_length_for_state(CMason *mason,
+                                             const CMasonNode *node,
+                                             uint16_t flags,
+                                             const char *property,
+                                             const char *value,
+                                             float font_size,
+                                             float root_font_size,
+                                             float viewport_width,
+                                             float viewport_height);
+
+/**
+ * Returns the authored expression. Release the result with `mason_util_destroy_string`.
+ * # Safety
+ * The handles must be null or refer to the same live tree. The property must be null or NUL-terminated.
+ */
+char *mason_css_copy_layout_length(const CMason *mason,
+                                   const CMasonNode *node,
+                                   const char *property);
+
+/**
+ * Returns the authored base or pseudo expression. Release the result with `mason_util_destroy_string`.
+ * # Safety
+ * The handles must be null or refer to the same live tree. The property must be null or NUL-terminated.
+ */
+char *mason_css_copy_layout_length_for_state(const CMason *mason,
+                                             const CMasonNode *node,
+                                             uint16_t flags,
+                                             const char *property);
+
+/**
+ * Parse and store a style list. The style schema defines the record IDs.
+ * The result keeps the immutable records alive independently of the style slot.
+ *
+ * # Safety
+ * Mason and node must be live matching handles. Pass only a node to defer
+ * installation until after layout, or pass two null handles for a detached result.
+ * Input is valid NUL-terminated CSS.
+ */
+struct CMasonStyleRecords mason_css_set_style_records(CMason *mason,
+                                                      const CMasonNode *node,
+                                                      uint8_t kind,
+                                                      const char *input,
+                                                      float scale,
+                                                      float font_size,
+                                                      float root_font_size,
+                                                      float viewport_width,
+                                                      float viewport_height,
+                                                      uint32_t current_color);
+
+/**
+ * Install deferred paint records after the tree lock has been released.
+ *
+ * # Safety
+ * Mason must be a live handle, outside a layout callback.
+ */
+void mason_css_flush_style_records(CMason *mason);
+
+/**
+ * # Safety
+ * input is null or valid NUL-terminated CSS. Release a non-null result once.
+ */
+struct CMasonCssFilter *mason_css_filter_parse(const char *input);
+
+/**
+ * Parse and install an ordered effect batch. Pass only the node to defer or
+ * two null handles for a detached projection.
+ * # Safety
+ * Mason and node are null or matching live handles. Input points to input.len valid bytes.
+ */
+struct CMasonCssEffects *mason_css_effect_batch_apply(CMason *mason,
+                                                      const CMasonNode *node,
+                                                      struct CMasonCssText input,
+                                                      float scale,
+                                                      float font_size,
+                                                      float root_font_size,
+                                                      float viewport_width,
+                                                      float viewport_height,
+                                                      uint32_t current_color);
+
+/**
+ * The view borrows strings and numeric records. Release a returned filter handle separately.
+ * # Safety
+ * Batch is a live handle.
+ */
+struct CMasonCssEffectView mason_css_effect_batch_get(const struct CMasonCssEffects *batch,
+                                                      uint8_t kind);
+
+/**
+ * # Safety
+ * Batch is null or an owned effect batch.
+ */
+void mason_css_effect_batch_release(struct CMasonCssEffects *batch);
+
+/**
+ * # Safety
+ * filter is null or an unreleased filter handle returned by this API.
+ */
+void mason_css_filter_release(struct CMasonCssFilter *filter);
+
+/**
+ * Resolve a parsed filter for the current units and color. Optional style
+ * pointers install the resulting records into that style's filter slot.
+ *
+ * # Safety
+ * filter is null or a live handle. Mason and node are matching live handles.
+ * Pass only the node to defer installation, or two null handles for a detached
+ * projection. Release the returned records once.
+ */
+struct CMasonStyleRecords mason_css_filter_project(const struct CMasonCssFilter *filter,
+                                                   CMason *mason,
+                                                   const CMasonNode *node,
+                                                   bool backdrop,
+                                                   float scale,
+                                                   float font_size,
+                                                   float root_font_size,
+                                                   float viewport_width,
+                                                   float viewport_height,
+                                                   uint32_t current_color);
+
+/**
+ * # Safety
+ * The record owner must be an unreleased result from mason_css_set_style_records.
+ */
+void mason_css_style_records_release(struct CMasonStyleRecords records);
+
+/**
+ * Project an existing CSS filter list for the Windows compositor. Release the
+ * returned string with mason_util_destroy_string.
+ *
+ * # Safety
+ * records is null or points to a live view of filter or backdrop-filter records.
+ * Its values must remain valid for the duration of the call.
+ */
+char *mason_css_windows_filter_spec(const struct CMasonStyleRecords *records);
+
+/**
+ * Parse a CSS transform list. Invalid and empty lists return null.
+ *
+ * # Safety
+ * Input is null or a valid NUL-terminated C string. Release a non-null result once.
+ */
+struct CMasonCssTransform *mason_css_transform_parse(const char *input);
+
+/**
+ * # Safety
+ * Transform is null or an unreleased transform handle.
+ */
+void mason_css_transform_release(struct CMasonCssTransform *transform);
+
+/**
+ * # Safety
+ * Transform must be a live handle.
+ */
+bool mason_css_transform_uses_box_size(const struct CMasonCssTransform *transform);
+
+/**
+ * # Safety
+ * Mason and node must be matching live handles. Pass only the node during
+ * layout. Transform must be a live handle, or null to clear the property.
+ */
+void mason_css_transform_install(CMason *mason,
+                                 const CMasonNode *node,
+                                 const struct CMasonCssTransform *transform);
+
+/**
+ * Compose the stored list for the current border box and units.
+ *
+ * # Safety
+ * Transform must be a live handle. Output must point to sixteen writable
+ * floats in column-major order.
+ */
+bool mason_css_transform_matrix(const struct CMasonCssTransform *transform,
+                                float width,
+                                float height,
+                                float font_size,
+                                float root_font_size,
+                                float viewport_width,
+                                float viewport_height,
+                                float *output);
+
+/**
+ * Install and project a transform onto the element's plane for a 2D
+ * compositor. Reuse the style's parsed list when its input is unchanged.
+ *
+ * # Safety
+ * input must be null or a valid NUL-terminated C string. output must be null
+ * or a pointer to six writable floats. Mason and node must be matching live
+ * handles or both null for a detached projection.
+ */
+bool mason_css_transform_affine(CMason *mason,
+                                const CMasonNode *node,
+                                const char *input,
+                                float width,
+                                float height,
+                                float font_size,
+                                float root_font_size,
+                                float viewport_width,
+                                float viewport_height,
+                                float *output);
+
+/**
+ * # Safety
+ * Input is null or a valid NUL-terminated C string. Release a non-null result once.
+ */
+struct CMasonCssClipPath *mason_css_clip_path_parse(const char *input);
+
+/**
+ * # Safety
+ * Clip path is null or an unreleased handle.
+ */
+void mason_css_clip_path_release(struct CMasonCssClipPath *clip);
+
+/**
+ * # Safety
+ * Mason and node must be matching live handles. Pass only the node during
+ * layout. Clip must be a live handle, or null to clear the property.
+ */
+void mason_css_clip_path_install(CMason *mason,
+                                 const CMasonNode *node,
+                                 const struct CMasonCssClipPath *clip);
+
+/**
+ * # Safety
+ * Clip must be a live handle. Release records with mason_css_values_release.
+ */
+struct CMasonCssValues mason_css_clip_path_records(const struct CMasonCssClipPath *clip,
+                                                   float scale,
+                                                   float font_size,
+                                                   float root_font_size,
+                                                   float viewport_width,
+                                                   float viewport_height);
+
+/**
+ * Get a retained math value for a clip-path length pair in projection order.
+ * # Safety
+ * Clip must be live. Release a non-null result with mason_css_paint_offset_release.
+ */
+struct CMasonCssPaintOffset *mason_css_clip_path_offset(const struct CMasonCssClipPath *clip,
+                                                        uintptr_t index,
+                                                        float scale,
+                                                        float font_size,
+                                                        float root_font_size,
+                                                        float viewport_width,
+                                                        float viewport_height);
+
+/**
+ * # Safety
+ * Input is null or a valid NUL-terminated string. Release the returned
+ * absolute SVG path records with mason_css_values_release.
+ */
+struct CMasonCssValues mason_css_svg_path_records(const char *input);
+
+/**
+ * Install a typed text-overflow value, or enqueue it when called during layout.
+ *
+ * # Safety
+ * Node and non-null Mason must be live matching handles. Token points to
+ * `len` valid UTF-8 bytes and may be null when its length is zero.
+ */
+void mason_css_text_overflow_set(CMason *mason,
+                                 const CMasonNode *node,
+                                 uint8_t kind,
+                                 struct CMasonCssText token);
+
+/**
+ * # Safety
+ * Text points to `len` bytes or has length zero. Release a returned token once.
+ */
+uint64_t mason_css_text_overflow_detached(struct CMasonCssText text);
+
+void mason_css_text_overflow_release_detached(uint64_t key);
+
+/**
+ * Copy the UTF-8 text for a style token. Release any non-null owner once.
+ */
+struct CMasonCssShorthand mason_css_text_overflow_token(uint64_t key);
+
+/**
+ * Expand a supported shorthand into CSS text in its longhand order.
+ *
+ * # Safety
+ * Both inputs must be valid NUL-terminated strings. Release a non-null owner once.
+ */
+struct CMasonCssShorthand mason_css_shorthand_expand(const char *name, const char *value);
+
+/**
+ * Compile an ordered inline declaration list with the element's unit context.
+ *
+ * # Safety
+ * The input must be null or a valid NUL-terminated string. Release the returned owner once.
+ */
+struct CMasonCssShorthand mason_css_compile_inline(const char *input,
+                                                   float scale,
+                                                   float font_size,
+                                                   float parent_font_size,
+                                                   float root_font_size,
+                                                   float viewport_width,
+                                                   float viewport_height,
+                                                   bool viewport_refresh);
+
+/**
+ * Compile inline CSS with a dependency header for viewport replay. Pass NaN
+ * as previous_font_size when applying the declaration list for the first time.
+ * # Safety
+ * The input must be null or a valid NUL-terminated string. Release the returned owner once.
+ */
+struct CMasonCssShorthand mason_css_compile_inline_replay(const char *input,
+                                                          float scale,
+                                                          float font_size,
+                                                          float parent_font_size,
+                                                          float root_font_size,
+                                                          float viewport_width,
+                                                          float viewport_height,
+                                                          float previous_font_size);
+
+/**
+ * # Safety
+ * Owner is null or an unreleased result from a function returning CMasonCssShorthand.
+ */
+void mason_css_shorthand_release(struct CMasonCssShorthandOwner *owner);
+
+/**
+ * # Safety
+ * Input is null or a valid NUL-terminated string. Release a non-null result once.
+ */
+struct CMasonCssGradient *mason_css_gradient_parse(const char *input, uint32_t current_color);
+
+/**
+ * # Safety
+ * Gradient is null or an owned handle from mason_css_gradient_parse.
+ */
+void mason_css_gradient_release(struct CMasonCssGradient *gradient);
+
+/**
+ * # Safety
+ * Gradient must be a live handle. Text slices in the result borrow the handle.
+ */
+struct CMasonCssGradientInfo mason_css_gradient_info(const struct CMasonCssGradient *gradient);
+
+/**
+ * Resolve gradient stops into a buffer sized from mason_css_gradient_info.
+ * line_length and scale must use the same output unit.
+ *
+ * # Safety
+ * Gradient must be a live handle. Output points to at least stop_count writable records.
+ */
+void mason_css_gradient_resolve(const struct CMasonCssGradient *gradient,
+                                float line_length,
+                                float scale,
+                                float font_size,
+                                float root_font_size,
+                                float viewport_width,
+                                float viewport_height,
+                                struct CMasonCssGradientStop *output);
+
+/**
+ * # Safety
+ * Gradient must be a live handle. Width, height and scale use the same output unit.
+ */
+struct CMasonCssGradientLayout mason_css_gradient_layout(const struct CMasonCssGradient *gradient,
+                                                         float width,
+                                                         float height,
+                                                         float scale,
+                                                         float font_size,
+                                                         float root_font_size,
+                                                         float viewport_width,
+                                                         float viewport_height);
+
+/**
+ * # Safety
+ * Both text inputs must be valid NUL-terminated strings. Release a non-null result once.
+ */
+struct CMasonCssBackgroundLonghand *mason_css_background_longhand_parse(const char *property,
+                                                                        const char *value,
+                                                                        bool allow_invalid_entries);
+
+/**
+ * Resolve a parsed longhand to six-number records. Release the result with
+ * mason_css_values_release.
+ *
+ * # Safety
+ * longhand must be a live handle.
+ */
+struct CMasonCssValues mason_css_background_longhand_records(const struct CMasonCssBackgroundLonghand *longhand,
+                                                             float scale,
+                                                             float root_font_size,
+                                                             float viewport_width,
+                                                             float viewport_height);
+
+/**
+ * # Safety
+ * longhand is null or an unreleased handle from mason_css_background_longhand_parse.
+ */
+void mason_css_background_longhand_release(struct CMasonCssBackgroundLonghand *longhand);
+
+/**
+ * Get a retained math offset from a standalone parsed longhand.
+ * # Safety
+ * The longhand must be live. Release a non-null result with mason_css_paint_offset_release.
+ */
+struct CMasonCssPaintOffset *mason_css_background_longhand_offset(const struct CMasonCssBackgroundLonghand *longhand,
+                                                                  uintptr_t index,
+                                                                  float scale,
+                                                                  float root_font_size,
+                                                                  float viewport_width,
+                                                                  float viewport_height);
+
+/**
+ * # Safety
+ * The offset must be a live program borrowed from a paint record. Release the result once.
+ */
+struct CMasonCssPaintOffset *mason_css_paint_offset_retain(const struct CMasonCssPaintOffset *offset);
+
+/**
+ * # Safety
+ * The offset is null or an owned handle. Borrowed paint record pointers are released by Rust.
+ */
+void mason_css_paint_offset_release(struct CMasonCssPaintOffset *offset);
+
+/**
+ * Resolve against a size or the free space after laying out a tile.
+ * Pass a zero scale to use the record's original unit context.
+ * # Safety
+ * The offset must be live.
+ */
+float mason_css_paint_offset_resolve(const struct CMasonCssPaintOffset *offset,
+                                     float basis,
+                                     float scale,
+                                     float font_size,
+                                     float root_font_size,
+                                     float viewport_width,
+                                     float viewport_height);
+
+/**
+ * # Safety
+ * The offset must be live. Release a non-null result with mason_util_destroy_string.
+ */
+char *mason_css_paint_offset_text(const struct CMasonCssPaintOffset *offset, bool horizontal);
+
+/**
+ * Parse the eight mask layer longhands in image, size, position, repeat,
+ * origin, clip, mode, composite order. Invalid image slots remain transparent.
+ *
+ * # Safety
+ * Input must point to eight null or valid NUL-terminated string pointers.
+ * Release a non-null result with mason_css_mask_release.
+ */
+struct CMasonCssMask *mason_css_mask_parse(const char *const *input,
+                                           uint32_t current_color,
+                                           float scale,
+                                           float font_size,
+                                           float root_font_size,
+                                           float viewport_width,
+                                           float viewport_height);
+
+/**
+ * # Safety
+ * Mask must be a live handle. The result borrows the layers and image strings.
+ */
+struct CMasonCssMaskLayers mason_css_mask_layers(const struct CMasonCssMask *mask);
+
+/**
+ * # Safety
+ * Mask must be a live handle. Release a non-null result with mason_css_gradient_release.
+ */
+struct CMasonCssGradient *mason_css_mask_gradient(const struct CMasonCssMask *mask,
+                                                  uintptr_t index);
+
+/**
+ * # Safety
+ * Mason and node must be matching live handles. Pass only a node during a
+ * layout pass. Mask must be a live handle, or null to clear the layers.
+ */
+void mason_css_mask_install(CMason *mason,
+                            const CMasonNode *node,
+                            const struct CMasonCssMask *mask);
+
+/**
+ * # Safety
+ * Mask is null or an unreleased handle from mason_css_mask_parse.
+ */
+void mason_css_mask_release(struct CMasonCssMask *mask);
+
+/**
+ * Parse the border-image shorthand. A valid declaration with no image still returns a handle.
+ *
+ * # Safety
+ * Input must be a valid NUL-terminated string. Release the result with mason_css_nine_slice_release.
+ */
+struct CMasonCssNineSlice *mason_css_border_image_parse(const char *input,
+                                                        uint32_t color);
+
+/**
+ * Parse mask-border longhands in source, slice, width, outset, repeat, mode order.
+ *
+ * # Safety
+ * Input must point to six null or valid NUL-terminated string pointers.
+ * Release the result with mason_css_nine_slice_release.
+ */
+struct CMasonCssNineSlice *mason_css_mask_border_parse(const char *const *input, uint32_t color);
+
+/**
+ * # Safety
+ * Spec is null or a live handle. Release returned values with mason_css_values_release.
+ */
+struct CMasonCssValues mason_css_nine_slice_values(const struct CMasonCssNineSlice *spec,
+                                                   float scale,
+                                                   float font_size,
+                                                   float root_font_size,
+                                                   float viewport_width,
+                                                   float viewport_height);
+
+/**
+ * Get a retained width formula, indexed in top/right/bottom/left order.
+ * # Safety
+ * Spec is null or a live handle. Release a non-null result with mason_css_paint_offset_release.
+ */
+struct CMasonCssPaintOffset *mason_css_nine_slice_width_offset(const struct CMasonCssNineSlice *spec,
+                                                               uintptr_t index,
+                                                               float scale,
+                                                               float font_size,
+                                                               float root_font_size,
+                                                               float viewport_width,
+                                                               float viewport_height);
+
+/**
+ * # Safety
+ * Spec is null or a live handle. The returned source declaration borrows from the spec.
+ */
+struct CMasonCssText mason_css_nine_slice_source(const struct CMasonCssNineSlice *spec);
+
+/**
+ * # Safety
+ * Spec is null or a live handle. The returned URL borrows from the spec.
+ */
+struct CMasonCssText mason_css_nine_slice_url(const struct CMasonCssNineSlice *spec);
+
+/**
+ * # Safety
+ * Spec is null or a live handle. Release the result with mason_css_gradient_release.
+ */
+struct CMasonCssGradient *mason_css_nine_slice_gradient(const struct CMasonCssNineSlice *spec);
+
+/**
+ * # Safety
+ * Mason and node must be matching live handles. Pass only a node during a
+ * layout pass. Spec must be a live handle or null to clear this group.
+ */
+void mason_css_nine_slice_install(CMason *mason,
+                                  const CMasonNode *node,
+                                  const struct CMasonCssNineSlice *spec,
+                                  bool mask);
+
+/**
+ * # Safety
+ * Spec is null or an unreleased handle from a nine-slice parse function.
+ */
+void mason_css_nine_slice_release(struct CMasonCssNineSlice *spec);
+
+/**
+ * Creates an empty background. Release the result once.
+ */
+struct CMasonCssBackground *mason_css_background_create(void);
+
+/**
+ * # Safety
+ * Input is null or a valid NUL-terminated string. Release a non-null result once.
+ */
+struct CMasonCssBackground *mason_css_background_parse(const char *input,
+                                                       uint32_t current_color,
+                                                       float scale,
+                                                       float font_size,
+                                                       float root_font_size,
+                                                       float viewport_width,
+                                                       float viewport_height);
+
+/**
+ * Replace the layers, retaining authored mobile longhands.
+ * Returns the ARGB shorthand color, -1 for no color, or -2 for invalid input.
+ * # Safety
+ * Background is a live exclusive handle and input is NUL-terminated.
+ */
+int64_t mason_css_background_mobile_replace(struct CMasonCssBackground *background,
+                                            const char *input,
+                                            uint32_t current_color,
+                                            float scale,
+                                            float root_font_size,
+                                            float viewport_width,
+                                            float viewport_height);
+
+/**
+ * Save an authored longhand. Returns -1 for invalid input, 0 if only the
+ * saved longhands changed, and 1 if the current layers were also updated.
+ * # Safety
+ * Background is a live exclusive handle and text inputs are NUL-terminated.
+ */
+int32_t mason_css_background_mobile_set_longhand(struct CMasonCssBackground *background,
+                                                 const char *property,
+                                                 const char *value,
+                                                 float scale,
+                                                 float root_font_size,
+                                                 float viewport_width,
+                                                 float viewport_height);
+
+/**
+ * Applies a UTF-8 batch of background declarations and writes the final update fields.
+ * # Safety
+ * Background is a live exclusive handle. Input points to input.len valid bytes.
+ * Result points to result_len writable i64s and does not overlap the input or handle.
+ */
+bool mason_css_background_mobile_apply(struct CMasonCssBackground *background,
+                                       struct CMasonCssText input,
+                                       uint32_t current_color,
+                                       float scale,
+                                       float font_size,
+                                       float root_font_size,
+                                       float viewport_width,
+                                       float viewport_height,
+                                       int64_t *result,
+                                       uintptr_t result_len);
+
+/**
+ * Applies a desktop background batch, returning a new snapshot for the renderer.
+ * # Safety
+ * Previous is null or a live background handle. Input points to input.len valid bytes.
+ * Result points to result_len writable i64s and does not overlap the input or previous handle.
+ * Release a non-null result with mason_css_background_release.
+ */
+struct CMasonCssBackground *mason_css_background_desktop_update(const struct CMasonCssBackground *previous,
+                                                                struct CMasonCssText input,
+                                                                uint32_t current_color,
+                                                                float font_size,
+                                                                float root_font_size,
+                                                                float viewport_width,
+                                                                float viewport_height,
+                                                                int64_t *result,
+                                                                uintptr_t result_len);
+
+/**
+ * Apply one longhand, cycling its values across layers. Invalid lists leave
+ * all the layers unchanged.
+ *
+ * # Safety
+ * Background is an exclusively owned live handle. Text inputs are valid
+ * NUL-terminated strings. Prior borrows of the layer records must end first.
+ */
+bool mason_css_background_set_longhand(struct CMasonCssBackground *background,
+                                       const char *property,
+                                       const char *value);
+
+/**
+ * # Safety
+ * Both handles must be live. End any borrowed layer reads before applying a longhand.
+ */
+void mason_css_background_apply_longhand(struct CMasonCssBackground *background,
+                                         const struct CMasonCssBackgroundLonghand *longhand);
+
+/**
+ * # Safety
+ * Background must be a live handle. End any borrowed layer reads first.
+ */
+void mason_css_background_retain_mobile_layers(struct CMasonCssBackground *background);
+
+/**
+ * Shares a parsed layer's stops with a renderer. Release a non-null result
+ * once with mason_css_gradient_release.
+ *
+ * # Safety
+ * Background must be a live handle.
+ */
+struct CMasonCssGradient *mason_css_background_gradient(const struct CMasonCssBackground *background,
+                                                        uintptr_t index);
+
+/**
+ * # Safety
+ * Mason and node must be matching live handles. Pass only a node during a
+ * layout pass. Background must be a live handle, or null to clear the layers.
+ */
+void mason_css_background_install(CMason *mason,
+                                  const CMasonNode *node,
+                                  const struct CMasonCssBackground *background);
+
+/**
+ * # Safety
+ * Background must be a live handle. The result borrows its layers and image strings.
+ */
+struct CMasonCssBackgroundLayers mason_css_background_layers(const struct CMasonCssBackground *background);
+
+/**
+ * # Safety
+ * Background is null or an owned background handle.
+ */
+void mason_css_background_release(struct CMasonCssBackground *background);
 
 void mason_node_set_segments(CMason *mason,
                              CMasonNode *node,

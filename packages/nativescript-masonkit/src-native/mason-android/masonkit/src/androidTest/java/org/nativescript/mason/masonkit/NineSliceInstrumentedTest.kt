@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.graphics.Color
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -9,11 +10,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** `border-image` / `mask-border` parsing and the shared 9-slice geometry (NineSlice.kt). */
-class NineSliceTest {
+class NineSliceInstrumentedTest {
+
+  @Test
+  fun settersKeepIndependentRustRecords() {
+    val mason = Mason()
+    val node = mason.createNode()
+    val sibling = mason.createNode()
+    node.style.borderImage = "linear-gradient(black, white) 1"
+    assertEquals(1, node.style.values.getInt(StyleKeys.BORDER_IMAGE_REVISION))
+    assertEquals(0, sibling.style.values.getInt(StyleKeys.BORDER_IMAGE_REVISION))
+    node.style.maskBorderSource = "url(a.svg)"
+    node.style.maskBorderSlice = "10"
+    node.style.mMask!!.currentLayers()
+    assertEquals(1, node.style.values.getInt(StyleKeys.MASK_BORDER_REVISION))
+    node.style.borderImage = "none"
+    assertEquals(2, node.style.values.getInt(StyleKeys.BORDER_IMAGE_REVISION))
+    assertEquals(1, node.style.values.getInt(StyleKeys.MASK_BORDER_REVISION))
+  }
+
 
   private val ctx = LengthContext(scale = 1f)
   private fun num(v: Float) = CssLength(v, null)
-  private fun px(v: Float) = CssLength(v, "px")
+  private fun px(v: Float) = CssLength(v, "dppx")
   private fun pct(v: Float) = CssLength(v, "%")
 
   private val svgSquare =
@@ -48,17 +67,6 @@ class NineSliceTest {
   }
 
   @Test
-  fun borderImageWidthOrOutsetOnly() {
-    val widthOnly = parseBorderImage("linear-gradient(red, blue) 10% / 5px 2")!!
-    assertEquals("linear", parseMaskGradient(widthOnly.source)?.type)
-    assertEquals(listOf(px(5f), num(2f), px(5f), num(2f)), widthOnly.width)
-    assertEquals(List(4) { num(0f) }, widthOnly.outset)
-    val outsetOnly = parseBorderImage("url(a.png) 10 / / 4px")!!
-    assertEquals(List(4) { num(1f) }, outsetOnly.width)
-    assertEquals(List(4) { px(4f) }, outsetOnly.outset)
-  }
-
-  @Test
   fun borderImageNothingToDraw() {
     assertNull(parseBorderImage(""))
     assertNull(parseBorderImage("none"))
@@ -88,42 +96,51 @@ class NineSliceTest {
 
   @Test
   fun maskBorderShorthand() {
-    val l = splitBorderImageShorthand("url(a.png) 30 luminance", mask = true)!!
+    val l = Mason.expandCssShorthand("mask-border", "url(a.png) 30 luminance")!!
     assertArrayEquals(arrayOf("url(a.png)", "30", "auto", "0", "stretch", "luminance"), l)
-    val d = splitBorderImageShorthand("url(a.png)", mask = true)!!
+    val d = Mason.expandCssShorthand("mask-border", "url(a.png)")!!
     assertArrayEquals(arrayOf("url(a.png)", "0", "auto", "0", "stretch", "alpha"), d)
-    assertNull(splitBorderImageShorthand("url(a.png) alpha luminance", mask = true))
+    assertNull(Mason.expandCssShorthand("mask-border", "url(a.png) alpha luminance"))
   }
 
   @Test
   fun maskBorderLonghandDefaults() {
-    val spec = parseBorderImageLonghands("url(a.png)", mask = true)!!
+    val spec = parseMaskBorder("url(a.png)")!!
     assertEquals(List(4) { num(0f) }, spec.slice)
     assertEquals(List<CssLength?>(4) { null }, spec.width)
     assertEquals(List(4) { num(0f) }, spec.outset)
     assertFalse(spec.luminance)
-    assertTrue(parseBorderImageLonghands("url(a.png)", mode = "luminance", mask = true)!!.luminance)
-    assertNull(parseBorderImageLonghands("url(a.png)", mode = "bogus", mask = true))
-    assertNull(parseBorderImageLonghands("none", mask = true))
-    assertNull(parseBorderImageLonghands("", mask = true))
-    assertNull(parseBorderImageLonghands("url(a.png)", slice = "10px", mask = true))
+    assertTrue(parseMaskBorder("url(a.png)", mode = "luminance")!!.luminance)
+    assertNull(parseMaskBorder("url(a.png)", mode = "bogus"))
+    assertNull(parseMaskBorder("none"))
+    assertNull(parseMaskBorder(""))
+    assertNull(parseMaskBorder("url(a.png)", slice = "10px"))
   }
 
   @Test
   fun longhands() {
-    assertEquals(listOf(num(10f), pct(20f), num(10f), pct(20f)) to true, parseBorderImageSlice("10 20% fill"))
-    assertEquals(List(4) { num(10f) } to true, parseBorderImageSlice("fill 10"))
-    assertNull(parseBorderImageSlice("10 fill 20"))
-    assertNull(parseBorderImageSlice("-1"))
-    assertNull(parseBorderImageSlice("fill"))
-    assertEquals(listOf(null, px(10f), num(2f), pct(5f)), parseBorderImageWidth("auto 10px 2 5%"))
-    assertNull(parseBorderImageWidth("-1px"))
-    assertEquals(listOf(num(1f), px(2f), num(1f), px(2f)), parseBorderImageOutset("1 2px"))
-    assertNull(parseBorderImageOutset("5%"))
-    assertEquals(BorderImageRepeat.ROUND to BorderImageRepeat.ROUND, parseBorderImageRepeat("round"))
-    assertEquals(BorderImageRepeat.REPEAT to BorderImageRepeat.SPACE, parseBorderImageRepeat("repeat space"))
-    assertNull(parseBorderImageRepeat("stretch stretch stretch"))
-    assertNull(parseBorderImageRepeat("no-repeat"))
+    val spec = parseMaskBorder(
+      "url(a.png)", "10 20% fill", "auto 10px 2 5%", "1 2px", "repeat space",
+    )!!
+    assertEquals(listOf(num(10f), pct(20f), num(10f), pct(20f)), spec.slice)
+    assertTrue(spec.fill)
+    assertEquals(listOf(null, px(10f), num(2f), pct(5f)), spec.width)
+    assertEquals(listOf(num(1f), px(2f), num(1f), px(2f)), spec.outset)
+    assertEquals(BorderImageRepeat.REPEAT, spec.repeatX)
+    assertEquals(BorderImageRepeat.SPACE, spec.repeatY)
+
+    val leadingFill = parseMaskBorder("url(a.png)", slice = "fill 10", repeat = "round")!!
+    assertEquals(List(4) { num(10f) }, leadingFill.slice)
+    assertTrue(leadingFill.fill)
+    assertEquals(BorderImageRepeat.ROUND, leadingFill.repeatY)
+    for (slice in listOf("10 fill 20", "-1", "fill")) {
+      assertNull(parseMaskBorder("url(a.png)", slice = slice))
+    }
+    assertNull(parseMaskBorder("url(a.png)", width = "-1px"))
+    assertNull(parseMaskBorder("url(a.png)", outset = "5%"))
+    for (repeat in listOf("stretch stretch stretch", "no-repeat")) {
+      assertNull(parseMaskBorder("url(a.png)", repeat = repeat))
+    }
   }
 
   // MARK: axis tiling
@@ -236,6 +253,25 @@ class NineSliceTest {
   }
 
   @Test
+  fun imageBorderMathUsesImageAndAreaSizes() {
+    val slice = "max(10%, 25%) fill"
+    val width = "min(25%, 30px) calc(10% + 2px)"
+    val outset = "calc(1em - 10px)"
+    val units = LengthContext(scale = 2f, emBasis = 20f)
+    val border = NativeNineSlice.parseBorderImage("url(a) $slice / $width / $outset", 0)!!.read(units)!!
+    val mask = NativeNineSlice.parseMaskBorder(arrayOf("url(a)", slice, width, outset, "stretch", "alpha"), 0)!!.read(units)!!
+    for (spec in listOf(border, mask)) {
+      val small = layoutNineSlice(spec, 200f, 120f, FloatArray(4), 30f, 24f, 2f, units)
+      val large = layoutNineSlice(spec, 440f, 280f, FloatArray(4), 30f, 24f, 2f, units)
+      assertEquals(RectBox(-20f, -20f, 220f, 140f), small.area)
+      assertArrayEquals(floatArrayOf(6f, 7.5f, 6f, 7.5f), small.slices, 1e-3f)
+      assertArrayEquals(small.slices, large.slices, 1e-3f)
+      assertArrayEquals(floatArrayOf(40f, 28f, 40f, 28f), small.widths, 1e-3f)
+      assertArrayEquals(floatArrayOf(60f, 52f, 60f, 52f), large.widths, 1e-3f)
+    }
+  }
+
+  @Test
   fun widthKinds() {
     val borders = floatArrayOf(4f, 6f, 8f, 10f)
     // auto = the slice at intrinsic size (unitPx device px per unit); number x border; % of the area.
@@ -260,13 +296,13 @@ class NineSliceTest {
   @Test
   fun maskBorderZeroSliceWithFillIsOnlyTheMiddle() {
     // mask-border initial slice 0 + width auto: no corners or edges; `fill` stretches the whole image.
-    val mask = parseBorderImageLonghands(svgSquare, slice = "0 fill", mask = true)!!
+    val mask = parseMaskBorder(svgSquare, slice = "0 fill")!!
     val layout = layoutNineSlice(mask, 40f, 40f, borders10, 3f, 3f, 1f, ctx)
     assertEquals(1, layout.pieces.size)
     val middle = layout.pieces.single()
     assertEquals(RectBox(0f, 0f, 3f, 3f), middle.src)
     assertEquals(RectBox(0f, 0f, 40f, 40f), middle.dst)
-    val noFill = layoutNineSlice(parseBorderImageLonghands(svgSquare, slice = "0", mask = true)!!, 40f, 40f, borders10, 3f, 3f, 1f, ctx)
+    val noFill = layoutNineSlice(parseMaskBorder(svgSquare, slice = "0")!!, 40f, 40f, borders10, 3f, 3f, 1f, ctx)
     assertEquals(0, noFill.pieces.size)
   }
 
@@ -276,4 +312,15 @@ class NineSliceTest {
     // Corners: 1 unit -> 10px; middle: 1 unit -> 40px (stretch).
     assertEquals(40f, nineSliceRasterScale(layout, 1f), 1e-3f)
   }
+}
+
+internal fun parseBorderImage(value: String): BorderImageSpec? =
+  NativeNineSlice.parseBorderImage(value, Color.BLACK)?.read(LengthContext(1f))
+
+private fun parseMaskBorder(
+  source: String, slice: String = "", width: String = "", outset: String = "",
+  repeat: String = "", mode: String = "",
+): BorderImageSpec? {
+  return NativeNineSlice.parseMaskBorder(arrayOf(source, slice, width, outset, repeat, mode), Color.BLACK)
+    ?.read(LengthContext(1f))
 }

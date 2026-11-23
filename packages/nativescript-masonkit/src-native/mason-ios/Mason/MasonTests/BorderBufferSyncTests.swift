@@ -72,6 +72,20 @@ final class BorderBufferSyncTests: XCTestCase {
     XCTAssertFalse(style.mBorderRender.hasRadii())
   }
 
+  func testBorderPaintKeepsLayoutClean() {
+    let view = MasonUIView(mason: NSCMason.shared)
+    view.compute(100, 100)
+    XCTAssertFalse(view.isNodeDirty())
+    view._drawFlagsDirty = false
+
+    view.style.setBorderColor("red")
+    XCTAssertTrue(view._drawFlagsDirty)
+    XCTAssertFalse(view.isNodeDirty())
+
+    view.style.borderWidth = MasonRect(uniform: .Points(3))
+    XCTAssertTrue(view.isNodeDirty())
+  }
+
   // white-space is bit 63, so a low half carrying it is negative as a signed
   // 64-bit value; the sync must still reach the text, not be dropped.
   private func textRestyledAfterSync(_ sync: (MasonText, StateKeys) -> Void) -> Bool {

@@ -41,6 +41,8 @@ namespace NativeScript.Mason
         // words as IMasonElement.SyncStyle).
         Windows.Storage.Streams.IBuffer ForeignStyleValues(Microsoft.UI.Xaml.UIElement element);
         void SyncForeignStyle(Microsoft.UI.Xaml.UIElement element, Int32 d0, Int32 d1, Int32 d2, Int32 d3);
+        UInt8[] ReadPseudoStyleValues(Node node, UInt32 flags);
+        void WritePseudoStyleValues(Node node, UInt32 flags, UInt8[] values);
 
         // Css.ReparentChild / Css.RemoveChild.
         void ReparentChild(Microsoft.UI.Xaml.Controls.Panel parent, Microsoft.UI.Xaml.UIElement child, Int32 index);

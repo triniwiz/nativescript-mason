@@ -29,18 +29,17 @@ class Border(val owner: Style, side: Side) {
 
   internal var setState = true
 
+  // <style-keys:border-keys> generated from tools/scripts/style-keys/style-keys.schema
   interface IKey {
-    val widthValue: Int
     val widthType: Int
+    val widthValue: Int
     val style: Int
     val color: Int
-
     val corner1RadiusXType: Int
     val corner1RadiusXValue: Int
     val corner1RadiusYType: Int
     val corner1RadiusYValue: Int
     val corner1Exponent: Int
-
     val corner2RadiusXType: Int
     val corner2RadiusXValue: Int
     val corner2RadiusYType: Int
@@ -49,117 +48,80 @@ class Border(val owner: Style, side: Side) {
   }
 
   class Keys {
-    class Left : IKey {
-      override val widthValue: Int
-        get() = StyleKeys.BORDER_LEFT_VALUE
-      override val widthType: Int
-        get() = StyleKeys.BORDER_LEFT_TYPE
-      override val style: Int
-        get() = StyleKeys.BORDER_LEFT_STYLE
-      override val color: Int
-        get() = StyleKeys.BORDER_LEFT_COLOR
-
-      override val corner1RadiusXType = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE
-      override val corner1RadiusXValue = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE
-      override val corner1RadiusYType = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE
-      override val corner1RadiusYValue = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE
-      override val corner1Exponent = StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT
-
-      override val corner2RadiusXType = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE
-      override val corner2RadiusXValue = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE
-      override val corner2RadiusYType = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE
-      override val corner2RadiusYValue = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
-      override val corner2Exponent = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
-    }
-
     class Top : IKey {
-      override val widthValue: Int
-        get() = StyleKeys.BORDER_TOP_VALUE
-      override val widthType: Int
-        get() = StyleKeys.BORDER_TOP_TYPE
-      override val style: Int
-        get() = StyleKeys.BORDER_TOP_STYLE
-      override val color: Int
-        get() = StyleKeys.BORDER_TOP_COLOR
-
-      override val corner1RadiusXType = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE
-      override val corner1RadiusXValue = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE
-      override val corner1RadiusYType = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE
-      override val corner1RadiusYValue = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE
-      override val corner1Exponent = StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT
-
-      override val corner2RadiusXType = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE
-      override val corner2RadiusXValue = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE
-      override val corner2RadiusYType = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE
-      override val corner2RadiusYValue = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE
-      override val corner2Exponent = StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT
+      override val widthType: Int get() = StyleKeys.BORDER_TOP_TYPE
+      override val widthValue: Int get() = StyleKeys.BORDER_TOP_VALUE
+      override val style: Int get() = StyleKeys.BORDER_TOP_STYLE
+      override val color: Int get() = StyleKeys.BORDER_TOP_COLOR
+      override val corner1RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE
+      override val corner1RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE
+      override val corner1RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE
+      override val corner1RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE
+      override val corner1Exponent: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT
+      override val corner2RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE
+      override val corner2RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE
+      override val corner2RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE
+      override val corner2RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE
+      override val corner2Exponent: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT
     }
 
     class Right : IKey {
-      override val widthValue: Int
-        get() = StyleKeys.BORDER_RIGHT_VALUE
-      override val widthType: Int
-        get() = StyleKeys.BORDER_RIGHT_TYPE
-      override val style: Int
-        get() = StyleKeys.BORDER_RIGHT_STYLE
-      override val color: Int
-        get() = StyleKeys.BORDER_RIGHT_COLOR
-
-
-      override val corner1RadiusXType = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE
-      override val corner1RadiusXValue = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE
-      override val corner1RadiusYType = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE
-      override val corner1RadiusYValue = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE
-      override val corner1Exponent = StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT
-
-      override val corner2RadiusXType = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE
-      override val corner2RadiusXValue = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE
-      override val corner2RadiusYType = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE
-      override val corner2RadiusYValue = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE
-      override val corner2Exponent = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT
+      override val widthType: Int get() = StyleKeys.BORDER_RIGHT_TYPE
+      override val widthValue: Int get() = StyleKeys.BORDER_RIGHT_VALUE
+      override val style: Int get() = StyleKeys.BORDER_RIGHT_STYLE
+      override val color: Int get() = StyleKeys.BORDER_RIGHT_COLOR
+      override val corner1RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE
+      override val corner1RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE
+      override val corner1RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE
+      override val corner1RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE
+      override val corner1Exponent: Int get() = StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT
+      override val corner2RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE
+      override val corner2RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE
+      override val corner2RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE
+      override val corner2RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE
+      override val corner2Exponent: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT
     }
 
     class Bottom : IKey {
-      override val widthValue: Int
-        get() = StyleKeys.BORDER_BOTTOM_VALUE
-      override val widthType: Int
-        get() = StyleKeys.BORDER_BOTTOM_TYPE
-      override val style: Int
-        get() = StyleKeys.BORDER_BOTTOM_STYLE
-      override val color: Int
-        get() = StyleKeys.BORDER_BOTTOM_COLOR
+      override val widthType: Int get() = StyleKeys.BORDER_BOTTOM_TYPE
+      override val widthValue: Int get() = StyleKeys.BORDER_BOTTOM_VALUE
+      override val style: Int get() = StyleKeys.BORDER_BOTTOM_STYLE
+      override val color: Int get() = StyleKeys.BORDER_BOTTOM_COLOR
+      override val corner1RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE
+      override val corner1RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE
+      override val corner1RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE
+      override val corner1RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
+      override val corner1Exponent: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
+      override val corner2RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE
+      override val corner2RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE
+      override val corner2RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE
+      override val corner2RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE
+      override val corner2Exponent: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT
+    }
 
-      override val corner1RadiusXType = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE
-      override val corner1RadiusXValue = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE
-      override val corner1RadiusYType = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE
-      override val corner1RadiusYValue = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
-      override val corner1Exponent = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
-
-      override val corner2RadiusXType = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE
-      override val corner2RadiusXValue = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE
-      override val corner2RadiusYType = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE
-      override val corner2RadiusYValue = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE
-      override val corner2Exponent = StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT
+    class Left : IKey {
+      override val widthType: Int get() = StyleKeys.BORDER_LEFT_TYPE
+      override val widthValue: Int get() = StyleKeys.BORDER_LEFT_VALUE
+      override val style: Int get() = StyleKeys.BORDER_LEFT_STYLE
+      override val color: Int get() = StyleKeys.BORDER_LEFT_COLOR
+      override val corner1RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE
+      override val corner1RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE
+      override val corner1RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE
+      override val corner1RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE
+      override val corner1Exponent: Int get() = StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT
+      override val corner2RadiusXType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE
+      override val corner2RadiusXValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE
+      override val corner2RadiusYType: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE
+      override val corner2RadiusYValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
+      override val corner2Exponent: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
     }
 
     companion object {
-      val left by lazy {
-        Left()
-      }
-
-      val top by lazy {
-        Top()
-      }
-
-      val right by lazy {
-        Right()
-      }
-
-      val bottom by lazy {
-        Bottom()
-      }
+      val top by lazy { Top() }
+      val right by lazy { Right() }
+      val bottom by lazy { Bottom() }
+      val left by lazy { Left() }
     }
-
   }
 
   interface IKeyCorner {
@@ -201,6 +163,7 @@ class Border(val owner: Style, side: Side) {
     override val yValue: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
     override val exponent: Int get() = StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
   }
+  // </style-keys:border-keys>
 
   enum class Side {
     Left,
@@ -209,27 +172,18 @@ class Border(val owner: Style, side: Side) {
     Bottom
   }
 
+  // <style-keys:border-accessors> generated from tools/scripts/style-keys/style-keys.schema
   var width: LengthPercentage
     get() {
-      val base = LengthPercentage.fromTypeValue(
-        owner.values.get(keys.widthType),
-        owner.values.getFloat(keys.widthValue)
-      )!!
-      return owner.resolvePseudo(StateKeys.BORDER, base) { buf ->
-        LengthPercentage.fromTypeValue(buf.get(keys.widthType), buf.getFloat(keys.widthValue))!!
-      }
+      val base = LengthPercentage.fromTypeValue(owner.values.get(keys.widthType), owner.values.getFloat(keys.widthValue))!!
+      return owner.resolvePseudo(StateKeys.BORDER, base) { buf -> LengthPercentage.fromTypeValue(buf.get(keys.widthType), buf.getFloat(keys.widthValue))!! }
     }
     set(value) {
-      val oldType = owner.values.get(keys.widthType)
-      val oldValue = owner.values.getFloat(keys.widthValue)
-      if (oldType != value.type || oldValue != value.value) {
-        owner.prepareMut()
-        owner.values.put(keys.widthType, value.type)
-        owner.values.putFloat(keys.widthValue, value.value)
-        if (setState) {
-          owner.setOrAppendState(StateKeys.BORDER)
-        }
-      }
+      if (owner.values.get(keys.widthType) == value.type && owner.values.getFloat(keys.widthValue) == value.value) return
+      owner.prepareMut()
+      owner.values.put(keys.widthType, value.type)
+      owner.values.putFloat(keys.widthValue, value.value)
+      if (setState) owner.setOrAppendState(StateKeys.BORDER)
     }
 
   var color: Int
@@ -238,134 +192,84 @@ class Border(val owner: Style, side: Side) {
       return owner.resolvePseudo(StateKeys.BORDER_COLOR, base) { buf -> buf.getInt(keys.color) }
     }
     set(value) {
-      val old = color
-      if (old != value) {
-        owner.prepareMut()
-        owner.values.putInt(keys.color, value)
-        if (setState) {
-          owner.setOrAppendState(StateKeys.BORDER_COLOR)
-        }
-      }
+      if (color == value) return
+      owner.prepareMut()
+      owner.values.putInt(keys.color, value)
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_COLOR)
     }
 
   var style: BorderStyle
     get() {
       val base = BorderStyle.from(owner.values.get(keys.style))
-      return owner.resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
-        BorderStyle.from(
-          buf.get(
-            keys.style
-          )
-        )
-      }
+      return owner.resolvePseudo(StateKeys.BORDER_STYLE, base) { buf -> BorderStyle.from(buf.get(keys.style)) }
     }
     set(value) {
-      val old = style
-      if (old != value) {
-        owner.prepareMut()
-        owner.values.put(keys.style, value.value)
-        if (setState) {
-          owner.setOrAppendState(StateKeys.BORDER_STYLE)
-        }
-      }
+      if (style == value) return
+      owner.prepareMut()
+      owner.values.put(keys.style, value.value)
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_STYLE)
     }
 
-  private fun readCorner1From(buf: ByteBuffer): Point<LengthPercentage> {
-    return Point(
-      LengthPercentage.fromTypeValue(
-        buf.get(keys.corner1RadiusXType),
-        buf.getFloat(keys.corner1RadiusXValue)
-      )!!,
-      LengthPercentage.fromTypeValue(
-        buf.get(keys.corner1RadiusYType),
-        buf.getFloat(keys.corner1RadiusYValue)
-      )!!
-    )
-  }
+  private fun readCorner1(buf: ByteBuffer): Point<LengthPercentage> = Point(
+    LengthPercentage.fromTypeValue(buf.get(keys.corner1RadiusXType), buf.getFloat(keys.corner1RadiusXValue))!!,
+    LengthPercentage.fromTypeValue(buf.get(keys.corner1RadiusYType), buf.getFloat(keys.corner1RadiusYValue))!!
+  )
 
   var corner1Radius: Point<LengthPercentage>
     get() {
-      val base = readCorner1From(owner.values)
-      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> readCorner1From(buf) }
+      val base = readCorner1(owner.values)
+      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> readCorner1(buf) }
     }
     set(value) {
       owner.prepareMut()
       owner.values.put(keys.corner1RadiusXType, value.x.type)
       owner.values.putFloat(keys.corner1RadiusXValue, value.x.value)
-
       owner.values.put(keys.corner1RadiusYType, value.y.type)
       owner.values.putFloat(keys.corner1RadiusYValue, value.y.value)
-
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_RADIUS)
-      }
-
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_RADIUS)
     }
 
+  var corner1Exponent: Float
+    get() {
+      val base = owner.values.getFloat(keys.corner1Exponent)
+      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> buf.getFloat(keys.corner1Exponent) }
+    }
+    set(value) {
+      owner.prepareMut()
+      owner.values.putFloat(keys.corner1Exponent, value)
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_RADIUS)
+    }
 
-  private fun readCorner2From(buf: ByteBuffer): Point<LengthPercentage> {
-    return Point(
-      LengthPercentage.fromTypeValue(
-        buf.get(keys.corner2RadiusXType),
-        buf.getFloat(keys.corner2RadiusXValue)
-      )!!,
-      LengthPercentage.fromTypeValue(
-        buf.get(keys.corner2RadiusYType),
-        buf.getFloat(keys.corner2RadiusYValue)
-      )!!
-    )
-  }
+  private fun readCorner2(buf: ByteBuffer): Point<LengthPercentage> = Point(
+    LengthPercentage.fromTypeValue(buf.get(keys.corner2RadiusXType), buf.getFloat(keys.corner2RadiusXValue))!!,
+    LengthPercentage.fromTypeValue(buf.get(keys.corner2RadiusYType), buf.getFloat(keys.corner2RadiusYValue))!!
+  )
 
   var corner2Radius: Point<LengthPercentage>
     get() {
-      val base = readCorner2From(owner.values)
-      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> readCorner2From(buf) }
+      val base = readCorner2(owner.values)
+      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> readCorner2(buf) }
     }
     set(value) {
       owner.prepareMut()
       owner.values.put(keys.corner2RadiusXType, value.x.type)
       owner.values.putFloat(keys.corner2RadiusXValue, value.x.value)
-
       owner.values.put(keys.corner2RadiusYType, value.y.type)
       owner.values.putFloat(keys.corner2RadiusYValue, value.y.value)
-
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_RADIUS)
-      }
-    }
-
-
-  var corner1Exponent: Float
-    get() {
-      val base = owner.values.getFloat(keys.corner1Exponent)
-      return owner.resolvePseudo(
-        StateKeys.BORDER_RADIUS,
-        base
-      ) { buf -> buf.getFloat(keys.corner1Exponent) }
-    }
-    set(value) {
-      owner.prepareMut()
-      owner.values.putFloat(keys.corner1Exponent, value)
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_RADIUS)
-      }
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_RADIUS)
     }
 
   var corner2Exponent: Float
     get() {
       val base = owner.values.getFloat(keys.corner2Exponent)
-      return owner.resolvePseudo(
-        StateKeys.BORDER_RADIUS,
-        base
-      ) { buf -> buf.getFloat(keys.corner2Exponent) }
+      return owner.resolvePseudo(StateKeys.BORDER_RADIUS, base) { buf -> buf.getFloat(keys.corner2Exponent) }
     }
     set(value) {
       owner.prepareMut()
       owner.values.putFloat(keys.corner2Exponent, value)
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_RADIUS)
-      }
+      if (setState) owner.setOrAppendState(StateKeys.BORDER_RADIUS)
     }
+  // </style-keys:border-accessors>
 }
 
 private fun LengthPercentage.toPx(viewSize: Float): Float {
@@ -1262,45 +1166,6 @@ class BorderRenderer(private val style: Style) {
   enum class Side { Left, Top, Right, Bottom }
 }
 
-// `px` is a CSS pixel (the same size as a dip), matching the web and iOS's
-// BorderParser; `dppx` is the escape hatch for a literal device pixel.
-// Alternation order matters: `dppx` also ends with `px`, and `rem` with `em`.
-internal val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(dppx|px|%|dip|rem|em|vmin|vmax|vw|vh|pt)?$""")
-
-private val lengthUnits = setOf("dppx", "px", "%", "dip", "rem", "em", "vmin", "vmax", "vw", "vh", "pt")
-
-internal class NumberUnit(@JvmField val num: Float, @JvmField val unit: String?)
-
-internal fun scanNumberUnit(value: String): NumberUnit? {
-  val n = value.length
-  var i = 0
-  if (i < n && value[i] == '-') i++
-  fun digits(): Boolean {
-    val start = i
-    while (i < n && value[i] in '0'..'9') i++
-    return i > start
-  }
-  if (!digits()) return null
-  if (i < n && value[i] == '.') {
-    i++
-    if (!digits()) return null
-  }
-  if (i < n && (value[i] == 'e' || value[i] == 'E')) {
-    val mark = i
-    i++
-    if (i < n && (value[i] == '+' || value[i] == '-')) i++
-    if (!digits()) i = mark
-  }
-  val num = try {
-    java.lang.Float.parseFloat(value.substring(0, i))
-  } catch (_: NumberFormatException) {
-    return null
-  }
-  if (i == n) return NumberUnit(num, null)
-  val unit = value.substring(i)
-  return if (unit in lengthUnits) NumberUnit(num, unit) else null
-}
-
 internal inline fun forEachWhitespaceToken(value: String, block: (String) -> Unit) {
   val n = value.length
   var i = 0
@@ -1316,237 +1181,72 @@ internal inline fun forEachWhitespaceToken(value: String, block: (String) -> Uni
 internal inline fun Char.isRegexSpace(): Boolean =
   this == ' ' || this == '\t' || this == '\n' || this == '\u000B' || this == '\u000C' || this == '\r'
 
-/** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
-private const val PX_PER_PT = 96f / 72f
-
-/**
- * CSS px for one length token, before the density multiply. `em` resolves
- * against [emBasis] (the element's own font size) when given, else the root
- * font size — matching `tokenToDevicePx` in style.ts.
- */
-internal fun cssPxForUnit(num: Float, unit: String?, emBasis: Float?): Float {
-  val mason = Mason.shared
-  return when (unit) {
-    "rem" -> num * mason.rootFontSize
-    "em" -> num * (emBasis?.takeIf { it > 0f } ?: mason.rootFontSize)
-    "pt" -> num * PX_PER_PT
-    "vw" -> (num / 100f) * mason.viewportWidth
-    "vh" -> (num / 100f) * mason.viewportHeight
-    "vmin" -> (num / 100f) * minOf(mason.viewportWidth, mason.viewportHeight)
-    "vmax" -> (num / 100f) * maxOf(mason.viewportWidth, mason.viewportHeight)
-    else -> num
+internal fun resolveCssLength(
+  value: String, mason: Mason = Mason.shared, fontSize: Float = 0f, clamp: Boolean = false
+): LengthPercentage? {
+  val scale = mason.scale
+  val fields = cssLengthFields(value, if (clamp) CssParseKind.CLAMP_LENGTH else CssParseKind.LENGTH, mason, fontSize)
+    ?: return null
+  val amount = fields[CssLengthResultRecord.VALUE].toFloat()
+  if (!amount.isFinite()) return null
+  return when (fields[CssLengthResultRecord.KIND].toInt()) {
+    0 -> Points(amount * scale)
+    1 -> Points(amount)
+    2 -> Percent(amount)
+    else -> null
   }
 }
 
-// allow hex, simple names, and functional color forms like rgb(...), rgba(...), hsl(...)
-private val colorRegex = Regex("""^(#\w{3,8}|[a-zA-Z]+|(?:rgb|rgba|hsl|hsla|hsv|hsva)\([^)]*\))$""")
+fun parseLengthPercentage(value: String): LengthPercentage? = resolveCssLength(value, clamp = true)
 
-fun parseLengthPercentage(value: String): LengthPercentage? {
-  val match = scanNumberUnit(value.trim()) ?: return null
-  val raw = match.num
-  // Clamp values that exceed a practical maximum (e.g. Float.MAX_VALUE from
-  // calc(infinity*1px) evaluated by NS's CSS parser) so cssRadiusScale()
-  // doesn't overflow when summing corner pairs.
-  val num = raw.coerceIn(-9999f, 9999f)
-  val unit = match.unit
-  return when (unit) {
-    "dppx" -> Points(num)
-    "%" -> Percent(raw / 100f)  // percentages don't overflow so use raw
-    else -> Points(cssPxForUnit(num, unit, null) * Mason.shared.scale)
-  }
-}
+private fun cssLengthFields(value: String, kind: Int, mason: Mason, fontSize: Float = 0f): DoubleArray? =
+  Mason.nativeParseCss(value, kind, mason.scale, fontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, 0)
+    ?.takeIf { it.size == CssLengthResultRecord.STRIDE }
 
 fun parseLengthPercentageAuto(value: String): LengthPercentageAuto? {
-  val trimmed = value.trim()
-  // "auto" has no numeric part, so it can never match lengthPercentageRegex
-  // below (its first group is a mandatory digit run) — check it separately.
-  if (trimmed == "auto") return LengthPercentageAuto.Auto
-  val match = scanNumberUnit(trimmed) ?: return null
-  val num = match.num
-  val unit = match.unit
-  return when (unit) {
-    "dppx" -> LengthPercentageAuto.Points(num)
-    "%" -> LengthPercentageAuto.Percent(num / 100f)
-    else -> LengthPercentageAuto.Points(cssPxForUnit(num, unit, null) * Mason.shared.scale)
-  }
+  val fields = cssLengthFields(value, CssParseKind.LENGTH_AUTO, Mason.shared) ?: return null
+  return LengthPercentageAuto.fromTypeValue(fields[CssLengthResultRecord.KIND].toInt().toByte(),
+    fields[CssLengthResultRecord.VALUE].toFloat())
 }
 
-fun parseLength(style: Style, value: String): Float? {
-  val match = scanNumberUnit(value.trim()) ?: return null
-  val num = match.num
-  val unit = match.unit
-  return when (unit) {
-    "dppx" -> num
-    "%" -> 0f // don't parse
-    // This one has a style in hand, so `em` can use the element's own font size.
-    else -> cssPxForUnit(num, unit, style.fontSize.toFloat()) * Mason.shared.scale
+fun parseLength(style: Style, value: String): Float? =
+  when (val length = resolveCssLength(value, fontSize = style.fontSize.toFloat())) {
+    is Points -> length.value
+    is Percent, Zero -> 0f
+    null -> null
   }
-}
-
-/**
- * Split on top-level whitespace but preserve parentheses groups (e.g. "rgba(0, 1, 2)").
- */
-internal fun splitTopLevelWhitespace(input: String): List<String> {
-  val result = mutableListOf<String>()
-  val sb = StringBuilder()
-  var depth = 0
-  for (c in input) {
-    when (c) {
-      '(' -> {
-        depth++
-        sb.append(c)
-      }
-
-      ')' -> {
-        depth = maxOf(0, depth - 1)
-        sb.append(c)
-      }
-
-      else -> {
-        if (c.isWhitespace() && depth == 0) {
-          if (sb.isNotEmpty()) {
-            result.add(sb.toString())
-            sb.setLength(0)
-          }
-        } else {
-          sb.append(c)
-        }
-      }
-    }
-  }
-  if (sb.isNotEmpty()) result.add(sb.toString())
-  return result
-}
 
 fun parseBorderShorthand(style: Style, value: String) {
   if (value.isEmpty()) {
-    style.mBorder = ""
-    var batch = false
-
-    if (!style.inBatch) {
-      style.inBatch = true
-      batch = true
-    }
-
-    style.mBorderLeft.width = Zero
-    style.mBorderTop.width = Zero
-    style.mBorderRight.width = Zero
-    style.mBorderBottom.width = Zero
-
-    style.mBorderLeft.style = BorderStyle.None
-    style.mBorderTop.style = BorderStyle.None
-    style.mBorderRight.style = BorderStyle.None
-    style.mBorderBottom.style = BorderStyle.None
-
-
-    style.mBorderLeft.color = Color.TRANSPARENT
-    style.mBorderTop.color = Color.TRANSPARENT
-    style.mBorderRight.color = Color.TRANSPARENT
-    style.mBorderBottom.color = Color.TRANSPARENT
-
-    if (batch) {
-      style.invalidateBorderRenderer()
-      style.inBatch = false
-    }
-
+    applyResolvedBorder(style, "", Rect.zero, BorderStyle.None, Color.TRANSPARENT)
     return
   }
-  // default to medium 3px
-  var valid = false
-  val scale = style.node.mason.scale
-  var width: LengthPercentage? = Points(scale * 3)
-  val widths = mutableListOf<LengthPercentage>()
-  var borderStyle: BorderStyle? = BorderStyle.Solid
-  // default to black
-  var color: Int? = Color.BLACK
-
-  val split = splitTopLevelWhitespace(value)
-  split.forEach { part ->
-    when {
-      parseLengthPercentage(part) != null -> {
-        val parsed = when (part) {
-          "thin" -> Points(scale * 1)
-          "medium" -> Points(scale * 3)
-          "thick" -> Points(scale * 5)
-          else -> parseLengthPercentage(part)
-        }
-        parsed?.let {
-          widths.add(it)
-          width = it
-          valid = true
-        }
-      }
-
-      BorderStyle.cssNames.contains(part.lowercase()) -> {
-        borderStyle = BorderStyle.fromName(part)
-        valid = borderStyle != null
-      }
-
-      colorRegex.matches(part) -> {
-        color = parseColor(part)
-        valid = color != null
-      }
-    }
-  }
-
-  if (!valid) {
-    return
-  }
-  style.mBorder = value
-
-  var batch = false
-  var dirty = false
-
-  // If explicit per-side widths provided, map them according to CSS shorthand
-  // rules: 1 value -> all sides; 2 values -> top/bottom, right/left;
-  // 3 values -> top, right/left, bottom; 4 values -> top, right, bottom, left.
-  if (widths.isNotEmpty()) {
-    val wRect = when (widths.size) {
-      1 -> Rect.uniform(widths[0])
-      2 -> Rect(widths[0], widths[1], widths[0], widths[1])
-      3 -> Rect(widths[0], widths[1], widths[2], widths[1])
-      else -> Rect(widths[0], widths[1], widths[2], widths[3])
-    }
-    if (!style.inBatch) {
-      style.inBatch = true; batch = true
-    }
-    dirty = true
-    style.borderWidth = wRect
+  val fields = Mason.expandCssShorthand("border-components", value) ?: return
+  val color = fields[BorderComponentsRecord.COLOR].toUIntOrNull()?.toInt()
+  val borderStyle = fields[BorderComponentsRecord.STYLE].toByteOrNull()?.let(BorderStyle::from)
+  val widths = fields.take(BorderComponentsRecord.STYLE)
+  if (widths[0].isEmpty() && color == null && borderStyle == null) return
+  val rect: Rect<LengthPercentage> = if (widths[0].isEmpty()) {
+    Rect.uniform(Points(style.node.mason.scale * 3))
   } else {
-    width?.let {
-      if (!style.inBatch) {
-        style.inBatch = true
-        batch = true
-      }
-      dirty = true
-      style.borderWidth = Rect.uniform(it)
-    }
+    val parsed = widths.map { parseLengthPercentage(it) ?: return }
+    Rect(parsed[0], parsed[1], parsed[2], parsed[3])
   }
 
-  borderStyle?.let {
-    if (!style.inBatch) {
-      style.inBatch = true
-      batch = true
-    }
-    dirty = true
-    style.borderStyle = Rect.uniform(it)
-  }
+  applyResolvedBorder(style, value, rect, borderStyle, color)
+}
 
-  color?.let {
-    if (!style.inBatch) {
-      style.inBatch = true
-      batch = true
-    }
-    dirty = true
-    style.borderColor = Rect.uniform(it)
-  }
-
-  if (dirty) {
+internal fun applyResolvedBorder(style: Style, value: String, rect: Rect<LengthPercentage>, borderStyle: BorderStyle?, color: Int?) {
+  val batch = !style.inBatch
+  if (batch) style.inBatch = true
+  try {
+    style.mBorder = value
+    style.borderWidth = rect
+    style.borderStyle = Rect.uniform(borderStyle ?: BorderStyle.Solid)
+    style.borderColor = Rect.uniform(color ?: Color.BLACK)
     style.invalidateBorderRenderer()
-  }
-
-  if (batch) {
-    style.inBatch = false
+  } finally {
+    if (batch) style.inBatch = false
   }
 }
 
@@ -1570,61 +1270,31 @@ fun parseBorderSideShorthand(style: Style, side: Border.Side, value: String) {
     return
   }
 
-  val scale = style.node.mason.scale
-  var width: LengthPercentage? = Points(scale * 3)  // medium default
-  var borderStyle: BorderStyle? = BorderStyle.Solid
-  var color: Int? = Color.BLACK
-  var valid = false
+  val fields = Mason.expandCssShorthand("border-side-components", value) ?: return
+  val inputWidth = fields[BorderSideComponentsRecord.WIDTH]
+  val color = fields[BorderSideComponentsRecord.COLOR].toUIntOrNull()?.toInt()
+  val borderStyle = fields[BorderSideComponentsRecord.STYLE].toByteOrNull()?.let(BorderStyle::from)
+  if (inputWidth.isEmpty() && color == null && borderStyle == null) return
+  val width = if (inputWidth.isEmpty()) Points(style.node.mason.scale * 3)
+    else parseLengthPercentage(inputWidth) ?: return
+  applyResolvedBorderSide(style, border, width, borderStyle, color)
+}
 
-  val split = splitTopLevelWhitespace(value)
-  split.forEach { part ->
-    when {
-      parseLengthPercentage(part) != null -> {
-        width = when (part) {
-          "thin" -> Points(scale * 1)
-          "medium" -> Points(scale * 3)
-          "thick" -> Points(scale * 5)
-          else -> parseLengthPercentage(part)
-        }
-        valid = true
-      }
-
-      BorderStyle.cssNames.contains(part.lowercase()) -> {
-        borderStyle = BorderStyle.fromName(part)
-        valid = borderStyle != null
-      }
-
-      colorRegex.matches(part) -> {
-        color = parseColor(part)
-        valid = color != null
-      }
-    }
-  }
-
-  if (!valid) return
-
-  var batch = false
-  if (!style.inBatch) {
-    style.inBatch = true
-    batch = true
-  }
-
-  width?.let { border.width = it }
-  borderStyle?.let { border.style = it }
-  color?.let { border.color = it }
-
-  style.invalidateBorderRenderer()
-
-  if (batch) {
-    style.inBatch = false
+internal fun applyResolvedBorderSide(style: Style, border: Border, width: LengthPercentage, borderStyle: BorderStyle?, color: Int?) {
+  val batch = !style.inBatch
+  if (batch) style.inBatch = true
+  try {
+    border.width = width
+    border.style = borderStyle ?: BorderStyle.Solid
+    border.color = color ?: Color.BLACK
+    style.invalidateBorderRenderer()
+  } finally {
+    if (batch) style.inBatch = false
   }
 }
 
 // corner-shape stores the CSS superellipse parameter K per corner: round 1, squircle 2, bevel 0,
 // scoop -1, notch -infinity, square infinity, or superellipse(K).
-
-private val cornerShapeTokenRegex =
-  Regex("""superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)""")
 
 fun exponentToCornerShapeToken(exponent: Float): String {
   return when (exponent) {
@@ -1638,96 +1308,29 @@ fun exponentToCornerShapeToken(exponent: Float): String {
   }
 }
 
-fun parseCornerShapeToken(token: String): Float? {
-  val t = token.trim().lowercase()
-  when (t) {
-    "round" -> return 1.0f
-    "squircle" -> return 2.0f
-    "bevel" -> return 0.0f
-    "scoop" -> return -1.0f
-    "notch" -> return Float.NEGATIVE_INFINITY
-    "square" -> return Float.POSITIVE_INFINITY
-  }
-  val k = cornerShapeTokenRegex.matchEntire(t)?.groupValues?.get(1) ?: return null
-  return when (k) {
-    "infinity" -> Float.POSITIVE_INFINITY
-    "-infinity" -> Float.NEGATIVE_INFINITY
-    else -> k.toFloatOrNull()?.takeUnless { it.isNaN() }
-  }
-}
+fun parseCornerShapeToken(token: String): Float? =
+  Mason.expandCssShorthand("corner-shape-value", token)?.firstOrNull()?.toFloatOrNull()
 
 fun parseCornerShape(style: Style, value: String) {
-  val tokens = SPLIT_REGEX.split(value.trim().removeSuffix(";")).filter { it.isNotEmpty() }
-  if (tokens.isEmpty() || tokens.size > 4) return
-  val exponents = tokens.map { parseCornerShapeToken(it) ?: return }
-
-  // CSS 4-corner shorthand: 1→all, 2→(TL+BR, TR+BL), 3→(TL, TR+BL, BR), 4→per-corner
-  val (tl, tr, br, bl) = when (exponents.size) {
-    1 -> listOf(exponents[0], exponents[0], exponents[0], exponents[0])
-    2 -> listOf(exponents[0], exponents[1], exponents[0], exponents[1])
-    3 -> listOf(exponents[0], exponents[1], exponents[2], exponents[1])
-    else -> listOf(exponents[0], exponents[1], exponents[2], exponents[3])
-  }
-
-  var batch = false
-  if (!style.inBatch) {
-    style.inBatch = true
-    batch = true
-  }
-
-  style.mBorderTop.setState = false
-  style.mBorderBottom.setState = false
-
-  style.mBorderTop.corner1Exponent = tl    // top-left
-  style.mBorderTop.corner2Exponent = tr    // top-right
-  style.mBorderBottom.corner2Exponent = br  // bottom-right
-  style.mBorderBottom.corner1Exponent = bl  // bottom-left
-
-  style.mBorderTop.setState = true
-  style.mBorderBottom.setState = true
-
-  style.setOrAppendState(StateKeys.BORDER_RADIUS)
-  style.invalidateBorderRenderer()
-
-  if (batch) {
-    style.inBatch = false
-  }
+  style.applyCornerShape(value)
 }
 
 fun parseBorderRadius(style: Style, value: String) {
-  val cleaned = value.trim().removeSuffix(";")
-  // Support slash syntax: 'horizontal / vertical'
-  val (hPart, vPart) = if (cleaned.contains('/')) {
-    val idx = cleaned.indexOf('/')
-    cleaned.substring(0, idx).trim() to cleaned.substring(idx + 1).trim()
-  } else {
-    cleaned to ""
+  val mason = style.node.mason
+  val fields = Mason.nativeParseCss(value, CssParseKind.BORDER_RADIUS, mason.scale, style.resolvedFontSize,
+    mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, 0) ?: return
+  if (fields.size != BorderRadiiRecord.STRIDE * CssLengthResultRecord.STRIDE) return
+  val radii = fields.indices.step(CssLengthResultRecord.STRIDE).map { offset ->
+    val kind = fields[offset + CssLengthResultRecord.KIND].toInt() - 1
+    LengthPercentage.fromTypeValue(kind.toByte(), fields[offset + CssLengthResultRecord.VALUE].toFloat()) ?: return
   }
+  applyResolvedBorderRadius(style, radii)
+}
 
-  fun tokens(part: String): List<LengthPercentage> {
-    val out = ArrayList<LengthPercentage>(4)
-    forEachWhitespaceToken(part) { t -> parseLengthPercentage(t)?.let { out.add(it) } }
-    return out
-  }
-
-  val hTokens = tokens(hPart)
-  val vTokens = if (vPart.isNotEmpty()) tokens(vPart) else emptyList()
-
-  // Helper to map 1-4 tokens to per-corner values
-  fun mapTokens(tokens: List<LengthPercentage>): List<LengthPercentage> {
-    return when (tokens.size) {
-      1 -> listOf(tokens[0], tokens[0], tokens[0], tokens[0])
-      2 -> listOf(tokens[0], tokens[1], tokens[0], tokens[1])
-      3 -> listOf(tokens[0], tokens[1], tokens[2], tokens[1])
-      4 -> listOf(tokens[0], tokens[1], tokens[2], tokens[3])
-      else -> emptyList()
-    }
-  }
-
-  val hMapped = mapTokens(hTokens)
-  val vMapped = if (vTokens.isNotEmpty()) mapTokens(vTokens) else hMapped
-
-  if (hMapped.isEmpty() || vMapped.isEmpty()) return
+internal fun applyResolvedBorderRadius(style: Style, radii: List<LengthPercentage>) {
+  if (radii.size != BorderRadiiRecord.STRIDE) return
+  val hMapped = radii.take(BorderRadiiRecord.VERTICAL_TOP_LEFT)
+  val vMapped = radii.drop(BorderRadiiRecord.VERTICAL_TOP_LEFT)
 
   // Assign elliptical radii per corner: (horizontal, vertical)
   val batch = !style.inBatch

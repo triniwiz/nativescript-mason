@@ -38,24 +38,6 @@ private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isDither = true
 private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 private val bitmapDstRect = RectF()
 
-private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
-private val ANY_GRADIENT_REGEX = Regex("""(repeating-)?(linear|radial|conic)-gradient\(""", RegexOption.IGNORE_CASE)
-private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
-private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round")
-private val WHITESPACE_REGEX = Regex("""\s+""")
-private val COMMA_WHITESPACE_REGEX = Regex("""[\s,]+""")
-private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
-private val RADIAL_SHAPE_WORDS =
-  setOf("circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner")
-private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
-private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})")
-private val RGBA_REGEX =
-  Regex(
-    """rgba?\(\s*([^)]+)\s*\)""",
-    RegexOption.IGNORE_CASE
-  )
-private val ANGLE_REGEX =
-  Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
 
 /**
  * CSS pseudo-state specificity order.
@@ -148,14 +130,81 @@ enum class BackgroundBlendMode(val css: String) {
  * One axis of `background-position`: a fraction of the free space plus a
  * device-pixel offset, so `right 10px` is (1, -10 * scale).
  */
-data class BackgroundOffset(var fraction: Float = 0f, var px: Float = 0f) {
-  fun resolve(area: Float, drawSize: Float): Float = fraction * (area - drawSize) + px
+class BackgroundOffset(fraction: Float = 0f, px: Float = 0f) {
+  internal var math: NativePaintOffset? = null
 
-  fun cssValue(horizontal: Boolean): String = when {
+  var fraction: Float = fraction
+    set(value) {
+      if (field.toBits() != value.toBits()) math = null
+      field = value
+    }
+  var px: Float = px
+    set(value) {
+      if (field.toBits() != value.toBits()) math = null
+      field = value
+    }
+
+  operator fun component1(): Float = fraction
+  operator fun component2(): Float = px
+
+  fun copy(fraction: Float = this.fraction, px: Float = this.px): BackgroundOffset =
+    BackgroundOffset(fraction, px).also {
+      if (fraction.toBits() == this.fraction.toBits() && px.toBits() == this.px.toBits()) it.math = math
+    }
+
+  override fun equals(other: Any?): Boolean =
+    other is BackgroundOffset && fraction.toBits() == other.fraction.toBits() &&
+      px.toBits() == other.px.toBits() && math == other.math
+
+  override fun hashCode(): Int {
+    val components = 31 * fraction.hashCode() + px.hashCode()
+    return math?.let { 31 * components + it.hashCode() } ?: components
+  }
+
+  override fun toString(): String = "BackgroundOffset(fraction=$fraction, px=$px)"
+
+  fun resolve(area: Float, drawSize: Float): Float = resolve(area, drawSize, null)
+
+  internal fun resolve(area: Float, drawSize: Float, units: LengthContext?): Float {
+    val basis = area - drawSize
+    return math?.resolve(basis, units) ?: (fraction * basis + px)
+  }
+
+  fun cssValue(horizontal: Boolean): String = math?.text(horizontal) ?: when {
     px == 0f -> "${(fraction * 100f).toInt()}%"
     fraction == 0f -> "${(px / Mason.shared.scale).toInt()}px"
     fraction == 1f -> "${if (horizontal) "right" else "bottom"} ${(-px / Mason.shared.scale).toInt()}px"
     else -> "calc(${(fraction * 100f).toInt()}% + ${(px / Mason.shared.scale).toInt()}px)"
+  }
+}
+
+internal class NativePaintOffset private constructor(
+  private val handle: Long, private val fontSize: Float, private val snapshot: NativePaintSnapshot? = null,
+) {
+  private val formula by lazy { text(horizontal = true) }
+
+  override fun equals(other: Any?): Boolean =
+    this === other || other is NativePaintOffset && fontSize.toBits() == other.fontSize.toBits() && formula == other.formula
+
+  override fun hashCode(): Int = 31 * fontSize.hashCode() + formula.hashCode()
+
+  fun resolve(basis: Float, units: LengthContext?): Float {
+    val context = units ?: gradientUnits(fontSize)
+    return Mason.nativePaintOffsetResolve(snapshot ?: this, handle, basis, context.scale, context.emBasis,
+      context.rootFontSize, context.viewportWidth, context.viewportHeight)
+  }
+
+  fun text(horizontal: Boolean): String? = Mason.nativePaintOffsetText(snapshot ?: this, handle, horizontal)
+
+  companion object {
+    fun fromSnapshot(snapshot: NativePaintSnapshot?, address: Long, fontSize: Float): NativePaintOffset? =
+      if (snapshot != null && address != 0L) NativePaintOffset(address, fontSize, snapshot) else null
+
+    fun retain(owner: Any, address: Long, fontSize: Float): NativePaintOffset? {
+      if (address == 0L) return null
+      val handle = Mason.nativePaintOffsetRetain(owner, address)
+      return NativePaintOffset(handle, fontSize).also { Mason.shared.gc.track(it) { Mason.nativePaintOffsetRelease(handle) } }
+    }
   }
 }
 
@@ -201,6 +250,8 @@ data class BackgroundLayer(
   /** A color token seen in the shorthand; the last layer\'s becomes `Background.color`. */
   var layerColor: Int? = null
 ) {
+  internal var shaderUnits: LengthContext? = null
+
   val isDefault: Boolean
     get() = image == null && gradient == null && position == null && size == null &&
       repeat == BackgroundRepeat.REPEAT && clip == BackgroundClip.BORDER_BOX &&
@@ -247,6 +298,7 @@ class Background(
     }
 
   var layers: MutableList<BackgroundLayer> = mutableListOf()
+  private var nativeBackground: NativeBackground? = null
 
   /** Whether a layer paints through the text (`background-clip: text`). */
   val hasTextClip: Boolean
@@ -259,51 +311,56 @@ class Background(
     (style.node.view as? android.view.View)?.invalidate()
   }
 
-  // Per-layer longhands in the order they were set. Layers come only from
-  // images/gradients, so a longhand set before the layers is kept and
-  // reapplied when they arrive. Core applies the `background` shorthand after
-  // the longhands whatever their declaration order, so it reapplies them too.
-  internal val longhands = LinkedHashMap<String, String>()
+  private fun backgroundProgram(): NativeBackground =
+    nativeBackground ?: NativeBackground.create().also { nativeBackground = it }
 
   private fun setLonghand(name: String, value: String) {
-    longhands.remove(name)
-    // `background-position` resets both axes set by the -x/-y longhands.
-    if (name == "position") {
-      longhands.remove("position-x")
-      longhands.remove("position-y")
+    val background = backgroundProgram()
+    val result = background.setLonghand(name, value)
+    if (result < 0) return
+    if (result > 0) {
+      background.readLayers(reusing = layers)
+      install()
     }
-    longhands[name] = value
-    applyLonghand(name, value)
     invalidateView()
   }
 
-  /** Reapply the stored longhands after the layer list was rebuilt. */
-  internal fun reapplyLonghands() {
-    for ((name, value) in longhands) applyLonghand(name, value)
+  internal fun replaceLayers(value: String, shorthand: Boolean): Boolean {
+    val background = backgroundProgram()
+    val parsedColor = background.replace(value, style.color)
+    if (parsedColor < -1L) return false
+    val projected = background.readLayers() ?: return false
+    if (shorthand) {
+      if (!style.node.mason.inCompute) style.prepareMut()
+      color = parsedColor.takeIf { it >= 0L }?.toInt()
+    }
+    layers = projected.toMutableList()
+    return true
   }
 
-  /** Apply a comma-separated per-layer list, repeating it cyclically as CSS does. */
-  private fun applyLonghand(name: String, value: String) {
-    val parts = splitLayers(value).map { it.trim() }.filter { it.isNotEmpty() }
-    if (parts.isEmpty()) return
-    layers.forEachIndexed { idx, layer ->
-      val v = parts[idx % parts.size]
-      when (name) {
-        "repeat" -> parseRepeat(v)?.let { layer.repeat = it }
-        "position" -> parsePosition(splitTopLevelWhitespace(v))?.let { layer.position = it }
-        "position-x" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = true)?.let {
-          layer.position = (layer.position ?: BackgroundPosition()).copy(x = it)
-        }
-        "position-y" -> parseAxisPosition(splitTopLevelWhitespace(v), horizontal = false)?.let {
-          layer.position = (layer.position ?: BackgroundPosition()).copy(y = it)
-        }
-        "size" -> parseSize(v)?.let { layer.size = it }
-        "clip" -> BackgroundClip.parse(v)?.let { layer.clip = it }
-        "origin" -> BackgroundOrigin.parseOrigin(v)?.let { layer.origin = it }
-        "attachment" -> BackgroundAttachment.parse(v)?.let { layer.attachment = it }
-        "blend-mode" -> BackgroundBlendMode.parse(v)?.let { layer.blendMode = it }
-      }
+  internal fun applyCompiled(fields: Array<String>, initialColor: Int, fontSize: Float) {
+    val background = backgroundProgram()
+    val result = background.applyCompiled(fields, initialColor) ?: return
+    val shorthand = result[CssBackgroundResultRecord.SHORTHAND_VALUE]
+    if (shorthand >= 0L) style.mBackgroundRaw = fields[shorthand.toInt()]
+    val fill = result[CssBackgroundResultRecord.COLOR]
+    if (fill >= -1L) {
+      val shorthandColor = result[CssBackgroundResultRecord.COLOR_FROM_SHORTHAND] != 0L
+      if (!shorthandColor || !style.node.mason.inCompute) style.prepareMut()
+      color = fill.takeIf { it >= 0L }?.toInt()
     }
+    if (result[CssBackgroundResultRecord.IMAGE_DECLARATION] != 0L) style.isValueInitialized = true
+    if (result[CssBackgroundResultRecord.LAYERS_CHANGED] != 0L) {
+      val existing = if (result[CssBackgroundResultRecord.IMAGES_REPLACED] != 0L) emptyList() else layers
+      layers = background.readLayers(reusing = existing, mason = style.node.mason, fontSize = fontSize)
+        ?.toMutableList() ?: return
+      install()
+    }
+    invalidateView()
+  }
+
+  internal fun install() {
+    installBackground(style, nativeBackground)
   }
 
   fun applyBackgroundRepeat(value: String) = setLonghand("repeat", value)
@@ -375,8 +432,8 @@ class Background(
       }
     }
 
-    internal fun fillBoxGradient(canvas: Canvas, layer: BackgroundLayer, border: BorderRenderer, width: Float, height: Float) {
-      val shader = gradientShader(layer, width.toInt(), height.toInt()) ?: return
+    internal fun fillBoxGradient(canvas: Canvas, layer: BackgroundLayer, border: BorderRenderer, width: Float, height: Float, fontSize: Float) {
+      val shader = gradientShader(layer, width.toInt(), height.toInt(), gradientUnits(fontSize)) ?: return
       gradientPaint.shader = shader
       fillBorderBox(canvas, border, width, height, gradientPaint)
     }
@@ -425,7 +482,8 @@ class Background(
 
   fun clear() {
     layers = mutableListOf()
-    longhands.clear()
+    nativeBackground = null
+    installBackground(style, null)
     color = null
   }
 }
@@ -456,35 +514,68 @@ data class BackgroundRepeat(val x: RepeatStyle, val y: RepeatStyle) {
     @JvmField val NO_REPEAT = BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.NO_REPEAT)
 
     /** `repeat-x`, `repeat-y`, or one or two axis keywords; null when invalid. */
-    fun parse(value: String): BackgroundRepeat? {
-      val tokens = value.trim().lowercase().split(WHITESPACE_REGEX).filter { it.isNotEmpty() }
-      return when (tokens.size) {
-        1 -> when (tokens[0]) {
-          "repeat-x" -> REPEAT_X
-          "repeat-y" -> REPEAT_Y
-          else -> RepeatStyle.parse(tokens[0])?.let { BackgroundRepeat(it, it) }
-        }
-
-        2 -> {
-          val x = RepeatStyle.parse(tokens[0]) ?: return null
-          val y = RepeatStyle.parse(tokens[1]) ?: return null
-          BackgroundRepeat(x, y)
-        }
-
-        else -> null
-      }
-    }
+    fun parse(value: String): BackgroundRepeat? =
+      backgroundLonghandRecord("repeat", value)?.repeat(0)
   }
 }
 
 data class Gradient(
-  val type: String,             // linear, radial or conic
-  val direction: String?,       // e.g., "to bottom"
-  val stops: List<String>,      // color stops
+  val type: String,
+  val direction: String?,
+  val stops: List<String>,
   val interpolation: ColorInterpolation? = null,
-  /** `repeating-*-gradient`: the stop run tiles along the gradient line. */
   val repeating: Boolean = false,
-)
+) {
+  private val parsedStops by lazy {
+    (stops as? NativeGradientStops)?.takeIf { it.type == type && it.direction == direction } ?: run {
+      // Typed callers can construct a gradient directly with a list of CSS stops.
+      val value = stops.joinToString(", ")
+      val prefix = if (repeating) "repeating-" else ""
+      val prelude = direction?.takeIf { it.isNotBlank() }?.let { "$it, " } ?: ""
+      parseGradient("$prefix$type-gradient($prelude$value)")?.stops as? NativeGradientStops
+    }
+  }
+
+  internal fun paint(width: Float, height: Float, units: LengthContext = gradientUnits()): GradientPaint? =
+    parsedStops?.paint(width, height, units)
+}
+
+private fun gradientUnits(fontSize: Float = 0f): LengthContext {
+  val mason = Mason.shared
+  return LengthContext(mason.scale, fontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight)
+}
+
+internal class GradientPaint(private val values: DoubleArray) {
+  val x0 get() = values[0].toFloat()
+  val y0 get() = values[1].toFloat()
+  val x1 get() = values[2].toFloat()
+  val y1 get() = values[3].toFloat()
+  val radiusX get() = values[4].toFloat()
+  val radiusY get() = values[5].toFloat()
+  val angle get() = values[6].toFloat()
+  val stopCount get() = (values.size - 7) / 2
+
+  fun color(index: Int): Int = values[7 + index * 2].toLong().toInt()
+  fun position(index: Int): Float = values[8 + index * 2].toFloat()
+}
+
+private class NativeGradientStops(
+  private val handle: Long, override val size: Int, val type: String, val direction: String?,
+  private val snapshot: NativePaintSnapshot?,
+) : AbstractList<String>() {
+  private val texts by lazy { checkNotNull(Mason.nativeGradientStopTexts(snapshot ?: this, handle)) }
+
+  override fun get(index: Int): String {
+    if (index !in indices) throw IndexOutOfBoundsException("Gradient stop $index of $size")
+    return texts[index]
+  }
+
+  fun paint(width: Float, height: Float, units: LengthContext): GradientPaint? {
+    return Mason.nativeGradientPaint(
+      snapshot ?: this, handle, width, height, units.scale, units.emBasis, units.rootFontSize, units.viewportWidth, units.viewportHeight
+    )?.let(::GradientPaint)
+  }
+}
 
 /** Glide model for a CSS image URL: `~/` is the app folder and an absolute path is a file. */
 internal fun imageSource(context: Context, url: String): Any = when {
@@ -497,25 +588,31 @@ internal fun imageSource(context: Context, url: String): Any = when {
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
   currentColor: Int = 0xFF000000.toInt()
+) = drawBackground(context, view, layer, canvas, paintRect, area, currentColor, 0f)
+
+internal fun drawBackground(
+  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
+  currentColor: Int, fontSize: Float,
 ) {
-  layer.gradient?.let { drawGradient(layer, canvas, paintRect, area) }
+  val units = gradientUnits(fontSize)
+  if (layer.gradient != null) drawGradient(layer, canvas, paintRect, area, units)
 
   layer.image?.let { imageUrl ->
     if (isSvgSource(imageUrl)) {
-      drawSvgLayer(context, layer, imageUrl, canvas, paintRect, area, currentColor)
+      drawSvgLayer(context, layer, imageUrl, canvas, paintRect, area, currentColor, units)
       return
     }
 
     // Use cached bitmap if available
     layer.bitmap?.let { bitmap ->
-      drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
+      drawBitmapLayer(bitmap, layer, canvas, paintRect, area, units)
       return
     }
 
     decodeDataUrlBitmap(imageUrl)?.let { bitmap ->
       layer.bitmap = bitmap
       layer.bitmapIsDevicePx = false
-      drawBitmapLayer(bitmap, layer, canvas, paintRect, area)
+      drawBitmapLayer(bitmap, layer, canvas, paintRect, area, units)
       return
     }
 
@@ -541,7 +638,7 @@ private const val MAX_SVG_RASTER_PX = 4096
  * when that size or the `currentColor` it used changes.
  */
 private fun drawSvgLayer(
-  context: Context, layer: BackgroundLayer, url: String, canvas: Canvas, paintRect: RectF, area: RectF, currentColor: Int
+  context: Context, layer: BackgroundLayer, url: String, canvas: Canvas, paintRect: RectF, area: RectF, currentColor: Int, units: LengthContext
 ) {
   if (layer.svgFailed) return
   val doc = layer.svg ?: decodeSvgSource(context, url)?.also { layer.svg = it }
@@ -551,7 +648,7 @@ private fun drawSvgLayer(
   }
   val density = context.resources.displayMetrics.density
   // Intrinsic size in device px: 1 SVG px is 1 CSS px.
-  val (drawW, drawH) = resolveTileSize(layer, doc.width * density, doc.height * density, area.width(), area.height())
+  val (drawW, drawH) = resolveTileSize(layer, doc.width * density, doc.height * density, area.width(), area.height(), units)
   if (drawW <= 0f || drawH <= 0f) return
   val fit = minOf(1f, MAX_SVG_RASTER_PX / maxOf(drawW, drawH))
   val pxW = ceil(drawW * fit).toInt().coerceAtLeast(1)
@@ -567,7 +664,7 @@ private fun drawSvgLayer(
       layer.bitmapIsDevicePx = true
     } ?: return
   }
-  drawBitmapLayer(bitmap, layer, canvas, paintRect, area, drawW, drawH)
+  drawBitmapLayer(bitmap, layer, canvas, paintRect, area, units, drawW, drawH)
 }
 
 /** Payload bytes of a `data:` URL, or null. */
@@ -860,14 +957,17 @@ private fun drawSvgMasked(canvas: Canvas, mask: SvgMask, content: List<SvgOp>, c
   canvas.restoreToCount(outer)
 }
 
-fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) {
+fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF) =
+  drawGradient(layer, canvas, paintRect, area, gradientUnits())
+
+private fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF, units: LengthContext) {
   // A gradient is an image with no intrinsic size: `auto` is the positioning area.
-  val (tileW, tileH) = resolveTileSize(layer, area.width(), area.height(), area.width(), area.height())
+  val (tileW, tileH) = resolveTileSize(layer, area.width(), area.height(), area.width(), area.height(), units)
   // No shader means no fill: gradientPaint's fallback colour is opaque black.
-  val shader = gradientShader(layer, tileW.toInt(), tileH.toInt()) ?: return
+  val shader = gradientShader(layer, tileW.toInt(), tileH.toInt(), units) ?: return
   gradientPaint.shader = shader
   layer.blendMode.apply(gradientPaint)
-  forEachTile(layer, paintRect, area, tileW, tileH) { x, y ->
+  forEachTile(layer, paintRect, area, tileW, tileH, units) { x, y ->
     val save = canvas.save()
     canvas.translate(x, y)
     canvas.drawRect(0f, 0f, tileW, tileH, gradientPaint)
@@ -877,73 +977,27 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area:
 }
 
 /** The layer's gradient over a `width` x `height` tile, cached on the layer. */
-internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Shader? {
+internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int, units: LengthContext = gradientUnits()): Shader? {
   val gradient = layer.gradient ?: return null
   if (width <= 0 || height <= 0) return null
 
   // A resize (often from a first draw at 0x0) needs a new shader.
   if (layer.shader != null &&
-    (layer.shaderWidth != width || layer.shaderHeight != height)
+    (layer.shaderWidth != width || layer.shaderHeight != height || layer.shaderUnits != units)
   ) {
     layer.shader = null
   }
 
   if (layer.shader == null) {
     val type = gradient.type.lowercase()
-    val w = width.toFloat()
-    val h = height.toFloat()
-
-    // Geometry first: length stops resolve against the gradient line.
-    var x0 = 0f
-    var y0 = 0f
-    var x1 = 0f
-    var y1 = 0f
-    var radius = 0f
-    var radiusY = 0f
-    var fromDeg = 0f
-    val lineLength = when (type) {
-      "linear" -> {
-        val ep = resolveLinearGradientEndpoints(gradient.direction, w, h)
-        x0 = ep[0]; y0 = ep[1]; x1 = ep[2]; y1 = ep[3]
-        hypot(x1 - x0, y1 - y0)
-      }
-
-      "radial" -> {
-        val (cx, cy) = resolveRadialGradientCenter(gradient.direction, w, h)
-        x0 = cx; y0 = cy
-        val radii = radialGradientRadii(radialShapePart(gradient.direction), cx, cy, w, h)
-        radius = radii[0]
-        radiusY = radii[1]
-        // Stops sit on the horizontal ray, so lengths resolve against rx.
-        radius
-      }
-
-      "conic" -> {
-        val geometry = resolveConicGeometry(gradient.direction, w, h)
-        x0 = geometry[0]; y0 = geometry[1]; fromDeg = geometry[2]
-        0f
-      }
-
-      else -> 0f
+    val paint = gradient.paint(width.toFloat(), height.toFloat(), units) ?: return null
+    val colorsArray = IntArray(paint.stopCount, paint::color)
+    val positions = FloatArray(paint.stopCount) {
+      val position = paint.position(it)
+      if (gradient.repeating) position else position.coerceIn(0f, 1f)
     }
-
-    val stopCount = gradient.stops.size
-    val colorsArray = IntArray(stopCount)
-    val positions = ArrayList<Float?>(stopCount)
-
-    for (index in 0 until stopCount) {
-      val parts = splitTopLevelWhitespace(gradient.stops[index].trim())
-      colorsArray[index] = parts.firstOrNull()?.let { parseColor(it) } ?: Color.TRANSPARENT
-
-      // A repeating gradient keeps out-of-range stops: they set the period.
-      val pos = parts.getOrNull(1)?.let { parseGradientStopPosition(it, type == "conic", lineLength) }
-      positions.add(if (gradient.repeating) pos else pos?.coerceIn(0f, 1f))
-    }
-
     if (colorsArray.isEmpty()) return null
-    var (shaderColors, positionsArray) = expandInterpolatedStops(
-      colorsArray, resolveStopPositions(positions), gradient.interpolation
-    )
+    var (shaderColors, positionsArray) = expandInterpolatedStops(colorsArray, positions, gradient.interpolation)
     if (gradient.repeating) {
       val repeated = repeatGradientStops(shaderColors, positionsArray)
       shaderColors = repeated.first
@@ -956,16 +1010,16 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     }
 
     layer.shader = when (type) {
-      "linear" -> LinearGradient(x0, y0, x1, y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
+      "linear" -> LinearGradient(paint.x0, paint.y0, paint.x1, paint.y1, shaderColors, positionsArray, Shader.TileMode.CLAMP)
 
       // An ellipse is the circle of radius rx scaled vertically about the centre.
-      "radial" -> RadialGradient(x0, y0, radius, shaderColors, positionsArray, Shader.TileMode.CLAMP).apply {
-        if (radiusY != radius) setLocalMatrix(Matrix().apply { setScale(1f, radiusY / radius, x0, y0) })
+      "radial" -> RadialGradient(paint.x0, paint.y0, paint.radiusX, shaderColors, positionsArray, Shader.TileMode.CLAMP).apply {
+        if (paint.radiusY != paint.radiusX) setLocalMatrix(Matrix().apply { setScale(1f, paint.radiusY / paint.radiusX, paint.x0, paint.y0) })
       }
 
       // SweepGradient starts at 3 o'clock; CSS conic starts at 12 o'clock, both clockwise.
-      "conic" -> SweepGradient(x0, y0, shaderColors, positionsArray).apply {
-        setLocalMatrix(Matrix().apply { setRotate(fromDeg - 90f, x0, y0) })
+      "conic" -> SweepGradient(paint.x0, paint.y0, shaderColors, positionsArray).apply {
+        setLocalMatrix(Matrix().apply { setRotate(paint.angle - 90f, paint.x0, paint.y0) })
       }
 
       else -> null
@@ -974,50 +1028,9 @@ internal fun gradientShader(layer: BackgroundLayer, width: Int, height: Int): Sh
     // remember the size used to create this shader
     layer.shaderWidth = width
     layer.shaderHeight = height
+    layer.shaderUnits = units
   }
   return layer.shader
-}
-
-/**
- * One colour-stop position as a fraction of the gradient line: a percentage, a length over
- * [lineLength] (device px), or an angle over a full turn for conic gradients. A bare number
- * <= 1 is a fraction, else a percentage.
- */
-private fun parseGradientStopPosition(token: String, conic: Boolean, lineLength: Float): Float? {
-  val t = token.trim().lowercase()
-  if (t.endsWith("%")) return t.dropLast(1).toFloatOrNull()?.let { it / 100f }
-  t.toFloatOrNull()?.let { return if (it <= 1f) it else it / 100f }
-  if (conic) return parseCssAngleToRadians(t)?.let { (it / (2.0 * Math.PI)).toFloat() }
-  if (lineLength <= 0f) return null
-  return parseBackgroundLength(t)?.let { it.px / lineLength }
-}
-
-/**
- * `conic-gradient([from <angle>] [at <position>], ...)`: centre x, centre y (px) and the
- * start angle (degrees, CSS orientation).
- */
-private fun resolveConicGeometry(direction: String?, width: Float, height: Float): FloatArray {
-  val out = floatArrayOf(width / 2f, height / 2f, 0f)
-  val dir = direction?.trim()?.lowercase() ?: return out
-  val at = when {
-    dir.startsWith("at ") -> 0
-    else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
-  }
-  val fromPart = (if (at >= 0) dir.substring(0, at) else dir).trim()
-  if (fromPart.startsWith("from")) {
-    parseCssAngleToRadians(fromPart.removePrefix("from").trim())?.let {
-      out[2] = Math.toDegrees(it).toFloat()
-    }
-  }
-  if (at >= 0) {
-    val position = dir.substring(at + 3).trim()
-    if (position.isNotEmpty()) {
-      val (cx, cy) = resolvePositionKeywords(position, width, height)
-      out[0] = cx
-      out[1] = cy
-    }
-  }
-  return out
 }
 
 /** Largest stop list a repeating gradient expands to; finer periods are cut off. */
@@ -1125,10 +1138,10 @@ internal fun tileAxis(
 }
 
 /** Visit each tile origin of a `drawW`x`drawH` image placed and repeated per the layer. */
-private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: RectF, drawW: Float, drawH: Float, draw: (Float, Float) -> Unit) {
+private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: RectF, drawW: Float, drawH: Float, units: LengthContext, draw: (Float, Float) -> Unit) {
   val pos = layer.position
-  val offsetX = pos?.x?.resolve(area.width(), drawW) ?: 0f
-  val offsetY = pos?.y?.resolve(area.height(), drawH) ?: 0f
+  val offsetX = pos?.x?.resolve(area.width(), drawW, units) ?: 0f
+  val offsetY = pos?.y?.resolve(area.height(), drawH, units) ?: 0f
   tileAxis(layer.repeat.x, area.left, area.width(), paintRect.left, paintRect.right, drawW, offsetX, tileAxisX)
   tileAxis(layer.repeat.y, area.top, area.height(), paintRect.top, paintRect.bottom, drawH, offsetY, tileAxisY)
   val x0 = tileAxisX[0]
@@ -1143,249 +1156,23 @@ private inline fun forEachTile(layer: BackgroundLayer, paintRect: RectF, area: R
   }
 }
 
-/**
- * Resolve linear-gradient endpoints for the given direction string and box size.
- * Supports CSS angle values (deg, rad, turn, grad), named directions
- * ("to bottom", "to top right", etc.), and falls back to top-to-bottom (180deg).
- */
-// Reusable array for gradient endpoint calculations (avoids List<Float> boxing)
-private val gradientEndpoints = FloatArray(4)
-
-private fun resolveLinearGradientEndpoints(
-  direction: String?,
-  width: Float,
-  height: Float
-): FloatArray {
-  val ep = gradientEndpoints
-  val dir = direction?.trim()?.lowercase()
-  if (dir == null) { ep[0] = 0f; ep[1] = 0f; ep[2] = 0f; ep[3] = height; return ep }
-
-  // Named directions
-  when (dir) {
-    "to bottom"                        -> { ep[0] = 0f;    ep[1] = 0f;     ep[2] = 0f;    ep[3] = height; return ep }
-    "to top"                           -> { ep[0] = 0f;    ep[1] = height; ep[2] = 0f;    ep[3] = 0f;     return ep }
-    "to right"                         -> { ep[0] = 0f;    ep[1] = 0f;     ep[2] = width; ep[3] = 0f;     return ep }
-    "to left"                          -> { ep[0] = width; ep[1] = 0f;     ep[2] = 0f;    ep[3] = 0f;     return ep }
-    "to bottom right", "to right bottom" -> return cornerGradientEndpoints(ep, 1f, 1f, width, height)
-    "to bottom left", "to left bottom" -> return cornerGradientEndpoints(ep, -1f, 1f, width, height)
-    "to top right", "to right top"     -> return cornerGradientEndpoints(ep, 1f, -1f, width, height)
-    "to top left", "to left top"       -> return cornerGradientEndpoints(ep, -1f, -1f, width, height)
-  }
-
-  // Try to parse as an angle
-  val angleRad = parseCssAngleToRadians(dir)
-  if (angleRad != null) {
-    val centerX = width / 2f
-    val centerY = height / 2f
-    val sinA = kotlin.math.sin(angleRad).toFloat()
-    val cosA = kotlin.math.cos(angleRad).toFloat()
-    val halfLen = (kotlin.math.abs(width * sinA) + kotlin.math.abs(height * cosA)) / 2f
-    ep[0] = centerX - halfLen * sinA
-    ep[1] = centerY + halfLen * cosA
-    ep[2] = centerX + halfLen * sinA
-    ep[3] = centerY - halfLen * cosA
-    return ep
-  }
-
-  // Fallback: top-to-bottom (CSS default)
-  ep[0] = 0f; ep[1] = 0f; ep[2] = 0f; ep[3] = height
-  return ep
-}
-
-/** A corner keyword: perpendicular to the diagonal through the other two corners. */
-private fun cornerGradientEndpoints(ep: FloatArray, x: Float, y: Float, width: Float, height: Float): FloatArray {
-  val n = hypot(width, height)
-  val dx = if (n > 0f) x * height / n else 0f
-  val dy = if (n > 0f) y * width / n else 1f
-  val half = (kotlin.math.abs(width * dx) + kotlin.math.abs(height * dy)) / 2f
-  ep[0] = width / 2f - half * dx
-  ep[1] = height / 2f - half * dy
-  ep[2] = width / 2f + half * dx
-  ep[3] = height / 2f + half * dy
-  return ep
-}
-
-/**
- * Parse a CSS angle string (e.g. "135deg", "0.75turn", "1.5rad", "200grad")
- * to radians. Returns null if the string cannot be parsed.
- */
-internal fun parseCssAngleToRadians(value: String): Double? {
-  val v = value.trim().lowercase()
-  return when {
-    v.endsWith("deg") -> v.removeSuffix("deg").toDoubleOrNull()
-      ?.let { it * Math.PI / 180.0 }
-
-    v.endsWith("grad") -> v.removeSuffix("grad").toDoubleOrNull()
-      ?.let { it * Math.PI / 200.0 }
-
-    v.endsWith("turn") -> v.removeSuffix("turn").toDoubleOrNull()
-      ?.let { it * 2.0 * Math.PI }
-
-    v.endsWith("rad") -> v.removeSuffix("rad").toDoubleOrNull()
-    else -> null
-  }
-}
-
-/**
- * Resolve the centre point of a radial-gradient from the CSS direction string.
- *
- * Accepted formats include:
- *   "circle at top left", "ellipse at 30% 70%", "at center", "circle", etc.
- *
- * When no position is given the default is the element centre (50% 50%).
- */
-private fun resolveRadialGradientCenter(
-  direction: String?,
-  width: Float,
-  height: Float
-): Pair<Float, Float> {
-  val defaultCenter = Pair(width / 2f, height / 2f)
-  val dir = direction?.trim()?.lowercase() ?: return defaultCenter
-
-  val atIndex = radialAtIndex(dir)
-  val positionStr = if (atIndex >= 0) dir.substring(atIndex + 2).trim() else return defaultCenter
-  if (positionStr.isEmpty()) return defaultCenter
-
-  return resolvePositionKeywords(positionStr, width, height)
-}
-
-/** Index of the `at` that starts a radial prelude's position, or -1. */
-private fun radialAtIndex(dir: String): Int = when {
-  dir == "at" || dir.startsWith("at ") -> 0
-  else -> dir.indexOf(" at ").let { if (it >= 0) it + 1 else -1 }
-}
-
-/** The `<shape> <size>` part of a radial prelude, without its `at <position>`. */
-internal fun radialShapePart(direction: String?): String? {
-  val dir = direction?.trim()?.lowercase() ?: return null
-  val at = radialAtIndex(dir)
-  return (if (at >= 0) dir.substring(0, at) else dir).trim().ifEmpty { null }
-}
-
-/** True when [token] is a radial prelude (`circle 20px at top`), not a colour stop. */
-internal fun isRadialPrelude(token: String): Boolean {
-  val v = token.trim().lowercase()
-  if (v.isEmpty()) return false
-  val shape = radialShapePart(v) ?: return radialAtIndex(v) == 0
-  val parts = shape.split(WHITESPACE_REGEX)
-  return parts.all { it in RADIAL_SHAPE_WORDS || parseBackgroundLength(it) != null }
-}
-
-/**
- * The ending shape's radii [rx, ry] in px for a radial [shape] (`circle`, `ellipse`, a size
- * keyword or explicit radii) centred at [cx], [cy] in a [width] x [height] box, per CSS Images 3.
- * The default is an ellipse to the farthest corner; a single length is a circle.
- */
-internal fun radialGradientRadii(
-  shape: String?,
-  cx: Float,
-  cy: Float,
-  width: Float,
-  height: Float,
-  length: (String) -> BackgroundOffset? = ::parseBackgroundLength,
-): FloatArray {
-  val parts = shape?.trim()?.lowercase()?.split(WHITESPACE_REGEX)?.filter { it.isNotEmpty() } ?: emptyList()
-  val lengths = parts.filter { it !in RADIAL_SHAPE_WORDS }.mapNotNull(length)
-  val circle = "circle" in parts || ("ellipse" !in parts && lengths.size == 1)
-  if (lengths.isNotEmpty()) {
-    val rx = lengths[0].fraction * width + lengths[0].px
-    val ry = if (circle || lengths.size < 2) rx else lengths[1].fraction * height + lengths[1].px
-    return floatArrayOf(rx.coerceAtLeast(MIN_RADIAL_RADIUS), ry.coerceAtLeast(MIN_RADIAL_RADIUS))
-  }
-  val size = parts.firstOrNull { it in RADIAL_SHAPE_WORDS && it != "circle" && it != "ellipse" } ?: "farthest-corner"
-  val closest = size.startsWith("closest")
-  val sideX = if (closest) minOf(cx, width - cx) else maxOf(cx, width - cx)
-  val sideY = if (closest) minOf(cy, height - cy) else maxOf(cy, height - cy)
-  val corner = size.endsWith("corner")
-  val out = when {
-    circle && corner -> hypot(sideX, sideY).let { floatArrayOf(it, it) }
-    circle -> (if (closest) minOf(sideX, sideY) else maxOf(sideX, sideY)).let { floatArrayOf(it, it) }
-    // A corner ellipse keeps the side ellipse's aspect ratio and passes through that corner.
-    corner -> floatArrayOf(sideX * SQRT_2, sideY * SQRT_2)
-    else -> floatArrayOf(sideX, sideY)
-  }
-  out[0] = out[0].coerceAtLeast(MIN_RADIAL_RADIUS)
-  out[1] = out[1].coerceAtLeast(MIN_RADIAL_RADIUS)
-  return out
-}
-
-private const val MIN_RADIAL_RADIUS = 1f
-private const val SQRT_2 = 1.4142135f
-
-/**
- * Convert a CSS background-position value (keyword or percentage based) to
- * absolute pixel coordinates.
- *
- * Supports: named keywords (top, bottom, left, right, center) and percentage
- * values (e.g. "30%" or "30% 70%").
- */
-private fun resolvePositionKeywords(
-  position: String,
-  width: Float,
-  height: Float
-): Pair<Float, Float> {
-  val parts = position.split(Regex("\\s+"))
-
-  fun resolveToken(token: String, horizontal: Boolean): Float {
-    return when (token) {
-      "left" -> 0f
-      "right" -> width
-      "top" -> 0f
-      "bottom" -> height
-      "center" -> if (horizontal) width / 2f else height / 2f
-      else -> {
-        if (token.endsWith("%")) {
-          val pct = token.removeSuffix("%").toFloatOrNull() ?: 50f
-          if (horizontal) pct / 100f * width else pct / 100f * height
-        } else {
-          val num = token.removeSuffix("px").toFloatOrNull()
-          if (num != null) num * Mason.shared.scale
-          else if (horizontal) width / 2f else height / 2f
-        }
-      }
-    }
-  }
-
-  return when (parts.size) {
-    1 -> {
-      val x = resolveToken(parts[0], horizontal = true)
-      val y = when (parts[0]) {
-        "top" -> 0f
-        "bottom" -> height
-        // Single keyword like "center", "left", "right" → y defaults to 50%
-        else -> height / 2f
-      }
-      // For "top"/"bottom" used alone, x defaults to center
-      val finalX = when (parts[0]) {
-        "top", "bottom" -> width / 2f
-        else -> x
-      }
-      Pair(finalX, y)
-    }
-    else -> Pair(
-      resolveToken(parts[0], horizontal = true),
-      resolveToken(parts[1], horizontal = false)
-    )
-  }
-}
-
 /** [drawW]/[drawH], when given, are the already-resolved tile size. */
 private fun drawBitmapLayer(
   bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, paintRect: RectF, area: RectF,
-  drawW: Float? = null, drawH: Float? = null
+  units: LengthContext, drawW: Float? = null, drawH: Float? = null
 ) {
   val areaW = area.width()
   val areaH = area.height()
   val imgScale = if (layer.bitmapIsDevicePx) 1f else Mason.shared.scale
   val (drawWidth, drawHeight) = if (drawW != null && drawH != null) drawW to drawH
-  else resolveTileSize(layer, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH)
+  else resolveTileSize(layer, bitmap.width * imgScale, bitmap.height * imgScale, areaW, areaH, units)
   if (drawWidth <= 0f || drawHeight <= 0f) return
 
   // Reuse cached RectF and Paint to avoid per-tile allocations
   val dst = bitmapDstRect
   val paint = bitmapPaint
   layer.blendMode.apply(paint)
-  forEachTile(layer, paintRect, area, drawWidth, drawHeight) { px, py ->
+  forEachTile(layer, paintRect, area, drawWidth, drawHeight, units) { px, py ->
     dst.set(px, py, px + drawWidth, py + drawHeight)
     canvas.drawBitmap(bitmap, null, dst, paint)
   }
@@ -1393,8 +1180,8 @@ private fun drawBitmapLayer(
 }
 
 /** The tile size: `background-size`, then `round` fits a whole number of tiles. */
-internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
-  var (w, h) = resolveBitmapSize(layer.size, imgW, imgH, areaW, areaH)
+internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, areaW: Float, areaH: Float, units: LengthContext? = null): Pair<Float, Float> {
+  var (w, h) = resolveBitmapSize(layer.size, imgW, imgH, areaW, areaH, units)
   val size = layer.size
   val autoW = size == null || (size.keyword == null && size.width == null)
   val autoH = size == null || (size.keyword == null && size.height == null)
@@ -1414,7 +1201,7 @@ internal fun resolveTileSize(layer: BackgroundLayer, imgW: Float, imgH: Float, a
 }
 
 /** Resolve `background-size` against the positioning area, keeping the image ratio for `auto`. */
-internal fun resolveBitmapSize(size: BackgroundSize?, imgW: Float, imgH: Float, areaW: Float, areaH: Float): Pair<Float, Float> {
+internal fun resolveBitmapSize(size: BackgroundSize?, imgW: Float, imgH: Float, areaW: Float, areaH: Float, units: LengthContext? = null): Pair<Float, Float> {
   if (size == null) return imgW to imgH
   val ratio = if (imgH > 0f) imgW / imgH else 1f
   when (size.keyword) {
@@ -1427,8 +1214,8 @@ internal fun resolveBitmapSize(size: BackgroundSize?, imgW: Float, imgH: Float, 
       return imgW * scale to imgH * scale
     }
   }
-  val w = size.width?.let { it.fraction * areaW + it.px }
-  val h = size.height?.let { it.fraction * areaH + it.px }
+  val w = size.width?.resolve(areaW, 0f, units)
+  val h = size.height?.resolve(areaH, 0f, units)
   return when {
     w != null && h != null -> w to h
     w != null -> w to w / ratio
@@ -1437,257 +1224,83 @@ internal fun resolveBitmapSize(size: BackgroundSize?, imgW: Float, imgH: Float, 
   }
 }
 
-fun parseHexColor(hex: String): Int? {
-  // extract a leading hex token like "#FFF", "#FFFF", "#RRGGBB" or "#RRGGBBAA"
-  val match = COLOR_REGEX.find(hex.trim())
-  val token = match?.value ?: return null
-  val s = token.removePrefix("#")
-  val len = s.length
+private fun parseCssColor(property: String, value: String): Int? =
+  Mason.expandCssShorthand(property, value)?.firstOrNull()?.toUIntOrNull()?.toInt()
 
-  fun hexCharToInt(c: Char): Int = when (c) {
-    in '0'..'9' -> c - '0'
-    in 'a'..'f' -> c - 'a' + 10
-    in 'A'..'F' -> c - 'A' + 10
-    else -> -1
-  }
+fun parseHexColor(hex: String): Int? = parseCssColor("color-hex", hex)
 
-  fun twoChar(c1: Char, c2: Char): Int {
-    val hi = hexCharToInt(c1)
-    val lo = hexCharToInt(c2)
-    if (hi == -1 || lo == -1) return -1
-    return (hi shl 4) or lo
-  }
+fun parseRgbColor(input: String): Int? = parseCssColor("color-rgb", input)
 
-  return when (len) {
-    3 -> { // RGB, alpha=255
-      val r = hexCharToInt(s[0])
-      val g = hexCharToInt(s[1])
-      val b = hexCharToInt(s[2])
-      if (r == -1 || g == -1 || b == -1) return null
-      (255 shl 24) or ((r shl 4 or r) shl 16) or ((g shl 4 or g) shl 8) or (b shl 4 or b)
-    }
-
-    4 -> { // RGBA
-      val r = hexCharToInt(s[0])
-      val g = hexCharToInt(s[1])
-      val b = hexCharToInt(s[2])
-      val a = hexCharToInt(s[3])
-      if (r == -1 || g == -1 || b == -1 || a == -1) return null
-      ((a shl 4 or a) shl 24) or ((r shl 4 or r) shl 16) or ((g shl 4 or g) shl 8) or (b shl 4 or b)
-    }
-
-    6 -> { // RRGGBB, alpha=255
-      val r = twoChar(s[0], s[1])
-      val g = twoChar(s[2], s[3])
-      val b = twoChar(s[4], s[5])
-      if (r == -1 || g == -1 || b == -1) return null
-      (255 shl 24) or (r shl 16) or (g shl 8) or b
-    }
-
-    8 -> { // RRGGBBAA
-      val r = twoChar(s[0], s[1])
-      val g = twoChar(s[2], s[3])
-      val b = twoChar(s[4], s[5])
-      val a = twoChar(s[6], s[7])
-      if (r == -1 || g == -1 || b == -1 || a == -1) return null
-      (a shl 24) or (r shl 16) or (g shl 8) or b
-    }
-
-    else -> null
-  }
-}
-
-private fun parseColorChannel(token: String): Int? {
-  val t = token.trim()
-
-  return when {
-    t.endsWith("%") -> {
-      val v = t.dropLast(1).toFloatOrNull() ?: return null
-      ((v.coerceIn(0f, 100f) / 100f) * 255f).toInt()
-    }
-
-    else -> {
-      val v = t.toFloatOrNull() ?: return null
-      v.coerceIn(0f, 255f).toInt()
-    }
-  }
-}
-
-private fun parseAlpha(token: String?): Int {
-  if (token == null) return 255
-
-  val t = token.trim()
-
-  val alpha = when {
-    t.endsWith("%") -> {
-      val v = t.dropLast(1).toFloatOrNull() ?: return 255
-      v.coerceIn(0f, 100f) / 100f
-    }
-
-    else -> {
-      val v = t.toFloatOrNull() ?: return 255
-      v.coerceIn(0f, 1f)
-    }
-  }
-
-  return (alpha * 255f).toInt()
-}
-
-fun parseRgbColor(input: String): Int? {
-  val match = RGBA_REGEX.find(input.trim()) ?: return null
-  val body = match.groupValues[1]
-
-  val (rgbPart, alphaPart) =
-    if (body.contains('/')) {
-      val parts = body.split('/', limit = 2)
-      parts[0] to parts[1]
-    } else {
-      body to null
-    }
-
-  val components = rgbPart
-    .trim()
-    .split(COMMA_WHITESPACE_REGEX)
-    .filter { it.isNotEmpty() }
-
-  return when (components.size) {
-    3 -> {
-      val r = parseColorChannel(components[0]) ?: return null
-      val g = parseColorChannel(components[1]) ?: return null
-      val b = parseColorChannel(components[2]) ?: return null
-      val a = parseAlpha(alphaPart)
-      (a shl 24) or (r shl 16) or (g shl 8) or b
-    }
-
-    4 -> {
-      // Legacy rgba(r, g, b, a) comma-separated format
-      val r = parseColorChannel(components[0]) ?: return null
-      val g = parseColorChannel(components[1]) ?: return null
-      val b = parseColorChannel(components[2]) ?: return null
-      val a = if (alphaPart != null) parseAlpha(alphaPart) else parseAlpha(components[3])
-      (a shl 24) or (r shl 16) or (g shl 8) or b
-    }
-
-    else -> null
-  }
-}
-
-fun parseColor(value: String): Int? {
-  return try {
-    val color = value.trim().trimEnd(';')
-    COLOR_MAP[color.lowercase()]?.let { return it }
-    parseHexColor(color) ?: parseRgbColor(color)
-  } catch (_: Exception) {
-    null
-  }
-}
+fun parseColor(value: String): Int? = parseCssColor("color-value", value)
 
 fun parseRepeat(value: String): BackgroundRepeat? = BackgroundRepeat.parse(value)
 
-/** One `<length>` or `<percentage>` of a background position/size, or null. */
-private fun parseBackgroundLength(token: String): BackgroundOffset? {
-  val t = token.trim().lowercase()
-  if (t.endsWith("%")) {
-    return t.dropLast(1).toFloatOrNull()?.let { BackgroundOffset(it / 100f, 0f) }
+/** Projects a parsed layer list for the mask renderer and CSS accessors. */
+internal class NativeBackgroundLonghand private constructor(internal val handle: Long) {
+  fun records(): DoubleArray? {
+    val mason = Mason.shared
+    return Mason.nativeBackgroundLonghandRecords(
+      this, handle, mason.scale, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight
+    )
   }
-  val match = lengthPercentageRegex.matchEntire(t) ?: return null
-  val num = match.groupValues[1].toFloatOrNull() ?: return null
-  val unit = match.groupValues.getOrNull(2)
-  val px = if (unit == "dppx") num else cssPxForUnit(num, unit, null) * Mason.shared.scale
-  return BackgroundOffset(0f, px)
-}
 
-private fun isHorizontalKeyword(t: String) = t == "left" || t == "right"
-private fun isVerticalKeyword(t: String) = t == "top" || t == "bottom"
+  fun offset(index: Int): NativePaintOffset? =
+    NativePaintOffset.retain(this, Mason.nativeBackgroundLonghandOffset(this, handle, index), 0f)
 
-private fun keywordOffset(t: String): BackgroundOffset? = when (t) {
-  "left", "top" -> BackgroundOffset(0f, 0f)
-  "center" -> BackgroundOffset(0.5f, 0f)
-  "right", "bottom" -> BackgroundOffset(1f, 0f)
-  else -> null
-}
-
-/** `background-position-x`/`-y`: a keyword, a length, or `<edge> <offset>`. */
-fun parseAxisPosition(parts: List<String>, horizontal: Boolean): BackgroundOffset? {
-  val tokens = parts.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
-  if (tokens.isEmpty()) return null
-  val first = tokens[0]
-  val edgeOk = if (horizontal) isHorizontalKeyword(first) || first == "center" else isVerticalKeyword(first) || first == "center"
-  if (tokens.size == 1) {
-    return if (edgeOk) keywordOffset(first) else parseBackgroundLength(first)
-  }
-  if (tokens.size == 2 && edgeOk && first != "center") {
-    val offset = parseBackgroundLength(tokens[1]) ?: return null
-    val edge = keywordOffset(first)!!
-    // `right 10px` means 10px in from the right: a negative device offset.
-    return if (edge.fraction == 1f) BackgroundOffset(1f - offset.fraction, -offset.px) else offset
-  }
-  return null
-}
-
-/** CSS `background-position` with the 1-, 2-, 3- and 4-value syntaxes. */
-fun parsePosition(parts: List<String>): BackgroundPosition? {
-  val tokens = parts.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
-  if (tokens.isEmpty() || tokens.size > 4) return null
-  when (tokens.size) {
-    1 -> {
-      val t = tokens[0]
-      return when {
-        isVerticalKeyword(t) -> BackgroundPosition(BackgroundOffset(0.5f), keywordOffset(t)!!)
-        else -> BackgroundPosition(
-          keywordOffset(t) ?: parseBackgroundLength(t) ?: return null,
-          BackgroundOffset(0.5f)
-        )
-      }
-    }
-    2 -> {
-      var a = tokens[0]
-      var b = tokens[1]
-      // `top left` is legal: keywords may swap axes, lengths may not.
-      if (isVerticalKeyword(a) || isHorizontalKeyword(b)) {
-        val tmp = a; a = b; b = tmp
-      }
-      val x = keywordOffset(a)?.takeIf { !isVerticalKeyword(a) } ?: parseBackgroundLength(a) ?: return null
-      val y = keywordOffset(b)?.takeIf { !isHorizontalKeyword(b) } ?: parseBackgroundLength(b) ?: return null
-      return BackgroundPosition(x, y)
-    }
-    else -> {
-      // 3/4-value: edge keywords each optionally followed by an offset.
-      var x: BackgroundOffset? = null
-      var y: BackgroundOffset? = null
-      var i = 0
-      while (i < tokens.size) {
-        val kw = tokens[i]
-        val offset = tokens.getOrNull(i + 1)?.let { parseBackgroundLength(it) }
-        val pair = if (offset != null) listOf(kw, tokens[i + 1]) else listOf(kw)
-        when {
-          isHorizontalKeyword(kw) || (kw == "center" && x == null && !isVerticalKeyword(tokens.getOrNull(i + 1) ?: "")) ->
-            x = parseAxisPosition(pair, horizontal = true) ?: return null
-          isVerticalKeyword(kw) || kw == "center" ->
-            y = parseAxisPosition(pair, horizontal = false) ?: return null
-          else -> return null
-        }
-        i += pair.size
-      }
-      return BackgroundPosition(x ?: BackgroundOffset(0.5f), y ?: BackgroundOffset(0.5f))
+  companion object {
+    fun parse(name: String, value: String, allowInvalidEntries: Boolean = false): NativeBackgroundLonghand? {
+      val mason = Mason.shared
+      val handle = Mason.nativeBackgroundLonghandParse(name, value, allowInvalidEntries)
+      if (handle == 0L) return null
+      val longhand = NativeBackgroundLonghand(handle)
+      mason.gc.track(longhand) { Mason.nativeBackgroundLonghandRelease(handle) }
+      return longhand
     }
   }
 }
 
-fun parseSize(value: String): BackgroundSize? {
-  val s = value.trim().lowercase()
-  return when (s) {
-    "cover", "contain" -> BackgroundSize(keyword = s)
-    "auto", "auto auto" -> BackgroundSize()
-    else -> {
-      val tokens = s.split(WHITESPACE_REGEX)
-      if (tokens.isEmpty() || tokens.size > 2) return null
-      val w = if (tokens[0] == "auto") null else parseBackgroundLength(tokens[0]) ?: return null
-      val h = tokens.getOrNull(1)?.let { if (it == "auto") null else parseBackgroundLength(it) ?: return null }
-      BackgroundSize(w, h)
+private const val BACKGROUND_LONGHAND_RECORD_SIZE = 6
+
+private fun backgroundLonghandRecord(name: String, value: String): DoubleArray? =
+  NativeBackgroundLonghand.parse(name, value)?.records()?.takeIf { it.size == BACKGROUND_LONGHAND_RECORD_SIZE }
+
+private fun DoubleArray.offset(index: Int, math: NativePaintOffset? = null): BackgroundOffset? =
+  if (this[index].isNaN()) null else BackgroundOffset(this[index].toFloat(), this[index + 1].toFloat()).also { it.math = math }
+
+private fun repeatStyle(value: Double): RepeatStyle = when (value.toInt()) {
+  1 -> RepeatStyle.NO_REPEAT
+  2 -> RepeatStyle.SPACE
+  3 -> RepeatStyle.ROUND
+  else -> RepeatStyle.REPEAT
+}
+
+private fun DoubleArray.repeat(base: Int): BackgroundRepeat =
+  BackgroundRepeat(repeatStyle(this[base + 1]), repeatStyle(this[base + 2]))
+
+private fun <T> readBackgroundLonghand(name: String, value: String, read: (NativeBackgroundLonghand, DoubleArray) -> T): T? {
+  val program = NativeBackgroundLonghand.parse(name, value) ?: return null
+  val records = program.records()?.takeIf { it.size == BACKGROUND_LONGHAND_RECORD_SIZE } ?: return null
+  return read(program, records)
+}
+
+fun parseAxisPosition(parts: List<String>, horizontal: Boolean): BackgroundOffset? =
+  readBackgroundLonghand(if (horizontal) "position-x" else "position-y", parts.joinToString(" ")) { program, records ->
+    records.offset(1, program.offset(0))
+  }
+
+fun parsePosition(parts: List<String>): BackgroundPosition? =
+  readBackgroundLonghand("position", parts.joinToString(" ")) { program, records ->
+    BackgroundPosition(records.offset(1, program.offset(0))!!, records.offset(3, program.offset(1))!!)
+  }
+
+fun parseSize(value: String): BackgroundSize? =
+  readBackgroundLonghand("size", value) { program, records ->
+    when (records[1].toInt()) {
+      2 -> BackgroundSize(keyword = "contain")
+      3 -> BackgroundSize(keyword = "cover")
+      else -> BackgroundSize(records.offset(2, program.offset(0)), records.offset(4, program.offset(1)))
     }
   }
-}
 
 fun splitTopLevelCommas(input: String): List<String> {
   val result = mutableListOf<String>()
@@ -1726,162 +1339,168 @@ fun splitTopLevelCommas(input: String): List<String> {
   return result
 }
 
-private fun isAngleOrDirection(token: String): Boolean {
-  val v = token.trim().lowercase()
+fun parseGradient(part: String): Gradient? = parseGradient(part, Color.BLACK)
 
-  if (ANGLE_REGEX.matches(v)) return true
-
-  if (v.startsWith("to ")) {
-    val parts = v.removePrefix("to ").split(WHITESPACE_REGEX)
-    return parts.all {
-      it == "top" || it == "bottom" || it == "left" || it == "right"
-    }
-  }
-
-  // Handle radial gradient shape/position: e.g., "ellipse at center", "circle at top left"
-  if (v.contains(" at ")) {
-    val beforeAt = v.substringBefore(" at ").trim()
-    // Check if it starts with a shape keyword or size keyword
-    val shapeKeywords = listOf("circle", "ellipse")
-    val sizeKeywords = listOf("closest-side", "closest-corner", "farthest-side", "farthest-corner")
-    val parts = beforeAt.split(WHITESPACE_REGEX)
-    if (parts.any { it in shapeKeywords || it in sizeKeywords } || beforeAt.isEmpty()) {
-      return true
-    }
-  }
-
-  // Handle standalone shape keywords: "circle", "ellipse"
-  if (v == "circle" || v == "ellipse") {
-    return true
-  }
-
-  return false
+internal fun parseGradient(part: String, currentColor: Int): Gradient? {
+  return readGradient(Mason.nativeGradientParse(part.trim().trimEnd(';'), currentColor))
 }
 
-fun parseGradient(part: String): Gradient? {
-  val match = GRADIENT_REGEX.find(part) ?: return null
-  val type = match.groupValues[1]
-  val content = match.groupValues[2].trim()
+internal fun readGradient(handle: Long): Gradient? {
+  val mason = Mason.shared
+  if (handle == 0L) return null
+  try {
+    val info = Mason.nativeGradientInfo(handle)
+    if (info == null) {
+      Mason.nativeGradientRelease(handle)
+      return null
+    }
+    val gradient = decodeGradient(handle, info, 0, null)
+    mason.gc.track(gradient.stops) { Mason.nativeGradientRelease(handle) }
+    return gradient
+  } catch (error: Throwable) {
+    Mason.nativeGradientRelease(handle)
+    throw error
+  }
+}
 
-  // split on top-level commas so color functions (eg rgba()) are kept intact
-  val items = splitTopLevelCommas(content).filter { it.isNotEmpty() }
+private fun decodeGradient(handle: Long, info: Array<*>, row: Int, snapshot: NativePaintSnapshot?): Gradient {
+  val base = row * AndroidGradientInfoRecord.STRIDE
+  fun field(slot: Int) = info[base + slot] as String
+  val interpolation = field(AndroidGradientInfoRecord.SPACE).takeIf { it.isNotEmpty() }?.let {
+    ColorInterpolation.fromRust(it, field(AndroidGradientInfoRecord.HUE))
+  }
+  val type = field(AndroidGradientInfoRecord.KIND)
+  val direction = field(AndroidGradientInfoRecord.DIRECTION).takeIf { it.isNotEmpty() }
+  val stops = NativeGradientStops(handle, field(AndroidGradientInfoRecord.STOP_COUNT).toInt(), type, direction, snapshot)
+  return Gradient(type, direction, stops, interpolation, field(AndroidGradientInfoRecord.REPEATING) == "1")
+}
 
-  if (items.isEmpty()) return null
+/** Keeps borrowed gradient and math addresses valid after the style replaces its layers. */
+internal class NativePaintSnapshot private constructor() {
+  companion object {
+    fun own(handle: Long): NativePaintSnapshot {
+      try {
+        return NativePaintSnapshot().also { Mason.shared.gc.track(it) { Mason.nativePaintSnapshotRelease(handle) } }
+      } catch (error: Throwable) {
+        Mason.nativePaintSnapshotRelease(handle)
+        throw error
+      }
+    }
+  }
+}
 
-  // `to right in oklab`: the method shares the first argument with the direction.
-  val extracted = ColorInterpolation.extract(items.first())
-  val first = extracted?.first ?: items.first()
-  val prelude = if (type.equals("radial", ignoreCase = true)) isRadialPrelude(first) else isAngleOrDirection(first)
-  val direction = if (first.isNotBlank() && prelude) first.trim() else null
-  val stops = if (direction != null || extracted != null) items.drop(1) else items
+internal class NativePaintRead(result: Array<Any?>) {
+  private val snapshot = (result[AndroidPaintReadRecord.SNAPSHOT] as? Long)?.let(NativePaintSnapshot::own)
+  val values = result[AndroidPaintReadRecord.VALUES] as DoubleArray
+  private val images = result[AndroidPaintReadRecord.IMAGES] as Array<*>
+  private val offsets = result[AndroidPaintReadRecord.OFFSETS] as? LongArray
+  private val gradients = result[AndroidPaintReadRecord.GRADIENTS] as? LongArray
+  private val gradientInfo = result[AndroidPaintReadRecord.GRADIENT_INFO] as? Array<*>
+  val count get() = images.size
 
-  return Gradient(type, direction, expandColorStops(stops.map { it.trim() }), extracted?.second)
+  fun image(row: Int): String? = images[row] as? String
+
+  fun offset(row: Int, slot: Int, fontSize: Float): NativePaintOffset? {
+    val address = offsets?.get(row * BackgroundOffsetsRecord.STRIDE + slot) ?: 0L
+    return NativePaintOffset.fromSnapshot(snapshot, address, fontSize)
+  }
+
+  fun gradient(row: Int): Gradient? {
+    val handle = gradients?.getOrNull(row) ?: 0L
+    if (handle == 0L) return null
+    return decodeGradient(handle, checkNotNull(gradientInfo), row, checkNotNull(snapshot))
+  }
 }
 
 /** Layers with only author-visible content (drops color-only and empty layers). */
-fun parseBackgroundLayers(css: String): List<BackgroundLayer> = parseRawBackgroundLayers(css).filter { !it.isDefault }
+fun parseBackgroundLayers(css: String): List<BackgroundLayer> =
+  parseBackgroundLayers(css, Color.BLACK).orEmpty()
 
-private fun parseRawBackgroundLayers(css: String): List<BackgroundLayer> {
-  val layers = mutableListOf<BackgroundLayer>()
-  var depth = 0
-  var start = 0
+internal fun parseBackgroundLayers(css: String, currentColor: Int): List<BackgroundLayer>? =
+  parseRawBackgroundLayers(css, currentColor)?.filter { !it.isDefault }
 
-  // Split top-level commas only (ignore commas inside parentheses)
-  css.forEachIndexed { i, c ->
-    when (c) {
-      '(' -> depth++
-      ')' -> depth--
-      ',' -> if (depth == 0) {
-        layers.add(parseLayer(css.substring(start, i)))
-        start = i + 1
-      }
-    }
-  }
-  layers.add(parseLayer(css.substring(start)))
+fun parseLayer(layerValue: String): BackgroundLayer =
+  parseRawBackgroundLayers(layerValue, Color.BLACK)?.firstOrNull() ?: BackgroundLayer()
 
-  return layers
+private fun parseRawBackgroundLayers(css: String, currentColor: Int): List<BackgroundLayer>? {
+  return NativeBackground.parse(css, currentColor)?.readLayers()
 }
 
-private val BOX_KEYWORDS = listOf("border-box", "padding-box", "content-box")
-private val ATTACHMENT_KEYWORDS = listOf("scroll", "fixed", "local")
+internal fun installBackground(style: Style, background: NativeBackground?) {
+  val node = style.node
+  if (node.isPlaceholder) return
+  val engine = node.mason
+  if (engine.inCompute) engine.deferStyleRecords(style)
+  else style.prepareMut()
+  Mason.nativeBackgroundInstall(background, background?.handle ?: 0L,
+    if (engine.inCompute) 0L else engine.nativePtr, node.nativePtr)
+}
 
-/**
- * One comma-separated layer of the `background` shorthand: image, gradient,
- * repeat, attachment, position [/ size] and up to two box keywords (origin,
- * then clip). A color token is kept on `layerColor` for the shorthand's
- * final layer.
- */
-fun parseLayer(layerValue: String): BackgroundLayer {
-  val layer = BackgroundLayer()
-  var value = layerValue.trim()
+internal class NativeBackground private constructor(internal val handle: Long) {
+  fun replace(css: String, currentColor: Int) =
+    Mason.nativeBackgroundReplace(this, handle, css, currentColor)
 
-  // Image URL first: its contents must not be tokenized.
-  findCssUrl(value)?.let { (range, url) ->
-    layer.image = url
-    value = value.removeRange(range).trim()
-  }
+  fun setLonghand(property: String, value: String) =
+    Mason.nativeBackgroundSetLonghand(this, handle, property, value)
 
-  // Gradient: the function consumes its own parentheses, the rest are tokens.
-  ANY_GRADIENT_REGEX.find(value)?.let { match ->
-    val paren = value.indexOf('(', match.range.first)
-    var depth = 0
-    var end = paren
-    while (end < value.length) {
-      when (value[end]) {
-        '(' -> depth++
-        ')' -> { depth--; if (depth == 0) break }
-      }
-      end++
-    }
-    val gradientText = value.substring(match.range.first, minOf(end + 1, value.length))
-    layer.gradient = parseMaskGradient(gradientText)
-    value =(value.substring(0, match.range.first) + " " + value.substring(minOf(end + 1, value.length))).trim()
-  }
+  fun applyCompiled(fields: Array<String>, currentColor: Int): LongArray? =
+    Mason.nativeBackgroundApply(this, handle, fields.joinToString("\u0000").encodeToByteArray(), currentColor)
 
-  val tokens = splitTopLevelWhitespace(value).filter { it.isNotBlank() }
-  val boxes = mutableListOf<BackgroundClip>()
-  var clipsToText = false
-  val positionTokens = mutableListOf<String>()
-  val sizeTokens = mutableListOf<String>()
-  val repeatTokens = mutableListOf<String>()
-  var afterSlash = false
-  for (raw in tokens) {
-    val t = raw.lowercase()
-    // A '/' inside a function (rgb(0 0 0 / 50%)) is not the position/size separator.
-    val bareSlash = !t.contains('(')
-    when {
-      !bareSlash -> parseColor(raw)?.let { layer.layerColor = it }
-      t == "/" -> afterSlash = true
-      t.startsWith("/") -> { afterSlash = true; sizeTokens.add(t.substring(1)) }
-      t.endsWith("/") -> { positionTokens.add(t.dropLast(1)); afterSlash = true }
-      t.contains("/") -> {
-        val (p, sz) = t.split("/", limit = 2)
-        positionTokens.add(p); sizeTokens.add(sz); afterSlash = true
-      }
-      afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != null) -> sizeTokens.add(t)
-      t in REPEAT_KEYS -> repeatTokens.add(t)
-      t in ATTACHMENT_KEYWORDS -> BackgroundAttachment.parse(t)?.let {
-        layer.attachment = it
-      }
-      t == "text" -> clipsToText = true
-      t in BOX_KEYWORDS -> BackgroundClip.parse(t)?.let { boxes.add(it) }
-      t in POSITION_KEYS || parseBackgroundLength(t) != null -> { afterSlash = false; positionTokens.add(t) }
-      else -> parseColor(raw)?.let { layer.layerColor = it }
+  fun readLayers(
+    reusing: List<BackgroundLayer> = emptyList(), mason: Mason = Mason.shared, fontSize: Float = mason.rootFontSize
+  ): List<BackgroundLayer>? {
+    val result = Mason.nativeBackgroundRead(
+      this, handle, mason.scale, fontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, reusing.size
+    ) ?: return null
+    val paint = NativePaintRead(result)
+    return List(paint.count) { row ->
+      readBackgroundLayer(paint, row * BackgroundRecord.STRIDE, row, fontSize, reusing.getOrNull(row))
     }
   }
-  if (repeatTokens.isNotEmpty()) parseRepeat(repeatTokens.joinToString(" "))?.let { layer.repeat = it }
-  if (positionTokens.isNotEmpty()) layer.position = parsePosition(positionTokens)
-  if (sizeTokens.isNotEmpty()) layer.size = parseSize(sizeTokens.joinToString(" "))
-  if (boxes.size == 1) {
-    layer.origin = boxes[0]
-    layer.clip = boxes[0]
-  } else if (boxes.size >= 2) {
-    layer.origin = boxes[0]
-    layer.clip = boxes[1]
-  }
-  // `text` is the clip; a box keyword beside it is only the origin.
-  if (clipsToText) layer.clip = BackgroundClip.TEXT
 
+  companion object {
+    fun create(): NativeBackground = own(Mason.nativeBackgroundCreate())
+
+    fun parse(css: String, currentColor: Int): NativeBackground? {
+      val handle = Mason.nativeBackgroundParse(css, currentColor)
+      if (handle == 0L) return null
+      return own(handle)
+    }
+
+    private fun own(handle: Long): NativeBackground {
+      val background = NativeBackground(handle)
+      Mason.shared.gc.track(background) { Mason.nativeBackgroundRelease(handle) }
+      return background
+    }
+  }
+}
+
+internal fun readBackgroundLayer(
+  paint: NativePaintRead, base: Int, row: Int, fontSize: Float, existing: BackgroundLayer? = null,
+): BackgroundLayer {
+  val values = paint.values
+  val layer = existing ?: BackgroundLayer(
+    image = paint.image(row)?.takeIf { values[base + BackgroundRecord.IMAGE_KIND] == 1.0 },
+    gradient = if (values[base + BackgroundRecord.IMAGE_KIND] == 2.0) paint.gradient(row) else null,
+    layerColor = values[base + BackgroundRecord.COLOR].takeUnless { it.isNaN() }?.toLong()?.toInt()
+  )
+  fun offset(field: Int, slot: Int): BackgroundOffset? =
+    values.offset(base + field, paint.offset(row, slot, fontSize))
+  val x = offset(BackgroundRecord.POSITION_X_FRACTION, BackgroundOffsetsRecord.POSITION_X)
+  val y = offset(BackgroundRecord.POSITION_Y_FRACTION, BackgroundOffsetsRecord.POSITION_Y)
+  layer.repeat = BackgroundRepeat(repeatStyle(values[base + BackgroundRecord.REPEAT_X]), repeatStyle(values[base + BackgroundRecord.REPEAT_Y]))
+  layer.origin = BackgroundOrigin.entries[values[base + BackgroundRecord.ORIGIN].toInt()]
+  layer.clip = BackgroundClip.entries[values[base + BackgroundRecord.CLIP].toInt()]
+  layer.attachment = BackgroundAttachment.entries[values[base + BackgroundRecord.ATTACHMENT].toInt()]
+  layer.blendMode = BackgroundBlendMode.entries[values[base + BackgroundRecord.BLEND].toInt()]
+  layer.size = when (values[base + BackgroundRecord.SIZE_KIND].toInt()) {
+    1 -> BackgroundSize(offset(BackgroundRecord.WIDTH_FRACTION, BackgroundOffsetsRecord.WIDTH),
+                        offset(BackgroundRecord.HEIGHT_FRACTION, BackgroundOffsetsRecord.HEIGHT))
+    2 -> BackgroundSize(keyword = "contain")
+    3 -> BackgroundSize(keyword = "cover")
+    else -> null
+  }
+  layer.position = if (x != null || y != null) BackgroundPosition(x ?: BackgroundOffset(), y ?: BackgroundOffset()) else null
   return layer
 }
 
@@ -1909,44 +1528,5 @@ fun splitLayers(css: String): List<String> {
   return layers
 }
 
-/**
- * The first `url(...)` in [value] and its URL. Quotes and nested parentheses are skipped, so an
- * unencoded SVG data URL holding `url(#id)` stays whole.
- */
-internal fun findCssUrl(value: String): Pair<IntRange, String>? {
-  val start = value.indexOf("url(", ignoreCase = true)
-  if (start < 0) return null
-  var i = start + 4
-  var depth = 0
-  var quote = 0.toChar()
-  while (i < value.length) {
-    val c = value[i]
-    if (quote != 0.toChar()) {
-      if (c == '\\') i++ else if (c == quote) quote = 0.toChar()
-    } else if (c == '"' || c == '\'') {
-      quote = c
-    } else if (c == '(') {
-      depth++
-    } else if (c == ')') {
-      if (depth == 0) break
-      depth--
-    }
-    i++
-  }
-  if (i >= value.length) return null
-  val url = extractCssUrl(value.substring(start, i + 1)) ?: return null
-  return (start..i) to url
-}
-
-fun parseBackground(style: Style, css: String): Background? {
-  val bg = Background(style)
-
-  val layers = parseRawBackgroundLayers(css)
-
-  // The shorthand's color lives on its last layer; without one it resets.
-  bg.color = layers.lastOrNull()?.layerColor
-
-  bg.layers.addAll(layers.filter { !it.isDefault })
-
-  return bg
-}
+fun parseBackground(style: Style, css: String): Background? =
+  Background(style).takeIf { it.replaceLayers(css, shorthand = true) }

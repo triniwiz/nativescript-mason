@@ -64,6 +64,7 @@ open class Node internal constructor(
 
 
   internal var computeCacheDirty = false
+  internal var layoutExportDirty = false
   // A foreign leaf's pending requestLayout was handed to Taffy before the compute.
   internal var leafRequestDirtied = false
   internal var nestedComputePending = false
@@ -943,9 +944,27 @@ open class Node internal constructor(
       pseudoMaskCache = updated and 0xFFFF
       if (orig != updated) style.styleVersion++
       if (autoDirty) {
-        dirty()
+        if (((orig xor updated) and pseudoLayoutLengthStates) != 0) {
+          invalidatePseudoLayout()
+        } else {
+          dirty()
+        }
       }
     }
+  }
+
+  private var pseudoLayoutLengthStates = 0
+
+  internal fun pseudoLayoutLengthChanged(flags: Int) {
+    pseudoLayoutLengthStates = pseudoLayoutLengthStates or flags
+    if ((pseudoMask and flags) != 0) invalidatePseudoLayout()
+  }
+
+  private fun invalidatePseudoLayout() {
+    dirty()
+    val root = getRootNode() ?: this
+    root.computeCacheDirty = true
+    NodeUtils.invalidateLayout(root)
   }
 
   // Pseudo-state storage, created on first write: most nodes never use it.
@@ -954,11 +973,23 @@ open class Node internal constructor(
   // Storage for pseudo string properties (keyed by pseudo mask)
   // Example: pseudoStrings[state.mask] = mapOf("filter" to "brightness(0.5)")
   private var pseudoStrings: MutableMap<Int, MutableMap<String, String>>? = null
+  private var pseudoFilters: MutableMap<Int, NativeFilterProgram>? = null
+
+  internal fun pseudoFilter(flags: Int): NativeFilterProgram? = pseudoFilters?.get(flags)
 
   fun setPseudoString(flags: Int, key: String, value: String) {
     val strings = pseudoStrings ?: mutableMapOf<Int, MutableMap<String, String>>().also { pseudoStrings = it }
     val dict = strings.getOrPut(flags) { mutableMapOf() }
-    dict[key] = value
+    val previous = dict.put(key, value)
+    if (key == "filter" && previous != value) {
+      val program = NativeFilterProgram.parse(value)
+      if (program == null) {
+        pseudoFilters?.remove(flags)
+      } else {
+        val filters = pseudoFilters ?: mutableMapOf<Int, NativeFilterProgram>().also { pseudoFilters = it }
+        filters[flags] = program
+      }
+    }
     // Masks resolve their pseudo longhands at draw time; the element needs a mask holder
     // (and a draw() pass) even when it has no mask outside that state.
     if (key.startsWith("mask-")) {
@@ -979,6 +1010,7 @@ open class Node internal constructor(
   }
 
   fun clearPseudoString(flags: Int, key: String) {
+    if (key == "filter") pseudoFilters?.remove(flags)
     pseudoStrings?.get(flags)?.let { dict ->
       dict.remove(key)
       if (dict.isEmpty()) pseudoStrings?.remove(flags)

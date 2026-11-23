@@ -52,12 +52,43 @@ class Mason {
   @JvmField
   internal var inCompute = false
 
+  private class PendingStyleRecords(val node: Node, val pointer: Long, var textChanges: StateKeys)
+  private val pendingStyleRecords = LinkedHashMap<Style, PendingStyleRecords>()
+
+  internal fun deferStyleRecords(style: Style, kind: StyleRecordKind? = null, textChanges: StateKeys = StateKeys.NONE) {
+    val node = style.node
+    val recordChange = when (kind) {
+      StyleRecordKind.TEXT_SHADOW -> StateKeys.TEXT_SHADOWS
+      StyleRecordKind.FONT_FEATURES -> StateKeys.FONT_FEATURE_SETTINGS
+      else -> StateKeys.NONE
+    }
+    val textChange = textChanges or recordChange
+    val pending = pendingStyleRecords[style]
+    if (pending != null && pending.node === node && pending.pointer == node.nativePtr) {
+      pending.textChanges = pending.textChanges or textChange
+    } else {
+      pendingStyleRecords[style] = PendingStyleRecords(node, node.nativePtr, textChange)
+    }
+  }
+
   internal var computeEpoch = 0
     private set
 
   internal fun endCompute() {
     inCompute = false
     computeFinished()
+    if (pendingStyleRecords.isEmpty()) return
+    val pending = pendingStyleRecords.filter { (style, write) ->
+      style.node === write.node && write.pointer != 0L && write.node.nativePtr == write.pointer
+    }
+    pendingStyleRecords.clear()
+    for (style in pending.keys) style.prepareMut()
+    nativeFlushStyleCssRecords(nativePtr)
+    for ((style, write) in pending) {
+      if (write.textChanges.low != 0L || write.textChanges.high != 0L) {
+        style.notifyTextStyleChanged(write.textChanges)
+      }
+    }
   }
 
   internal fun computeFinished() {
@@ -226,6 +257,7 @@ class Mason {
   }
 
   fun clear() {
+    pendingStyleRecords.clear()
     nativeClear(nativePtr)
   }
 
@@ -710,6 +742,232 @@ class Mason {
   }
 
   companion object {
+    @JvmStatic
+
+    @JvmStatic
+    external fun nativeParseCss(
+      value: String, kind: Int, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float, currentColor: Int
+    ): DoubleArray?
+
+    @JvmStatic
+    external fun nativeApplyEffectBatch(
+      mason: Long, node: Long, input: ByteArray, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float, currentColor: Int,
+    ): Array<Any?>?
+
+    @JvmStatic
+    external fun nativeSetStyleCssRecords(
+      mason: Long, node: Long, kind: Int, value: String, scale: Float, fontSize: Float,
+      rootFontSize: Float, viewportWidth: Float, viewportHeight: Float, currentColor: Int
+    ): DoubleArray?
+
+    @JvmStatic
+    private external fun nativeFlushStyleCssRecords(mason: Long)
+
+    @JvmStatic
+    external fun nativeClipPathParse(value: String): Long
+
+    @JvmStatic
+    external fun nativeClipPathRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeClipPathInstall(owner: Any?, handle: Long, mason: Long, node: Long)
+
+    @JvmStatic
+    external fun nativeSvgPathRecords(value: String): DoubleArray?
+
+    @JvmStatic
+    external fun nativeClipPathRecords(
+      owner: Any, handle: Long, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float
+    ): DoubleArray?
+
+    @JvmStatic
+    external fun nativeClipPathOffset(owner: Any, handle: Long, index: Int): Long
+
+    @JvmStatic
+    external fun nativeTransformParse(value: String): Long
+
+    @JvmStatic
+    external fun nativeTransformIsEmpty(handle: Long): Boolean
+
+    @JvmStatic
+    external fun nativeTransformRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeTransformInstall(owner: Any, handle: Long, mason: Long, node: Long)
+
+    @JvmStatic
+    external fun nativeTransformAffine(
+      owner: Any, handle: Long, width: Float, height: Float, scale: Float, fontSize: Float,
+      rootFontSize: Float, viewportWidth: Float, viewportHeight: Float
+    ): FloatArray?
+
+    @JvmStatic
+    external fun nativeFilterParse(value: String): Long
+
+    @JvmStatic
+    external fun nativeFilterProject(
+      owner: Any, handle: Long, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float, currentColor: Int
+    ): DoubleArray?
+
+    @JvmStatic
+    external fun nativeFilterRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeBackgroundCreate(): Long
+
+    @JvmStatic
+    external fun nativeBackgroundParse(value: String, currentColor: Int): Long
+
+    @JvmStatic
+    external fun nativeBackgroundRead(
+      owner: Any, handle: Long, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float, reusedLayers: Int
+    ): Array<Any?>?
+
+    @JvmStatic
+    external fun nativePaintSnapshotRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeBackgroundReplace(owner: Any, handle: Long, value: String, currentColor: Int): Long
+
+    @JvmStatic
+    external fun nativeBackgroundSetLonghand(owner: Any, handle: Long, property: String, value: String): Int
+
+    @JvmStatic
+    external fun nativeBackgroundApply(owner: Any, handle: Long, input: ByteArray, currentColor: Int): LongArray?
+
+    @JvmStatic
+    external fun nativeBackgroundInstall(owner: Any?, handle: Long, mason: Long, node: Long)
+
+    @JvmStatic
+    external fun nativeBackgroundRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeMaskParse(values: Array<String>, currentColor: Int): Long
+
+    @JvmStatic
+    external fun nativeMaskRead(
+      owner: Any, handle: Long, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float
+    ): Array<Any?>?
+
+    @JvmStatic
+    external fun nativeMaskInstall(owner: Any?, handle: Long, mason: Long, node: Long)
+
+    @JvmStatic
+    external fun nativeMaskRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeBorderImageParse(value: String, currentColor: Int): Long
+
+    @JvmStatic
+    external fun nativeMaskBorderParse(values: Array<String>, currentColor: Int): Long
+
+    @JvmStatic
+    external fun expandCssShorthand(name: String, value: String): Array<String>?
+
+    @JvmStatic
+    external fun nativeSetTextOverflow(mason: Long, node: Long, kind: Byte, token: ByteArray?)
+
+    @JvmStatic
+    private external fun nativeTextOverflowTokenBytes(key: Long): ByteArray?
+
+    internal fun nativeTextOverflowToken(key: Long): String? = nativeTextOverflowTokenBytes(key)?.decodeToString()
+
+    @JvmStatic
+    external fun nativeDetachedTextOverflowToken(token: ByteArray): Long
+
+    @JvmStatic
+    external fun nativeReleaseDetachedTextOverflowToken(key: Long)
+
+    @JvmStatic
+    external fun nativeCompileInlineCss(value: String, scale: Float, fontSize: Float, parentFontSize: Float,
+                                        rootFontSize: Float, viewportWidth: Float, viewportHeight: Float,
+                                        viewportRefresh: Boolean): Array<String>?
+
+    @JvmStatic
+    external fun nativeCompileInlineCssReplay(value: String, scale: Float, fontSize: Float, parentFontSize: Float,
+                                              rootFontSize: Float, viewportWidth: Float, viewportHeight: Float,
+                                              previousFontSize: Float): Array<String>?
+
+    internal fun htmlKeyword(property: String, value: String): Byte? =
+      expandCssShorthand("html-keyword:$property", value)?.firstOrNull()?.toByteOrNull()
+
+    @JvmStatic
+    external fun nativeNineSliceValues(
+      owner: Any, handle: Long, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float
+    ): DoubleArray?
+
+    @JvmStatic
+    external fun nativeNineSliceMathWidths(
+      owner: Any, handle: Long, width: Float, height: Float, scale: Float, fontSize: Float,
+      rootFontSize: Float, viewportWidth: Float, viewportHeight: Float
+    ): FloatArray?
+
+    @JvmStatic
+    external fun nativeNineSliceSource(owner: Any, handle: Long, urlOnly: Boolean): String?
+
+    @JvmStatic
+    external fun nativeNineSliceGradient(owner: Any, handle: Long): Long
+
+    @JvmStatic
+    external fun nativeNineSliceInstall(owner: Any?, handle: Long, mason: Long, node: Long, mask: Boolean)
+
+    @JvmStatic
+    external fun nativeNineSliceRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeBackgroundLonghandParse(property: String, value: String, allowInvalidEntries: Boolean): Long
+
+    @JvmStatic
+    external fun nativeBackgroundLonghandRecords(
+      owner: Any, handle: Long, scale: Float, rootFontSize: Float, viewportWidth: Float, viewportHeight: Float
+    ): DoubleArray?
+
+    @JvmStatic
+    external fun nativeBackgroundLonghandRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeBackgroundLonghandOffset(owner: Any, handle: Long, index: Int): Long
+
+    @JvmStatic
+    external fun nativePaintOffsetRetain(owner: Any, address: Long): Long
+
+    @JvmStatic
+    external fun nativePaintOffsetRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativePaintOffsetResolve(
+      owner: Any, handle: Long, basis: Float, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float
+    ): Float
+
+    @JvmStatic
+    external fun nativePaintOffsetText(owner: Any, handle: Long, horizontal: Boolean): String?
+
+    @JvmStatic
+    external fun nativeGradientParse(value: String, currentColor: Int): Long
+
+    @JvmStatic
+    external fun nativeGradientRelease(handle: Long)
+
+    @JvmStatic
+    external fun nativeGradientInfo(handle: Long): Array<String>?
+
+    @JvmStatic
+    external fun nativeGradientStopTexts(owner: Any, handle: Long): Array<String>?
+
+    @JvmStatic
+    external fun nativeGradientPaint(
+      owner: Any, handle: Long, width: Float, height: Float, scale: Float, fontSize: Float, rootFontSize: Float,
+      viewportWidth: Float, viewportHeight: Float
+    ): DoubleArray?
+
     private const val LOG_EVENTS = false
 
     internal fun initLib() {

@@ -1747,6 +1747,25 @@ declare const enum MasonLoadingState {
 	Error = 2
 }
 
+declare class MasonMaterialUIView extends UIVisualEffectView implements MasonElementObjc {
+
+	readonly mason: NSCMason;
+
+	readonly node: MasonNode;
+
+	readonly style: MasonStyle;
+
+	readonly uiView: UIView;
+
+	addView(view: UIView): void;
+
+	addViewAt(view: UIView, index: number): void;
+
+	removeView(view: UIView): void;
+
+	removeViewAt(index: number): void;
+}
+
 declare class MasonMouseEvent extends MasonEvent {
 
 	static alloc(): MasonMouseEvent; // inherited from NSObject
@@ -2334,6 +2353,12 @@ declare class MasonStyle extends NSObject {
 	setTextDecoration(decoration: string);
 
 	setBackgroundColorWithString(color: string): void;
+
+	applyBackgroundBatch(payload: string): void;
+
+	applyEffectBatch(payload: string): void;
+
+	applyMaskBatch(payload: string): void;
 
 	setBackgroundColorWithUi(color: UIColor): void;
 
@@ -3728,6 +3753,9 @@ declare const enum NSCFontWeight {
 
 declare class NSCMason extends NSObject {
 
+	static expandCssShorthandValue(name: string, value: string): NSArray<string> | null;
+	static resolveCssLengthKindScaleFontSizeRootFontSizeViewportWidthViewportHeight(value: string, kind: number, scale: number, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): NSArray<NSNumber> | null;
+
 	static setViewportListener(listener: () => void): void;
 
 	static alloc(): NSCMason; // inherited from NSObject
@@ -3761,6 +3789,8 @@ declare class NSCMason extends NSObject {
 	createDocument(): MasonDocument;
 
 	createImageNode(): MasonNode;
+
+	createMaterialView(): MasonMaterialUIView;
 
 	createImageView(): MasonImg;
 

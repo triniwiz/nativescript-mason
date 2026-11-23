@@ -45,9 +45,29 @@ final class ClipPathTests: XCTestCase {
 
   // MARK: - Parsing
 
+  func testAttachedClipUsesRustStyleStorage() {
+    let mason = NSCMason()
+    let node = mason.createNode()
+    let sibling = mason.createNode()
+    let style = node.style
+    style.clipPath = "padding-box circle(20%)"
+    XCTAssertEqual(style.getUInt32(StyleKeys.CLIP_PATH_REVISION), 1)
+    XCTAssertEqual(style.clipPathProgram?.project(em: 16)?.box, .paddingBox)
+    style.clipPath = "none"
+    XCTAssertNil(style.clipPathProgram)
+    XCTAssertEqual(style.getUInt32(StyleKeys.CLIP_PATH_REVISION), 2)
+    XCTAssertEqual(sibling.style.getUInt32(StyleKeys.CLIP_PATH_REVISION), 0)
+    withExtendedLifetime((node, sibling)) {}
+  }
+
   func testInsetParsing() {
     XCTAssertEqual(parse("inset(10px)"), ClipPathValue(shape: .inset(Array(repeating: .points(10), count: 4), radii: nil), box: .borderBox))
-    XCTAssertEqual(parse("inset(1px 2%)")?.shape, .inset([.points(1), .percent(0.02), .points(1), .percent(0.02)], radii: nil))
+    guard case let .inset(mixed, _)? = parse("inset(1px 2%)")?.shape else {
+      return XCTFail("inset with mixed units")
+    }
+    for (side, expected) in zip(mixed, [CGFloat(1), 2, 1, 2]) {
+      XCTAssertEqual(side.resolve(100), expected, accuracy: 0.0001)
+    }
     XCTAssertEqual(parse("inset(1em)")?.shape, .inset(Array(repeating: .points(20), count: 4), radii: nil), "em uses the element's font size")
     guard case let .inset(values, radii)? = parse("INSET(1px 2px 3px 4px round 5px 6px / 7px)")?.shape else {
       return XCTFail("inset with radii")
@@ -67,9 +87,12 @@ final class ClipPathTests: XCTestCase {
     XCTAssertEqual(parse("circle(at 25% 75%)")?.shape,
                    .circle(.closestSide, at: BackgroundPosition(x: BackgroundOffset(fraction: 0.25), y: BackgroundOffset(fraction: 0.75))))
     XCTAssertEqual(parse("ellipse()")?.shape, .ellipse(.closestSide, .closestSide, at: nil))
-    XCTAssertEqual(parse("ellipse(10px 20% at center)")?.shape,
-                   .ellipse(.length(.points(10)), .length(.percent(0.2)),
-                            at: BackgroundPosition(x: BackgroundOffset(fraction: 0.5), y: BackgroundOffset(fraction: 0.5))))
+    guard case let .ellipse(x, .length(y), at)? = parse("ellipse(10px 20% at center)")?.shape else {
+      return XCTFail("ellipse with mixed units")
+    }
+    XCTAssertEqual(x, .length(.points(10)))
+    XCTAssertEqual(y.resolve(100), 20, accuracy: 0.0001)
+    XCTAssertEqual(at, BackgroundPosition(x: BackgroundOffset(fraction: 0.5), y: BackgroundOffset(fraction: 0.5)))
   }
 
   func testPolygonPathRectXywhParsing() {
@@ -87,8 +110,14 @@ final class ClipPathTests: XCTestCase {
     XCTAssertEqual(commands.last, .close)
     XCTAssertNotNil(parse("path(\"M 0,0 h 10 v 10 z\")"), "commas inside the quoted data are not separators")
 
-    XCTAssertEqual(parse("rect(10px auto 90% 5px round 2px)")?.shape,
-                   .rect([.points(10), nil, .percent(0.9), .points(5)], radii: Array(repeating: ClipCorner(x: .points(2), y: .points(2)), count: 4)))
+    guard case let .rect(edges, corners)? = parse("rect(10px auto 90% 5px round 2px)")?.shape else {
+      return XCTFail("rect with auto and mixed units")
+    }
+    XCTAssertEqual(edges[0], .points(10))
+    XCTAssertNil(edges[1])
+    XCTAssertEqual(edges[2]?.resolve(100) ?? 0, 90, accuracy: 0.0001)
+    XCTAssertEqual(edges[3], .points(5))
+    XCTAssertEqual(corners, Array(repeating: ClipCorner(x: .points(2), y: .points(2)), count: 4))
     XCTAssertEqual(parse("xywh(1px 2px 3px 50%)")?.shape, .xywh(x: .points(1), y: .points(2), width: .points(3), height: .percent(0.5), radii: nil))
   }
 
@@ -113,6 +142,17 @@ final class ClipPathTests: XCTestCase {
   }
 
   // MARK: - Geometry
+
+  func testClipMathResolvesAfterResize() throws {
+    let view = makeView()
+    view.style.clipPath = "circle(min(25%, 30px) at right calc(25% + 2px) bottom 10px)"
+    let clip = try XCTUnwrap(view.style.clipPathProgram?.project(em: 16))
+    let renderer = view.style.mBorderRender
+    let small = ClipReferenceBoxes(border: CGRect(x: 0, y: 0, width: 80, height: 80))
+    let large = ClipReferenceBoxes(border: CGRect(x: 0, y: 0, width: 160, height: 160))
+    assertRect(clip.path(small, renderer: renderer).boundingBoxOfPath, 38, 50, 40, 40)
+    assertRect(clip.path(large, renderer: renderer).boundingBoxOfPath, 88, 120, 60, 60)
+  }
 
   func testCirclePaths() throws {
     // 50% of the normalized diagonal of a square is half its side.

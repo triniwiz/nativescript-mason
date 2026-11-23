@@ -334,11 +334,17 @@ public class MasonNode: NSObject {
   // Storage for pseudo string properties (keyed by pseudo state value)
   // Example: pseudoStrings[active.rawValue] = ["filter": "brightness(0.88)"]
   private var pseudoStrings: [UInt16: [String: String]] = [:]
+  private var pseudoFilters: [UInt16: NativeFilterProgram] = [:]
+
+  internal func pseudoFilter(_ state: UInt16) -> NativeFilterProgram? { pseudoFilters[state] }
 
   public func setPseudoString(_ pseudoState: UInt16, _ key: String, _ value: String) {
     var dict = pseudoStrings[pseudoState] ?? [:]
-    dict[key] = value
+    let previous = dict.updateValue(value, forKey: key)
     pseudoStrings[pseudoState] = dict
+    if key == "filter", previous != value {
+      pseudoFilters[pseudoState] = NativeFilterProgram(value)
+    }
     // Masks are not drawn in draw(_:), so a pseudo mask needs its own refresh.
     if key.hasPrefix("mask-") || key == "clip-path" {
       style.hasPseudoMask = true
@@ -357,6 +363,7 @@ public class MasonNode: NSObject {
     guard var dict = pseudoStrings[pseudoState] else { return }
     dict.removeValue(forKey: key)
     pseudoStrings[pseudoState] = dict.isEmpty ? nil : dict
+    if key == "filter" { pseudoFilters.removeValue(forKey: pseudoState) }
     if key.hasPrefix("mask-") || key == "clip-path" { style.maskChanged() }
     if key == "border-image" { style.borderImageChanged() }
   }
@@ -859,9 +866,7 @@ public class MasonNode: NSObject {
           ] as CFDictionary
         }
       }
-      for (tag, value) in parseFontFeatureSettings(style.resolvedFontFeatureSettings) {
-        features.append([kCTFontOpenTypeFeatureTag: tag, kCTFontOpenTypeFeatureValue: value] as CFDictionary)
-      }
+      features += style.resolvedFontFeatures.map { $0 as CFDictionary }
       if !features.isEmpty {
         let attrs = [kCTFontFeatureSettingsAttribute: features as CFArray] as CFDictionary
         let desc = CTFontDescriptorCreateWithAttributes(attrs)
@@ -2090,36 +2095,6 @@ extension MasonNode {
   }
 
 
-}
-
-/// `font-feature-settings` as OpenType tag/value pairs (`"liga" 0, "tnum", "ss01" on`); empty for
-/// `normal` or an invalid list.
-func parseFontFeatureSettings(_ value: String) -> [(tag: String, value: Int)] {
-  let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  if v.isEmpty || v.lowercased() == "normal" { return [] }
-  var out: [(tag: String, value: Int)] = []
-  for part in v.split(separator: ",") {
-    let tokens = part.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" }).map(String.init)
-    guard let first = tokens.first, tokens.count <= 2 else { return [] }
-    var tag = first
-    if let q = tag.first, q == "\"" || q == "'" {
-      guard tag.count >= 2, tag.last == q else { return [] }
-      tag = String(tag.dropFirst().dropLast())
-    }
-    guard tag.unicodeScalars.count == 4, tag.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value <= 0x7E }) else { return [] }
-    var setting = 1
-    if tokens.count == 2 {
-      switch tokens[1].lowercased() {
-      case "on": setting = 1
-      case "off": setting = 0
-      default:
-        guard let n = Int(tokens[1]), n >= 0 else { return [] }
-        setting = n
-      }
-    }
-    out.append((tag, setting))
-  }
-  return out
 }
 
 /// `font-stretch` as a percentage of normal width. A variable font's `wdth` axis takes it

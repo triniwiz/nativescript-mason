@@ -1,14 +1,15 @@
 #pragma once
 // CSS masking on Windows: mask-* layers, clip-path, mask-border and border-image.
 //
-// The .windows.ts layer resolves units, colours and gradients into a JSON spec (see mask.windows.ts)
-// and Css::SetMask / Css::SetBorderImage decode its images. Everything is drawn with Direct2D in
+// The .windows.ts layer supplies the image declaration and its unit context in a JSON spec.
+// Rust parses and retains CSS gradients, and Direct2D draws the resulting images in
 // device pixels:
 //   - The mask (layers, then clip-path and mask-border intersected with them) is an alpha surface.
 //     FilterEffects shows the element through a CompositionMaskBrush over it, on the same sprite
 //     that carries `filter`.
 //   - border-image is a painted surface in the element's decoration layer, in place of its border.
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cctype>
@@ -35,6 +36,9 @@
 #include <winrt/Microsoft.UI.Composition.h>
 #include "RoundedMask.h"
 #include "Decoration.h"
+#include "ColorInterpolation.h"
+#include "StyleKeys.h"
+#include "include/mason_native.h"
 
 namespace mason_cssmask
 {
@@ -49,7 +53,12 @@ namespace mason_cssmask
     {
         float px{ 0.0f };
         float pct{ 0.0f };
-        float Of(float reference) const { return px + pct / 100.0f * reference; }
+        CMasonCssPaintOffset const* math{ nullptr };
+        float Of(float reference) const
+        {
+            return math ? mason_css_paint_offset_resolve(math, reference, 0, 0, 0, 0, 0)
+                        : px + pct / 100.0f * reference;
+        }
     };
 
     // A mask or border image. SVG and gradients draw at any size; rasters are premultiplied BGRA.
@@ -66,6 +75,10 @@ namespace mason_cssmask
         float cornerX{ 0.0f }, cornerY{ 0.0f };
         float cx{ 0.5f }, cy{ 0.5f }, rx{ 0.5f }, ry{ 0.5f };
         std::vector<std::pair<float, uint32_t>> stops;
+        std::shared_ptr<CMasonCssGradient> gradient;
+        size_t gradientStopCount{ 0 };
+        std::optional<mason_color::Interpolation> interpolation;
+        float fontSize{ 16.0f }, rootFontSize{ 16.0f }, viewportWidth{ 0.0f }, viewportHeight{ 0.0f };
         bool repeating{ false };
         // Radial circle: 0 closest-side, 1 farthest-side, 2 closest-corner, 3 farthest-corner, -1 ellipse.
         int circle{ -1 };
@@ -81,9 +94,8 @@ namespace mason_cssmask
     enum Box { BorderBox = 0, PaddingBox = 1, ContentBox = 2, NoClip = 3, MarginBox = 3, TextClip = 4 };
     enum Repeat { RepeatTile = 0, NoRepeat = 1, Space = 2, Round = 3, Stretch = 4 };
 
-    struct Layer
+    struct LayerStyle
     {
-        Image image;
         int sizeKind{ 0 }; // 0 lengths, 1 cover, 2 contain
         std::optional<Len> width, height;
         Len x, y;
@@ -95,15 +107,50 @@ namespace mason_cssmask
         int attachment{ 0 }; // 0 scroll, 1 fixed, 2 local
     };
 
+    struct Layer
+    {
+        Image image;
+        LayerStyle style;
+        CMasonCssBackgroundLayer const* background{ nullptr };
+
+        int Clip() const { return background ? (background->clip == 3 ? int{TextClip} : background->clip) : style.clip; }
+        int Attachment() const { return background ? background->attachment : style.attachment; }
+        int Blend() const { return background ? background->blend : style.blend; }
+
+        LayerStyle PaintStyle() const
+        {
+            if (!background) return style;
+            const auto& record = *background;
+            const auto length = [](CMasonCssOffset const& offset) {
+                return Len{ offset.pixels, offset.fraction * 100.0f, offset.math };
+            };
+            LayerStyle value;
+            value.sizeKind = record.size_kind == 3 ? 1 : record.size_kind == 2 ? 2 : 0;
+            if (record.width.present) value.width = length(record.width);
+            if (record.height.present) value.height = length(record.height);
+            value.x = length(record.position_x);
+            value.y = length(record.position_y);
+            value.repeatX = record.repeat_x;
+            value.repeatY = record.repeat_y;
+            value.origin = record.origin;
+            value.clip = Clip();
+            value.attachment = Attachment();
+            return value;
+        }
+    };
+
     struct ClipShape
     {
         int box{ BorderBox };
         int shape{ 0 }; // 0 box only, 1 inset, 2 circle, 3 ellipse, 4 polygon, 5 path
+        int rectangleKind{ 1 }; // 1 inset, 2 rect, 3 xywh
+        unsigned autoEdges{ 0 };
         std::vector<Len> values;
+        std::vector<std::shared_ptr<CMasonCssPaintOffset>> offsets;
         std::vector<int> kinds; // circle/ellipse radii: 0 length, 1 closest-side, 2 farthest-side
         bool evenOdd{ false };
         std::string path;
-        // path() as absolute commands from svg-path.windows.ts: 0 M, 1 L, 2 C, 3 Q, 4 Z.
+        // Absolute path commands for Direct2D: 0 M, 1 L, 2 C, 3 Q, 4 Z.
         std::vector<float> commands;
     };
 
@@ -115,6 +162,7 @@ namespace mason_cssmask
         bool fill{ false };
         int widthKind[4]{};     // 0 multiple of the border width, 1 length, 2 auto
         Len width[4]{};
+        std::shared_ptr<CMasonCssPaintOffset> widthOffsets[4];
         int outsetKind[4]{};    // 0 multiple of the border width, 1 length
         float outset[4]{};
         int repeatX{ Stretch }, repeatY{ Stretch };
@@ -123,14 +171,20 @@ namespace mason_cssmask
 
     struct Spec
     {
+        // Layer records borrow from this handle. Only image resources are cached here.
+        std::shared_ptr<CMasonCssBackground> background;
         std::vector<Layer> layers;
+        std::shared_ptr<CMasonCssMask> maskProgram;
+        std::shared_ptr<CMasonCssNineSlice> nineSliceProgram;
+        std::shared_ptr<CMasonCssClipPath> clipProgram;
         std::optional<ClipShape> clip;
         std::optional<NineSlice> border;
         // A background layer is clipped to text.
         bool hasTextClip{ false };
         bool HasLayers() const
         {
-            return std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable(); });
+            return (background && !layers.empty() && layers.back().Clip() != BorderBox)
+                || std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable(); });
         }
         bool Any() const { return HasLayers() || clip.has_value() || (border && border->image.Drawable()); }
     };
@@ -272,6 +326,34 @@ namespace mason_cssmask
         return Len{ Num(a, i), Num(a, i + 1) };
     }
 
+    inline Image ReadCssGradient(CMasonCssGradient* gradient, Image image)
+    {
+        if (!gradient) return image;
+        image.gradient.reset(gradient, mason_css_gradient_release);
+        const auto info = mason_css_gradient_info(gradient);
+        image.kind = info.kind == 1 ? Image::Kind::Radial : info.kind == 2 ? Image::Kind::Conic : Image::Kind::Linear;
+        image.gradientStopCount = info.stop_count;
+        image.repeating = info.repeating;
+        if (info.space.len > 0)
+        {
+            std::string method(reinterpret_cast<const char*>(info.space.bytes), info.space.len);
+            if (info.hue.len > 0)
+            {
+                method += ' ';
+                method.append(reinterpret_cast<const char*>(info.hue.bytes), info.hue.len);
+                method += " hue";
+            }
+            const auto name = winrt::to_hstring(method);
+            image.interpolation = mason_color::ParseInterpolation(std::wstring_view(name));
+        }
+        return image;
+    }
+
+    inline Image ParseCssGradient(char const* css, uint32_t color, Image image)
+    {
+        return ReadCssGradient(mason_css_gradient_parse(css, color), std::move(image));
+    }
+
     inline Image ParseImage(json::IJsonValue const& value, Loader const& load)
     {
         Image image;
@@ -282,6 +364,24 @@ namespace mason_cssmask
         {
             if (load) image = load(std::wstring{ o.GetNamedString(L"src", L"") });
             return image;
+        }
+        if (type == L"css-gradient")
+        {
+            uint32_t color = 0xff000000;
+            if (auto units = Arr(o, L"u"))
+            {
+                image.fontSize = Num(units, 0, 16.0f);
+                image.rootFontSize = Num(units, 1, 16.0f);
+                image.viewportWidth = Num(units, 2);
+                image.viewportHeight = Num(units, 3);
+                if (units.Size() > 4 && units.GetAt(4).ValueType() == json::JsonValueType::Number)
+                {
+                    const auto value = units.GetAt(4).GetNumber();
+                    if (value >= 0.0 && value <= UINT32_MAX) color = static_cast<uint32_t>(value);
+                }
+            }
+            const auto css = winrt::to_string(o.GetNamedString(L"css", L""));
+            return ParseCssGradient(css.c_str(), color, std::move(image));
         }
         if (auto s = Arr(o, L"s"))
         {
@@ -325,57 +425,275 @@ namespace mason_cssmask
         return image;
     }
 
+    inline std::optional<ClipShape> ReadCssClip(CMasonCssClipPath const* program, json::JsonArray const& units)
+    {
+        using namespace mason_css_records::clip_path;
+        if (!program) return std::nullopt;
+        const float em = Num(units, 0, 16.0f), rem = Num(units, 1, 16.0f);
+        const float viewportWidth = Num(units, 2), viewportHeight = Num(units, 3);
+        auto records = mason_css_clip_path_records(program, 1.0f, em, rem, viewportWidth, viewportHeight);
+        struct Release
+        {
+            CMasonCssValues values;
+            ~Release() { mason_css_values_release(values); }
+        } release{records};
+        if (records.len < kStride) return std::nullopt;
+        auto const* v = records.values;
+        ClipShape clip;
+        clip.box = static_cast<int>(v[kBox]);
+        clip.evenOdd = v[kEvenOdd] != 0.0;
+        const int kind = static_cast<int>(v[kKind]);
+        if (kind == 7)
+        {
+            namespace path = mason_css_records::svg_path;
+            clip.shape = 5;
+            for (size_t i = kStride; i + path::kStride <= records.len; i += path::kStride)
+            {
+                auto const* command = v + i;
+                const int op = static_cast<int>(command[path::kKind]);
+                clip.commands.push_back(static_cast<float>(op));
+                auto push = [&](size_t field) { clip.commands.push_back(static_cast<float>(command[field])); };
+                if (op == 2 || op == 3) { push(path::kX1); push(path::kY1); }
+                if (op == 2) { push(path::kX2); push(path::kY2); }
+                if (op != 4) { push(path::kX); push(path::kY); }
+            }
+            return clip;
+        }
+        for (size_t i = kStride; i + 1 < records.len; i += 2)
+        {
+            const size_t index = (i - kStride) / 2;
+            if (std::isnan(v[i]))
+            {
+                clip.autoEdges |= 1u << index;
+                clip.values.emplace_back();
+                continue;
+            }
+            auto* offset = v[kHasMath] ? mason_css_clip_path_offset(
+                program, index, 1.0f, em, rem, viewportWidth, viewportHeight) : nullptr;
+            if (offset) clip.offsets.emplace_back(offset, mason_css_paint_offset_release);
+            clip.values.push_back(Len{static_cast<float>(v[i + 1]), static_cast<float>(v[i] * 100.0), offset});
+        }
+        if (kind <= 3)
+        {
+            clip.shape = kind == 0 ? 0 : 1;
+            clip.rectangleKind = kind;
+        }
+        else
+        {
+            clip.shape = kind - 2;
+            if (kind == 4 || kind == 5) clip.kinds.push_back(static_cast<int>(v[kRadiusXKind]));
+            if (kind == 5) clip.kinds.push_back(static_cast<int>(v[kRadiusYKind]));
+        }
+        return clip;
+    }
+
+    inline Image LoadCssUrl(CMasonCssText url, std::wstring_view appRoot, Loader const& load)
+    {
+        if (url.len == 0 || !load) return {};
+        const std::string_view utf8(reinterpret_cast<char const*>(url.bytes), url.len);
+        std::wstring source{ winrt::to_hstring(utf8) };
+        if (source.starts_with(L"~/"))
+        {
+            std::replace(source.begin() + 2, source.end(), L'/', L'\\');
+            source.replace(0, 2, appRoot);
+        }
+        return load(source);
+    }
+
+    inline void ReadCssMask(Spec& spec, json::JsonObject const& request, Loader const& load)
+    {
+        const auto values = Arr(request, L"css");
+        std::array<std::string, mason_css_records::mask_input::kStride> storage;
+        std::array<char const*, mason_css_records::mask_input::kStride> input{};
+        for (uint32_t i = 0; values && i < values.Size() && i < input.size(); ++i)
+        {
+            const auto value = values.GetAt(i);
+            if (value.ValueType() != json::JsonValueType::String) continue;
+            storage[i] = winrt::to_string(value.GetString());
+            input[i] = storage[i].c_str();
+        }
+        const auto units = Arr(request, L"u");
+        Image context;
+        context.fontSize = Num(units, 0, 16.0f);
+        context.rootFontSize = Num(units, 1, 16.0f);
+        context.viewportWidth = Num(units, 2);
+        context.viewportHeight = Num(units, 3);
+        uint32_t color = 0xff000000;
+        if (units && units.Size() > 4 && units.GetAt(4).ValueType() == json::JsonValueType::Number)
+        {
+            const auto value = units.GetAt(4).GetNumber();
+            if (value >= 0.0 && value <= UINT32_MAX) color = static_cast<uint32_t>(value);
+        }
+        spec.maskProgram.reset(mason_css_mask_parse(input.data(), color, 1.0f, context.fontSize,
+            context.rootFontSize, context.viewportWidth, context.viewportHeight), mason_css_mask_release);
+        if (!spec.maskProgram) return;
+
+        const auto appRoot = request.GetNamedString(L"appRoot", L"");
+        const auto rows = mason_css_mask_layers(spec.maskProgram.get());
+        spec.layers.reserve(rows.count);
+        for (size_t index = 0; index < rows.count; ++index)
+        {
+            const auto& row = rows.data[index];
+            Layer layer;
+            layer.background = &row.paint;
+            layer.style = layer.PaintStyle();
+            layer.background = nullptr;
+            layer.style.clip = row.clip;
+            layer.style.mode = row.mode;
+            layer.style.composite = row.composite;
+            if (row.paint.image_kind == 1)
+            {
+                layer.image = LoadCssUrl(row.paint.image, std::wstring_view(appRoot), load);
+            }
+            else if (row.paint.image_kind == 2)
+            {
+                layer.image = ReadCssGradient(mason_css_mask_gradient(spec.maskProgram.get(), index), context);
+            }
+            spec.layers.push_back(std::move(layer));
+        }
+    }
+
+    inline void ReadCssNineSlice(Spec& spec, json::IJsonValue const& css, json::JsonObject const& request, Loader const& load)
+    {
+        const auto units = Arr(request, L"u");
+        const auto argb = units && units.Size() > 4 ? units.GetAt(4) : json::IJsonValue{ nullptr };
+        const auto color = argb && argb.ValueType() == json::JsonValueType::Number ? argb.GetNumber() : double{0xff000000};
+        const auto currentColor = color >= 0.0 && color <= UINT32_MAX ? static_cast<uint32_t>(color) : uint32_t{0xff000000};
+        CMasonCssNineSlice* program = nullptr;
+        if (css.ValueType() == json::JsonValueType::String)
+        {
+            const auto shorthand = winrt::to_string(css.GetString());
+            program = mason_css_border_image_parse(shorthand.c_str(), currentColor);
+        }
+        else if (css.ValueType() == json::JsonValueType::Array)
+        {
+            const auto values = css.GetArray();
+            std::array<std::string, mason_css_records::nine_slice_input::kStride> storage;
+            std::array<char const*, mason_css_records::nine_slice_input::kStride> input{};
+            for (uint32_t i = 0; i < values.Size() && i < input.size(); ++i)
+            {
+                const auto value = values.GetAt(i);
+                if (value.ValueType() != json::JsonValueType::String) continue;
+                storage[i] = winrt::to_string(value.GetString());
+                input[i] = storage[i].c_str();
+            }
+            program = mason_css_mask_border_parse(input.data(), currentColor);
+        }
+        if (!program) return;
+        spec.nineSliceProgram.reset(program, mason_css_nine_slice_release);
+        Image context;
+        context.fontSize = Num(units, 0, 16.0f);
+        context.rootFontSize = Num(units, 1, 16.0f);
+        context.viewportWidth = Num(units, 2);
+        context.viewportHeight = Num(units, 3);
+        const auto appRoot = request.GetNamedString(L"appRoot", L"");
+        NineSlice nine;
+        const auto url = mason_css_nine_slice_url(program);
+        nine.image = url.len ? LoadCssUrl(url, std::wstring_view(appRoot), load)
+                             : ReadCssGradient(mason_css_nine_slice_gradient(program), context);
+        const auto records = mason_css_nine_slice_values(program, 1.0f, context.fontSize,
+            context.rootFontSize, context.viewportWidth, context.viewportHeight);
+        namespace layout = mason_css_records::nine_slice;
+        namespace sideLayout = mason_css_records::nine_slice_side;
+        const auto* rows = records.values;
+        const auto side = [rows](int i) { return rows + layout::kStride + i * sideLayout::kStride; };
+        for (int i = 0; i < 4; ++i)
+        {
+            const auto* slice = side(i);
+            const auto* width = side(i + 4);
+            const auto* outset = side(i + 8);
+            nine.slicePct[i] = slice[sideLayout::kKind] == 1;
+            nine.slice[i] = static_cast<float>(slice[sideLayout::kValue] * (nine.slicePct[i] ? 100.0 : 1.0));
+            nine.widthKind[i] = width[sideLayout::kKind] == 0 ? 0 : width[sideLayout::kKind] == 3 ? 2 : 1;
+            const auto amount = static_cast<float>(width[sideLayout::kValue]);
+            nine.width[i] = width[sideLayout::kKind] == 1 ? Len{0.0f, amount * 100.0f} : Len{amount, 0.0f};
+            if (width[sideLayout::kHasMath])
+            {
+                auto* offset = mason_css_nine_slice_width_offset(program, i, 1.0f, context.fontSize,
+                    context.rootFontSize, context.viewportWidth, context.viewportHeight);
+                if (offset) nine.widthOffsets[i].reset(offset, mason_css_paint_offset_release);
+                nine.width[i].math = offset;
+            }
+            nine.outsetKind[i] = outset[sideLayout::kKind] == 2 ? 1 : 0;
+            nine.outset[i] = static_cast<float>(outset[sideLayout::kValue]);
+        }
+        constexpr int repeats[] = { Stretch, RepeatTile, Round, Space };
+        nine.repeatX = repeats[static_cast<int>(rows[layout::kRepeatX])];
+        nine.repeatY = repeats[static_cast<int>(rows[layout::kRepeatY])];
+        nine.fill = rows[layout::kFill] != 0.0;
+        nine.luminance = rows[layout::kLuminance] != 0.0;
+        mason_css_values_release(records);
+        if (nine.image.Drawable()) spec.border = std::move(nine);
+    }
+
     // Stops arrive as [offset, argb] with exact argb integers, which JSON numbers hold.
     inline Spec Parse(std::wstring_view text, Loader const& load)
     {
         Spec spec;
         json::JsonObject root{ nullptr };
         if (text.empty() || !json::JsonObject::TryParse(winrt::hstring{ text }, root)) return spec;
-        if (auto layers = Arr(root, L"l"))
+        if (root.HasKey(L"ml") && root.GetNamedValue(L"ml").ValueType() == json::JsonValueType::Object)
+            ReadCssMask(spec, root.GetNamedObject(L"ml"), load);
+        else if (auto layers = Arr(root, L"l"))
         {
             for (auto const& v : layers)
             {
                 if (v.ValueType() != json::JsonValueType::Object) continue;
                 auto o = v.GetObject();
                 Layer layer;
+                auto& style = layer.style;
                 if (o.HasKey(L"i")) layer.image = ParseImage(o.GetNamedValue(L"i"), load);
                 if (auto sz = Arr(o, L"sz"))
                 {
-                    layer.sizeKind = static_cast<int>(Num(sz, 0));
-                    if (layer.sizeKind == 0)
+                    style.sizeKind = static_cast<int>(Num(sz, 0));
+                    if (style.sizeKind == 0)
                     {
-                        if (Num(sz, 1) != 0.0f) layer.width = LenAt(sz, 2);
-                        if (Num(sz, 4) != 0.0f) layer.height = LenAt(sz, 5);
+                        if (Num(sz, 1) != 0.0f) style.width = LenAt(sz, 2);
+                        if (Num(sz, 4) != 0.0f) style.height = LenAt(sz, 5);
                     }
                 }
-                if (auto p = Arr(o, L"p")) { layer.x = LenAt(p, 0); layer.y = LenAt(p, 2); }
-                if (auto r = Arr(o, L"r")) { layer.repeatX = static_cast<int>(Num(r, 0)); layer.repeatY = static_cast<int>(Num(r, 1)); }
-                layer.origin = static_cast<int>(o.GetNamedNumber(L"o", PaddingBox));
-                layer.clip = static_cast<int>(o.GetNamedNumber(L"c", BorderBox));
-                layer.mode = static_cast<int>(o.GetNamedNumber(L"m", 0));
-                layer.composite = static_cast<int>(o.GetNamedNumber(L"k", 0));
-                layer.blend = static_cast<int>(o.GetNamedNumber(L"b", 0));
-                layer.attachment = static_cast<int>(o.GetNamedNumber(L"a", 0));
-                if (layer.clip == TextClip) spec.hasTextClip = true;
+                if (auto p = Arr(o, L"p")) { style.x = LenAt(p, 0); style.y = LenAt(p, 2); }
+                if (auto r = Arr(o, L"r")) { style.repeatX = static_cast<int>(Num(r, 0)); style.repeatY = static_cast<int>(Num(r, 1)); }
+                style.origin = static_cast<int>(o.GetNamedNumber(L"o", PaddingBox));
+                style.clip = static_cast<int>(o.GetNamedNumber(L"c", BorderBox));
+                style.mode = static_cast<int>(o.GetNamedNumber(L"m", 0));
+                style.composite = static_cast<int>(o.GetNamedNumber(L"k", 0));
+                style.blend = static_cast<int>(o.GetNamedNumber(L"b", 0));
+                style.attachment = static_cast<int>(o.GetNamedNumber(L"a", 0));
+                if (style.clip == TextClip) spec.hasTextClip = true;
                 spec.layers.push_back(std::move(layer));
             }
         }
         if (root.HasKey(L"cp") && root.GetNamedValue(L"cp").ValueType() == json::JsonValueType::Object)
         {
             auto o = root.GetNamedObject(L"cp");
-            ClipShape clip;
-            clip.box = static_cast<int>(o.GetNamedNumber(L"b", BorderBox));
-            clip.shape = static_cast<int>(o.GetNamedNumber(L"s", 0));
-            if (auto v = Arr(o, L"v")) for (uint32_t i = 0; i + 1 < v.Size(); i += 2) clip.values.push_back(LenAt(v, i));
-            if (auto k = Arr(o, L"k")) for (uint32_t i = 0; i < k.Size(); ++i) clip.kinds.push_back(static_cast<int>(Num(k, i)));
-            clip.evenOdd = o.GetNamedBoolean(L"e", false);
-            clip.path = winrt::to_string(o.GetNamedString(L"d", L""));
-            if (auto pc = Arr(o, L"pc")) for (uint32_t i = 0; i < pc.Size(); ++i) clip.commands.push_back(Num(pc, i));
-            spec.clip = std::move(clip);
+            if (o.HasKey(L"css"))
+            {
+                const auto css = winrt::to_string(o.GetNamedString(L"css"));
+                spec.clipProgram.reset(mason_css_clip_path_parse(css.c_str()), mason_css_clip_path_release);
+                spec.clip = ReadCssClip(spec.clipProgram.get(), Arr(o, L"u"));
+            }
+            else
+            {
+                ClipShape clip;
+                clip.box = static_cast<int>(o.GetNamedNumber(L"b", BorderBox));
+                clip.shape = static_cast<int>(o.GetNamedNumber(L"s", 0));
+                if (auto v = Arr(o, L"v")) for (uint32_t i = 0; i + 1 < v.Size(); i += 2) clip.values.push_back(LenAt(v, i));
+                if (auto k = Arr(o, L"k")) for (uint32_t i = 0; i < k.Size(); ++i) clip.kinds.push_back(static_cast<int>(Num(k, i)));
+                clip.evenOdd = o.GetNamedBoolean(L"e", false);
+                clip.path = winrt::to_string(o.GetNamedString(L"d", L""));
+                if (auto pc = Arr(o, L"pc")) for (uint32_t i = 0; i < pc.Size(); ++i) clip.commands.push_back(Num(pc, i));
+                spec.clip = std::move(clip);
+            }
         }
         if (root.HasKey(L"mb") && root.GetNamedValue(L"mb").ValueType() == json::JsonValueType::Object)
         {
             auto o = root.GetNamedObject(L"mb");
+            if (o.HasKey(L"css"))
+            {
+                ReadCssNineSlice(spec, o.GetNamedValue(L"css"), o, load);
+                return spec;
+            }
             NineSlice nine;
             if (o.HasKey(L"i")) nine.image = ParseImage(o.GetNamedValue(L"i"), load);
             auto sl = Arr(o, L"sl");
@@ -663,16 +981,31 @@ namespace mason_cssmask
         bool wrap{ false };
     };
 
-    inline Ramp RampOf(Image const& image, float length)
+    inline Ramp RampOf(Image const& image, float deviceLength, float unit)
     {
         Ramp ramp;
-        const auto positions = StopPositions(image, length);
-        if (positions.empty()) return ramp;
-        ramp.wrap = image.repeating && positions.back() - positions.front() > 1e-4f;
-        ramp.from = ramp.wrap ? positions.front() : (std::min)(positions.front(), 0.0f);
-        ramp.to = ramp.wrap ? positions.back() : (std::max)(positions.back(), 1.0f);
+        std::vector<mason_color::Stop> stops;
+        if (image.gradient)
+        {
+            std::vector<CMasonCssGradientStop> resolved(image.gradientStopCount);
+            mason_css_gradient_resolve(image.gradient.get(), deviceLength, unit, image.fontSize,
+                image.rootFontSize, image.viewportWidth, image.viewportHeight, resolved.data());
+            stops.reserve(resolved.size());
+            for (auto const& stop : resolved) stops.push_back({ stop.position, stop.color });
+            if (image.interpolation) stops = mason_color::ExpandInterpolatedStops(stops, *image.interpolation);
+        }
+        else
+        {
+            const auto positions = StopPositions(image, deviceLength / unit);
+            stops.reserve(positions.size());
+            for (size_t i = 0; i < positions.size(); ++i) stops.push_back({ positions[i], image.stops[i].second });
+        }
+        if (stops.empty()) return ramp;
+        ramp.wrap = image.repeating && stops.back().offset - stops.front().offset > 1e-4f;
+        ramp.from = ramp.wrap ? stops.front().offset : (std::min)(stops.front().offset, 0.0f);
+        ramp.to = ramp.wrap ? stops.back().offset : (std::max)(stops.back().offset, 1.0f);
         const float span = ramp.to - ramp.from;
-        for (size_t i = 0; i < positions.size(); ++i) ramp.stops.push_back({ (positions[i] - ramp.from) / span, ColorOf(image.stops[i].second) });
+        for (auto const& stop : stops) ramp.stops.push_back({ (stop.offset - ramp.from) / span, ColorOf(stop.argb) });
         if (ramp.stops.size() == 1) ramp.stops.push_back({ 1.0f, ramp.stops[0].color });
         return ramp;
     }
@@ -714,28 +1047,18 @@ namespace mason_cssmask
         return collection;
     }
 
-    inline D2D1_COLOR_F StopColorAt(Image const& image, float t)
-    {
-        auto const& s = image.stops;
-        if (t <= s.front().first) return ColorOf(s.front().second);
-        for (size_t i = 1; i < s.size(); ++i)
-        {
-            if (t <= s[i].first)
-            {
-                const float span = s[i].first - s[i - 1].first;
-                const float f = span > 0.0f ? (t - s[i - 1].first) / span : 1.0f;
-                const auto a = ColorOf(s[i - 1].second), b = ColorOf(s[i].second);
-                return D2D1::ColorF(a.r + (b.r - a.r) * f, a.g + (b.g - a.g) * f, a.b + (b.b - a.b) * f, a.a + (b.a - a.a) * f);
-            }
-        }
-        return ColorOf(s.back().second);
-    }
-
     // Draws `image` to fill the rect (0, 0, w, h) in the current transform.
     inline void DrawImage(ID2D1DeviceContext* ctx, Image const& image, float w, float h, uint32_t color = 0xFF000000, float unit = 1.0f)
     {
         if (w <= 0.0f || h <= 0.0f) return;
         const auto rect = D2D1::RectF(0.0f, 0.0f, w, h);
+        auto layout = CMasonCssGradientLayout{ image.angle, image.cornerX, image.cornerY, image.cx * w,
+            image.cy * h, image.rx * w, image.ry * h };
+        if (image.gradient)
+        {
+            layout = mason_css_gradient_layout(image.gradient.get(), w, h, unit, image.fontSize,
+                image.rootFontSize, image.viewportWidth, image.viewportHeight);
+        }
         switch (image.kind)
         {
         case Image::Kind::Svg:
@@ -760,14 +1083,14 @@ namespace mason_cssmask
         {
             // CSS: 0deg points up, angles turn clockwise, and the line is just long enough for the
             // corners to get the end colours.
-            const float a = image.angle * 3.14159265f / 180.0f;
+            const float a = layout.angle * 3.14159265f / 180.0f;
             const float diagonal = std::hypot(w, h);
-            const bool corner = image.cornerX != 0.0f && image.cornerY != 0.0f && diagonal > 0.0f;
-            const float dx = corner ? image.cornerX * h / diagonal : std::sin(a);
-            const float dy = corner ? image.cornerY * w / diagonal : -std::cos(a);
+            const bool corner = layout.corner_x != 0.0f && layout.corner_y != 0.0f && diagonal > 0.0f;
+            const float dx = corner ? layout.corner_x * h / diagonal : std::sin(a);
+            const float dy = corner ? layout.corner_y * w / diagonal : -std::cos(a);
             const float half = (std::abs(w * dx) + std::abs(h * dy)) / 2.0f;
             const D2D1_POINT_2F c{ w / 2.0f, h / 2.0f };
-            const auto ramp = RampOf(image, 2.0f * half / unit);
+            const auto ramp = RampOf(image, 2.0f * half, unit);
             auto stops = Collection(ctx, ramp.stops, ramp.wrap);
             const D2D1_POINT_2F start{ c.x - dx * half, c.y - dy * half };
             auto along = [&](float t) { return D2D1_POINT_2F{ start.x + 2.0f * dx * half * t, start.y + 2.0f * dy * half * t }; };
@@ -780,8 +1103,8 @@ namespace mason_cssmask
         }
         case Image::Kind::Radial:
         {
-            float rx = image.rx * w, ry = image.ry * h;
-            if (image.circle >= 0 || image.circleRadius >= 0.0f)
+            float rx = layout.radius_x, ry = layout.radius_y;
+            if (!image.gradient && (image.circle >= 0 || image.circleRadius >= 0.0f))
             {
                 const float sx = (std::min)(image.cx, 1.0f - image.cx) * w, sy = (std::min)(image.cy, 1.0f - image.cy) * h;
                 const float fx = (std::max)(image.cx, 1.0f - image.cx) * w, fy = (std::max)(image.cy, 1.0f - image.cy) * h;
@@ -798,7 +1121,7 @@ namespace mason_cssmask
                 }
                 rx = ry = (std::max)(r, 0.001f);
             }
-            auto ramp = RampOf(image, rx / unit);
+            auto ramp = RampOf(image, rx, unit);
             float scale = ramp.to;
             if (ramp.wrap)
             {
@@ -820,7 +1143,7 @@ namespace mason_cssmask
             auto stops = Collection(ctx, ramp.stops, ramp.wrap);
             winrt::com_ptr<ID2D1RadialGradientBrush> brush;
             if (stops && scale > 0.0f && SUCCEEDED(ctx->CreateRadialGradientBrush(
-                D2D1::RadialGradientBrushProperties({ image.cx * w, image.cy * h }, {}, rx * scale, ry * scale), stops.get(), brush.put())))
+                D2D1::RadialGradientBrushProperties({ layout.center_x, layout.center_y }, {}, rx * scale, ry * scale), stops.get(), brush.put())))
             {
                 ctx->FillRectangle(rect, brush.get());
             }
@@ -831,7 +1154,9 @@ namespace mason_cssmask
             // Direct2D has no conic gradient: one solid wedge per degree, drawn aliased so they meet.
             winrt::com_ptr<ID2D1Factory> factory;
             ctx->GetFactory(factory.put());
-            const D2D1_POINT_2F c{ image.cx * w, image.cy * h };
+            const auto ramp = RampOf(image, 0.0f, unit);
+            if (ramp.stops.empty()) break;
+            const D2D1_POINT_2F c{ layout.center_x, layout.center_y };
             const float reach = std::hypot((std::max)(c.x, w - c.x), (std::max)(c.y, h - c.y)) + 2.0f;
             const auto aa = ctx->GetAntialiasMode();
             ctx->SetAntialiasMode(D2D1_ANTIALIAS_MODE_ALIASED);
@@ -840,8 +1165,8 @@ namespace mason_cssmask
             for (int i = 0; i < kWedges; ++i)
             {
                 const float t0 = static_cast<float>(i) / kWedges, t1 = static_cast<float>(i + 1) / kWedges;
-                const float a0 = (image.angle + t0 * 360.0f) * 3.14159265f / 180.0f - 0.002f;
-                const float a1 = (image.angle + t1 * 360.0f) * 3.14159265f / 180.0f + 0.002f;
+                const float a0 = (layout.angle + t0 * 360.0f) * 3.14159265f / 180.0f - 0.002f;
+                const float a1 = (layout.angle + t1 * 360.0f) * 3.14159265f / 180.0f + 0.002f;
                 winrt::com_ptr<ID2D1PathGeometry> wedge;
                 winrt::com_ptr<ID2D1GeometrySink> sink;
                 if (FAILED(factory->CreatePathGeometry(wedge.put())) || FAILED(wedge->Open(sink.put()))) break;
@@ -851,7 +1176,9 @@ namespace mason_cssmask
                 sink->EndFigure(D2D1_FIGURE_END_CLOSED);
                 sink->Close();
                 winrt::com_ptr<ID2D1SolidColorBrush> brush;
-                ctx->CreateSolidColorBrush(StopColorAt(image, (t0 + t1) / 2.0f), brush.put());
+                const float offset = ((t0 + t1) / 2.0f - ramp.from) / (ramp.to - ramp.from);
+                const float sample = ramp.wrap ? offset - std::floor(offset) : offset;
+                ctx->CreateSolidColorBrush(RampColorAt(ramp.stops, sample), brush.put());
                 ctx->FillGeometry(wedge.get(), brush.get());
             }
             ctx->PopAxisAlignedClip();
@@ -894,14 +1221,15 @@ namespace mason_cssmask
     }
 
     // One mask layer, tiled over its origin box and clipped to its clip box. Coordinates in DIPs.
-    inline void DrawLayer(ID2D1DeviceContext* ctx, Layer const& layer, Boxes const& boxes, float scale, uint32_t color = 0xFF000000)
+    inline void DrawLayer(ID2D1DeviceContext* ctx, Layer const& source, Boxes const& boxes, float scale, uint32_t color = 0xFF000000)
     {
+        const auto layer = source.PaintStyle();
         const bool fixed = layer.attachment == 1 && boxes.HasViewport();
         const D2D1_RECT_F area = fixed ? D2D1::RectF(boxes.viewport[0], boxes.viewport[1], boxes.viewport[2], boxes.viewport[3])
                                        : boxes.In(layer.origin, layer.attachment);
         D2D1_RECT_F clip = layer.clip == NoClip ? D2D1::RectF(-1e5f, -1e5f, 1e5f, 1e5f) : boxes.In(layer.clip, fixed ? 0 : layer.attachment);
         const float aw = area.right - area.left, ah = area.bottom - area.top;
-        const D2D1_SIZE_F natural = NaturalSize(ctx, layer.image);
+        const D2D1_SIZE_F natural = NaturalSize(ctx, source.image);
         const bool hasRatio = natural.width > 0.0f && natural.height > 0.0f;
         float tw = 0.0f, th = 0.0f;
         if (layer.sizeKind == 1 || layer.sizeKind == 2)
@@ -966,7 +1294,7 @@ namespace mason_cssmask
         ctx->SetTarget(tile.get());
         ctx->SetTransform(D2D1::Matrix3x2F::Identity());
         ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-        DrawImage(ctx, layer.image, static_cast<float>(pw), static_cast<float>(ph), color, scale);
+        DrawImage(ctx, source.image, static_cast<float>(pw), static_cast<float>(ph), color, scale);
         ctx->SetTarget(target.get());
         ctx->SetTransform(transform);
 
@@ -1021,8 +1349,7 @@ namespace mason_cssmask
         return ref;
     }
 
-    // The clip-path shape as a geometry in DIPs. Null for an empty shape. path() is drawn by the
-    // SVG renderer; this geometry, from its parsed commands, is for hit testing.
+    // The clip-path geometry for painting and hit testing. Null for an empty shape.
     inline winrt::com_ptr<ID2D1Geometry> ClipGeometry(ID2D1Factory* factory, ClipShape const& clip, Boxes const& boxes)
     {
         const D2D1_RECT_F ref = ClipReference(clip, boxes);
@@ -1044,7 +1371,23 @@ namespace mason_cssmask
         }
         case 1:
         {
-            D2D1_RECT_F r{ ref.left + v(3).Of(w), ref.top + v(0).Of(h), ref.right - v(1).Of(w), ref.bottom - v(2).Of(h) };
+            D2D1_RECT_F r;
+            if (clip.rectangleKind == 2)
+            {
+                r = { ref.left + v(3).Of(w), ref.top + v(0).Of(h),
+                    (clip.autoEdges & (1u << 1)) ? ref.right : ref.left + v(1).Of(w),
+                    (clip.autoEdges & (1u << 2)) ? ref.bottom : ref.top + v(2).Of(h) };
+            }
+            else if (clip.rectangleKind == 3)
+            {
+                const float x = ref.left + v(0).Of(w), y = ref.top + v(1).Of(h);
+                r = { x, y, x + (std::max)(0.0f, v(2).Of(w)), y + (std::max)(0.0f, v(3).Of(h)) };
+            }
+            else
+            {
+                r = { ref.left + v(3).Of(w), ref.top + v(0).Of(h),
+                    ref.right - v(1).Of(w), ref.bottom - v(2).Of(h) };
+            }
             if (r.right <= r.left || r.bottom <= r.top) return nullptr;
             const float rw = r.right - r.left, rh = r.bottom - r.top;
             float rad[8];
@@ -1068,6 +1411,8 @@ namespace mason_cssmask
             {
                 if (k == 1) return (std::min)(closeA, closeB);
                 if (k == 2) return (std::max)(closeA, closeB);
+                if (k == 3) return (std::min)(closeA, closeB) * std::sqrt(2.0f);
+                if (k == 4) return (std::max)(closeA, closeB) * std::sqrt(2.0f);
                 return len.Of(reference);
             };
             float rx, ry;
@@ -1076,7 +1421,11 @@ namespace mason_cssmask
                 const int k = kind(0);
                 const float closest = (std::min)({ sides[0], sides[1], sides[2], sides[3] });
                 const float farthest = (std::max)({ sides[0], sides[1], sides[2], sides[3] });
-                rx = ry = k == 1 ? closest : k == 2 ? farthest : v(2).Of(std::sqrt(w * w + h * h) / std::sqrt(2.0f));
+                if (k == 1) rx = ry = closest;
+                else if (k == 2) rx = ry = farthest;
+                else if (k == 3) rx = ry = std::hypot((std::min)(sides[0], sides[1]), (std::min)(sides[2], sides[3]));
+                else if (k == 4) rx = ry = std::hypot((std::max)(sides[0], sides[1]), (std::max)(sides[2], sides[3]));
+                else rx = ry = v(2).Of(std::sqrt(w * w + h * h) / std::sqrt(2.0f));
             }
             else
             {
@@ -1165,9 +1514,9 @@ namespace mason_cssmask
     {
         winrt::com_ptr<ID2D1SolidColorBrush> white;
         ctx->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 1), white.put());
-        if (clip.shape == 5)
+        if (clip.shape == 5 && !clip.path.empty())
         {
-            // path(): Direct2D's SVG renderer parses the path data.
+            // Older SetMask callers can still supply SVG path data directly.
             const D2D1_RECT_F ref = ClipReference(clip, boxes);
             const float w = ref.right - ref.left, h = ref.bottom - ref.top;
             std::string d;
@@ -1433,11 +1782,11 @@ namespace mason_cssmask
                 if (!bitmap) continue;
                 winrt::com_ptr<ID2D1Image> image = bitmap;
                 // match-source is alpha for images; luminance only when asked.
-                if (layer.mode == 2) if (auto lum = Luminance(ctx, bitmap.get())) image = lum;
+                if (layer.style.mode == 2) if (auto lum = Luminance(ctx, bitmap.get())) image = lum;
                 D2D1_COMPOSITE_MODE mode = D2D1_COMPOSITE_MODE_SOURCE_OVER;
                 if (n + 1 < spec.layers.size())
                 {
-                    switch (layer.composite)
+                    switch (layer.style.composite)
                     {
                     case 1: mode = D2D1_COMPOSITE_MODE_SOURCE_OUT; break;
                     case 2: mode = D2D1_COMPOSITE_MODE_SOURCE_IN; break;
@@ -1537,7 +1886,7 @@ namespace mason_cssmask
         D2D1_MATRIX_3X2_F transform;
         ctx->GetTransform(&transform);
         const auto toPx = D2D1::Matrix3x2F::Scale(scale, scale);
-        const bool blends = std::any_of(spec.layers.begin(), spec.layers.end(), [](Layer const& l) { D2D1_BLEND_MODE m; return l.image.Drawable() && BlendModeOf(l.blend, m); });
+        const bool blends = std::any_of(spec.layers.begin(), spec.layers.end(), [](Layer const& l) { D2D1_BLEND_MODE m; return l.image.Drawable() && BlendModeOf(l.Blend(), m); });
         const uint32_t pw = static_cast<uint32_t>(std::ceil(boxes.width * scale)), ph = static_cast<uint32_t>(std::ceil(boxes.height * scale));
         winrt::com_ptr<ID2D1Bitmap1> group = blends ? TargetBitmap(ctx, pw, ph) : nullptr;
         if (group)
@@ -1553,7 +1902,7 @@ namespace mason_cssmask
         if ((color >> 24) != 0)
         {
             // The colour takes the bottom layer's clip, text included.
-            const int clip = spec.layers.empty() ? BorderBox : spec.layers.back().clip;
+            const int clip = spec.layers.empty() ? BorderBox : spec.layers.back().Clip();
             winrt::com_ptr<ID2D1SolidColorBrush> brush;
             ctx->CreateSolidColorBrush(ColorOf(color), brush.put());
             clipped(clip, [&] { ctx->FillRectangle(boxes.Get(clip), brush.get()); });
@@ -1564,9 +1913,9 @@ namespace mason_cssmask
             if (!layer.image.Drawable()) continue;
             auto draw = [&] { DrawLayer(ctx, layer, boxes, scale, textColor); };
             D2D1_BLEND_MODE mode;
-            if (!group || !BlendModeOf(layer.blend, mode))
+            if (!group || !BlendModeOf(layer.Blend(), mode))
             {
-                clipped(layer.clip, draw);
+                clipped(layer.Clip(), draw);
                 continue;
             }
             auto source = TargetBitmap(ctx, pw, ph);
@@ -1574,12 +1923,12 @@ namespace mason_cssmask
             winrt::com_ptr<ID2D1Effect> effect;
             if (!source || !blended || FAILED(ctx->CreateEffect(CLSID_D2D1Blend, effect.put())))
             {
-                clipped(layer.clip, draw);
+                clipped(layer.Clip(), draw);
                 continue;
             }
             ctx->SetTarget(source.get());
             ctx->Clear(D2D1::ColorF(0, 0, 0, 0));
-            clipped(layer.clip, draw);
+            clipped(layer.Clip(), draw);
             effect->SetInput(0, group.get());
             effect->SetInput(1, source.get());
             effect->SetValue(D2D1_BLEND_PROP_MODE, mode);
@@ -1598,6 +1947,8 @@ namespace mason_cssmask
     struct Entry
     {
         winrt::weak_ref<mux::UIElement> element;
+        // Authored longhands survive even when there is no drawable background.
+        std::shared_ptr<CMasonCssBackground> backgroundProgram;
         std::shared_ptr<Spec> background;
         mucomp::CompositionSurfaceBrush backgroundBrush{ nullptr };
         std::string backgroundKey;
@@ -1912,12 +2263,12 @@ namespace mason_cssmask
         {
             if (!layer.image.Drawable()) continue;
             any = true;
-            if (layer.attachment != 0) scroll = false;
-            if (layer.attachment != 1 || layer.clip != BorderBox) fixed = false;
+            if (layer.Attachment() != 0) scroll = false;
+            if (layer.Attachment() != 1 || layer.Clip() != BorderBox) fixed = false;
         }
         if (!any) return Unanchored;
         if (scroll && HostScroller(element)) return Scrollport;
-        if (fixed && ((color >> 24) == 0 || spec.layers.back().clip == BorderBox) && element.XamlRoot()) return Viewport;
+        if (fixed && ((color >> 24) == 0 || spec.layers.back().Clip() == BorderBox) && element.XamlRoot()) return Viewport;
         return Unanchored;
     }
 
@@ -1927,8 +2278,8 @@ namespace mason_cssmask
         for (auto const& layer : spec.layers)
         {
             if (!layer.image.Drawable()) continue;
-            if (layer.attachment == 1) fixed = true;
-            else if (layer.attachment == 0) scroll = true;
+            if (layer.Attachment() == 1) fixed = true;
+            else if (layer.Attachment() == 0) scroll = true;
         }
         if (!fixed && !scroll) return;
         try
@@ -2102,8 +2453,8 @@ namespace mason_cssmask
             return;
         }
         const auto& layers = entry.background->layers;
-        const bool fixed = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 1; });
-        const bool scroll = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.attachment == 0; });
+        const bool fixed = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.Attachment() == 1; });
+        const bool scroll = std::any_of(layers.begin(), layers.end(), [](Layer const& l) { return l.image.Drawable() && l.Attachment() == 0; });
         if (fixed)
         {
             for (auto const& sv : AncestorScrollers(element)) onScroll(sv);

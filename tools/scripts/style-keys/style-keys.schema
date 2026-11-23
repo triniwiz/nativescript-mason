@@ -1,15 +1,16 @@
 # Mason style buffer layout.
 #
-# The single source for StyleKeys (byte offsets into the shared style buffer)
-# and StateKeys (bits of the 128-bit dirty mask) in Rust, Kotlin, Swift,
-# TypeScript and the Windows C++ shell. After editing run:
+# The single source for style buffer offsets, dirty bits and Rust-owned CSS
+# record bindings. After editing run:
 #
 #   npm run gen:style-keys       regenerate every language
 #   npm run test:keys           fail when a generated block is stale
 #
 # [style] fields are packed in the order listed. `@N` pins a field to byte N and
-# leaves the bytes before it unused. Types: u8 i8 i32 u32 f32 i64 bytes(N).
-# The buffer size is the end of the last field rounded up to 4.
+# leaves the bytes before it unused. `rust_owned` marks fields skipped by
+# bulk copies from platform style buffers. Record revision fields are
+# implicitly Rust-owned. Types: u8 i8 i32 u32 f32 i64 bytes(N).
+# The buffer size is the end of the last field rounded up to 8 for aligned slots.
 #
 # Offsets are shared between the Rust core and the platform layers: append new
 # fields at the end (or into a free gap) and never move or resize an existing one.
@@ -164,8 +165,8 @@ FONT_METRICS_LEADING_OFFSET          f32
 FONT_METRICS_CAP_HEIGHT_OFFSET       f32
 VERTICAL_ALIGN_OFFSET_OFFSET         f32
 VERTICAL_ALIGN_IS_PERCENT_OFFSET     u8
-VERTICAL_ALIGN_ENUM_OFFSET           f32
-FIRST_BASELINE_OFFSET                f32
+VERTICAL_ALIGN_ENUM_OFFSET           u8
+FIRST_BASELINE_OFFSET                f32 @306 # preserves the three reserved bytes after vertical-align
 Z_INDEX                              i32
 ITEM_IS_LIST                         u8
 ITEM_IS_LIST_ITEM                    u8
@@ -173,7 +174,7 @@ LIST_STYLE_POSITION                  u8
 LIST_STYLE_TYPE                      u8
 LIST_STYLE_POSITION_STATE            u8
 LIST_STYLE_TYPE_STATE                u8
-REF_COUNT                            u32    # copy-on-write share count
+REF_COUNT                            u32    rust_owned  # copy-on-write share count
 
 # Inherited text fields. A *_STATE byte is nonzero once the node sets the field.
 FONT_COLOR                           u32
@@ -319,6 +320,18 @@ TEXT_COMBINE_UPRIGHT_STATE           u8
 TEXT_SPACING_TRIM                    u8           # 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
 TEXT_SPACING_TRIM_STATE              u8
 VISIBILITY                           u8           # 0 visible, 1 hidden, 2 collapse
+FONT_FEATURES_REVISION               u8           # Rust-owned OpenType feature settings change counter
+BOX_SHADOW_REVISION                  u32    @744  # Rust-owned box shadow records change counter
+TEXT_SHADOW_REVISION                 u32          # Rust-owned text shadow records change counter
+FILTER_REVISION                      u32          # Rust-owned filter records change counter
+BACKDROP_FILTER_REVISION             u32          # Rust-owned backdrop-filter records change counter
+BACKGROUND_REVISION                  u32 rust_owned # Rust-owned background layers change counter
+TRANSFORM_REVISION                   u32 rust_owned # Rust-owned CSS transform list change counter
+CLIP_PATH_REVISION                   u32 rust_owned # Rust-owned CSS clip-path change counter
+MASK_REVISION                        u32 rust_owned # Rust-owned mask layer list change counter
+BORDER_IMAGE_REVISION                u32 rust_owned # Rust-owned border-image change counter
+MASK_BORDER_REVISION                 u32 rust_owned # Rust-owned mask-border change counter
+TEXT_OVERFLOW_TOKEN                  i64 rust_owned # Rust-owned text-overflow string handle
 
 [state]
 DISPLAY
@@ -407,3 +420,525 @@ TEXT_ORIENTATION
 TEXT_COMBINE_UPRIGHT
 TEXT_SPACING_TRIM
 VISIBILITY
+FONT_FEATURE_SETTINGS
+
+[state_groups]
+# Text shaping keys can change intrinsic size. Visual text keys only rebuild paint.
+TEXT_LAYOUT kotlin,swift FONT_SIZE FONT_WEIGHT FONT_STYLE FONT_STYLE_SLANT FONT_FAMILY FONT_VARIANT_NUMERIC FONT_FEATURE_SETTINGS TEXT_WRAP WHITE_SPACE TEXT_TRANSFORM LETTER_SPACING TEXT_JUSTIFY LINE_HEIGHT TEXT_ALIGN TEXT_OVERFLOW WORD_SPACING WRITING_MODE UNICODE_BIDI HYPHENS FONT_STRETCH TEXT_INDENT LINE_CLAMP TEXT_ORIENTATION TEXT_COMBINE_UPRIGHT TEXT_SPACING_TRIM LIST_STYLE_POSITION LIST_STYLE_TYPE VERTICAL_ALIGN INVALIDATE_TEXT
+TEXT_VISUAL kotlin,swift FONT_COLOR DECORATION_LINE DECORATION_COLOR DECORATION_STYLE DECORATION_THICKNESS BACKGROUND_COLOR TEXT_SHADOWS
+ALL_TEXT kotlin,swift @TEXT_LAYOUT @TEXT_VISUAL
+LAYOUT_MASK kotlin DISPLAY..MAX_CONTENT_HEIGHT FLOAT CLEAR VISIBILITY @TEXT_LAYOUT
+BORDER_PAINT kotlin,swift BORDER BORDER_STYLE BORDER_RADIUS BORDER_COLOR
+OBJECT_PAINT kotlin,swift OBJECT_FIT OBJECT_POSITION
+PAINT_ONLY swift @TEXT_VISUAL BORDER_STYLE BORDER_RADIUS BORDER_COLOR @OBJECT_PAINT Z_INDEX CARET_COLOR TRANSFORM_ORIGIN
+# WinUI refreshes TextBlocks and native input controls through separate paths.
+WINDOWS_LAYOUT cpp DISPLAY..MAX_CONTENT_HEIGHT FLOAT..CLEAR LIST_STYLE_POSITION..INVALIDATE_TEXT TEXT_ALIGN..TEXT_JUSTIFY FONT_SIZE..TEXT_OVERFLOW WHITE_SPACE..VERTICAL_ALIGN FONT_FAMILY..FONT_VARIANT_NUMERIC WRITING_MODE..HYPHENS WORD_SPACING..FONT_STRETCH TEXT_INDENT..LINE_CLAMP TEXT_ORIENTATION VISIBILITY
+WINDOWS_TEXT_CHANGES ts INVALIDATE_TEXT..TEXT_JUSTIFY FONT_SIZE..FONT_VARIANT_NUMERIC WRITING_MODE..HYPHENS WORD_SPACING..FONT_STRETCH TEXT_INDENT..LINE_CLAMP TEXT_ORIENTATION
+WINDOWS_TEXT cpp DIRECTION @WINDOWS_TEXT_CHANGES
+WINDOWS_CONTROLS cpp INVALIDATE_TEXT..FONT_VARIANT_NUMERIC WRITING_MODE..HYPHENS WORD_SPACING..FONT_STRETCH
+WINDOWS_PAINT cpp BACKGROUND_COLOR BORDER BORDER_STYLE BORDER_RADIUS BORDER_COLOR OVERFLOW OVERFLOW_X OVERFLOW_Y Z_INDEX
+WINDOWS_DISPLAY cpp DISPLAY DISPLAY_MODE
+FLOW_TYPE ts DISPLAY DISPLAY_MODE POSITION FLOAT
+LIST_MARKER cpp LIST_STYLE_POSITION LIST_STYLE_TYPE
+
+[records]
+# Rust-owned lists. Record kinds specify an ABI ID, a revision field in the
+# fixed style buffer, and the layout of one element in their flat array.
+# Append new IDs and preserve the order of existing record fields.
+BOX_SHADOW      0 BOX_SHADOW_REVISION      SHADOW
+TEXT_SHADOW     1 TEXT_SHADOW_REVISION     SHADOW
+FILTER          2 FILTER_REVISION          FILTER
+BACKDROP_FILTER  3 BACKDROP_FILTER_REVISION  FILTER
+FONT_FEATURES    4 FONT_FEATURES_REVISION     FONT_FEATURE
+
+[record_layouts]
+SHADOW X Y BLUR SPREAD COLOR INSET
+FILTER KIND AMOUNT_OR_X Y BLUR COLOR
+FONT_FEATURE TAG VALUE
+BACKGROUND IMAGE_KIND COLOR REPEAT_X REPEAT_Y ORIGIN CLIP ATTACHMENT SIZE_KIND POSITION_X_FRACTION POSITION_X_PIXELS POSITION_Y_FRACTION POSITION_Y_PIXELS WIDTH_FRACTION WIDTH_PIXELS HEIGHT_FRACTION HEIGHT_PIXELS BLEND
+BACKGROUND_OFFSETS POSITION_X POSITION_Y WIDTH HEIGHT
+BACKGROUND_INPUT COLOR IMAGE REPEAT POSITION SIZE CLIP ORIGIN ATTACHMENT
+BORDER_COMPONENTS TOP RIGHT BOTTOM LEFT STYLE COLOR
+BORDER_SIDE_COMPONENTS WIDTH STYLE COLOR
+BORDER_RADII HORIZONTAL_TOP_LEFT HORIZONTAL_TOP_RIGHT HORIZONTAL_BOTTOM_RIGHT HORIZONTAL_BOTTOM_LEFT VERTICAL_TOP_LEFT VERTICAL_TOP_RIGHT VERTICAL_BOTTOM_RIGHT VERTICAL_BOTTOM_LEFT
+CLIP_PATH KIND BOX EVEN_ODD RADIUS_X_KIND RADIUS_Y_KIND HAS_POSITION HAS_MATH
+SVG_PATH KIND VERTEX_END X1 Y1 X2 Y2 X Y
+MASK_LAYER CLIP MODE COMPOSITE
+MASK_INPUT IMAGE SIZE POSITION REPEAT ORIGIN CLIP MODE COMPOSITE
+NINE_SLICE_INPUT SOURCE SLICE WIDTH OUTSET REPEAT MODE
+NINE_SLICE FILL REPEAT_X REPEAT_Y LUMINANCE
+NINE_SLICE_SIDE KIND VALUE HAS_MATH
+TEXT_DECORATION LINE STYLE COLOR THICKNESS
+CSS_LENGTH_RESULT KIND VALUE
+CSS_POSITION_RESULT X_TYPE X_VALUE Y_TYPE Y_VALUE
+CSS_DECLARATION_HEADER NAME VALUE FIELD_COUNT
+CSS_INLINE_REPLAY VIEWPORT_DEPENDENT FONT_DEPENDENT FONT_SIZE
+CSS_BACKGROUND_WRITE PROPERTY VALUE CURRENT_COLOR
+CSS_BACKGROUND_RESULT LAYERS_CHANGED IMAGES_REPLACED IMAGE_DECLARATION SHORTHAND_VALUE COLOR COLOR_FROM_SHORTHAND LAST_IMAGE_FROM_SHORTHAND SHORTHAND_RESET
+CSS_EFFECT_WRITE PROPERTY VALUE CURRENT_COLOR
+CSS_EFFECT_RESULT VALUE RECORDS
+CSS_MASK_WRITE SLOT VALUE
+CSS_BORDER_RESULT TOP_KIND TOP_VALUE RIGHT_KIND RIGHT_VALUE BOTTOM_KIND BOTTOM_VALUE LEFT_KIND LEFT_VALUE STYLE COLOR
+CSS_BORDER_SIDE_RESULT KIND VALUE STYLE COLOR
+GRADIENT_INTERPOLATION DIRECTION SPACE HUE
+ANDROID_PAINT_READ VALUES IMAGES OFFSETS GRADIENTS GRADIENT_INFO SNAPSHOT
+ANDROID_GRADIENT_INFO KIND REPEATING STOP_COUNT DIRECTION SPACE HUE
+SVG_FONT_PREFIX ITALIC WEIGHT SIZE
+SVG_CSS_DECLARATION NAME VALUE IMPORTANT
+SVG_CSS_SELECTOR TYPE ID_COUNT CLASS_COUNT
+SVG_CSS_RULE SELECTOR_COUNT DECLARATION_COUNT
+SVG_PAINT KIND VALUE
+CSS_ANIMATION_LAYER COMPONENT_COUNT
+CSS_ANIMATION_COMPONENT KIND VALUE UNIT
+SVG_LENGTH_COMPONENTS LENGTH PERCENT
+SVG_AFFINE A B C D X Y
+SVG_ASPECT_RATIO ALIGN_X ALIGN_Y UNIFORM SLICE
+
+[css_parse_kinds]
+SHADOWS 0
+FILTERS 1
+LENGTH 2
+FONT_SIZE 3
+CLAMP_LENGTH 4
+TRANSFORM_ORIGIN 5
+OBJECT_POSITION 6
+LINE_HEIGHT 7
+LETTER_SPACING 8
+TEXT_INDENT 9
+WORD_SPACING 10
+VERTICAL_ALIGN 11
+DIMENSION 12
+LENGTH_AUTO 13
+BORDER_RADIUS 14
+BORDER_CORNER_RADIUS 15
+SVG_NUMBER_LIST 16
+SVG_TRANSFORM 17
+SVG_LENGTH 18
+SVG_LENGTH_LIST 19
+SVG_OPACITY 20
+SVG_ANGLE 21
+SVG_ASPECT_RATIO 22
+SVG_NUMBER 23
+SVG_DASH_ARRAY 24
+
+[grid_properties]
+GRID_AUTO_ROWS 0 tracks
+GRID_AUTO_COLUMNS 1 tracks
+GRID_COLUMN 2
+GRID_COLUMN_START 3
+GRID_COLUMN_END 4
+GRID_ROW 5
+GRID_ROW_START 6
+GRID_ROW_END 7
+GRID_TEMPLATE_ROWS 8 tracks
+GRID_TEMPLATE_COLUMNS 9 tracks
+GRID_AREA 10
+GRID_TEMPLATE_AREAS 11
+
+[css_math_properties]
+# Additional stylesheet declarations that accept CSS math. Layout longhands come from [layout_math].
+margin margin-inline margin-block
+padding padding-inline padding-block
+inset inset-inline inset-block
+gap grid-gap grid-row-gap grid-column-gap
+background background-image background-position background-position-x background-position-y background-size
+border border-top border-right border-bottom border-left border-inline border-block border-image
+border-width border-top-width border-right-width border-bottom-width border-left-width border-inline-width border-block-width
+border-inline-start-width border-inline-end-width border-block-start-width border-block-end-width
+border-radius border-top-left-radius border-top-right-radius border-bottom-right-radius border-bottom-left-radius
+corner-shape corner-shape-top-left corner-shape-top-right corner-shape-bottom-right corner-shape-bottom-left
+box-shadow filter backdrop-filter transform transform-origin object-position
+font-size line-height letter-spacing word-spacing text-decoration text-decoration-thickness text-decoration-color text-shadow
+mask -webkit-mask mask-border -webkit-mask-box-image -webkit-mask-position -webkit-mask-size
+
+[filter_operations]
+BLUR        0
+BRIGHTNESS  1
+CONTRAST    2
+SATURATE    3
+HUE_ROTATE  4
+INVERT      5
+OPACITY     6
+SEPIA       7
+GRAYSCALE   8
+DROP_SHADOW 9
+
+[writes]
+# Writer suffix, generated languages, dirty bits, fields in argument order.
+# Use text: before the dirty bits for native text-style notifications.
+# Use corner: before the dirty bit to refresh the native corner renderer.
+# Append @group:mask to stamp TypeScript physical edges before applying the dirty bits.
+align                           kotlin           ALIGN                     ALIGN
+alignContent                    ts,swift,kotlin  ALIGN_CONTENT             ALIGN_CONTENT
+alignItems                      ts,swift,kotlin  ALIGN_ITEMS               ALIGN_ITEMS
+alignSelf                       ts,swift,kotlin  ALIGN_SELF                ALIGN_SELF
+aspectRatio                     ts,swift,kotlin        ASPECT_RATIO              ASPECT_RATIO
+backgroundColor                 ts,swift          text:BACKGROUND_COLOR     BACKGROUND_COLOR BACKGROUND_COLOR_STATE BACKGROUND_COLOR_TYPE
+borderBottomStyle               ts,kotlin        BORDER_STYLE              BORDER_BOTTOM_STYLE
+borderBottomWidth               ts,kotlin,swift  BORDER                    BORDER_BOTTOM_TYPE BORDER_BOTTOM_VALUE
+borderLeftStyle                 ts,kotlin        BORDER_STYLE              BORDER_LEFT_STYLE
+borderLeftWidth                 ts,kotlin,swift  BORDER                    BORDER_LEFT_TYPE BORDER_LEFT_VALUE
+borderRightStyle                ts,kotlin        BORDER_STYLE              BORDER_RIGHT_STYLE
+borderRightWidth                ts,kotlin,swift  BORDER                    BORDER_RIGHT_TYPE BORDER_RIGHT_VALUE
+borderTopStyle                  ts,kotlin        BORDER_STYLE              BORDER_TOP_STYLE
+borderTopWidth                  ts,kotlin,swift  BORDER                    BORDER_TOP_TYPE BORDER_TOP_VALUE
+borderStyles                    ts,kotlin        BORDER_STYLE              BORDER_TOP_STYLE BORDER_RIGHT_STYLE BORDER_BOTTOM_STYLE BORDER_LEFT_STYLE
+borderColors                    swift,kotlin     BORDER_COLOR              BORDER_TOP_COLOR BORDER_RIGHT_COLOR BORDER_BOTTOM_COLOR BORDER_LEFT_COLOR
+borderWidth                     kotlin,swift     BORDER                    BORDER_TOP_TYPE BORDER_TOP_VALUE BORDER_RIGHT_TYPE BORDER_RIGHT_VALUE BORDER_BOTTOM_TYPE BORDER_BOTTOM_VALUE BORDER_LEFT_TYPE BORDER_LEFT_VALUE
+borderTopLeftRadius             kotlin           BORDER_RADIUS             BORDER_RADIUS_TOP_LEFT_X_TYPE BORDER_RADIUS_TOP_LEFT_X_VALUE BORDER_RADIUS_TOP_LEFT_Y_TYPE BORDER_RADIUS_TOP_LEFT_Y_VALUE
+borderTopRightRadius            kotlin           BORDER_RADIUS             BORDER_RADIUS_TOP_RIGHT_X_TYPE BORDER_RADIUS_TOP_RIGHT_X_VALUE BORDER_RADIUS_TOP_RIGHT_Y_TYPE BORDER_RADIUS_TOP_RIGHT_Y_VALUE
+borderBottomRightRadius         kotlin           BORDER_RADIUS             BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE
+borderBottomLeftRadius          kotlin           BORDER_RADIUS             BORDER_RADIUS_BOTTOM_LEFT_X_TYPE BORDER_RADIUS_BOTTOM_LEFT_X_VALUE BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE
+cornerShapeTopLeft              ts,swift,kotlin  corner:BORDER_RADIUS      BORDER_RADIUS_TOP_LEFT_EXPONENT
+cornerShapeTopRight             ts,swift,kotlin  corner:BORDER_RADIUS      BORDER_RADIUS_TOP_RIGHT_EXPONENT
+cornerShapeBottomRight          ts,swift,kotlin  corner:BORDER_RADIUS      BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT
+cornerShapeBottomLeft           ts,swift,kotlin  corner:BORDER_RADIUS      BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
+cornerShape                     ts,swift,kotlin  corner:BORDER_RADIUS      BORDER_RADIUS_TOP_LEFT_EXPONENT BORDER_RADIUS_TOP_RIGHT_EXPONENT BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT BORDER_RADIUS_BOTTOM_LEFT_EXPONENT
+boxSizing                       ts,swift,kotlin  BOX_SIZING                BOX_SIZING
+clear                           ts,swift,kotlin     CLEAR                     CLEAR
+decorationLine                  ts,swift,kotlin  text:DECORATION_LINE      DECORATION_LINE DECORATION_LINE_STATE
+decorationStyle                 ts,swift,kotlin  text:DECORATION_STYLE     DECORATION_STYLE DECORATION_STYLE_STATE
+decorationColor                 ts,swift,kotlin  text:DECORATION_COLOR     DECORATION_COLOR DECORATION_COLOR_STATE
+decorationThickness             ts,swift,kotlin  text:DECORATION_THICKNESS DECORATION_THICKNESS DECORATION_THICKNESS_STATE
+direction                       ts,kotlin,swift   DIRECTION                 DIRECTION
+display                         ts,swift,kotlin  DISPLAY,DISPLAY_MODE      DISPLAY DISPLAY_MODE
+flexBasisType                   ts,kotlin,swift   FLEX_BASIS                FLEX_BASIS_TYPE FLEX_BASIS_VALUE
+flexDirection                   ts,kotlin,swift   FLEX_DIRECTION            FLEX_DIRECTION
+flexGrow                        ts,swift,kotlin  FLEX_GROW                 FLEX_GROW
+flexShrink                      ts,swift,kotlin  FLEX_SHRINK               FLEX_SHRINK
+flexWrap                        ts,swift,kotlin  FLEX_WRAP                 FLEX_WRAP
+textDecoration                  ts,swift,kotlin  text:DECORATION_LINE,DECORATION_STYLE,DECORATION_COLOR,DECORATION_THICKNESS DECORATION_LINE DECORATION_STYLE DECORATION_COLOR DECORATION_THICKNESS DECORATION_LINE_STATE DECORATION_STYLE_STATE DECORATION_COLOR_STATE DECORATION_THICKNESS_STATE
+float                           ts,swift,kotlin  FLOAT                     FLOAT
+fontColorState                  ts               FONT_COLOR                FONT_COLOR_STATE
+fontColor                       ts,swift,kotlin  text:FONT_COLOR          FONT_COLOR FONT_COLOR_STATE
+fontSize                        ts,swift,kotlin   text:FONT_SIZE            FONT_SIZE FONT_SIZE_STATE FONT_SIZE_TYPE
+fontStretch                     ts,swift,kotlin   text:FONT_STRETCH         FONT_STRETCH FONT_STRETCH_STATE
+fontStyle                       ts,swift,kotlin   text:FONT_STYLE          FONT_STYLE_TYPE FONT_STYLE_STATE FONT_STYLE_SLANT
+fontVariantNumeric              swift,kotlin      text:FONT_VARIANT_NUMERIC FONT_VARIANT_NUMERIC FONT_VARIANT_NUMERIC_STATE
+fontWeight                      ts,swift,kotlin   text:FONT_WEIGHT          FONT_WEIGHT FONT_WEIGHT_STATE
+columnGap                       ts,swift,kotlin           GAP                       GAP_COLUMN_TYPE GAP_COLUMN_VALUE
+gap                             ts,kotlin,swift      GAP                       GAP_ROW_TYPE GAP_ROW_VALUE GAP_COLUMN_TYPE GAP_COLUMN_VALUE
+rowGap                          ts,swift,kotlin           GAP                       GAP_ROW_TYPE GAP_ROW_VALUE
+gridAutoFlow                    ts,swift,kotlin  GRID_AUTO_FLOW            GRID_AUTO_FLOW
+height                          ts,swift,kotlin     SIZE@size:2                      HEIGHT_TYPE HEIGHT_VALUE
+hyphens                         ts,kotlin,swift  text:HYPHENS                   HYPHENS HYPHENS_STATE
+insetBottomType                 ts,kotlin,swift     INSET@inset:4                     INSET_BOTTOM_TYPE INSET_BOTTOM_VALUE
+insetLeftType                   ts,kotlin,swift     INSET@inset:8                     INSET_LEFT_TYPE INSET_LEFT_VALUE
+insetRightType                  ts,kotlin,swift     INSET@inset:2                     INSET_RIGHT_TYPE INSET_RIGHT_VALUE
+insetTopType                    ts,kotlin,swift     INSET@inset:1                     INSET_TOP_TYPE INSET_TOP_VALUE
+justifyContent                  ts,swift,kotlin  JUSTIFY_CONTENT           JUSTIFY_CONTENT
+justifyItems                    ts,swift,kotlin  JUSTIFY_ITEMS             JUSTIFY_ITEMS
+justifySelf                     ts,swift,kotlin  JUSTIFY_SELF              JUSTIFY_SELF
+letterSpacing                   ts,swift,kotlin   text:LETTER_SPACING       LETTER_SPACING LETTER_SPACING_STATE
+lineClamp                       ts,kotlin        LINE_CLAMP                LINE_CLAMP LINE_CLAMP_STATE
+lineHeight                      ts,swift,kotlin   text:LINE_HEIGHT          LINE_HEIGHT LINE_HEIGHT_STATE LINE_HEIGHT_TYPE
+lineHeightState                 ts,swift,kotlin   text:LINE_HEIGHT          LINE_HEIGHT_STATE
+listStylePosition               ts,swift,kotlin  LIST_STYLE_POSITION       LIST_STYLE_POSITION LIST_STYLE_POSITION_STATE
+listStyleType                   ts,swift,kotlin  LIST_STYLE_TYPE           LIST_STYLE_TYPE LIST_STYLE_TYPE_STATE
+marginBottomType                ts,swift,kotlin     MARGIN@margin:4                    MARGIN_BOTTOM_TYPE MARGIN_BOTTOM_VALUE
+marginLeftType                  ts,swift,kotlin     MARGIN@margin:8                    MARGIN_LEFT_TYPE MARGIN_LEFT_VALUE
+marginRightType                 ts,swift,kotlin     MARGIN@margin:2                    MARGIN_RIGHT_TYPE MARGIN_RIGHT_VALUE
+marginTopType                   ts,swift,kotlin     MARGIN@margin:1                    MARGIN_TOP_TYPE MARGIN_TOP_VALUE
+maxHeight                       ts,kotlin,swift      MAX_SIZE@size:32                  MAX_HEIGHT_TYPE MAX_HEIGHT_VALUE
+maxSize                         kotlin,swift      MAX_SIZE                  MAX_WIDTH_TYPE MAX_WIDTH_VALUE MAX_HEIGHT_TYPE MAX_HEIGHT_VALUE
+maxWidth                        ts,kotlin,swift      MAX_SIZE@size:16                  MAX_WIDTH_TYPE MAX_WIDTH_VALUE
+minHeight                       ts,kotlin,swift      MIN_SIZE@size:8                  MIN_HEIGHT_TYPE MIN_HEIGHT_VALUE
+minSize                         kotlin,swift      MIN_SIZE                  MIN_WIDTH_TYPE MIN_WIDTH_VALUE MIN_HEIGHT_TYPE MIN_HEIGHT_VALUE
+minWidth                        ts,kotlin,swift      MIN_SIZE@size:4                  MIN_WIDTH_TYPE MIN_WIDTH_VALUE
+objectFit                       ts,swift,kotlin  OBJECT_FIT                OBJECT_FIT
+objectPosition                  ts               OBJECT_POSITION           OBJECT_POSITION_X_TYPE OBJECT_POSITION_Y_TYPE OBJECT_POSITION_X_VALUE OBJECT_POSITION_Y_VALUE OBJECT_POSITION_STATE
+overflowX                       ts,swift,kotlin  OVERFLOW_X                OVERFLOW_X
+overflow                        swift,kotlin     OVERFLOW_X,OVERFLOW_Y     OVERFLOW_X OVERFLOW_Y
+overflowAxes                    ts               OVERFLOW                  OVERFLOW_X OVERFLOW_Y
+overflowY                       ts,swift,kotlin  OVERFLOW_Y                OVERFLOW_Y
+paddingBottomType               ts,kotlin,swift      PADDING@padding:4                   PADDING_BOTTOM_TYPE PADDING_BOTTOM_VALUE
+paddingLeftType                 ts,kotlin,swift      PADDING@padding:8                   PADDING_LEFT_TYPE PADDING_LEFT_VALUE
+paddingRightType                ts,kotlin,swift      PADDING@padding:2                   PADDING_RIGHT_TYPE PADDING_RIGHT_VALUE
+paddingTopType                  ts,kotlin,swift      PADDING@padding:1                   PADDING_TOP_TYPE PADDING_TOP_VALUE
+position                        ts,kotlin,swift   POSITION                  POSITION
+scrollbarWidth                  ts,swift,kotlin  SCROLLBAR_WIDTH           SCROLLBAR_WIDTH
+size                            swift,kotlin     SIZE                      WIDTH_TYPE WIDTH_VALUE HEIGHT_TYPE HEIGHT_VALUE
+textAlign                       ts,swift,kotlin  TEXT_ALIGN                TEXT_ALIGN TEXT_ALIGN_STATE
+textAlignAsAlign                swift            ALIGN                     TEXT_ALIGN
+textCombineUpright              ts,kotlin,swift  text:TEXT_COMBINE_UPRIGHT      TEXT_COMBINE_UPRIGHT TEXT_COMBINE_UPRIGHT_STATE
+textIndent                      ts,swift,kotlin   text:TEXT_INDENT          TEXT_INDENT TEXT_INDENT_TYPE TEXT_INDENT_STATE
+textJustify                     ts,swift,kotlin  text:TEXT_JUSTIFY         TEXT_JUSTIFY TEXT_JUSTIFY_STATE
+textOrientation                 ts,kotlin,swift  text:TEXT_ORIENTATION          TEXT_ORIENTATION TEXT_ORIENTATION_STATE
+textOverflow                    ts               text:TEXT_OVERFLOW        TEXT_OVERFLOW TEXT_OVERFLOW_STATE
+textSpacingTrim                 ts,kotlin,swift  text:TEXT_SPACING_TRIM         TEXT_SPACING_TRIM TEXT_SPACING_TRIM_STATE
+textTransform                   ts,swift,kotlin  text:TEXT_TRANSFORM       TEXT_TRANSFORM TEXT_TRANSFORM_STATE
+textWrap                        ts,swift,kotlin  text:TEXT_WRAP            TEXT_WRAP TEXT_WRAP_STATE
+transformOrigin                 ts,swift,kotlin  transform:TRANSFORM_ORIGIN TRANSFORM_ORIGIN_X_TYPE TRANSFORM_ORIGIN_Y_TYPE TRANSFORM_ORIGIN_X_VALUE TRANSFORM_ORIGIN_Y_VALUE TRANSFORM_ORIGIN_STATE
+unicodeBidi                     ts,kotlin,swift  text:UNICODE_BIDI              UNICODE_BIDI UNICODE_BIDI_STATE
+visibility                      ts               VISIBILITY                VISIBILITY
+verticalAlign                   ts,swift,kotlin  text:VERTICAL_ALIGN       VERTICAL_ALIGN_OFFSET_OFFSET VERTICAL_ALIGN_IS_PERCENT_OFFSET VERTICAL_ALIGN_ENUM_OFFSET
+whiteSpace                      ts,swift,kotlin  text:WHITE_SPACE          WHITE_SPACE WHITE_SPACE_STATE
+width                           ts,kotlin,swift      SIZE@size:1                      WIDTH_TYPE WIDTH_VALUE
+writingMode                     ts,kotlin,swift  text:WRITING_MODE              WRITING_MODE WRITING_MODE_STATE
+wordSpacing                     ts,swift,kotlin   text:WORD_SPACING         WORD_SPACING WORD_SPACING_TYPE WORD_SPACING_STATE
+zIndex                          ts,swift,kotlin  Z_INDEX                   Z_INDEX
+
+backgroundColorNative           kotlin           text:BACKGROUND_COLOR     BACKGROUND_COLOR BACKGROUND_COLOR_STATE
+lineClampText                   swift            text:LINE_CLAMP           LINE_CLAMP LINE_CLAMP_STATE
+inset                            ts,swift,kotlin     INSET@inset:15                     INSET_TOP_TYPE INSET_TOP_VALUE INSET_RIGHT_TYPE INSET_RIGHT_VALUE INSET_BOTTOM_TYPE INSET_BOTTOM_VALUE INSET_LEFT_TYPE INSET_LEFT_VALUE
+margin                           ts,swift,kotlin     MARGIN@margin:15                    MARGIN_TOP_TYPE MARGIN_TOP_VALUE MARGIN_RIGHT_TYPE MARGIN_RIGHT_VALUE MARGIN_BOTTOM_TYPE MARGIN_BOTTOM_VALUE MARGIN_LEFT_TYPE MARGIN_LEFT_VALUE
+padding                          ts,swift,kotlin     PADDING@padding:15                   PADDING_TOP_TYPE PADDING_TOP_VALUE PADDING_RIGHT_TYPE PADDING_RIGHT_VALUE PADDING_BOTTOM_TYPE PADDING_BOTTOM_VALUE PADDING_LEFT_TYPE PADDING_LEFT_VALUE
+
+[border_sides]
+# Physical edge and the corners at its two ends.
+top     TOP_LEFT    TOP_RIGHT
+right   TOP_RIGHT   BOTTOM_RIGHT
+bottom  BOTTOM_LEFT BOTTOM_RIGHT
+left    TOP_LEFT    BOTTOM_LEFT
+
+[accessors]
+# Property, writer, language=shape,native type[,flags]. Writers supply fields and dirty bits.
+# TypeScript keyword getters read the stored byte. A read-state binding uses its fallback when unset.
+display               display                   ts=display,literal swift=display,Display kotlin=display,Display
+textOverflow          textOverflow              ts=keyword,literal,input=string swift=enum,TextOverflow,decoded,side-record kotlin=enum,Styles.TextOverflow,decoded,side-record
+transformOrigin        transformOrigin          ts=positionpair,string swift=positionpair,MasonLengthPercentage kotlin=positionpair,String
+objectPosition         objectPosition           ts=positionpair,string
+textDecoration         textDecoration           ts=decoration,string swift=decoration,String kotlin=decoration,String
+textDecorationLine     decorationLine           ts=decoration,string swift=decoration,String kotlin=decoration,String
+textDecorationStyle    decorationStyle          ts=decoration,string swift=decoration,String kotlin=decoration,String
+textDecorationColor    decorationColor          ts=decoration,string swift=decoration,String kotlin=decoration,String
+textDecorationThickness decorationThickness    ts=decoration,number
+textIndent            textIndent                ts=textlength,TextIndent swift=textlength,MasonLengthPercentage kotlin=textlength,String # Text indent as a length or a percentage of the line width.
+wordSpacing           wordSpacing               ts=textlength,WordSpacing
+verticalAlign         verticalAlign             ts=vertical,VerticalAlign swift=vertical,MasonVerticalAlignValue kotlin=vertical,VerticalAlign
+fontVariantNumeric    fontVariantNumeric        swift=bitset,FontVariantNumeric kotlin=bitset,Int
+fontStyle             fontStyle                 ts=font,string swift=font,FontStyle kotlin=font,FontStyle
+fontWeight            fontWeight                ts=font,number swift=font,String kotlin=font,FontWeight
+fontStretch           fontStretch               ts=font,string kotlin=font,String
+textAlignment         textAlign                 ts=keyword,literal,fallback=start
+visibility            visibility                ts=keyword,literal,changed
+visibilityCode        visibility                swift=scalar,UInt8,internal,readonly kotlin=scalar,Byte,internal,readonly
+hyphens               hyphens                   ts=keyword,literal,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+writingMode           writingMode               ts=keyword,literal,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+unicodeBidi           unicodeBidi               ts=keyword,string,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+textOrientation       textOrientation           ts=keyword,literal,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+textCombineUpright    textCombineUpright        ts=keyword,string,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+textSpacingTrim       textSpacingTrim           ts=keyword,string,read-state swift=scalar,UInt8,internal kotlin=scalar,Byte,internal
+align                 align                    kotlin=enum,Align,pseudo
+align                 textAlignAsAlign         swift=enum,Align
+alignContent          alignContent              ts=keyword,literal,fallback=undefined kotlin=enum,AlignContent,pseudo swift=enum,AlignContent
+alignItems            alignItems                ts=keyword,literal,fallback=undefined kotlin=enum,AlignItems,pseudo swift=enum,AlignItems
+alignSelf             alignSelf                 ts=keyword,literal,fallback=undefined kotlin=enum,AlignSelf,pseudo swift=enum,AlignSelf
+aspectRatio           aspectRatio              ts=nan,number kotlin=nan,Float,pseudo swift=nan,Float
+backgroundColor       backgroundColor          ts=color,number swift=scalar,UInt32
+backgroundColor       backgroundColorNative    kotlin=scalar,Int
+borderBottomStyle     borderBottomStyle        ts=borderside,string kotlin=enum,BorderStyle,pseudo,changed
+borderLeftStyle       borderLeftStyle          ts=borderside,string kotlin=enum,BorderStyle,pseudo,changed
+borderRightStyle      borderRightStyle         ts=borderside,string kotlin=enum,BorderStyle,pseudo,changed
+borderTopStyle        borderTopStyle           ts=borderside,string kotlin=enum,BorderStyle,pseudo,changed
+borderStyle           borderStyles             ts=borderstyles,string kotlin=enumrect,BorderStyle,pseudo
+borderColor           borderColors             swift=cssbordercolor,String kotlin=colorrect,Int,pseudo
+borderBottomWidth     borderBottomWidth        ts=length,Length kotlin=length,LengthPercentage,pseudo,changed
+borderLeftWidth       borderLeftWidth          ts=length,Length kotlin=length,LengthPercentage,pseudo,changed
+borderRightWidth      borderRightWidth         ts=length,Length kotlin=length,LengthPercentage,pseudo,changed
+borderTopWidth        borderTopWidth           ts=length,Length kotlin=length,LengthPercentage,pseudo,changed
+borderWidth           borderWidth              swift=rect,MasonLengthPercentage,compat kotlin=rect,LengthPercentage,pseudo
+borderTopLeftRadius   borderTopLeftRadius      kotlin=point,LengthPercentage
+borderTopRightRadius  borderTopRightRadius     kotlin=point,LengthPercentage
+borderBottomRightRadius borderBottomRightRadius kotlin=point,LengthPercentage
+borderBottomLeftRadius borderBottomLeftRadius   kotlin=point,LengthPercentage
+cornerShapeTopLeft     cornerShapeTopLeft       ts=corner,string swift=corner,String kotlin=corner,String
+cornerShapeTopRight    cornerShapeTopRight      ts=corner,string swift=corner,String kotlin=corner,String
+cornerShapeBottomRight cornerShapeBottomRight   ts=corner,string swift=corner,String kotlin=corner,String
+cornerShapeBottomLeft  cornerShapeBottomLeft    ts=corner,string swift=corner,String kotlin=corner,String
+cornerShape            cornerShape              ts=corner,string swift=corner,String kotlin=corner,String
+color                 fontColor                ts=color,number kotlin=scalar,Int swift=scalar,UInt32
+boxSizing             boxSizing                 ts=keyword,literal,fallback=undefined kotlin=enum,BoxSizing,pseudo swift=enum,BoxSizing
+clear                 clear                     ts=keyword,literal,invalid=notify kotlin=enum,Clear,pseudo swift=enum,Clear
+decorationColor       decorationColor          kotlin=scalar,Int swift=scalar,UInt32
+decorationLine        decorationLine           kotlin=enum,Styles.DecorationLine swift=enum,DecorationLine,fallback=None
+decorationStyle       decorationStyle          kotlin=enum,Styles.DecorationStyle swift=enum,DecorationStyle,fallback=Solid
+decorationThickness   decorationThickness      kotlin=scalar,Float swift=scalar,Float # Device px. Zero uses the font's underline thickness.
+direction             direction                 ts=keyword,literal,changed,invalid=reset kotlin=enum,Direction,pseudo swift=enum,Direction
+flexBasis             flexBasisType            kotlin=length,Dimension,pseudo swift=length,MasonDimension,fallback=Auto ts=length,DimensionLength
+flexDirection         flexDirection             ts=keyword,literal,fallback=undefined kotlin=enum,FlexDirection,pseudo swift=enum,FlexDirection
+flexGrow              flexGrow                 ts=scalar,number,changed kotlin=scalar,Float,pseudo swift=scalar,Float
+flexShrink            flexShrink               ts=scalar,number,changed kotlin=scalar,Float,pseudo swift=scalar,Float
+flexWrap              flexWrap                  ts=keyword,literal,fallback=undefined kotlin=enum,FlexWrap,pseudo swift=enum,FlexWrap
+float                 float                     ts=keyword,literal,changed,invalid=reset kotlin=enum,org.nativescript.mason.masonkit.enums.Float,pseudo,dirty swift=enum,MasonFloat
+fontSize              fontSize                 swift=scalar,Float,font-metrics kotlin=scalar,Float ts=font,number
+gap                   gap                      ts=gap,string kotlin=size,LengthPercentage,pseudo swift=size,MasonLengthPercentage,compat
+gridAutoFlow          gridAutoFlow             ts=keyword,GridAutoFlow,fallback=undefined kotlin=enum,GridAutoFlow,pseudo swift=enum,GridAutoFlow
+height                height                   swift=length,MasonDimension,compat=sizeCompatHeight ts=length,DimensionLength
+inset                 inset                    ts=boxsides,LengthAuto kotlin=rect,LengthPercentageAuto,pseudo swift=rect,MasonLengthPercentageAuto,compat
+bottomInset           insetBottomType          swift=length,MasonLengthPercentageAuto
+leftInset             insetLeftType            swift=length,MasonLengthPercentageAuto
+rightInset            insetRightType           swift=length,MasonLengthPercentageAuto
+topInset              insetTopType             swift=length,MasonLengthPercentageAuto
+justifyContent        justifyContent            ts=keyword,literal,fallback=undefined kotlin=enum,JustifyContent,pseudo swift=enum,JustifyContent
+justifyItems          justifyItems              ts=keyword,literal,fallback=undefined kotlin=enum,JustifyItems,pseudo swift=enum,JustifyItems
+justifySelf           justifySelf               ts=keyword,literal,fallback=undefined kotlin=enum,JustifySelf,pseudo swift=enum,JustifySelf
+letterSpacing         letterSpacing            kotlin=scalar,Float swift=scalar,Float ts=spacing,CoreTypes.LengthType
+lineHeight            lineHeight               swift=scalar,Float kotlin=scalar,Float ts=spacing,CoreTypes.LengthType
+lineClamp             lineClamp                kotlin=scalar,Int,inherit-zero,nonnegative ts=limit,number
+lineClamp             lineClampText            swift=scalar,Int32,nonnegative
+listStylePosition     listStylePosition         ts=keyword,literal kotlin=enum,ListStylePosition swift=enum,ListStylePosition
+listStyleType         listStyleType             ts=keyword,literal kotlin=enum,ListStyleType,marker swift=enum,ListStyleType,marker
+margin                margin                   ts=boxsides,LengthAuto kotlin=rect,LengthPercentageAuto,pseudo swift=rect,MasonLengthPercentageAuto,compat
+marginBottom          marginBottomType         kotlin=length,LengthPercentageAuto swift=length,MasonLengthPercentageAuto ts=length,LengthAuto
+marginLeft            marginLeftType           kotlin=length,LengthPercentageAuto swift=length,MasonLengthPercentageAuto ts=length,LengthAuto
+marginRight           marginRightType          kotlin=length,LengthPercentageAuto swift=length,MasonLengthPercentageAuto ts=length,LengthAuto
+marginTop             marginTopType            kotlin=length,LengthPercentageAuto swift=length,MasonLengthPercentageAuto ts=length,LengthAuto
+maxHeight             maxHeight                kotlin=length,Dimension,pseudo swift=length,MasonDimension ts=length,LengthAuto
+maxSize               maxSize                  kotlin=size,Dimension,pseudo swift=size,MasonDimension,compat
+maxWidth              maxWidth                 kotlin=length,Dimension,pseudo swift=length,MasonDimension ts=length,LengthAuto
+minHeight             minHeight                kotlin=length,Dimension,pseudo swift=length,MasonDimension ts=length,LengthAuto
+minSize               minSize                  kotlin=size,Dimension,pseudo swift=size,MasonDimension,compat
+minWidth              minWidth                 kotlin=length,Dimension,pseudo swift=length,MasonDimension ts=length,LengthAuto
+objectFit             objectFit                 ts=keyword,string,input=literal,fallback=fill kotlin=enum,ObjectFit,pseudo swift=enum,ObjectFit
+overflowX             overflowX                 ts=keyword,literal,fallback=undefined kotlin=enum,Overflow,pseudo swift=enum,Overflow
+overflowY             overflowY                 ts=keyword,literal,fallback=undefined kotlin=enum,Overflow,pseudo swift=enum,Overflow
+overflow              overflowAxes              ts=enumpoint,OverFlow
+overflow              overflow                 kotlin=enumpoint,Overflow,axis-pseudo swift=enumpoint,Overflow,compat
+padding               padding                  ts=boxsides,Length kotlin=rect,LengthPercentage,pseudo swift=rect,MasonLengthPercentage,compat
+paddingBottom         paddingBottomType        swift=length,MasonLengthPercentage ts=length,Length
+paddingLeft           paddingLeftType          swift=length,MasonLengthPercentage ts=length,Length
+paddingRight          paddingRightType         swift=length,MasonLengthPercentage ts=length,Length
+paddingTop            paddingTopType           swift=length,MasonLengthPercentage ts=length,Length
+position              position                  ts=keyword,literal,fallback=undefined kotlin=enum,Position,pseudo swift=enum,Position
+scrollBarWidth        scrollbarWidth           ts=devicepoints,CoreTypes.LengthType kotlin=scalar,Float,pseudo swift=points,MasonDimension
+size                  size                     kotlin=size,Dimension,pseudo swift=size,MasonDimension,compat
+textAlign             textAlign                kotlin=enum,TextAlign swift=enum,TextAlign
+textJustify           textJustify               ts=keyword,string,input=literal kotlin=enum,TextJustify swift=enum,TextJustify,fallback=Auto,changed
+textTransform         textTransform             ts=keyword,literal kotlin=enum,Styles.TextTransform swift=enum,TextTransform
+textWrap              textWrap                  ts=keyword,number kotlin=enum,TextWrap swift=enum,TextWrap
+whiteSpace            whiteSpace                ts=keyword,string,input=literal kotlin=enum,Styles.WhiteSpace swift=enum,WhiteSpace
+width                 width                    swift=length,MasonDimension,compat=sizeCompatWidth ts=length,DimensionLength
+zIndex                zIndex                   ts=scalar,number,changed kotlin=scalar,Int,pseudo swift=scalar,Int32
+top                   insetTopType             ts=length,LengthAuto
+right                 insetRightType           ts=length,LengthAuto
+bottom                insetBottomType          ts=length,LengthAuto
+left                  insetLeftType            ts=length,LengthAuto
+rowGap                rowGap                   ts=length,Length
+columnGap             columnGap                ts=length,Length
+
+[keywords]
+# CSS property names and their style codes. + denotes a space.
+# / introduces a legacy native HTML value. /_ means that HTML ignores the value.
+align-items,align-self,justify-items,justify-self normal=-1 start=0 end=1 center=2 baseline=3 stretch=4 flex-start=5/0 flex-end=6/1
+align-content,justify-content normal=-1 start=0 end=1 center=2 stretch=3 space-between=4 space-around=5 space-evenly=6 flex-start=7/0 flex-end=8/1
+border-style none=0 hidden=1 dotted=2 dashed=3 solid=4 double=5 groove=6 ridge=7 inset=8 outset=9
+box-sizing border-box=0 content-box=1
+clear none=0 left=1 right=2 both=3
+direction inherit=0 ltr=1 rtl=2
+# Display adds @base,mode, with an optional TypeScript base or a Kotlin-only value.
+display none=0@0,0 flex=1@1,0 grid=2@2,0 block=3@3,0 inline=4@3,1,ts=1 inline-block=5@3,2 inline-flex=6@1,2 inline-grid=7@2,2 list-item=8@3,3,kotlin
+flex-direction row=0 column=1 row-reverse=2 column-reverse=3
+flex-wrap nowrap=0 no-wrap=0 wrap=1 wrap-reverse=2 balance=3 balance-reverse=4
+float none=0 left=1 right=2
+font-stretch ultra-condensed=5000 extra-condensed=6250 condensed=7500 semi-condensed=8750 normal=10000 semi-expanded=11250 expanded=12500 extra-expanded=15000 ultra-expanded=20000
+font-style normal=0 italic=1 oblique=2
+font-variant-numeric normal=0 lining-nums=1 oldstyle-nums=2 proportional-nums=4 tabular-nums=8 diagonal-fractions=16 stacked-fractions=32 ordinal=64 slashed-zero=128
+font-weight thin=100 ultralight=200 light=300 normal=400 medium=500 semibold=600 bold=700 heavy=800 black=900
+grid-auto-flow row=0 column=1 dense=2 row+dense=2 dense+row=2 column+dense=3 dense+column=3
+hyphens manual=0 none=1 auto=2
+list-style-position outside=0 inside=1
+list-style-type none=0 custom=1/_ disc=2 circle=3 square=4 decimal=5
+mask-clip border-box=0 margin-box=0 fill-box=0 stroke-box=0 view-box=0 padding-box=1 content-box=2 no-clip=3
+mask-composite add=0 subtract=1 intersect=2 exclude=3
+mask-mode match-source=0 alpha=1 luminance=2
+object-fit contain=0 cover=1 fill=2 none=3 scale-down=4
+overflow,overflow-x,overflow-y visible=0 hidden=1 scroll=2 clip=3 auto=4
+position static=0 relative=1 absolute=2 fixed=3 sticky=4
+text-align left=1 right=2 center=3 justify=4 start=5 end=6
+text-combine-upright none=0 all=1 digits+2=2 digits=2 digits+3=3 digits+4=4
+text-justify none=-1 auto=0 inter-word=1 inter-character=2 distribute=3
+text-orientation mixed=0 upright=1 sideways=2 sideways-right=2
+# The ~2 storage code carries a custom ellipsis token but reads as ellipsis in TypeScript.
+text-overflow clip=0 ellipsis=1~2
+text-spacing-trim normal=0 space-all=1 space-first=2 trim-start=3 trim-both=4 trim-all=5 auto=6
+text-transform none=0 capitalize=1 uppercase=2 lowercase=3
+text-wrap wrap=0 nowrap=1 balance=2 pretty=0/3 stable=0/_
+touch-action auto=7 none=0 manipulation=7 pan-x=1 pan-left=1 pan-right=1 pan-y=2 pan-up=2 pan-down=2 pinch-zoom=4
+unicode-bidi normal=0 embed=1 bidi-override=2 isolate=3 isolate-override=4 plaintext=5
+vertical-align baseline=0 top=1 text-top=2 middle=3 bottom=4 text-bottom=5 sub=6 super=7
+visibility visible=0 hidden=1 collapse=2
+white-space normal=0 pre=1 pre-wrap=2 pre-line=3 nowrap=4 break-spaces=5
+writing-mode horizontal-tb=0 vertical-rl=1 vertical-lr=2
+
+[layout_math]
+# Type byte for a layout expression. The value word holds its Rust handle.
+type=10
+# CSS property, fixed writer (or logical type,value,order,slot,dirty bit), optional signed length.
+width width
+height height
+min-width minWidth
+min-height minHeight
+max-width maxWidth
+max-height maxHeight
+flex-basis flexBasisType
+row-gap rowGap
+column-gap columnGap
+top insetTopType signed
+right insetRightType signed
+bottom insetBottomType signed
+left insetLeftType signed
+margin-top marginTopType signed
+margin-right marginRightType signed
+margin-bottom marginBottomType signed
+margin-left marginLeftType signed
+padding-top paddingTopType
+padding-right paddingRightType
+padding-bottom paddingBottomType
+padding-left paddingLeftType
+inline-size INLINE_SIZE_TYPE,INLINE_SIZE_VALUE,SIZE_ORDER,6,SIZE
+block-size BLOCK_SIZE_TYPE,BLOCK_SIZE_VALUE,SIZE_ORDER,7,SIZE
+min-inline-size MIN_INLINE_SIZE_TYPE,MIN_INLINE_SIZE_VALUE,SIZE_ORDER,8,MIN_SIZE
+min-block-size MIN_BLOCK_SIZE_TYPE,MIN_BLOCK_SIZE_VALUE,SIZE_ORDER,9,MIN_SIZE
+max-inline-size MAX_INLINE_SIZE_TYPE,MAX_INLINE_SIZE_VALUE,SIZE_ORDER,10,MAX_SIZE
+max-block-size MAX_BLOCK_SIZE_TYPE,MAX_BLOCK_SIZE_VALUE,SIZE_ORDER,11,MAX_SIZE
+inset-block-start INSET_BLOCK_START_TYPE,INSET_BLOCK_START_VALUE,INSET_ORDER,4,INSET signed
+inset-inline-end INSET_INLINE_END_TYPE,INSET_INLINE_END_VALUE,INSET_ORDER,5,INSET signed
+inset-block-end INSET_BLOCK_END_TYPE,INSET_BLOCK_END_VALUE,INSET_ORDER,6,INSET signed
+inset-inline-start INSET_INLINE_START_TYPE,INSET_INLINE_START_VALUE,INSET_ORDER,7,INSET signed
+margin-block-start MARGIN_BLOCK_START_TYPE,MARGIN_BLOCK_START_VALUE,MARGIN_ORDER,4,MARGIN signed
+margin-inline-end MARGIN_INLINE_END_TYPE,MARGIN_INLINE_END_VALUE,MARGIN_ORDER,5,MARGIN signed
+margin-block-end MARGIN_BLOCK_END_TYPE,MARGIN_BLOCK_END_VALUE,MARGIN_ORDER,6,MARGIN signed
+margin-inline-start MARGIN_INLINE_START_TYPE,MARGIN_INLINE_START_VALUE,MARGIN_ORDER,7,MARGIN signed
+padding-block-start PADDING_BLOCK_START_TYPE,PADDING_BLOCK_START_VALUE,PADDING_ORDER,4,PADDING
+padding-inline-end PADDING_INLINE_END_TYPE,PADDING_INLINE_END_VALUE,PADDING_ORDER,5,PADDING
+padding-block-end PADDING_BLOCK_END_TYPE,PADDING_BLOCK_END_VALUE,PADDING_ORDER,6,PADDING
+padding-inline-start PADDING_INLINE_START_TYPE,PADDING_INLINE_START_VALUE,PADDING_ORDER,7,PADDING
+
+[length_setters]
+# Public value/type setter, writer, length kind, and native targets.
+# A property target uses its typed setter. Raw uses the writer, and typed also emits the Android Dimension overload.
+setInsetLeft            insetLeftType       auto       swift=leftInset kotlin=raw
+setInsetRight           insetRightType      auto       swift=rightInset kotlin=raw
+setInsetTop             insetTopType        auto       swift=topInset kotlin=raw
+setInsetBottom          insetBottomType     auto       swift=bottomInset kotlin=raw
+setInsetWithValueType   inset               auto       swift=inset kotlin=raw
+setMarginLeft           marginLeftType      auto       swift=marginLeft kotlin=raw
+setMarginRight          marginRightType     auto       swift=marginRight kotlin=raw
+setMarginTop            marginTopType       auto       swift=marginTop kotlin=raw
+setMarginBottom         marginBottomType    auto       swift=marginBottom kotlin=raw
+setMarginWithValueType  margin              auto       swift=margin kotlin=raw
+setPaddingLeft          paddingLeftType     length     swift=paddingLeft kotlin=raw
+setPaddingRight         paddingRightType    length     swift=paddingRight kotlin=raw
+setPaddingTop           paddingTopType      length     swift=paddingTop kotlin=raw
+setPaddingBottom        paddingBottomType   length     swift=paddingBottom kotlin=raw
+setPaddingWithValueType padding             length     swift=padding kotlin=raw
+setBorderLeftWidth      borderLeftWidth     length     swift=raw kotlin=borderLeftWidth
+setBorderRightWidth     borderRightWidth    length     swift=raw kotlin=borderRightWidth
+setBorderTopWidth       borderTopWidth      length     swift=raw kotlin=borderTopWidth
+setBorderBottomWidth    borderBottomWidth   length     swift=raw kotlin=borderBottomWidth
+setBorderWidth          borderWidth         length     swift=borderWidth kotlin=borderWidth
+setFlexBasis            flexBasisType       dimension  swift=flexBasis kotlin=raw
+setMinSizeWidth         minWidth            dimension  swift=minSize.width kotlin=typed
+setMinSizeHeight        minHeight           dimension  swift=minSize.height kotlin=typed
+setMinSizeWidthHeight   minSize             dimension  swift=minSize
+setSizeWidth            width               dimension  swift=width kotlin=typed
+setSizeHeight           height              dimension  swift=height kotlin=typed
+setSizeWidthHeight      size                dimension  swift=size
+setMaxSizeWidth         maxWidth            dimension  swift=maxSize.width kotlin=typed
+setMaxSizeHeight        maxHeight           dimension  swift=maxSize.height kotlin=typed
+setMaxSizeWidthHeight   maxSize             dimension  swift=maxSize
+setGapRow               rowGap              length     swift=raw kotlin=raw
+setGapColumn            columnGap           length     swift=raw kotlin=raw
+setRowGap               rowGap              length     swift=raw
+setColumnGap            columnGap           length     swift=raw

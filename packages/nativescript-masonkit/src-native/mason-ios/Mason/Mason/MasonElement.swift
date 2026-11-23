@@ -301,16 +301,6 @@ extension MasonElement {
       CSSBorderRenderer.syncBorderRadiusFromBuffer(style)
     }
     style.setStateFromHalves(l, h)
-    let borderChanged = state.contains(.border) || state.contains(.borderStyle)
-    if borderChanged || state.contains(.borderColor) || state.contains(.borderRadius) {
-      // The renderer caches resolved widths per box size; a JS write keeps the size.
-      style.mBorderRender.invalidateCache()
-      if let view = node.view as? MasonUIView {
-        view.invalidateDrawFlags()
-      } else {
-        node.view?.setNeedsDisplay()
-      }
-    }
   }
   
   public func addChildAt(text: String, _ index: Int) {
@@ -757,7 +747,7 @@ extension MasonElement {
     for _ in 0..<3 {
       mason.inCompute = true
       let points = compute()
-      mason.inCompute = false
+      mason.endCompute()
       if let points = points {
         let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
         MasonElementHelpers.applyToView(node, layout)

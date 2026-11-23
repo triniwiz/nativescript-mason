@@ -18,20 +18,18 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /*
- * CSS Masking 1 `clip-path` with the CSS Shapes 1 basic shapes. Parsing and geometry are
- * pure Kotlin (JVM-tested); lengths stay in CSS units until a [LengthContext] resolves them
- * to device px at draw time. Touches outside the shape are refused.
+ * Geometry and hit testing for the basic shapes parsed by Rust.
  */
 
 // MARK: - Lengths
 
 /** A CSS number with its unit: null is a bare number, `%` a percentage. */
-internal data class CssLength(val value: Float, val unit: String?) {
+internal data class CssLength(val value: Float, val unit: String?, private val math: NativePaintOffset? = null) {
   val isPercent: Boolean get() = unit == "%"
   val isNumber: Boolean get() = unit == null
 
   /** Device px; percentages resolve against [basis] (device px). */
-  fun toPx(basis: Float, ctx: LengthContext): Float = when (unit) {
+  fun toPx(basis: Float, ctx: LengthContext): Float = math?.resolve(basis, ctx) ?: when (unit) {
     "%" -> value / 100f * basis
     "dppx" -> value
     else -> ctx.cssPx(value, unit) * ctx.scale
@@ -48,18 +46,23 @@ internal data class CssLength(val value: Float, val unit: String?) {
  * What relative units resolve against. Built from `Mason.shared` at draw time; tests pass
  * their own, since `Mason.shared` loads the native library.
  */
-internal class LengthContext(
+internal data class LengthContext(
   @JvmField val scale: Float,
   @JvmField val emBasis: Float = 16f,
   @JvmField val rootFontSize: Float = 16f,
   @JvmField val viewportWidth: Float = 0f,
   @JvmField val viewportHeight: Float = 0f,
 ) {
-  /** CSS px for a number in [unit]; mirrors `cssPxForUnit` without touching `Mason.shared`. */
+  /** CSS px for a typed geometry value, using the current draw context. */
   fun cssPx(num: Float, unit: String?): Float = when (unit) {
     "rem" -> num * rootFontSize
     "em" -> num * (if (emBasis > 0f) emBasis else rootFontSize)
     "pt" -> num * 96f / 72f
+    "pc" -> num * 16f
+    "in" -> num * 96f
+    "cm" -> num * 96f / 2.54f
+    "mm" -> num * 96f / 25.4f
+    "q" -> num * 96f / 101.6f
     "vw" -> num / 100f * viewportWidth
     "vh" -> num / 100f * viewportHeight
     "vmin" -> num / 100f * min(viewportWidth, viewportHeight)
@@ -75,16 +78,6 @@ internal class LengthContext(
       )
     }
   }
-}
-
-/** One `<length-percentage>` (or a bare number, which Mason reads as px). */
-internal fun parseCssLength(token: String, allowPercent: Boolean = true): CssLength? {
-  val t = token.trim().lowercase()
-  if (t.startsWith("+")) return parseCssLength(t.substring(1), allowPercent)
-  val m = scanNumberUnit(t) ?: return null
-  if (!allowPercent && m.unit == "%") return null
-  if (!m.num.isFinite()) return null
-  return CssLength(m.num, m.unit)
 }
 
 // MARK: - Model
@@ -118,11 +111,10 @@ internal sealed class ShapeRadius {
   object FarthestCorner : ShapeRadius()
 }
 
-/** One axis of a `<position>`: an offset from the start edge, or from the end edge. */
-internal data class PositionAxis(val offset: CssLength, val fromEnd: Boolean = false) {
+/** One axis of a projected `<position>`, with a device-pixel offset. */
+internal data class PositionAxis(val offset: CssLength, val pixels: Float = 0f) {
   fun resolve(size: Float, ctx: LengthContext): Float {
-    val v = offset.toPx(size, ctx)
-    return if (fromEnd) size - v else v
+    return offset.toPx(size, ctx) + pixels
   }
 
   companion object {
@@ -166,250 +158,76 @@ internal data class ClipPathValue(val shape: BasicShape?, val box: GeometryBox)
 
 // MARK: - Parsing
 
-/** The value as a clip, or null for `none`, `url()` (no SVG `<clipPath>` here) and invalid input. */
-internal fun parseClipPath(value: String): ClipPathValue? {
-  val v = value.trim()
-  if (v.isEmpty() || v.equals("none", ignoreCase = true)) return null
-  var shape: BasicShape? = null
-  var box: GeometryBox? = null
-  for (token in splitTopLevelWhitespace(v)) {
-    val lower = token.lowercase()
-    if (lower.startsWith("url(")) return null
-    val b = GeometryBox.parse(lower)
-    when {
-      b != null -> {
-        if (box != null) return null
-        box = b
-      }
+internal fun parseClipPath(value: String, context: LengthContext = LengthContext(1f)): ClipPathValue? =
+  NativeClipPath.parse(value)?.project(context)
 
-      token.endsWith(")") && token.indexOf('(') > 0 -> {
-        if (shape != null) return null
-        shape = parseBasicShape(token) ?: return null
-      }
-
+internal class NativeClipPath private constructor(private val handle: Long) {
+  fun project(context: LengthContext): ClipPathValue? {
+    val records = Mason.nativeClipPathRecords(
+      this, handle, context.scale, context.emBasis, context.rootFontSize, context.viewportWidth, context.viewportHeight
+    ) ?: return null
+    val box = GeometryBox.entries[records[ClipPathRecord.BOX].toInt()]
+    val evenOdd = records[ClipPathRecord.EVEN_ODD] != 0.0
+    val count = (records.size - ClipPathRecord.STRIDE) / 2
+    val hasMath = records[ClipPathRecord.HAS_MATH] != 0.0
+    fun fraction(index: Int): Double = records[ClipPathRecord.STRIDE + index * 2]
+    fun pixels(index: Int): Float = records[ClipPathRecord.STRIDE + index * 2 + 1].toFloat()
+    fun math(index: Int): NativePaintOffset? = if (hasMath) {
+      NativePaintOffset.retain(this, Mason.nativeClipPathOffset(this, handle, index), context.emBasis)
+    } else null
+    fun length(index: Int, offset: NativePaintOffset? = math(index)): CssLength {
+      val f = fraction(index)
+      return if (f == 0.0) CssLength(pixels(index), "dppx", offset) else CssLength((f * 100).toFloat(), "%", offset)
+    }
+    fun edge(index: Int): CssLength? = if (fraction(index).isNaN()) null else length(index)
+    fun position(index: Int): PositionAxis {
+      math(index)?.let { return PositionAxis(length(index, it)) }
+      val fraction = fraction(index)
+      val pixels = pixels(index)
+      if (fraction == 0.0 && pixels == 0f) return PositionAxis(CssLength.ZERO)
+      if (fraction == 0.0 || pixels == 0f) return PositionAxis(length(index, null))
+      return PositionAxis(length(index, null), pixels)
+    }
+    fun radius(kind: Int, index: Int): ShapeRadius = when (records[kind].toInt()) {
+      1 -> ShapeRadius.ClosestSide
+      2 -> ShapeRadius.FarthestSide
+      3 -> ShapeRadius.ClosestCorner
+      4 -> ShapeRadius.FarthestCorner
+      else -> ShapeRadius.Length(length(index))
+    }
+    fun corners(): List<CssLength>? = if (count > 4) (4 until count).map(::length) else null
+    val shape = when (records[ClipPathRecord.KIND].toInt()) {
+      0 -> null
+      1 -> BasicShape.Inset(length(0), length(1), length(2), length(3), corners())
+      2 -> BasicShape.Rect(edge(0), edge(1), edge(2), edge(3), corners())
+      3 -> BasicShape.Xywh(length(0), length(1), length(2), length(3), corners())
+      4 -> BasicShape.Circle(radius(ClipPathRecord.RADIUS_X_KIND, 2), ShapePosition(position(0), position(1)))
+      5 -> BasicShape.Ellipse(
+        radius(ClipPathRecord.RADIUS_X_KIND, 2), radius(ClipPathRecord.RADIUS_Y_KIND, 3),
+        ShapePosition(position(0), position(1))
+      )
+      6 -> BasicShape.Polygon(evenOdd, (0 until count step 2).map { length(it) to length(it + 1) })
+      7 -> BasicShape.PathData(evenOdd, decodeSvgPathRecords(records, ClipPathRecord.STRIDE))
       else -> return null
     }
+    return ClipPathValue(shape, box)
   }
-  if (shape == null && box == null) return null
-  return ClipPathValue(shape, box ?: GeometryBox.BORDER_BOX)
-}
 
-internal fun parseBasicShape(token: String): BasicShape? {
-  val open = token.indexOf('(')
-  val close = token.lastIndexOf(')')
-  if (open <= 0 || close < open) return null
-  val name = token.substring(0, open).trim().lowercase()
-  val body = token.substring(open + 1, close).trim()
-  return when (name) {
-    "inset" -> parseInset(body)
-    "rect" -> parseRectShape(body)
-    "xywh" -> parseXywh(body)
-    "circle" -> parseCircle(body)
-    "ellipse" -> parseEllipse(body)
-    "polygon" -> parsePolygon(body)
-    "path" -> parsePathShape(body)
-    else -> null
-  }
-}
-
-/** Splits `... round <radius>`; the radii are null without `round`, empty when invalid. */
-private fun splitRound(body: String): Pair<List<String>, List<CssLength>?>? {
-  val tokens = splitTopLevelWhitespace(body)
-  val i = tokens.indexOfFirst { it.equals("round", ignoreCase = true) }
-  if (i < 0) return tokens to null
-  val radii = parseShapeRadii(tokens.subList(i + 1, tokens.size).joinToString(" ")) ?: return null
-  return tokens.subList(0, i) to radii
-}
-
-/** `<'border-radius'>` into TL x/y, TR x/y, BR x/y, BL x/y. */
-internal fun parseShapeRadii(value: String): List<CssLength>? {
-  val parts = value.split('/')
-  if (parts.size > 2) return null
-  fun side(part: String): List<CssLength>? {
-    val list = ArrayList<CssLength>(4)
-    forEachWhitespaceToken(part) { t -> list.add(parseCssLength(t)?.takeIf { it.value >= 0f } ?: CssLength(-1f, null)) }
-    if (list.isEmpty() || list.size > 4 || list.any { it.value < 0f }) return null
-    return when (list.size) {
-      1 -> listOf(list[0], list[0], list[0], list[0])
-      2 -> listOf(list[0], list[1], list[0], list[1])
-      3 -> listOf(list[0], list[1], list[2], list[1])
-      else -> list
-    }
-  }
-  val h = side(parts[0]) ?: return null
-  val v = if (parts.size == 2) side(parts[1]) ?: return null else h
-  return listOf(h[0], v[0], h[1], v[1], h[2], v[2], h[3], v[3])
-}
-
-/** 1–4 values in CSS margin order, expanded to top, right, bottom, left. */
-private fun <T> expandTrbl(list: List<T>): List<T>? = when (list.size) {
-  1 -> listOf(list[0], list[0], list[0], list[0])
-  2 -> listOf(list[0], list[1], list[0], list[1])
-  3 -> listOf(list[0], list[1], list[2], list[1])
-  4 -> list
-  else -> null
-}
-
-private fun parseInset(body: String): BasicShape? {
-  val (tokens, radii) = splitRound(body) ?: return null
-  val lengths = tokens.map { parseCssLength(it) ?: return null }
-  val (t, r, b, l) = expandTrbl(lengths) ?: return null
-  return BasicShape.Inset(t, r, b, l, radii)
-}
-
-private fun parseRectShape(body: String): BasicShape? {
-  val (tokens, radii) = splitRound(body) ?: return null
-  if (tokens.size != 4) return null
-  val edges = tokens.map { if (it.equals("auto", ignoreCase = true)) null else parseCssLength(it) ?: return null }
-  return BasicShape.Rect(edges[0], edges[1], edges[2], edges[3], radii)
-}
-
-private fun parseXywh(body: String): BasicShape? {
-  val (tokens, radii) = splitRound(body) ?: return null
-  if (tokens.size != 4) return null
-  val v = tokens.map { parseCssLength(it) ?: return null }
-  if (v[2].value < 0f || v[3].value < 0f) return null
-  return BasicShape.Xywh(v[0], v[1], v[2], v[3], radii)
-}
-
-private fun parseRadius(token: String): ShapeRadius? = when (token.lowercase()) {
-  "closest-side" -> ShapeRadius.ClosestSide
-  "farthest-side" -> ShapeRadius.FarthestSide
-  "closest-corner" -> ShapeRadius.ClosestCorner
-  "farthest-corner" -> ShapeRadius.FarthestCorner
-  else -> parseCssLength(token)?.takeIf { it.value >= 0f }?.let { ShapeRadius.Length(it) }
-}
-
-/** Splits `<radii> [at <position>]`. */
-private fun splitAt(body: String): Pair<List<String>, ShapePosition>? {
-  val tokens = splitTopLevelWhitespace(body)
-  val i = tokens.indexOfFirst { it.equals("at", ignoreCase = true) }
-  if (i < 0) return tokens to ShapePosition.CENTER
-  val position = parseShapePosition(tokens.subList(i + 1, tokens.size)) ?: return null
-  return tokens.subList(0, i) to position
-}
-
-private fun parseCircle(body: String): BasicShape? {
-  val (tokens, position) = splitAt(body) ?: return null
-  val radius = when (tokens.size) {
-    0 -> ShapeRadius.ClosestSide
-    1 -> parseRadius(tokens[0]) ?: return null
-    else -> return null
-  }
-  return BasicShape.Circle(radius, position)
-}
-
-private fun parseEllipse(body: String): BasicShape? {
-  val (tokens, position) = splitAt(body) ?: return null
-  return when (tokens.size) {
-    0 -> BasicShape.Ellipse(ShapeRadius.ClosestSide, ShapeRadius.ClosestSide, position)
-    2 -> BasicShape.Ellipse(parseRadius(tokens[0]) ?: return null, parseRadius(tokens[1]) ?: return null, position)
-    else -> null
-  }
-}
-
-private fun parseFillRule(token: String): Boolean? = when (token.trim().lowercase()) {
-  "nonzero" -> false
-  "evenodd" -> true
-  else -> null
-}
-
-private fun parsePolygon(body: String): BasicShape? {
-  val items = splitTopLevelCommas(body).map { it.trim() }
-  if (items.isEmpty() || items.any { it.isEmpty() }) return null
-  var evenOdd = false
-  var start = 0
-  parseFillRule(items[0])?.let {
-    evenOdd = it
-    start = 1
-  }
-  val points = ArrayList<Pair<CssLength, CssLength>>()
-  for (i in start until items.size) {
-    val xy = splitTopLevelWhitespace(items[i])
-    if (xy.size != 2) return null
-    points.add((parseCssLength(xy[0]) ?: return null) to (parseCssLength(xy[1]) ?: return null))
-  }
-  if (points.isEmpty()) return null
-  return BasicShape.Polygon(evenOdd, points)
-}
-
-private fun unquote(value: String): String? {
-  val t = value.trim()
-  if (t.length < 2) return null
-  val q = t[0]
-  if ((q != '"' && q != '\'') || t.last() != q) return null
-  return t.substring(1, t.length - 1).replace("\\$q", "$q")
-}
-
-private fun parsePathShape(body: String): BasicShape? {
-  val items = splitMaskList(body).map { it.trim() }
-  val (evenOdd, data) = when (items.size) {
-    1 -> false to items[0]
-    2 -> (parseFillRule(items[0]) ?: return null) to items[1]
-    else -> return null
-  }
-  val d = unquote(data) ?: return null
-  return BasicShape.PathData(evenOdd, parseSvgPathData(d))
-}
-
-/** CSS `<position>` (1–4 values, keywords in either order, edge offsets) for basic shapes. */
-internal fun parseShapePosition(tokens: List<String>): ShapePosition? {
-  val t = tokens.map { it.lowercase() }
-  fun isH(s: String) = s == "left" || s == "right"
-  fun isV(s: String) = s == "top" || s == "bottom"
-  fun isKeyword(s: String) = isH(s) || isV(s) || s == "center"
-  fun keywordAxis(s: String) = when (s) {
-    "left", "top" -> PositionAxis(CssLength.ZERO)
-    "right", "bottom" -> PositionAxis(CssLength.HUNDRED_PERCENT)
-    else -> PositionAxis.CENTER
-  }
-  fun axis(s: String): PositionAxis? = if (isKeyword(s)) keywordAxis(s) else parseCssLength(s)?.let { PositionAxis(it) }
-
-  when (t.size) {
-    1 -> {
-      val s = t[0]
-      return when {
-        isV(s) -> ShapePosition(PositionAxis.CENTER, keywordAxis(s))
-        else -> ShapePosition(axis(s) ?: return null, PositionAxis.CENTER)
-      }
+  companion object {
+    fun parse(value: String): NativeClipPath? {
+      val handle = Mason.nativeClipPathParse(value)
+      if (handle == 0L) return null
+      return NativeClipPath(handle).also { Mason.shared.gc.track(it) { Mason.nativeClipPathRelease(handle) } }
     }
 
-    2 -> {
-      val (a, b) = t
-      // `top left` style: a vertical keyword first (or a horizontal one second) swaps them.
-      if (isV(a) || isH(b)) {
-        if (!isKeyword(a) || !isKeyword(b) || isV(b) || isH(a)) return null
-        return ShapePosition(keywordAxis(b), keywordAxis(a))
-      }
-      return ShapePosition(axis(a) ?: return null, axis(b) ?: return null)
+    fun install(clip: NativeClipPath?, style: Style) {
+      val node = style.node
+      if (node.isPlaceholder) return
+      val mason = node.mason
+      if (mason.inCompute) mason.deferStyleRecords(style)
+      else style.prepareMut()
+      Mason.nativeClipPathInstall(clip, clip?.handle ?: 0, if (mason.inCompute) 0 else mason.nativePtr, node.nativePtr)
     }
-
-    3, 4 -> {
-      // keyword [offset] keyword [offset], `center` taking no offset.
-      var x: PositionAxis? = null
-      var y: PositionAxis? = null
-      var centers = 0
-      var i = 0
-      while (i < t.size) {
-        val k = t[i]
-        if (!isKeyword(k)) return null
-        val offset = t.getOrNull(i + 1)?.takeIf { !isKeyword(it) }?.let { parseCssLength(it) ?: return null }
-        if (offset != null && k == "center") return null
-        i += if (offset != null) 2 else 1
-        val a = if (offset == null) keywordAxis(k) else PositionAxis(offset, fromEnd = k == "right" || k == "bottom")
-        when {
-          isH(k) -> if (x == null) x = a else return null
-          isV(k) -> if (y == null) y = a else return null
-          else -> centers++
-        }
-      }
-      repeat(centers) {
-        if (x == null) x = PositionAxis.CENTER else if (y == null) y = PositionAxis.CENTER else return null
-      }
-      return ShapePosition(x ?: return null, y ?: return null)
-    }
-
-    else -> return null
   }
 }
 
@@ -694,15 +512,27 @@ class ClipPath internal constructor(private val style: Style) {
   /** A pseudo-class rule set `clip-path`; until then only [base] is consulted. */
   internal var hasPseudo = false
 
+  private var baseProgram: NativeClipPath? = null
+  private var program: NativeClipPath? = null
   private var builtFrom: String? = null
+  private var builtContext: LengthContext? = null
   private var value: ClipPathValue? = null
   private var version = 0
 
   fun get(): String = base
 
   fun set(value: String) {
-    base = value.trim()
+    setBase(value)
     changed()
+  }
+
+  internal fun setBase(value: String) {
+    val css = value.trim()
+    if (base != css) {
+      base = css
+      baseProgram = NativeClipPath.parse(css)
+      NativeClipPath.install(baseProgram, style)
+    }
   }
 
   internal fun changed() {
@@ -727,12 +557,18 @@ class ClipPath internal constructor(private val style: Style) {
     return base
   }
 
-  /** The clip for the current pseudo state; reparsed only when the resolved value changed. */
+  /** Reuse the parsed clip when only the length context changes. */
   internal fun current(): ClipPathValue? {
-    val v = resolved()
-    if (v != builtFrom) {
-      builtFrom = v
-      value = parseClipPath(v)
+    val css = resolved()
+    val changed = css != builtFrom
+    if (changed) {
+      program = if (css == base) baseProgram else NativeClipPath.parse(css)
+      builtFrom = css
+    }
+    val context = program?.let { LengthContext.forStyle(style) }
+    if (changed || context != builtContext) {
+      value = if (context != null) program?.project(context) else null
+      builtContext = context
       version++
     }
     return value

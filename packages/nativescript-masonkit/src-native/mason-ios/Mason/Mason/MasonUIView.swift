@@ -384,8 +384,10 @@ public class MasonUIView: MasonViewBase, MasonEventTarget, MasonElement, MasonEl
           bounds.width > 0, bounds.height > 0 else { return nil }
     let w = bounds.width
     let h = bounds.height
-    let (start, end) = linearGradientPoints(direction: gradient.direction, width: w, height: h)
-    let parsed = parseGradientStops(gradient.stops, lineLength: hypot(end.x - start.x, end.y - start.y))
+    let units = Gradient.Units(fontSize: bg.style.resolvedFontSize)
+    let layout = gradient.layout(width: w, height: h, units: units)
+    let (start, end) = linearGradientPoints(layout: layout, width: w, height: h)
+    let parsed = gradient.paintStops(lineLength: hypot(end.x - start.x, end.y - start.y), units: units)
     guard !parsed.colors.isEmpty else { return nil }
     let (colors, locations) = expandInterpolatedStops(parsed.colors, parsed.locations, gradient.interpolation)
     guard colors.allSatisfy({ $0.alpha >= 1 }) else { return nil }

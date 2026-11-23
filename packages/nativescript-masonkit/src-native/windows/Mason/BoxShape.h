@@ -8,6 +8,7 @@
 #include <windows.graphics.interop.h>
 #include <winrt/Windows.Graphics.h>
 #include <winrt/Microsoft.UI.Composition.h>
+#include "StyleKeys.h"
 
 namespace mason_shape
 {
@@ -69,20 +70,22 @@ namespace mason_shape
     inline Radii Read(const uint8_t* data, uint32_t size, float width, float height)
     {
         Radii r;
-        if (!data || size < 258) return r;
-        for (int i = 0; i < 4; ++i)
+        const auto& corners = mason_style_keys::kBorderCorners;
+        if (!data || size < corners.back().yValue + sizeof(float)) return r;
+        for (size_t i = 0; i < corners.size(); ++i)
         {
+            const auto& corner = corners[i];
             float vx = 0.0f, vy = 0.0f;
-            std::memcpy(&vx, data + 226 + i * 8, 4);
-            std::memcpy(&vy, data + 230 + i * 8, 4);
-            const bool px = data[218 + i * 2] == 1;
-            const bool py = data[219 + i * 2] == 1;
+            std::memcpy(&vx, data + corner.xValue, sizeof(vx));
+            std::memcpy(&vy, data + corner.yValue, sizeof(vy));
+            const bool px = data[corner.xType] == 1;
+            const bool py = data[corner.yType] == 1;
             r.x[i] = (std::max)(0.0f, px ? vx * width : vx);
             r.y[i] = (std::max)(0.0f, py ? vy * height : vy);
-            if (size >= 274)
+            if (size >= corners.back().exponent + sizeof(float))
             {
                 float k = 1.0f;
-                std::memcpy(&k, data + 258 + i * 4, 4);
+                std::memcpy(&k, data + corner.exponent, sizeof(k));
                 if (!std::isnan(k)) r.k[i] = k;
             }
         }

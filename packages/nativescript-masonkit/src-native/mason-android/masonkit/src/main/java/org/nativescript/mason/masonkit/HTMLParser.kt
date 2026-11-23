@@ -3,8 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.os.Build
 import android.view.ViewGroup
-import org.nativescript.fontmanager.FontStyle
-import org.nativescript.fontmanager.FontWeight
+import org.nativescript.mason.masonkit.enums.BorderStyle
 import org.nativescript.mason.masonkit.enums.AlignContent
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
@@ -68,7 +67,6 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
   companion object {
     // Single shared splitter reused for every space-delimited shorthand
     // (gap, inset, flex, grid-auto-flow, text-decoration, …).
-    private val WHITESPACE = Regex("\\s+")
 
     /**
      * Elements whose content is raw text rather than markup. Their body has to be
@@ -79,23 +77,29 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
     /** Document metadata and scripts: no box, and their text never renders. */
     private val DROPPED_ELEMENTS = setOf("style", "script", "title", "head", "meta", "link", "base")
 
-    private val VIEWPORT_UNIT = Regex("[0-9.](vw|vh|vmin|vmax)\\b", RegexOption.IGNORE_CASE)
+    private data class InlineStyleReplay(
+      val css: String, val viewportDependent: Boolean, val parentFontSize: Float, val fontSize: Float,
+    )
 
-    // Inline declarations that used vw/vh/vmin/vmax, applied again when the window resizes.
-    private val viewportStyles = java.util.WeakHashMap<Element, List<Pair<String, String>>>()
+    private val viewportStyles = java.util.WeakHashMap<Element, InlineStyleReplay>()
 
     /** True when CSS text holds a vw/vh/vmin/vmax length. */
     @JvmStatic
     fun hasViewportUnit(value: String): Boolean =
-      value.contains('v', ignoreCase = true) && VIEWPORT_UNIT.containsMatchIn(value)
+      Mason.expandCssShorthand("viewport-dependent", value) != null
 
-    /** Resolves parsed inline viewport units again against the current window. */
+    /** Replay ancestors first so descendants see the updated inherited font size. */
     internal fun refreshViewportStyles(mason: Mason) {
       if (viewportStyles.isEmpty()) return
-      for ((element, declarations) in viewportStyles.entries.toList()) {
+      val entries = viewportStyles.entries
+        .filter { it.key.node.mason === mason }
+        .map { (element, previous) -> Triple(element, previous, generateSequence(element.node.parent) { it.parent }.count()) }
+        .sortedBy { it.third }
+      for ((element, previous) in entries) {
         val parser = HTMLParser(mason, element.view.context)
         element.configure { style ->
-          for ((property, value) in declarations) parser.applyStyleProperty(property, value, style)
+          val next = parser.applyCompiledStyle(previous.css, style, style.node.parent, previous)
+          if (next != null) viewportStyles[element] = next
         }
       }
     }
@@ -307,9 +311,9 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
             if (!token.selfClosing && token.name in RAW_TEXT_ELEMENTS) dropped++
             continue
           }
-          val node = createElement(token.name, token.attributes)
-
           val parent = stack.lastOrNull()
+          val node = createElement(token.name, token.attributes, parent?.second)
+
           if (parent != null) {
             parent.second.appendChild(node)
           } else {
@@ -421,7 +425,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
     }
   }
 
-  private fun createElement(name: String, attributes: Map<String, String>): Node {
+  private fun createElement(name: String, attributes: Map<String, String>, parent: Node?): Node {
     val element: Element = when (name) {
       // Container / block-level elements
       "div", "section", "header", "footer", "article", "main", "nav", "aside",
@@ -466,7 +470,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "img" -> {
         val img = mason.createImageView(context)
         attributes["src"]?.let { img.src = it }
-        applyAttributes(attributes, img)
+        applyAttributes(attributes, img, parent)
         return img.node
       }
 
@@ -498,7 +502,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "summary" -> Details.setRole(element, Details.SUMMARY)
     }
 
-    applyAttributes(attributes, element)
+    applyAttributes(attributes, element, parent)
     return element.node
   }
 
@@ -506,10 +510,10 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
   // region Attribute Application
 
-  private fun applyAttributes(attributes: Map<String, String>, element: Element) {
+  private fun applyAttributes(attributes: Map<String, String>, element: Element, parent: Node?) {
     for ((key, value) in attributes) {
       when (key) {
-        "style" -> applyInlineStyle(value, element)
+        "style" -> applyInlineStyle(value, element, parent)
         "src" -> {
           if (element is Img) {
             element.src = value
@@ -561,330 +565,245 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
   // region Inline Style Parsing
 
-  /**
-   * Split an inline `style` attribute into (property, value) pairs.
-   *
-   * Splits on `;` and `:` while ignoring both inside parentheses or quotes,
-   * so values like `url(data:image/png;base64,...)` and `"A;B"` stay intact.
-   */
-  private fun splitDeclarations(styleString: String): List<Pair<String, String>> {
-    val out = mutableListOf<Pair<String, String>>()
-    for (declaration in splitTopLevel(styleString, ';')) {
-      if (declaration.isBlank()) continue
-      val colon = indexOfTopLevel(declaration, ':')
-      if (colon <= 0) continue
-      val property = declaration.substring(0, colon).trim().lowercase()
-      val value = declaration.substring(colon + 1).trim()
-      if (property.isNotEmpty() && value.isNotEmpty()) {
-        out.add(property to value)
+  private data class StyleDeclaration(val name: String, val value: String, val fields: Array<String>) {
+    val code: Byte? get() = fields.firstOrNull()?.toByteOrNull()
+
+    fun lengthKind(index: Int = 0): Int? =
+      fields.getOrNull(index * CssLengthResultRecord.STRIDE + CssLengthResultRecord.KIND)?.toIntOrNull()
+
+    fun amount(index: Int = 0): Float? =
+      fields.getOrNull(index * CssLengthResultRecord.STRIDE + CssLengthResultRecord.VALUE)?.toFloatOrNull()
+
+    fun length(index: Int = 0): LengthPercentage? {
+      val amount = amount(index) ?: return null
+      return when (lengthKind(index)) {
+        1 -> LengthPercentage.Points(amount)
+        2 -> LengthPercentage.Percent(amount)
+        else -> null
       }
+    }
+
+    fun autoLength(index: Int = 0): LengthPercentageAuto? = when (val length = length(index)) {
+      is LengthPercentage.Points -> LengthPercentageAuto.Points(length.value)
+      is LengthPercentage.Percent -> LengthPercentageAuto.Percent(length.value)
+      LengthPercentage.Zero -> LengthPercentageAuto.Zero
+      null -> if (lengthKind(index) == 3) LengthPercentageAuto.Auto else null
+    }
+
+    fun dimension(): Dimension? {
+      val kind = lengthKind() ?: return null
+      val value = amount() ?: return null
+      return Dimension.fromTypeValue(kind.toByte(), value)
+    }
+  }
+
+  private fun parseStyleDeclarations(fields: Array<String>): List<StyleDeclaration> {
+    val out = ArrayList<StyleDeclaration>()
+    var i = CssInlineReplayRecord.STRIDE
+    while (fields.size - i >= CssDeclarationHeaderRecord.STRIDE) {
+      val start = i + CssDeclarationHeaderRecord.STRIDE
+      val count = fields[i + CssDeclarationHeaderRecord.FIELD_COUNT].toIntOrNull() ?: break
+      if (count < 0 || count > fields.size - start) break
+      out.add(StyleDeclaration(fields[i + CssDeclarationHeaderRecord.NAME],
+        fields[i + CssDeclarationHeaderRecord.VALUE], fields.copyOfRange(start, start + count)))
+      i = start + count
     }
     return out
   }
 
-  /** Split on [separator], ignoring occurrences inside quotes or parentheses. */
-  private fun splitTopLevel(input: String, separator: Char): List<String> {
-    val out = mutableListOf<String>()
-    val current = StringBuilder()
-    var depth = 0
-    var quote: Char? = null
-    for (ch in input) {
-      when {
-        quote != null -> {
-          if (ch == quote) quote = null
-          current.append(ch)
-        }
-        ch == '"' || ch == '\'' -> {
-          quote = ch
-          current.append(ch)
-        }
-        ch == '(' -> {
-          depth++
-          current.append(ch)
-        }
-        ch == ')' -> {
-          if (depth > 0) depth--
-          current.append(ch)
-        }
-        ch == separator && depth == 0 -> {
-          out.add(current.toString())
-          current.setLength(0)
-        }
-        else -> current.append(ch)
-      }
-    }
-    out.add(current.toString())
-    return out
-  }
-
-  /** Index of the first [target] outside quotes and parentheses, or -1. */
-  private fun indexOfTopLevel(input: String, target: Char): Int {
-    var depth = 0
-    var quote: Char? = null
-    for ((index, ch) in input.withIndex()) {
-      when {
-        quote != null -> if (ch == quote) quote = null
-        ch == '"' || ch == '\'' -> quote = ch
-        ch == '(' -> depth++
-        ch == ')' -> if (depth > 0) depth--
-        ch == target && depth == 0 -> return index
-      }
-    }
-    return -1
-  }
-
-  private fun applyInlineStyle(styleString: String, element: Element) {
-    val declarations = splitDeclarations(styleString)
+  private fun applyInlineStyle(css: String, element: Element, parent: Node?) {
     element.configure { style ->
-      for ((property, value) in declarations) {
-        applyStyleProperty(property, value, style)
-      }
+      val replay = applyCompiledStyle(css, style, parent)
+      if (replay != null) viewportStyles[element] = replay else viewportStyles.remove(element)
     }
-    val viewport = declarations.filter { hasViewportUnit(it.second) }
-    if (viewport.isNotEmpty()) viewportStyles[element] = viewport
   }
 
-  private fun applyStyleProperty(property: String, value: String, style: Style) {
+  private fun applyCompiledStyle(css: String, style: Style, parent: Node?, previous: InlineStyleReplay? = null): InlineStyleReplay? {
+    val mason = style.node.mason
+    val parentFontSize = parent?.style?.resolvedFontSize ?: Constants.DEFAULT_FONT_SIZE
+    val fontSize = if (parent != null && style.values.get(StyleKeys.FONT_SIZE_STATE) == StyleState.INHERIT) {
+      parentFontSize
+    } else {
+      style.resolvedFontSize
+    }
+    if (previous != null && !previous.viewportDependent &&
+      previous.parentFontSize == parentFontSize && previous.fontSize == fontSize) return previous
+    val fields = Mason.nativeCompileInlineCssReplay(css, mason.scale, fontSize, parentFontSize, mason.rootFontSize,
+      mason.viewportWidth, mason.viewportHeight, previous?.fontSize ?: Float.NaN) ?: return null
+    val resolvedFont = fields.getOrNull(CssInlineReplayRecord.FONT_SIZE)?.toFloatOrNull() ?: return null
+    val initialColor = style.color
+    val declarations = parseStyleDeclarations(fields)
+    for (declaration in declarations) {
+      if (declaration.name == "font-size") {
+        declaration.amount()?.let { style.setResolvedFontSize(it, declaration.lengthKind() == 2) }
+      }
+    }
+    for (declaration in declarations) {
+      if (declaration.name != "font-size") applyStyleProperty(declaration, style, initialColor)
+    }
+    val viewport = fields[CssInlineReplayRecord.VIEWPORT_DEPENDENT] == "1"
+    if (!viewport && fields[CssInlineReplayRecord.FONT_DEPENDENT] != "1") return null
+    return InlineStyleReplay(css, viewport, parentFontSize, resolvedFont)
+  }
+
+  private fun <T> rect(read: (Int) -> T?): Rect<T>? {
+    return Rect(read(0) ?: return null, read(1) ?: return null, read(2) ?: return null, read(3) ?: return null)
+  }
+
+  private fun applyStyleProperty(declaration: StyleDeclaration, style: Style, initialColor: Int) {
+    val (property, value, fields) = declaration
     when (property) {
-      "display" -> when (value) {
-        "flex" -> style.display = Display.Flex
-        "grid" -> style.display = Display.Grid
-        "block" -> style.display = Display.Block
-        "inline" -> style.display = Display.Inline
-        "inline-block" -> style.display = Display.InlineBlock
-        "inline-flex" -> style.display = Display.InlineFlex
-        "inline-grid" -> style.display = Display.InlineGrid
-        "none" -> style.display = Display.None
+      "display" -> declaration.code?.let { style.display = Display.from(it) }
+
+      "flex-direction" -> declaration.code?.let { style.flexDirection = FlexDirection.from(it) }
+
+      "justify-content" -> declaration.code?.let { style.justifyContent = JustifyContent.from(it) }
+
+      "align-items" -> declaration.code?.let { style.alignItems = AlignItems.from(it) }
+
+      "align-self" -> declaration.code?.let { style.alignSelf = AlignSelf.from(it) }
+
+      "flex-wrap" -> declaration.code?.let { style.flexWrap = FlexWrap.from(it) }
+
+      "flex-grow" -> fields.firstOrNull()?.toFloatOrNull()?.let { style.flexGrow = it }
+
+      "flex-shrink" -> fields.firstOrNull()?.toFloatOrNull()?.let { style.flexShrink = it }
+
+      "gap", "grid-gap" -> {
+        val row = declaration.length(0)
+        val column = declaration.length(1)
+        if (row != null && column != null) style.gap = Size(row, column)
       }
 
-      "flex-direction" -> when (value) {
-        "row" -> style.flexDirection = FlexDirection.Row
-        "column" -> style.flexDirection = FlexDirection.Column
-        "row-reverse" -> style.flexDirection = FlexDirection.RowReverse
-        "column-reverse" -> style.flexDirection = FlexDirection.ColumnReverse
-      }
-
-      "justify-content" -> when (value) {
-        "flex-start", "start" -> style.justifyContent = JustifyContent.Start
-        "flex-end", "end" -> style.justifyContent = JustifyContent.End
-        "center" -> style.justifyContent = JustifyContent.Center
-        "space-between" -> style.justifyContent = JustifyContent.SpaceBetween
-        "space-around" -> style.justifyContent = JustifyContent.SpaceAround
-        "space-evenly" -> style.justifyContent = JustifyContent.SpaceEvenly
-      }
-
-      "align-items" -> when (value) {
-        "flex-start", "start" -> style.alignItems = AlignItems.Start
-        "flex-end", "end" -> style.alignItems = AlignItems.End
-        "center" -> style.alignItems = AlignItems.Center
-        "stretch" -> style.alignItems = AlignItems.Stretch
-        "baseline" -> style.alignItems = AlignItems.Baseline
-      }
-
-      "align-self" -> when (value) {
-        "flex-start", "start" -> style.alignSelf = AlignSelf.Start
-        "flex-end", "end" -> style.alignSelf = AlignSelf.End
-        "center" -> style.alignSelf = AlignSelf.Center
-        "stretch" -> style.alignSelf = AlignSelf.Stretch
-        "baseline" -> style.alignSelf = AlignSelf.Baseline
-      }
-
-      "flex-wrap" -> when (value) {
-        "nowrap" -> style.flexWrap = FlexWrap.NoWrap
-        "wrap" -> style.flexWrap = FlexWrap.Wrap
-        "wrap-reverse" -> style.flexWrap = FlexWrap.WrapReverse
-      }
-
-      "flex-grow" -> value.toFloatOrNull()?.let { style.flexGrow = it }
-
-      "flex-shrink" -> value.toFloatOrNull()?.let { style.flexShrink = it }
-
-      "gap" -> {
-        // `gap` accepts one value (both axes) or two (`row-gap column-gap`).
-        val gapTokens = value.split(WHITESPACE).filter { it.isNotEmpty() }
-        if (gapTokens.size >= 2) {
-          val row = parseLengthPercentage(gapTokens[0])
-          val column = parseLengthPercentage(gapTokens[1])
-          if (row != null && column != null) style.gap = Size(row, column)
-        } else {
-          parseLengthPercentage(value)?.let { v -> style.gap = Size(v, v) }
-        }
-      }
-
-      "row-gap" -> parseLengthPercentage(value)?.let { v ->
+      "row-gap" -> declaration.length()?.let { v ->
         style.gap = Size(v, style.gap.height)
       }
-      "column-gap" -> parseLengthPercentage(value)?.let { v ->
+      "column-gap" -> declaration.length()?.let { v ->
         style.gap = Size(style.gap.width, v)
       }
 
-      "color" -> style.setColor(value)
+      "color" -> fields.firstOrNull()?.toUIntOrNull()?.let { style.color = it.toInt() }
 
-      "background-color" -> style.setBackgroundColor(value)
+      "background-color" -> fields.firstOrNull()?.toUIntOrNull()?.let { style.setParsedBackgroundColor(it.toInt()) }
 
-      "font-size" -> parseFloatValue(value)?.let { style.fontSize = it }
+      "font-weight" -> fields.firstOrNull()?.toIntOrNull()?.let { style.setParsedFontWeight(it) }
 
-      "font-weight" -> when (value) {
-        "bold", "700" -> style.fontWeight = FontWeight.Bold
-        "normal", "400" -> style.fontWeight = FontWeight.Normal
-        "100", "thin" -> style.fontWeight = FontWeight.Thin
-        "200" -> style.fontWeight = FontWeight.ExtraLight
-        "300", "light" -> style.fontWeight = FontWeight.Light
-        "500", "medium" -> style.fontWeight = FontWeight.Medium
-        "600", "semibold" -> style.fontWeight = FontWeight.SemiBold
-        "800" -> style.fontWeight = FontWeight.ExtraBold
-        "900", "black" -> style.fontWeight = FontWeight.Black
-      }
+      "font-stretch" -> fields.firstOrNull()?.toIntOrNull()?.let { style.setParsedFontStretch(it) }
 
-      "width" -> parseDimension(value)?.let { d ->
+      "width" -> declaration.dimension()?.let { d ->
         val current = style.size
         style.size = Size(d, current.height)
       }
 
-      "height" -> parseDimension(value)?.let { d ->
+      "height" -> declaration.dimension()?.let { d ->
         val current = style.size
         style.size = Size(current.width, d)
       }
 
-      "min-width" -> parseDimension(value)?.let { style.minWidth = it }
-      "min-height" -> parseDimension(value)?.let { style.minHeight = it }
-      "max-width" -> parseDimension(value)?.let { style.maxWidth = it }
-      "max-height" -> parseDimension(value)?.let { style.maxHeight = it }
+      "min-width" -> declaration.dimension()?.let { style.minWidth = it }
+      "min-height" -> declaration.dimension()?.let { style.minHeight = it }
+      "max-width" -> declaration.dimension()?.let { style.maxWidth = it }
+      "max-height" -> declaration.dimension()?.let { style.maxHeight = it }
 
-      "border" -> parseBorderShorthand(style, value)
-
-      "border-left" -> parseBorderSideShorthand(style, Border.Side.Left, value)
-
-      "border-right" -> parseBorderSideShorthand(style, Border.Side.Right, value)
-
-      "border-top" -> parseBorderSideShorthand(style, Border.Side.Top, value)
-
-      "border-bottom" -> parseBorderSideShorthand(style, Border.Side.Bottom, value)
-
-      "border-radius" -> style.borderRadius = value
-
-      "padding" -> parseLengthPercentage(value)?.let { v ->
-        style.padding = Rect(v, v, v, v)
+      "border" -> if (fields.size == CssBorderResultRecord.STRIDE) {
+        val defaultWidth = LengthPercentage.Points(3 * style.node.mason.scale)
+        val widths = rect { declaration.length(it) ?: defaultWidth } ?: return
+        val borderStyle = fields[CssBorderResultRecord.STYLE].toByteOrNull()?.let(BorderStyle::from)
+        val color = fields[CssBorderResultRecord.COLOR].toUIntOrNull()?.toInt()
+        applyResolvedBorder(style, value, widths, borderStyle, color)
       }
+      "border-left", "border-right", "border-top", "border-bottom" -> if (fields.size == CssBorderSideResultRecord.STRIDE) {
+        val border = when (property) {
+          "border-left" -> style.mBorderLeft
+          "border-right" -> style.mBorderRight
+          "border-top" -> style.mBorderTop
+          else -> style.mBorderBottom
+        }
+        val width = declaration.length() ?: LengthPercentage.Points(3 * style.node.mason.scale)
+        val borderStyle = fields[CssBorderSideResultRecord.STYLE].toByteOrNull()?.let(BorderStyle::from)
+        val color = fields[CssBorderSideResultRecord.COLOR].toUIntOrNull()?.toInt()
+        applyResolvedBorderSide(style, border, width, borderStyle, color)
+      }
+      "border-radius" -> style.setCompiledBorderRadius(value, (0 until BorderRadiiRecord.STRIDE).mapNotNull(declaration::length))
 
-      "padding-left" -> parseLengthPercentage(value)?.let { v ->
+      "padding" -> rect(declaration::length)?.let { style.padding = it }
+
+      "padding-left" -> declaration.length()?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, current.right, current.bottom, v)
       }
 
-      "padding-right" -> parseLengthPercentage(value)?.let { v ->
+      "padding-right" -> declaration.length()?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, v, current.bottom, current.left)
       }
 
-      "padding-top" -> parseLengthPercentage(value)?.let { v ->
+      "padding-top" -> declaration.length()?.let { v ->
         val current = style.padding
         style.padding = Rect(v, current.right, current.bottom, current.left)
       }
 
-      "padding-bottom" -> parseLengthPercentage(value)?.let { v ->
+      "padding-bottom" -> declaration.length()?.let { v ->
         val current = style.padding
         style.padding = Rect(current.top, current.right, v, current.left)
       }
 
-      "margin" -> parseLengthPercentageAuto(value)?.let { v ->
-        style.margin = Rect(v, v, v, v)
+      "margin" -> rect(declaration::autoLength)?.let { style.margin = it }
+
+      "margin-left" -> declaration.autoLength()?.let { style.marginLeft = it }
+      "margin-right" -> declaration.autoLength()?.let { style.marginRight = it }
+      "margin-top" -> declaration.autoLength()?.let { style.marginTop = it }
+      "margin-bottom" -> declaration.autoLength()?.let { style.marginBottom = it }
+
+      "position" -> declaration.code?.let { style.position = Position.from(it) }
+
+      "overflow" -> fields.takeIf { it.size == 2 }?.let {
+        val x = it[0].toByteOrNull()
+        val y = it[1].toByteOrNull()
+        if (x != null && y != null) style.overflow = Point(Overflow.from(x), Overflow.from(y))
       }
+      "overflow-x" -> declaration.code?.let { style.overflowX = Overflow.from(it) }
+      "overflow-y" -> declaration.code?.let { style.overflowY = Overflow.from(it) }
 
-      "margin-left" -> parseLengthPercentageAuto(value)?.let { style.marginLeft = it }
-      "margin-right" -> parseLengthPercentageAuto(value)?.let { style.marginRight = it }
-      "margin-top" -> parseLengthPercentageAuto(value)?.let { style.marginTop = it }
-      "margin-bottom" -> parseLengthPercentageAuto(value)?.let { style.marginBottom = it }
-
-      "position" -> when (value) {
-        "static" -> style.position = Position.Static
-        "relative" -> style.position = Position.Relative
-        "absolute" -> style.position = Position.Absolute
-        "fixed" -> style.position = Position.Fixed
-        "sticky" -> style.position = Position.Sticky
-      }
-
-      "overflow" -> parseOverflow(value)?.let { style.overflow = Point(it, it) }
-      "overflow-x" -> parseOverflow(value)?.let { style.overflowX = it }
-      "overflow-y" -> parseOverflow(value)?.let { style.overflowY = it }
-
-      "text-align" -> when (value) {
-        "left" -> style.textAlign = TextAlign.Left
-        "center" -> style.textAlign = TextAlign.Center
-        "right" -> style.textAlign = TextAlign.Right
-        "justify" -> style.textAlign = TextAlign.Justify
-        "start" -> style.textAlign = TextAlign.Start
-        "end" -> style.textAlign = TextAlign.End
-      }
+      "text-align" -> declaration.code?.let { style.textAlign = TextAlign.from(it) }
 
       // region Additional flex / grid alignment
 
-      "align-content" -> when (value) {
-        "flex-start", "start" -> style.alignContent = AlignContent.Start
-        "flex-end", "end" -> style.alignContent = AlignContent.End
-        "center" -> style.alignContent = AlignContent.Center
-        "stretch" -> style.alignContent = AlignContent.Stretch
-        "space-between" -> style.alignContent = AlignContent.SpaceBetween
-        "space-around" -> style.alignContent = AlignContent.SpaceAround
-        "space-evenly" -> style.alignContent = AlignContent.SpaceEvenly
-        "normal" -> style.alignContent = AlignContent.Normal
-      }
+      "align-content" -> declaration.code?.let { style.alignContent = AlignContent.from(it) }
 
-      "justify-items" -> when (value) {
-        "flex-start", "start" -> style.justifyItems = JustifyItems.Start
-        "flex-end", "end" -> style.justifyItems = JustifyItems.End
-        "center" -> style.justifyItems = JustifyItems.Center
-        "stretch" -> style.justifyItems = JustifyItems.Stretch
-        "baseline" -> style.justifyItems = JustifyItems.Baseline
-        "normal" -> style.justifyItems = JustifyItems.Normal
-      }
+      "justify-items" -> declaration.code?.let { style.justifyItems = JustifyItems.from(it) }
 
-      "justify-self" -> when (value) {
-        "flex-start", "start" -> style.justifySelf = JustifySelf.Start
-        "flex-end", "end" -> style.justifySelf = JustifySelf.End
-        "center" -> style.justifySelf = JustifySelf.Center
-        "stretch" -> style.justifySelf = JustifySelf.Stretch
-        "baseline" -> style.justifySelf = JustifySelf.Baseline
-        "normal" -> style.justifySelf = JustifySelf.Normal
-      }
+      "justify-self" -> declaration.code?.let { style.justifySelf = JustifySelf.from(it) }
 
-      "flex" -> applyFlexShorthand(value, style)
-      "flex-basis" -> parseDimension(value)?.let { style.flexBasis = it }
+      "flex-basis" -> declaration.dimension()?.let { style.flexBasis = it }
 
       // endregion
 
       // region Positioning
 
-      "inset" -> applyInsetShorthand(value, style)
-      "top" -> parseLengthPercentageAuto(value)?.let { v ->
+      "inset" -> rect(declaration::autoLength)?.let { style.inset = it }
+      "top" -> declaration.autoLength()?.let { v ->
         val c = style.inset
         style.inset = Rect(v, c.right, c.bottom, c.left)
       }
-      "right" -> parseLengthPercentageAuto(value)?.let { v ->
+      "right" -> declaration.autoLength()?.let { v ->
         val c = style.inset
         style.inset = Rect(c.top, v, c.bottom, c.left)
       }
-      "bottom" -> parseLengthPercentageAuto(value)?.let { v ->
+      "bottom" -> declaration.autoLength()?.let { v ->
         val c = style.inset
         style.inset = Rect(c.top, c.right, v, c.left)
       }
-      "left" -> parseLengthPercentageAuto(value)?.let { v ->
+      "left" -> declaration.autoLength()?.let { v ->
         val c = style.inset
         style.inset = Rect(c.top, c.right, c.bottom, v)
       }
 
-      "aspect-ratio" -> style.aspectRatio = parseAspectRatio(value)
+      "aspect-ratio" -> style.aspectRatio = fields.firstOrNull()?.toFloatOrNull()
 
-      "box-sizing" -> when (value) {
-        "border-box" -> style.boxSizing = BoxSizing.BorderBox
-        "content-box" -> style.boxSizing = BoxSizing.ContentBox
-      }
+      "box-sizing" -> declaration.code?.let { style.boxSizing = BoxSizing.from(it) }
 
-      "direction" -> when (value) {
-        "ltr" -> style.direction = Direction.LTR
-        "rtl" -> style.direction = Direction.RTL
-        "inherit" -> style.direction = Direction.Inherit
-      }
+      "direction" -> declaration.code?.let { style.direction = Direction.from(it) }
 
       // endregion
 
@@ -895,12 +814,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "grid-template-areas" -> style.gridTemplateAreas = value
       "grid-auto-rows" -> style.gridAutoRows = value
       "grid-auto-columns" -> style.gridAutoColumns = value
-      "grid-auto-flow" -> when (value) {
-        "row" -> style.gridAutoFlow = GridAutoFlow.Row
-        "column" -> style.gridAutoFlow = GridAutoFlow.Column
-        "row dense", "dense row", "dense" -> style.gridAutoFlow = GridAutoFlow.RowDense
-        "column dense", "dense column" -> style.gridAutoFlow = GridAutoFlow.ColumnDense
-      }
+      "grid-auto-flow" -> declaration.code?.let { style.gridAutoFlow = GridAutoFlow.from(it) }
       "grid-column" -> style.gridColumn = value
       "grid-row" -> style.gridRow = value
       "grid-area" -> style.gridArea = value
@@ -914,142 +828,71 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       // region Visual (pass-through CSS string parsers)
 
       "corner-shape" -> style.cornerShape = value
-      "box-shadow" -> style.boxShadow = value
-      "text-shadow" -> style.textShadow = value
-      "filter" -> style.filter = value
-      "backdrop-filter" -> style.backdropFilter = value
+      "corner-shape-top-left" -> style.cornerShapeTopLeft = value
+      "corner-shape-top-right" -> style.cornerShapeTopRight = value
+      "corner-shape-bottom-right" -> style.cornerShapeBottomRight = value
+      "corner-shape-bottom-left" -> style.cornerShapeBottomLeft = value
+      "effect-values" -> value.toFloatOrNull()?.let { style.applyCompiledEffects(fields, initialColor, it) }
       "transform" -> style.transform = value
-      "background" -> style.background = value
-      "background-image" -> style.backgroundImage = value
-      "background-repeat" -> style.backgroundRepeat = value
-      "background-position" -> style.backgroundPosition = value
-      "background-size" -> style.backgroundSize = value
-      "background-clip" -> style.backgroundClip = value
-      "background-origin" -> style.backgroundOrigin = value
-      "background-attachment" -> style.backgroundAttachment = value
-      "background-blend-mode" -> style.backgroundBlendMode = value
-      "background-position-x" -> style.backgroundPositionX = value
-      "background-position-y" -> style.backgroundPositionY = value
-      "mask-image" -> style.maskImage = value
-      "mask-size" -> style.maskSize = value
-      "mask-position" -> style.maskPosition = value
-      "mask-repeat" -> style.maskRepeat = value
-      "mask-origin" -> style.maskOrigin = value
-      "mask-clip" -> style.maskClip = value
-      "mask-mode" -> style.maskMode = value
-      "mask-composite" -> style.maskComposite = value
-      "mask-border-source" -> style.maskBorderSource = value
-      "mask-border-slice" -> style.maskBorderSlice = value
-      "mask-border-width" -> style.maskBorderWidth = value
-      "mask-border-outset" -> style.maskBorderOutset = value
-      "mask-border-repeat" -> style.maskBorderRepeat = value
-      "mask-border-mode" -> style.maskBorderMode = value
-      // No JS here to split the shorthand, so the native splitter does it.
-      "mask-border", "-webkit-mask-box-image" -> splitBorderImageShorthand(value, mask = true)?.let {
-        style.maskBorderSource = it[0]
-        style.maskBorderSlice = it[1]
-        style.maskBorderWidth = it[2]
-        style.maskBorderOutset = it[3]
-        style.maskBorderRepeat = it[4]
-        style.maskBorderMode = it[5]
+      "transform-origin" -> if (fields.size == CssPositionResultRecord.STRIDE) {
+        val x = fields[CssPositionResultRecord.X_VALUE].toFloatOrNull() ?: return
+        val y = fields[CssPositionResultRecord.Y_VALUE].toFloatOrNull() ?: return
+        style.setResolvedTransformOrigin(x, fields[CssPositionResultRecord.X_TYPE] == "1",
+          y, fields[CssPositionResultRecord.Y_TYPE] == "1")
       }
-      "clip-path" -> style.clipPath = value
+      "background-values" -> value.toFloatOrNull()?.let { style.applyCompiledBackground(fields, initialColor, it) }
+      "mask-values" -> style.applyCompiledMask(fields)
       "border-image" -> style.borderImage = value
 
-      "z-index" -> value.toIntOrNull()?.let { style.zIndex = it }
+      "z-index" -> fields.firstOrNull()?.toIntOrNull()?.let { style.zIndex = it }
 
-      "float" -> when (value) {
-        "none" -> style.float = org.nativescript.mason.masonkit.enums.Float.None
-        "left" -> style.float = org.nativescript.mason.masonkit.enums.Float.Left
-        "right" -> style.float = org.nativescript.mason.masonkit.enums.Float.Right
-      }
+      "float" -> declaration.code?.let { style.float = org.nativescript.mason.masonkit.enums.Float.from(it) }
 
-      "clear" -> when (value) {
-        "none" -> style.clear = Clear.None
-        "left" -> style.clear = Clear.Left
-        "right" -> style.clear = Clear.Right
-        "both" -> style.clear = Clear.Both
-      }
+      "clear" -> declaration.code?.let { style.clear = Clear.from(it) }
 
-      "object-fit" -> when (value) {
-        "fill" -> style.objectFit = ObjectFit.Fill
-        "contain" -> style.objectFit = ObjectFit.Contain
-        "cover" -> style.objectFit = ObjectFit.Cover
-        "none" -> style.objectFit = ObjectFit.None
-        "scale-down" -> style.objectFit = ObjectFit.ScaleDown
-      }
+      "object-fit" -> declaration.code?.let { style.objectFit = ObjectFit.from(it) }
 
-      "list-style-type" -> when (value) {
-        "none" -> style.listStyleType = ListStyleType.None
-        "disc" -> style.listStyleType = ListStyleType.Disc
-        "circle" -> style.listStyleType = ListStyleType.Circle
-        "square" -> style.listStyleType = ListStyleType.Square
-        "decimal" -> style.listStyleType = ListStyleType.Decimal
-      }
-      "list-style-position" -> when (value) {
-        "inside" -> style.listStylePosition = ListStylePosition.Inside
-        "outside" -> style.listStylePosition = ListStylePosition.Outside
-      }
+      "list-style-type" -> declaration.code?.let { style.listStyleType = ListStyleType.from(it) }
+      "list-style-position" -> declaration.code?.let { style.listStylePosition = ListStylePosition.from(it) }
 
       // endregion
 
       // region Text / font
 
-      "font-family" -> style.fontFamily = value
-      "font-style" -> when (value) {
-        "italic" -> style.fontStyle = FontStyle.Italic
-        "oblique" -> style.fontStyle = FontStyle.Oblique()
-        "normal" -> style.fontStyle = FontStyle.Normal
-      }
-      "line-height" -> if (value != "normal") parseFloatValue(value)?.let { style.lineHeight = it }
-      "letter-spacing" -> if (value == "normal") {
-        style.letterSpacing = 0f
-      } else {
-        parseFloatValue(value)?.let { style.letterSpacing = it }
-      }
-      "font-variant-numeric" -> style.fontVariantNumericString = value
+      "font-family" -> AppFonts.selectFamily(fields.asList(), (style.node.view as? android.view.View)?.context)
+        ?.let { style.fontFamily = it }
+      "font-style" -> style.setParsedFontStyle(fields)
+      "line-height" -> declaration.amount()?.let { style.setResolvedLineHeight(it, declaration.lengthKind() ?: return) }
+      "letter-spacing" -> declaration.amount()?.let { style.letterSpacing = it }
+      "word-spacing" -> declaration.amount()?.let { style.setResolvedWordSpacing(it, declaration.lengthKind() ?: return) }
+      "text-indent" -> declaration.amount()?.let { style.setResolvedTextIndent(it, declaration.lengthKind() == 2) }
+      "vertical-align" -> declaration.amount()?.let { style.setResolvedVerticalAlign(declaration.lengthKind() ?: return, it) }
+      "font-feature-settings" -> style.fontFeatureSettings = value
+      "font-variant-numeric" -> fields.firstOrNull()?.toIntOrNull()?.let { style.fontVariantNumeric = it }
 
-      "text-decoration" -> style.setTextDecoration(value)
-      "text-decoration-line" -> style.textDecorationLine = value
-      "text-decoration-color" -> style.textDecorationColor = value
-      "text-decoration-style" -> style.textDecorationStyle = value
-      "text-decoration-thickness" -> parseLength(style, value)?.let { style.decorationThickness = it }
+      "text-decoration" -> fields.getOrNull(TextDecorationRecord.THICKNESS)?.toFloatOrNull()?.let { style.setParsedTextDecoration(fields, it) }
+      "text-decoration-line" -> declaration.code?.let { style.decorationLine = Styles.DecorationLine.from(it) }
+      "text-decoration-color" -> fields.firstOrNull()?.toUIntOrNull()?.let { style.decorationColor = it.toInt() }
+      "text-decoration-style" -> declaration.code?.let { style.decorationStyle = Styles.DecorationStyle.from(it) }
+      "text-decoration-thickness" -> fields.firstOrNull()?.toFloatOrNull()?.let { style.decorationThickness = it }
 
-      "text-transform" -> when (value) {
-        "none" -> style.textTransform = Styles.TextTransform.None
-        "capitalize" -> style.textTransform = Styles.TextTransform.Capitalize
-        "uppercase" -> style.textTransform = Styles.TextTransform.Uppercase
-        "lowercase" -> style.textTransform = Styles.TextTransform.Lowercase
-      }
+      "text-transform" -> declaration.code?.let { style.textTransform = Styles.TextTransform.from(it) }
 
-      "white-space" -> when (value) {
-        "normal" -> style.whiteSpace = Styles.WhiteSpace.Normal
-        "pre" -> style.whiteSpace = Styles.WhiteSpace.Pre
-        "pre-wrap" -> style.whiteSpace = Styles.WhiteSpace.PreWrap
-        "pre-line" -> style.whiteSpace = Styles.WhiteSpace.PreLine
-        "nowrap" -> style.whiteSpace = Styles.WhiteSpace.NoWrap
-        "break-spaces" -> style.whiteSpace = Styles.WhiteSpace.BreakSpaces
-      }
+      "white-space" -> declaration.code?.let { style.whiteSpace = Styles.WhiteSpace.from(it) }
 
-      "text-wrap" -> when (value) {
-        "wrap" -> style.textWrap = Styles.TextWrap.Wrap
-        "nowrap" -> style.textWrap = Styles.TextWrap.NoWrap
-        "balance" -> style.textWrap = Styles.TextWrap.Balance
-        "pretty" -> style.textWrap = Styles.TextWrap.Pretty
-      }
+      "text-wrap" -> declaration.code?.let { style.textWrap = Styles.TextWrap.from(it) }
 
-      "text-overflow" -> when (value) {
-        "clip" -> style.textOverflow = Styles.TextOverflow.Clip
-        "ellipsis" -> style.textOverflow = Styles.TextOverflow.Ellipse
-      }
+      "hyphens" -> declaration.code?.let { style.hyphens = it }
+      "writing-mode" -> declaration.code?.let { style.writingMode = it }
+      "unicode-bidi" -> declaration.code?.let { style.unicodeBidi = it }
+      "text-orientation" -> declaration.code?.let { style.textOrientation = it }
+      "text-combine-upright" -> declaration.code?.let { style.textCombineUpright = it }
+      "text-spacing-trim" -> declaration.code?.let { style.textSpacingTrim = it }
+      "line-clamp", "-webkit-line-clamp" -> fields.firstOrNull()?.toIntOrNull()?.let { style.lineClamp = it }
 
-      "text-justify" -> when (value) {
-        "none" -> style.textJustify = Styles.TextJustify.None
-        "auto" -> style.textJustify = Styles.TextJustify.Auto
-        "inter-word" -> style.textJustify = Styles.TextJustify.InterWord
-        "inter-character" -> style.textJustify = Styles.TextJustify.InterCharacter
-        "distribute" -> style.textJustify = Styles.TextJustify.Distribute
-      }
+      "text-overflow" -> declaration.code?.let { style.textOverflow = Styles.TextOverflow.from(it) }
+
+      "text-justify" -> declaration.code?.let { style.textJustify = Styles.TextJustify.from(it) }
 
       // endregion
     }
@@ -1059,10 +902,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
 
   // region Value Parsers
 
-  // Length and color parsing delegate to the canonical package-level parsers
-  // (Border.kt / Background.kt). That keeps device-scale and percentage handling
-  // consistent with every other code path (margins, borders, backgrounds) and
-  // reuses the shared length/color regexes instead of duplicating them here.
+  // Use the same length resolver as the typed style adapters.
 
   private fun parseDimension(value: String): Dimension? {
     return when (val lpa = parseLengthPercentageAuto(value)) {
@@ -1072,90 +912,6 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       LengthPercentageAuto.Zero -> Dimension.Points(0f)
       null -> null
     }
-  }
-
-  private fun parseFloatValue(value: String): Float? {
-    return when {
-      value.endsWith("px") -> value.dropLast(2).toFloatOrNull()
-      value.endsWith("pt") -> value.dropLast(2).toFloatOrNull()
-      value.endsWith("em") -> value.dropLast(2).toFloatOrNull()?.let { it * 16f }
-      value.endsWith("rem") -> value.dropLast(3).toFloatOrNull()?.let { it * 16f }
-      else -> value.toFloatOrNull()
-    }
-  }
-
-  private fun parseOverflow(value: String): Overflow? = when (value) {
-    "visible" -> Overflow.Visible
-    "hidden" -> Overflow.Hidden
-    "scroll" -> Overflow.Scroll
-    "clip" -> Overflow.Clip
-    "auto" -> Overflow.Auto
-    else -> null
-  }
-
-  /** First whitespace-delimited token (e.g. the line keyword of a `text-decoration` shorthand). */
-  private fun firstToken(value: String): String =
-    value.split(WHITESPACE).firstOrNull { it.isNotEmpty() } ?: value
-
-  /** Parses `aspect-ratio` as a ratio (`16 / 9`) or a single number (`1.5`). */
-  private fun parseAspectRatio(value: String): Float? {
-    val v = value.lowercase()
-    if (v == "auto") return null
-    if (v.contains("/")) {
-      val parts = v.split("/")
-      if (parts.size == 2) {
-        val w = parts[0].trim().toFloatOrNull()
-        val h = parts[1].trim().toFloatOrNull()
-        if (w != null && h != null && h != 0f) return w / h
-      }
-      return null
-    }
-    return v.toFloatOrNull()
-  }
-
-  /**
-   * Parses the `flex` shorthand (`none`, `auto`, `<grow>`, `<grow> <shrink>`,
-   * `<grow> <shrink> <basis>`, `<grow> <basis>`).
-   */
-  private fun applyFlexShorthand(value: String, style: Style) {
-    when (value.trim().lowercase()) {
-      "none" -> { style.flexGrow = 0f; style.flexShrink = 0f; style.flexBasis = Dimension.Auto; return }
-      "auto" -> { style.flexGrow = 1f; style.flexShrink = 1f; style.flexBasis = Dimension.Auto; return }
-      "initial" -> { style.flexGrow = 0f; style.flexShrink = 1f; style.flexBasis = Dimension.Auto; return }
-    }
-
-    var grow: Float? = null
-    var shrink: Float? = null
-    var basis: Dimension? = null
-    for (token in value.split(WHITESPACE).filter { it.isNotEmpty() }) {
-      // A plain unitless number is a grow/shrink factor; anything else is a basis.
-      if (token == "auto" || token.endsWith("%") || token.endsWith("px")) {
-        basis = parseDimension(token)
-      } else {
-        val n = token.toFloatOrNull()
-        if (n != null) {
-          if (grow == null) grow = n else if (shrink == null) shrink = n
-        } else {
-          basis = parseDimension(token)
-        }
-      }
-    }
-    style.flexGrow = grow ?: 1f
-    style.flexShrink = shrink ?: 1f
-    // `flex: 1` resolves basis to 0; an explicit basis token overrides that.
-    style.flexBasis = basis ?: Dimension.Points(0f)
-  }
-
-  /** Parses the `inset` shorthand (1–4 values, CSS order top / right / bottom / left). */
-  private fun applyInsetShorthand(value: String, style: Style) {
-    val parsed = value.split(WHITESPACE).filter { it.isNotEmpty() }
-      .mapNotNull { parseLengthPercentageAuto(it) }
-    if (parsed.isEmpty()) return
-    val top = parsed[0]
-    val right = if (parsed.size > 1) parsed[1] else top
-    val bottom = if (parsed.size > 2) parsed[2] else top
-    val left = if (parsed.size > 3) parsed[3] else right
-    style.inset = Rect(top, right, bottom, left)
   }
 
   // endregion

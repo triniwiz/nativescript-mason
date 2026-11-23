@@ -125,9 +125,8 @@ interface Element : EventTarget {
     if (node.mason.inCompute) {
       return node.layoutTree
     }
-    // fast-path: skip the JNI round-trip + DFS reparse if a prior compute()
-    // already left a clean, non-empty tree (same as computeAndLayout(w, h))
-    if (!node.computeCacheDirty && node.layoutTree.nodeCount > 0) {
+    // A standalone compute can finish before its results are exported to Kotlin.
+    if (!node.computeCacheDirty && !node.layoutExportDirty && node.layoutTree.nodeCount > 0) {
       return node.layoutTree
     }
     var layoutSize: Int
@@ -161,6 +160,8 @@ interface Element : EventTarget {
       // and schedule a follow-up instead of trusting this skipped refill
       node.computeCacheDirty = true
       invalidateLayout()
+    } else {
+      node.layoutExportDirty = false
     }
     return node.layoutTree
   }
@@ -172,6 +173,7 @@ interface Element : EventTarget {
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
+      node.layoutExportDirty = true
     } finally {
       mason.endCompute()
     }
@@ -197,6 +199,7 @@ interface Element : EventTarget {
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
+      node.layoutExportDirty = true
     } finally {
       mason.endCompute()
     }
@@ -211,6 +214,7 @@ interface Element : EventTarget {
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
+      node.layoutExportDirty = true
     } finally {
       mason.endCompute()
     }
@@ -225,6 +229,7 @@ interface Element : EventTarget {
     mason.inCompute = true
     try {
       NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
+      node.layoutExportDirty = true
     } finally {
       mason.endCompute()
     }
@@ -343,6 +348,7 @@ interface Element : EventTarget {
         return MasonLayoutTree.empty
       }
       applied = node.layoutTree.fromFloatArray(layout)
+      if (applied) node.layoutExportDirty = false
     } finally {
       mason.endCompute()
       node.computeCache = SizeF(-1f, -1f)
@@ -386,7 +392,7 @@ interface Element : EventTarget {
     // cache is clean, and we have a valid layout tree, skip the native
     // compute to avoid redundant recomputation on spurious layout passes
     // (e.g. triggered by setPadding → requestLayout in applyLayoutFlat).
-    if (!node.computeCacheDirty
+    if (!node.computeCacheDirty && !node.layoutExportDirty
       && node.computeCache.width == width
       && node.computeCache.height == height
       && node.layoutTree.nodeCount > 0
@@ -414,6 +420,7 @@ interface Element : EventTarget {
         return MasonLayoutTree.empty
       }
       applied = tree.fromFloatArray(tree.exportBuffer, size)
+      if (applied) node.layoutExportDirty = false
     } finally {
       mason.endCompute()
       node.computeCache = SizeF(width, height)

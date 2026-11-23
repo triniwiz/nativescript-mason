@@ -4,7 +4,6 @@ import { borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProp
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
-import { splitBorder, splitBorderSide, splitBorderStyle } from './css-shorthands';
 import { borderTopStyleProperty, borderRightStyleProperty, borderBottomStyleProperty, borderLeftStyleProperty } from './properties';
 import { Div } from './web';
 
@@ -14,39 +13,6 @@ const DASHED = 3;
 const NONE = 0;
 
 describe('border shorthands split into longhands', () => {
-  it.each([
-    ['1px solid red', ['1px', 'solid', 'red']],
-    ['red 2rem dashed', ['2rem', 'dashed', 'red']],
-    ['thin dotted', ['1', 'dotted', 'black']],
-    ['rgb(0, 0, 255) thick', ['5', 'solid', 'rgb(0, 0, 255)']],
-    ['calc(1px + 0.1rem) solid #fff', ['calc(1px + 0.1rem)', 'solid', '#fff']],
-    ['0', ['0', 'solid', 'black']],
-    ['none', ['0', 'none', 'black']],
-    ['2px hidden blue', ['0', 'hidden', 'blue']],
-    ['1px solid currentcolor', ['1px', 'solid', 'black']],
-  ])('border-<side>: %s', (value, parts) => {
-    expect(splitBorderSide(value)).toEqual(parts);
-  });
-
-  it.each(['', '1px 2px solid', 'solid dashed', 'red blue', '1px / 2px'])('border-<side> rejects "%s"', (value) => {
-    expect(() => splitBorderSide(value)).toThrow();
-  });
-
-  it('border gives every side the same parts', () => {
-    expect(splitBorder('1px solid red')).toEqual(['1px', '1px', '1px', '1px', 'solid', 'solid', 'solid', 'solid', 'red', 'red', 'red', 'red']);
-  });
-
-  it('border still takes up to four widths, as the native parsers did', () => {
-    expect(splitBorder('1px 2px solid').slice(0, 4)).toEqual(['1px', '2px', '1px', '2px']);
-    expect(() => splitBorder('1px 2px 3px 4px 5px')).toThrow();
-  });
-
-  it('border-style takes one to four styles', () => {
-    expect(splitBorderStyle('solid')).toEqual(['solid', 'solid', 'solid', 'solid']);
-    expect(splitBorderStyle('solid none dashed')).toEqual(['solid', 'none', 'dashed', 'none']);
-    expect(() => splitBorderStyle('solid 1px')).toThrow();
-  });
-
   it('core expands them at parse time, so the cascade sees longhands', () => {
     expect(_expandCssShorthand('border', '1px solid red')).toEqual([
       ['border-top-width', '1px'],

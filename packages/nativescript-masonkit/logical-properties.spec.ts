@@ -166,6 +166,19 @@ describe('logical sides on a Mason view', () => {
     expect(stamps(under, 'INSET')).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
+  it('a uniform physical write replaces all four edges in one stamp', () => {
+    const { under } = nativeHost();
+    under.style.setLogical('padding', 3, '2px');
+    under.style.padding = { unit: '%', value: 0.25 };
+    const order = stamps(under, 'PADDING');
+    expect(order[0]).toBeGreaterThan(order[7]);
+    expect(order.slice(0, 4)).toEqual(Array(4).fill(order[0]));
+    for (const side of ['TOP', 'RIGHT', 'BOTTOM', 'LEFT']) {
+      expect(under.getUint8(styleKey(`PADDING_${side}_TYPE`))).toBe(1);
+      expect(under.getFloat32(styleKey(`PADDING_${side}_VALUE`))).toBe(0.25);
+    }
+  });
+
   it('removing a logical declaration clears its stamp', () => {
     const { under, style } = nativeHost();
     applyRules(style, [['padding-inline-end', '3px']]);

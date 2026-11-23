@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { expandColorStops, radialReach, repeatRadial, repeatStops, resolveStopPositions } from './gradient-stops';
 
-// Same cases as GradientStopsTest.kt, so Windows places stops the way Android does.
 describe('expandColorStops', () => {
   it('turns two positions into two stops of one colour', () => {
     expect(expandColorStops(['blue', 'red 10% 30%', 'green'])).toEqual(['blue', 'red 10%', 'red 30%', 'green']);
@@ -9,6 +8,10 @@ describe('expandColorStops', () => {
 
   it('keeps colour functions with spaces whole', () => {
     expect(expandColorStops(['rgb(0, 0, 255) 0% 50%'])).toEqual(['rgb(0, 0, 255) 0%', 'rgb(0, 0, 255) 50%']);
+  });
+
+  it('preserves UTF-16 ranges around a nested component', () => {
+    expect(expandColorStops(['var(--🎨, red) calc(10% + 1px) 50%'])).toEqual(['var(--🎨, red) calc(10% + 1px)', 'var(--🎨, red) 50%']);
   });
 
   it('leaves single-position stops and hints untouched', () => {

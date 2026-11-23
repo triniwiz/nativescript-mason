@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -25,56 +24,6 @@ class ColorInterpolationTest {
     for (i in 0 until 3) {
       assertTrue("channel $i: expected ${expected.toList()}, got ${got.toList()}", kotlin.math.abs(expected[i] - got[i]) <= tolerance)
     }
-  }
-
-  @Test
-  fun extractsTheMethodAndKeepsTheDirection() {
-    val (rest, method) = ColorInterpolation.extract("to bottom right in oklab")!!
-    assertEquals("to bottom right", rest)
-    assertEquals(ColorInterpolation.Space.OKLAB, method.space)
-    assertEquals(ColorInterpolation.HueMethod.SHORTER, method.hue)
-  }
-
-  @Test
-  fun extractsAMethodThatComesFirstOrAlone() {
-    assertEquals("to right", ColorInterpolation.extract("in oklch to right")!!.first)
-    assertEquals("", ColorInterpolation.extract("in srgb-linear")!!.first)
-    assertEquals(ColorInterpolation.Space.SRGB_LINEAR, ColorInterpolation.extract("in srgb-linear")!!.second.space)
-  }
-
-  @Test
-  fun extractsHueMethods() {
-    val (rest, method) = ColorInterpolation.extract("90deg in oklch longer hue")!!
-    assertEquals("90deg", rest)
-    assertEquals(ColorInterpolation.HueMethod.LONGER, method.hue)
-  }
-
-  @Test
-  fun unknownSpacesStillLeaveTheArgument() {
-    val (rest, method) = ColorInterpolation.extract("to right in display-p3")!!
-    assertEquals("to right", rest)
-    assertEquals(ColorInterpolation.Space.SRGB, method.space)
-  }
-
-  @Test
-  fun leavesArgumentsWithoutAMethodAlone() {
-    assertNull(ColorInterpolation.extract("to right"))
-    assertNull(ColorInterpolation.extract("circle at center"))
-  }
-
-  @Test
-  fun parseGradientSeparatesDirectionMethodAndStops() {
-    val gradient = parseGradient("linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)")!!
-    assertEquals("to bottom right", gradient.direction)
-    assertEquals(listOf("#6366f1 0%", "#d946ef 100%"), gradient.stops)
-    assertEquals(ColorInterpolation.Space.OKLAB, gradient.interpolation?.space)
-  }
-
-  @Test
-  fun parseGradientDropsAMethodOnlyArgument() {
-    val gradient = parseGradient("linear-gradient(in oklab, red, blue)")!!
-    assertNull(gradient.direction)
-    assertEquals(listOf("red", "blue"), gradient.stops)
   }
 
   // Reference values: CSS Color 4 `color-mix(in <space>, a, b)` at 50%.

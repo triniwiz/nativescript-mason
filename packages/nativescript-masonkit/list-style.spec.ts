@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { _expandCssShorthand, unsetValue } from '@nativescript/core/ui/core/properties';
-import { splitListStyle } from './css-shorthands';
 import { listStyleShorthand, shorthandConverter } from './properties';
 import { View } from '.';
 import { Div, Li, Ol, Ul } from './web';
@@ -12,26 +11,6 @@ weakRef.get ??= function (this: WeakRef<object>) {
 };
 
 describe('list-style splits into type and position', () => {
-  it.each([
-    ['none', ['none', 'outside']],
-    ['square', ['square', 'outside']],
-    ['inside', ['disc', 'inside']],
-    ['decimal inside', ['decimal', 'inside']],
-    ['outside circle', ['circle', 'outside']],
-    ['none inside', ['none', 'inside']],
-    ['url(dot.png)', ['disc', 'outside']],
-    ['url(dot.png) none', ['none', 'outside']],
-    ['none none', ['none', 'outside']],
-    ['square url(dot.png) inside', ['square', 'inside']],
-    ['Upper-Roman', ['upper-roman', 'outside']],
-  ])('%s', (value, parts) => {
-    expect(splitListStyle(value)).toEqual(parts);
-  });
-
-  it.each(['', 'inside outside', 'disc square', 'none none none', 'square none none', 'url(a) url(b)', 'disc, square'])('rejects "%s"', (value) => {
-    expect(() => splitListStyle(value)).toThrow();
-  });
-
   it('lists both longhands for the unsetValue probe', () => {
     expect(shorthandConverter(listStyleShorthand)(unsetValue)).toEqual([
       [listStyleShorthand.longhands[0], unsetValue],

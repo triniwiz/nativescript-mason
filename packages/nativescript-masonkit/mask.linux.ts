@@ -1,1 +1,1 @@
-export * from './mask-spec';
+export * from './mask.windows';

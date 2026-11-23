@@ -208,309 +208,69 @@ func svgViewBoxTransform(_ vb: CGRect, _ alignX: Int?, _ alignY: Int?, _ slice: 
   return CGAffineTransform(a: s, b: 0, c: 0, d: s, tx: tx, ty: ty)
 }
 
-// MARK: - Number scanning
-
-private let chSpace = UInt8(ascii: " "), chTab = UInt8(ascii: "\t"), chLF = UInt8(ascii: "\n"),
-  chCR = UInt8(ascii: "\r"), chFF: UInt8 = 0x0C
-private let chComma = UInt8(ascii: ","), chDot = UInt8(ascii: "."), chPlus = UInt8(ascii: "+"),
-  chMinus = UInt8(ascii: "-"), chZero = UInt8(ascii: "0"), chOne = UInt8(ascii: "1"),
-  chNine = UInt8(ascii: "9"), chE = UInt8(ascii: "e"), chUpperE = UInt8(ascii: "E")
+// MARK: - Shared SVG values
 
 @inline(__always) private func isSvgWsp(_ c: UInt8) -> Bool {
-  c == chSpace || c == chTab || c == chLF || c == chCR || c == chFF
+  c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D || c == 0x0C
 }
 
-@inline(__always) private func isDigit(_ c: UInt8) -> Bool { c >= chZero && c <= chNine }
-
-struct SvgScanner {
-  let s: [UInt8]
-  var i = 0
-
-  init(_ string: String) { s = Array(string.utf8) }
-
-  var atEnd: Bool { i >= s.count }
-  var peek: UInt8 { s[i] }
-
-  mutating func skipWsp() {
-    while i < s.count && isSvgWsp(s[i]) { i += 1 }
-  }
-
-  mutating func skipCommaWsp() {
-    skipWsp()
-    if i < s.count && s[i] == chComma {
-      i += 1
-      skipWsp()
-    }
-  }
-
-  /// An SVG number: `-1`, `.5`, `1.5` (so `1.5.5` is two numbers), `1e-3`.
-  mutating func number() -> Double? {
-    let n = s.count
-    let start = i
-    var j = i
-    if j < n && (s[j] == chPlus || s[j] == chMinus) { j += 1 }
-    var digits = 0
-    while j < n && isDigit(s[j]) { j += 1; digits += 1 }
-    if j < n && s[j] == chDot {
-      j += 1
-      while j < n && isDigit(s[j]) { j += 1; digits += 1 }
-    }
-    if digits == 0 { return nil }
-    if j < n && (s[j] == chE || s[j] == chUpperE) {
-      var k = j + 1
-      if k < n && (s[k] == chPlus || s[k] == chMinus) { k += 1 }
-      if k < n && isDigit(s[k]) {
-        while k < n && isDigit(s[k]) { k += 1 }
-        j = k
-      }
-    }
-    guard let v = Double(String(decoding: s[start..<j], as: UTF8.self)) else { return nil }
-    i = j
-    return v
-  }
-
-  /// An arc flag: a single `0` or `1`, which needs no separator from what follows.
-  mutating func flag() -> Bool? {
-    guard i < s.count, s[i] == chZero || s[i] == chOne else { return nil }
-    defer { i += 1 }
-    return s[i] == chOne
-  }
-
-  /// Whatever follows the current position, as a string.
-  var rest: String { String(decoding: s[min(i, s.count)...], as: UTF8.self) }
+private func withSvgValues<Result>(
+  _ raw: String, _ kind: CssParseKind, _ read: (UnsafeBufferPointer<Double>) -> Result
+) -> Result {
+  let records = raw.withCString { mason_css_parse($0, kind.rawValue, 1, 0, 0, 0, 0, 0) }
+  defer { mason_css_values_release(records) }
+  return read(UnsafeBufferPointer(start: records.values, count: Int(records.len)))
 }
 
-/// Every number in a list such as `points`, `viewBox` or `stroke-dasharray`.
+private func parseSvgScalar(_ raw: String, _ kind: CssParseKind) -> CGFloat? {
+  withSvgValues(raw, kind) { $0.first.map { CGFloat($0) } }
+}
+
 func parseSvgNumberList(_ value: String) -> [Double] {
-  var sc = SvgScanner(value)
-  var out: [Double] = []
-  sc.skipWsp()
-  while !sc.atEnd {
-    guard let v = sc.number() else { break }
-    out.append(v)
-    sc.skipCommaWsp()
-  }
-  return out
+  withSvgValues(value, .svgNumberList) { Array($0) }
 }
 
 // MARK: - Path data
 
-private let pathCommandBytes = Set("MmLlHhVvCcSsQqTtAaZz".utf8)
+private func withSvgPathRecords<Result>(_ d: String, _ body: (UnsafeBufferPointer<Double>) -> Result) -> Result {
+  let records = d.withCString { mason_css_svg_path_records($0) }
+  defer { mason_css_values_release(records) }
+  return body(UnsafeBufferPointer(start: records.values, count: Int(records.len)))
+}
 
-/// Parse SVG path data into absolute commands. On an error the path is kept up to the last
-/// complete segment, as SVG requires.
+/// Absolute commands from the shared Rust SVG path parser.
 func parseSvgPathData(_ d: String) -> [SvgPathCommand] {
-  var ends: [Bool] = []
-  return parseSvgPathData(d, vertexEnds: &ends)
+  withSvgPathRecords(d) { decodeSvgPathRecords($0) }
 }
 
-/// As `parseSvgPathData(_:)`; `vertexEnds[i]` is false where command i ends inside an arc, which
-/// is not a path vertex (markers skip it).
+/// A false vertex flag identifies a cubic that ends inside an arc.
 func parseSvgPathData(_ d: String, vertexEnds: inout [Bool]) -> [SvgPathCommand] {
-  var out: [SvgPathCommand] = []
-  var arcInner: [Int] = []
-  var sc = SvgScanner(d)
-  var cmd: UInt8 = 0
-  var cx = 0.0, cy = 0.0, sx = 0.0, sy = 0.0
-  // Last cubic second control point / quadratic control point, for S and T reflection.
-  var lastCubic = false, lastQuad = false
-  var ctrlX = 0.0, ctrlY = 0.0
-  var needMove = false
-
-  func ensureMove() {
-    if needMove {
-      out.append(.move(CGFloat(cx), CGFloat(cy)))
-      needMove = false
+  withSvgPathRecords(d) { records in
+    vertexEnds = stride(from: 0, to: records.count, by: SvgPathRecord.stride).map {
+      records[$0 + SvgPathRecord.vertexEnd] != 0
     }
+    return decodeSvgPathRecords(records)
   }
-
-  sc.skipWsp()
-  loop: while !sc.atEnd {
-    let c = sc.peek
-    if pathCommandBytes.contains(c) {
-      cmd = c
-      sc.i += 1
-      sc.skipWsp()
-    } else if cmd == 0 || cmd == UInt8(ascii: "Z") || cmd == UInt8(ascii: "z") {
-      break // a number where a command letter must be
-    }
-    if out.isEmpty && cmd != UInt8(ascii: "M") && cmd != UInt8(ascii: "m") { break } // must start with a moveto
-    let rel = cmd >= UInt8(ascii: "a")
-    let ox = rel ? cx : 0
-    let oy = rel ? cy : 0
-    switch Character(Unicode.Scalar(cmd)) {
-    case "M", "m":
-      guard let x = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let y = sc.number() else { break loop }
-      cx = ox + x; cy = oy + y
-      sx = cx; sy = cy
-      out.append(.move(CGFloat(cx), CGFloat(cy)))
-      needMove = false
-      lastCubic = false; lastQuad = false
-      cmd = rel ? UInt8(ascii: "l") : UInt8(ascii: "L") // further pairs are implicit linetos
-
-    case "L", "l":
-      guard let x = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let y = sc.number() else { break loop }
-      ensureMove()
-      cx = ox + x; cy = oy + y
-      out.append(.line(CGFloat(cx), CGFloat(cy)))
-      lastCubic = false; lastQuad = false
-
-    case "H", "h":
-      guard let x = sc.number() else { break loop }
-      ensureMove()
-      cx = ox + x
-      out.append(.line(CGFloat(cx), CGFloat(cy)))
-      lastCubic = false; lastQuad = false
-
-    case "V", "v":
-      guard let y = sc.number() else { break loop }
-      ensureMove()
-      cy = oy + y
-      out.append(.line(CGFloat(cx), CGFloat(cy)))
-      lastCubic = false; lastQuad = false
-
-    case "C", "c", "S", "s":
-      let smooth = cmd == UInt8(ascii: "S") || cmd == UInt8(ascii: "s")
-      var x1 = cx, y1 = cy
-      if smooth {
-        if lastCubic { x1 = 2 * cx - ctrlX; y1 = 2 * cy - ctrlY }
-      } else {
-        guard let a = sc.number() else { break loop }
-        sc.skipCommaWsp()
-        guard let b = sc.number() else { break loop }
-        sc.skipCommaWsp()
-        x1 = ox + a; y1 = oy + b
-      }
-      guard let a2 = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let b2 = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let a3 = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let b3 = sc.number() else { break loop }
-      let x2 = ox + a2, y2 = oy + b2, x = ox + a3, y = oy + b3
-      ensureMove()
-      out.append(.cubic(CGFloat(x1), CGFloat(y1), CGFloat(x2), CGFloat(y2), CGFloat(x), CGFloat(y)))
-      ctrlX = x2; ctrlY = y2
-      cx = x; cy = y
-      lastCubic = true; lastQuad = false
-
-    case "Q", "q", "T", "t":
-      let smooth = cmd == UInt8(ascii: "T") || cmd == UInt8(ascii: "t")
-      var x1 = cx, y1 = cy
-      if smooth {
-        if lastQuad { x1 = 2 * cx - ctrlX; y1 = 2 * cy - ctrlY }
-      } else {
-        guard let a = sc.number() else { break loop }
-        sc.skipCommaWsp()
-        guard let b = sc.number() else { break loop }
-        sc.skipCommaWsp()
-        x1 = ox + a; y1 = oy + b
-      }
-      guard let a2 = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let b2 = sc.number() else { break loop }
-      let x = ox + a2, y = oy + b2
-      ensureMove()
-      out.append(.quad(CGFloat(x1), CGFloat(y1), CGFloat(x), CGFloat(y)))
-      ctrlX = x1; ctrlY = y1
-      cx = x; cy = y
-      lastCubic = false; lastQuad = true
-
-    case "A", "a":
-      guard let rx = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let ry = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let rot = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let large = sc.flag() else { break loop }
-      sc.skipCommaWsp()
-      guard let sweep = sc.flag() else { break loop }
-      sc.skipCommaWsp()
-      guard let a = sc.number() else { break loop }
-      sc.skipCommaWsp()
-      guard let b = sc.number() else { break loop }
-      let x = ox + a, y = oy + b
-      ensureMove()
-      let before = out.count
-      appendSvgArc(&out, cx, cy, rx, ry, rot, large, sweep, x, y)
-      if out.count - before > 1 { arcInner.append(contentsOf: before..<(out.count - 1)) }
-      cx = x; cy = y
-      lastCubic = false; lastQuad = false
-
-    case "Z", "z":
-      out.append(.close)
-      cx = sx; cy = sy
-      needMove = true // a drawing command straight after Z starts at the subpath start
-      lastCubic = false; lastQuad = false
-
-    default:
-      break loop
-    }
-    sc.skipCommaWsp()
-  }
-  vertexEnds = [Bool](repeating: true, count: out.count)
-  for i in arcInner { vertexEnds[i] = false }
-  return out
 }
 
-/// An elliptical arc from (x1, y1) to (x2, y2) as cubic Béziers: endpoint to centre
-/// parameterisation per SVG 1.1 F.6.5, radii scaled up per F.6.6, then at most 90° per cubic.
-func appendSvgArc(_ out: inout [SvgPathCommand], _ x1: Double, _ y1: Double, _ rxIn: Double, _ ryIn: Double,
-                  _ angleDeg: Double, _ largeArc: Bool, _ sweep: Bool, _ x2: Double, _ y2: Double) {
-  if x1 == x2 && y1 == y2 { return }
-  var rx = abs(rxIn), ry = abs(ryIn)
-  if rx == 0 || ry == 0 {
-    out.append(.line(CGFloat(x2), CGFloat(y2)))
-    return
+func decodeSvgPathRecords(_ records: UnsafeBufferPointer<Double>, offset: Int = 0) -> [SvgPathCommand] {
+  var commands: [SvgPathCommand] = []
+  commands.reserveCapacity((records.count - offset) / SvgPathRecord.stride)
+  for index in stride(from: offset, to: records.count, by: SvgPathRecord.stride) {
+    func read(_ field: Int) -> CGFloat { CGFloat(records[index + field]) }
+    let x = read(SvgPathRecord.x)
+    let y = read(SvgPathRecord.y)
+    switch Int(read(SvgPathRecord.kind)) {
+    case 0: commands.append(.move(x, y))
+    case 1: commands.append(.line(x, y))
+    case 2: commands.append(.cubic(read(SvgPathRecord.x1), read(SvgPathRecord.y1),
+                                    read(SvgPathRecord.x2), read(SvgPathRecord.y2), x, y))
+    case 3: commands.append(.quad(read(SvgPathRecord.x1), read(SvgPathRecord.y1), x, y))
+    case 4: commands.append(.close)
+    default: return commands
+    }
   }
-  let phi = angleDeg.truncatingRemainder(dividingBy: 360) * .pi / 180
-  let cosPhi = cos(phi), sinPhi = sin(phi)
-  let dx2 = (x1 - x2) / 2, dy2 = (y1 - y2) / 2
-  let x1p = cosPhi * dx2 + sinPhi * dy2
-  let y1p = -sinPhi * dx2 + cosPhi * dy2
-  let lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry)
-  if lambda > 1 {
-    let s = lambda.squareRoot()
-    rx *= s; ry *= s
-  }
-  let rx2 = rx * rx, ry2 = ry * ry
-  let num = rx2 * ry2 - rx2 * y1p * y1p - ry2 * x1p * x1p
-  let den = rx2 * y1p * y1p + ry2 * x1p * x1p
-  var coef = den == 0 ? 0 : max(0, num / den).squareRoot()
-  if largeArc == sweep { coef = -coef }
-  let cxp = coef * (rx * y1p / ry)
-  let cyp = coef * -(ry * x1p / rx)
-  let cx = cosPhi * cxp - sinPhi * cyp + (x1 + x2) / 2
-  let cy = sinPhi * cxp + cosPhi * cyp + (y1 + y2) / 2
-  let ux = (x1p - cxp) / rx, uy = (y1p - cyp) / ry
-  let vx = (-x1p - cxp) / rx, vy = (-y1p - cyp) / ry
-  let theta1 = atan2(uy, ux)
-  var dTheta = atan2(ux * vy - uy * vx, ux * vx + uy * vy)
-  if !sweep && dTheta > 0 { dTheta -= 2 * .pi } else if sweep && dTheta < 0 { dTheta += 2 * .pi }
-
-  let segments = max(1, Int((abs(dTheta) / (.pi / 2) - 1e-7).rounded(.up)))
-  let delta = dTheta / Double(segments)
-  let t = 4.0 / 3.0 * tan(delta / 4)
-  func mapX(_ u: Double, _ v: Double) -> Double { cx + rx * cosPhi * u - ry * sinPhi * v }
-  func mapY(_ u: Double, _ v: Double) -> Double { cy + rx * sinPhi * u + ry * cosPhi * v }
-  var a1 = theta1
-  for i in 0..<segments {
-    let a2 = a1 + delta
-    let c1 = cos(a1), s1 = sin(a1), c2 = cos(a2), s2 = sin(a2)
-    let last = i == segments - 1
-    out.append(.cubic(
-      CGFloat(mapX(c1 - t * s1, s1 + t * c1)), CGFloat(mapY(c1 - t * s1, s1 + t * c1)),
-      CGFloat(mapX(c2 + t * s2, s2 - t * c2)), CGFloat(mapY(c2 + t * s2, s2 - t * c2)),
-      CGFloat(last ? x2 : mapX(c2, s2)), CGFloat(last ? y2 : mapY(c2, s2))
-    ))
-    a1 = a2
-  }
+  return commands
 }
 
 // MARK: - Basic shapes
@@ -575,143 +335,73 @@ func svgPolyCommands(_ points: String, close: Bool) -> [SvgPathCommand] {
 
 /// A `transform` list (matrix, translate, scale, rotate, skewX, skewY); nil if malformed.
 func parseSvgTransform(_ value: String) -> CGAffineTransform? {
-  var result = CGAffineTransform.identity
-  let s = Array(value.utf8)
-  var i = 0
-  while i < s.count {
-    while i < s.count && (isSvgWsp(s[i]) || s[i] == chComma) { i += 1 }
-    if i >= s.count { break }
-    let nameStart = i
-    while i < s.count && ((s[i] >= 65 && s[i] <= 90) || (s[i] >= 97 && s[i] <= 122)) { i += 1 }
-    let name = String(decoding: s[nameStart..<i], as: UTF8.self)
-    while i < s.count && isSvgWsp(s[i]) { i += 1 }
-    guard !name.isEmpty, i < s.count, s[i] == UInt8(ascii: "("),
-          let close = s[i...].firstIndex(of: UInt8(ascii: ")")) else { return nil }
-    let args = parseSvgNumberList(String(decoding: s[(i + 1)..<close], as: UTF8.self)).map { CGFloat($0) }
-    i = close + 1
-    let t: CGAffineTransform
-    switch name {
-    case "matrix":
-      guard args.count == 6 else { return nil }
-      t = CGAffineTransform(a: args[0], b: args[1], c: args[2], d: args[3], tx: args[4], ty: args[5])
-    case "translate":
-      guard args.count == 1 || args.count == 2 else { return nil }
-      t = CGAffineTransform(translationX: args[0], y: args.count == 2 ? args[1] : 0)
-    case "scale":
-      guard args.count == 1 || args.count == 2 else { return nil }
-      t = CGAffineTransform(scaleX: args[0], y: args.count == 2 ? args[1] : args[0])
-    case "rotate":
-      guard args.count == 1 || args.count == 3 else { return nil }
-      let a = args[0] * .pi / 180
-      let r = CGAffineTransform(a: cos(a), b: sin(a), c: -sin(a), d: cos(a), tx: 0, ty: 0)
-      if args.count == 3 {
-        // translate(cx cy) rotate(a) translate(-cx -cy)
-        t = CGAffineTransform(translationX: -args[1], y: -args[2])
-          .concatenating(r)
-          .concatenating(CGAffineTransform(translationX: args[1], y: args[2]))
-      } else {
-        t = r
-      }
-    case "skewX":
-      guard args.count == 1 else { return nil }
-      t = CGAffineTransform(a: 1, b: 0, c: tan(args[0] * .pi / 180), d: 1, tx: 0, ty: 0)
-    case "skewY":
-      guard args.count == 1 else { return nil }
-      t = CGAffineTransform(a: 1, b: tan(args[0] * .pi / 180), c: 0, d: 1, tx: 0, ty: 0)
-    default:
-      return nil
-    }
-    // `result t`: t applies first.
-    result = t.concatenating(result)
+  withSvgValues(value, .svgTransform) { fields in
+    guard fields.count == SvgAffineRecord.stride else { return nil }
+    return CGAffineTransform(
+      a: CGFloat(fields[SvgAffineRecord.a]), b: CGFloat(fields[SvgAffineRecord.b]),
+      c: CGFloat(fields[SvgAffineRecord.c]), d: CGFloat(fields[SvgAffineRecord.d]),
+      tx: CGFloat(fields[SvgAffineRecord.x]), ty: CGFloat(fields[SvgAffineRecord.y])
+    )
   }
-  return result
 }
 
 // MARK: - Paint and lengths
 
 /// ARGB of a CSS/SVG colour, or nil.
 func parseSvgColor(_ value: String) -> UInt32? {
-  guard let color = parseColor(value) else { return nil }
-  var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-  guard color.getRGBA(&r, &g, &b, &a) else { return nil }
-  func byte(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
-  return (byte(a) << 24) | (byte(r) << 16) | (byte(g) << 8) | byte(b)
+  parseColorArgb(value)
 }
 
 /// `fill`/`stroke` value; nil when it is not a valid paint (the attribute is then ignored).
 func parseSvgPaint(_ raw: String) -> SvgPaint? {
-  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-  if v.isEmpty { return nil }
-  let lower = v.lowercased()
-  if lower == "none" { return SvgPaint.none }
-  if lower == "currentcolor" { return .currentColor }
-  if lower == "transparent" { return .color(0) }
-  if lower.hasPrefix("url(") {
-    guard let close = v.firstIndex(of: ")") else { return SvgPaint.none }
-    let rest = v[v.index(after: close)...].trimmingCharacters(in: .whitespaces)
-    let fallback = rest.isEmpty ? nil : parseSvgPaint(rest)
-    return .ref(svgUrlFragment(String(v[...close])) ?? "", fallback: fallback)
+  let width = SvgPaintRecord.stride
+  guard let fields = NSCMason.expandCssShorthand("svg-paint", value: raw),
+        fields.count % width == 0 else { return nil }
+  var paint: SvgPaint?
+  for start in stride(from: fields.count - width, through: 0, by: -width) {
+    let value = fields[start + SvgPaintRecord.value]
+    switch fields[start + SvgPaintRecord.kind] {
+    case "none": paint = SvgPaint.none
+    case "currentcolor": paint = .currentColor
+    case "color": paint = UInt32(value).map { .color($0) }
+    case "ref": paint = .ref(value, fallback: paint)
+    default: return nil
+    }
   }
-  return parseSvgColor(v).map { .color($0) }
+  return paint
 }
 
 /// The id in a local `url(#id)` (quotes allowed), else nil.
 func svgUrlFragment(_ value: String) -> String? {
-  let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard v.lowercased().hasPrefix("url("), let close = v.firstIndex(of: ")") else { return nil }
-  let inner = v[v.index(v.startIndex, offsetBy: 4)..<close]
-    .trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-    .trimmingCharacters(in: .whitespaces)
-  guard inner.hasPrefix("#"), inner.count > 1 else { return nil }
-  return String(inner.dropFirst())
+  NSCMason.expandCssShorthand("svg-url-fragment", value: value)?.first
 }
 
-/// A length in user units: plain, px, the absolute units, em/ex at 16px, % of `percentBasis`.
+private func svgLength(_ fields: UnsafeBufferPointer<Double>, _ index: Int, _ basis: CGFloat) -> CGFloat {
+  let points = fields[index + SvgLengthComponentsRecord.length]
+  let percent = fields[index + SvgLengthComponentsRecord.percent]
+  return CGFloat(points) + CGFloat(percent) * (basis / 100)
+}
+
 func parseSvgLength(_ raw: String?, _ percentBasis: CGFloat) -> CGFloat? {
-  guard let v = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty else { return nil }
-  var sc = SvgScanner(v)
-  guard let n = sc.number() else { return nil }
-  let unit = sc.rest.trimmingCharacters(in: .whitespaces).lowercased()
-  let scale: Double
-  switch unit {
-  case "", "px": scale = 1
-  case "%": scale = Double(percentBasis) / 100
-  case "pt": scale = 4.0 / 3.0
-  case "pc": scale = 16
-  case "in": scale = 96
-  case "cm": scale = 96 / 2.54
-  case "mm": scale = 96 / 25.4
-  case "em": scale = 16
-  case "ex": scale = 8
-  default: return nil
+  guard let raw else { return nil }
+  return withSvgValues(raw, .svgLength) { fields in
+    guard fields.count == SvgLengthComponentsRecord.stride else { return nil }
+    return svgLength(fields, 0, percentBasis)
   }
-  return CGFloat(n * scale)
 }
 
 private func parseSvgOpacity(_ raw: String) -> CGFloat? {
-  let v = raw.trimmingCharacters(in: .whitespaces)
-  let n: Double?
-  if v.hasSuffix("%") {
-    n = Double(v.dropLast().trimmingCharacters(in: .whitespaces)).map { $0 / 100 }
-  } else {
-    n = Double(v)
-  }
-  return n.map { CGFloat(min(max($0, 0), 1)) }
+  parseSvgScalar(raw, .svgOpacity)
 }
 
-/// `preserveAspectRatio`: (alignX, alignY, slice); nil align means `none`.
 func parseSvgPreserveAspectRatio(_ raw: String?) -> (Int?, Int?, Bool) {
-  guard let raw = raw?.trimmingCharacters(in: .whitespaces) else { return (0, 0, false) }
-  let parts = raw.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" }).map(String.init)
-  let align = parts.first ?? ""
-  let slice = parts.count > 1 && parts[1] == "slice"
-  if align == "none" { return (nil, nil, slice) }
-  if align.count == 8 && align.hasPrefix("x") {
-    let chars = Array(align)
-    let xs = String(chars[1..<4]), ys = String(chars[5..<8])
-    return (xs == "Min" ? -1 : xs == "Max" ? 1 : 0, ys == "Min" ? -1 : ys == "Max" ? 1 : 0, slice)
+  guard let raw else { return (0, 0, false) }
+  return withSvgValues(raw, .svgAspectRatio) { fields in
+    guard fields.count == SvgAspectRatioRecord.stride else { return (0, 0, false) }
+    let slice = fields[SvgAspectRatioRecord.slice] != 0
+    if fields[SvgAspectRatioRecord.uniform] == 0 { return (nil, nil, slice) }
+    return (Int(fields[SvgAspectRatioRecord.alignX]), Int(fields[SvgAspectRatioRecord.alignY]), slice)
   }
-  return (0, 0, slice)
 }
 
 // MARK: - Bounds
@@ -875,127 +565,64 @@ struct SvgCssRule {
   let order: Int
 }
 
-private func isCssIdentChar(_ c: Character) -> Bool {
-  c.isLetter || c.isNumber || c == "-" || c == "_" || (c.unicodeScalars.first?.value ?? 0) > 0x7F
+private func decodeSvgCssDeclarations(_ fields: ArraySlice<String>) -> [SvgCssDeclaration] {
+  let stride = SvgCssDeclarationRecord.stride
+  guard fields.count % stride == 0 else { return [] }
+  return Swift.stride(from: fields.startIndex, to: fields.endIndex, by: stride).map { offset in
+    SvgCssDeclaration(
+      name: fields[offset + SvgCssDeclarationRecord.name],
+      value: fields[offset + SvgCssDeclarationRecord.value],
+      important: fields[offset + SvgCssDeclarationRecord.important] == "1"
+    )
+  }
 }
 
-/// One compound selector; nil for anything else (combinators, attributes, pseudo-classes).
-func parseSvgCssSelector(_ raw: String) -> SvgCssSelector? {
-  let s = Array(raw.trimmingCharacters(in: .whitespacesAndNewlines))
-  if s.isEmpty { return nil }
-  var i = 0
-  var type: String? = nil
-  if s[0] == "*" {
-    i = 1
-  } else if isCssIdentChar(s[0]) {
-    while i < s.count && isCssIdentChar(s[i]) { i += 1 }
-    type = String(s[0..<i])
-  }
-  var ids: [String] = [], classes: [String] = []
-  while i < s.count {
-    let c = s[i]
-    if c != "." && c != "#" { return nil }
-    i += 1
-    let start = i
-    while i < s.count && isCssIdentChar(s[i]) { i += 1 }
-    if i == start { return nil }
-    if c == "." { classes.append(String(s[start..<i])) } else { ids.append(String(s[start..<i])) }
-  }
-  return SvgCssSelector(type: type, ids: ids, classes: classes)
-}
-
-/// `name: value` pairs split on `;` outside quotes and parentheses.
 func parseSvgCssDeclarations(_ text: String) -> [SvgCssDeclaration] {
-  var out: [SvgCssDeclaration] = []
-  func take(_ decl: Substring) {
-    guard let colon = decl.firstIndex(of: ":") else { return }
-    let name = decl[..<colon].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    var value = decl[decl.index(after: colon)...].trimmingCharacters(in: .whitespacesAndNewlines)
-    var important = false
-    if let bang = value.lastIndex(of: "!"),
-       value[value.index(after: bang)...].trimmingCharacters(in: .whitespaces).lowercased() == "important" {
-      important = true
-      value = value[..<bang].trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    if !name.isEmpty && !value.isEmpty { out.append(SvgCssDeclaration(name: name, value: value, important: important)) }
-  }
-  var depth = 0
-  var quote: Character? = nil
-  var start = text.startIndex
-  var i = text.startIndex
-  while i < text.endIndex {
-    let c = text[i]
-    if let q = quote {
-      if c == q { quote = nil }
-    } else if c == "\"" || c == "'" {
-      quote = c
-    } else if c == "(" {
-      depth += 1
-    } else if c == ")" {
-      if depth > 0 { depth -= 1 }
-    } else if c == ";" && depth == 0 {
-      take(text[start..<i])
-      start = text.index(after: i)
-    }
-    i = text.index(after: i)
-  }
-  take(text[start...])
-  return out
+  guard let fields = NSCMason.expandCssShorthand("svg-css-declarations", value: text) else { return [] }
+  return decodeSvgCssDeclarations(fields[...])
 }
 
-/// Rules of a `<style>` sheet; at-rules are skipped.
+private func readSvgCssSelector(_ fields: inout ArraySlice<String>) -> SvgCssSelector? {
+  let header = fields.startIndex
+  guard fields.count >= SvgCssSelectorRecord.stride,
+        let ids = Int(fields[header + SvgCssSelectorRecord.idCount]), ids >= 0,
+        let classes = Int(fields[header + SvgCssSelectorRecord.classCount]), classes >= 0 else { return nil }
+  let type = fields[header + SvgCssSelectorRecord.type]
+  fields = fields.dropFirst(SvgCssSelectorRecord.stride)
+  guard ids <= fields.count, classes <= fields.count - ids else { return nil }
+  let selector = SvgCssSelector(
+    type: type.isEmpty ? nil : type,
+    ids: Array(fields.prefix(ids)),
+    classes: Array(fields.dropFirst(ids).prefix(classes))
+  )
+  fields = fields.dropFirst(ids + classes)
+  return selector
+}
+
 func parseSvgStyleSheet(_ raw: String) -> [SvgCssRule] {
-  // Comments out first.
-  var css = ""
-  var rest = Substring(raw)
-  while let open = rest.range(of: "/*") {
-    css += rest[..<open.lowerBound]
-    css += " "
-    guard let close = rest[open.upperBound...].range(of: "*/") else { rest = ""; break }
-    rest = rest[close.upperBound...]
-  }
-  css += rest
-  let s = Array(css)
-  let n = s.count
+  guard let records = NSCMason.expandCssShorthand("svg-css-stylesheet", value: raw) else { return [] }
+  var fields = records[...]
   var rules: [SvgCssRule] = []
-  var order = 0
-  var i = 0
-  func index(of c: Character, from: Int) -> Int {
-    var k = from
-    while k < n && s[k] != c { k += 1 }
-    return k
-  }
-  while i < n {
-    while i < n && s[i].isWhitespace { i += 1 }
-    if i >= n { break }
-    if s[i] == "@" {
-      let semi = index(of: ";", from: i), brace = index(of: "{", from: i)
-      if semi < brace {
-        i = semi + 1
-        continue
-      }
-      var depth = 0
-      var j = brace
-      while j < n {
-        if s[j] == "{" { depth += 1 } else if s[j] == "}" { depth -= 1; if depth == 0 { break } }
-        j += 1
-      }
-      i = j + 1
-      continue
+  while fields.count >= SvgCssRuleRecord.stride {
+    let header = fields.startIndex
+    guard let selectors = Int(fields[header + SvgCssRuleRecord.selectorCount]), selectors >= 0,
+          let declarations = Int(fields[header + SvgCssRuleRecord.declarationCount]), declarations >= 0 else { return [] }
+    fields = fields.dropFirst(SvgCssRuleRecord.stride)
+    guard selectors <= fields.count / SvgCssSelectorRecord.stride else { return [] }
+    var decoded: [SvgCssSelector] = []
+    for _ in 0..<selectors {
+      guard let selector = readSvgCssSelector(&fields) else { return [] }
+      decoded.append(selector)
     }
-    let open = index(of: "{", from: i)
-    if open >= n { break }
-    let close = index(of: "}", from: open)
-    let declarations = parseSvgCssDeclarations(String(s[(open + 1)..<close]))
-    for sel in String(s[i..<open]).split(separator: ",", omittingEmptySubsequences: false) {
-      if let selector = parseSvgCssSelector(String(sel)) {
-        rules.append(SvgCssRule(selector: selector, declarations: declarations, order: order))
-        order += 1
-      }
+    guard declarations <= fields.count / SvgCssDeclarationRecord.stride else { return [] }
+    let size = declarations * SvgCssDeclarationRecord.stride
+    let declarationsForRule = decodeSvgCssDeclarations(fields.prefix(size))
+    fields = fields.dropFirst(size)
+    for selector in decoded {
+      rules.append(SvgCssRule(selector: selector, declarations: declarationsForRule, order: rules.count))
     }
-    i = close + 1
   }
-  return rules
+  return fields.isEmpty ? rules : []
 }
 
 // MARK: - Document
@@ -1043,101 +670,35 @@ enum SvgBaseline { case alphabetic, middle, central, hanging, textTop, textBotto
 
 /// The families of a `font-family` list, unquoted.
 func parseSvgFontFamilies(_ raw: String) -> [String] {
-  var out: [String] = []
-  var current = ""
-  var quote: Character? = nil
-  for c in raw {
-    if let q = quote {
-      if c == q { quote = nil } else { current.append(c) }
-    } else if c == "\"" || c == "'" {
-      quote = c
-    } else if c == "," {
-      let f = current.trimmingCharacters(in: .whitespacesAndNewlines)
-      if !f.isEmpty { out.append(f) }
-      current = ""
-    } else {
-      current.append(c)
-    }
-  }
-  let f = current.trimmingCharacters(in: .whitespacesAndNewlines)
-  if !f.isEmpty { out.append(f) }
-  return out
+  NSCMason.expandCssShorthand("font-family", value: raw) ?? []
 }
-
-/// A length where `em` is `fontSize` and `%` is a fraction of `percentBasis`.
-private func parseSvgFontRelativeLength(_ raw: String, _ fontSize: CGFloat, _ percentBasis: CGFloat) -> CGFloat? {
-  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  var sc = SvgScanner(v)
-  guard let n = sc.number() else { return nil }
-  switch sc.rest.trimmingCharacters(in: .whitespaces) {
-  case "em": return CGFloat(n) * fontSize
-  case "ex": return CGFloat(n) * fontSize / 2
-  case "rem": return CGFloat(n) * 16
-  default: return parseSvgLength(v, percentBasis)
-  }
-}
-
-private let svgFontSizeKeywords: [String: CGFloat] = [
-  "xx-small": 9, "x-small": 10, "small": 13, "medium": 16, "large": 18, "x-large": 24, "xx-large": 32, "xxx-large": 48,
-]
 
 /// A `font-size`; `em` and `%` are relative to the parent's size.
 func parseSvgFontSize(_ raw: String, parent: CGFloat) -> CGFloat? {
-  let v = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  if let k = svgFontSizeKeywords[v] { return k }
-  if v == "larger" { return parent * 1.2 }
-  if v == "smaller" { return parent / 1.2 }
-  guard let size = parseSvgFontRelativeLength(v, parent, parent), size >= 0 else { return nil }
-  return size
+  NSCMason.expandCssShorthand("svg-font-size:\(parent)", value: raw)?.first
+    .flatMap(Double.init).map { CGFloat($0) }
+}
+
+private func parseSvgFontSpacing(_ raw: String, fontSize: CGFloat) -> CGFloat? {
+  NSCMason.expandCssShorthand("svg-font-spacing:\(fontSize)", value: raw)?.first
+    .flatMap(Double.init).map { CGFloat($0) }
 }
 
 /// A `font-weight` as a number; `bolder`/`lighter` step from the parent's.
 func parseSvgFontWeight(_ raw: String, parent: Int) -> Int? {
-  switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-  case "normal": return 400
-  case "bold": return 700
-  case "bolder": return parent < 350 ? 400 : parent < 550 ? 700 : 900
-  case "lighter": return parent < 550 ? 100 : parent < 750 ? 400 : 700
-  case let v:
-    guard let n = Double(v), n >= 1, n <= 1000 else { return nil }
-    return Int(n)
-  }
+  NSCMason.expandCssShorthand("svg-font-weight:\(parent)", value: raw)?.first.flatMap { Int($0) }
 }
 
-private let svgFontStretchKeywords: Set<String> = [
-  "normal", "small-caps", "ultra-condensed", "extra-condensed", "condensed", "semi-condensed",
-  "semi-expanded", "expanded", "extra-expanded", "ultra-expanded",
-]
-
-/// The `font` shorthand: [style || weight || variant || stretch] size[/line-height] family.
+/// Apply the Rust-parsed font shorthand as one update.
 private func applySvgFontShorthand(_ raw: String, _ s: inout SvgStyleState, parentSize: CGFloat, parentWeight: Int) {
-  var rest = Substring(raw.trimmingCharacters(in: .whitespacesAndNewlines))
-  var italic = false
-  var weight = 400
-  while !rest.isEmpty {
-    let end = rest.firstIndex(where: { $0.isWhitespace }) ?? rest.endIndex
-    let token = String(rest[..<end])
-    let lower = token.lowercased()
-    let after = rest[end...].drop(while: { $0.isWhitespace })
-    if lower == "italic" || lower == "oblique" {
-      italic = true
-    } else if svgFontStretchKeywords.contains(lower) {
-      // nothing to apply
-    } else if let w = parseSvgFontWeight(lower, parent: parentWeight), lower != "normal" {
-      weight = w
-    } else {
-      let sizeText = lower.split(separator: "/", maxSplits: 1).first.map(String.init) ?? lower
-      guard let size = parseSvgFontSize(sizeText, parent: parentSize) else { return }
-      let families = parseSvgFontFamilies(String(after))
-      if families.isEmpty { return }
-      s.italic = italic
-      s.fontWeight = weight
-      s.fontSize = size
-      s.fontFamilies = families
-      return
-    }
-    rest = after
-  }
+  guard let fields = NSCMason.expandCssShorthand("svg-font:\(parentSize):\(parentWeight)", value: raw),
+        fields.count > SvgFontPrefixRecord.stride,
+        let weight = Int(fields[SvgFontPrefixRecord.weight]),
+        let size = Double(fields[SvgFontPrefixRecord.size]) else { return }
+  s.italic = fields[SvgFontPrefixRecord.italic] == "1"
+  s.fontWeight = weight
+  s.fontSize = CGFloat(size)
+  s.fontFamilies = Array(fields.dropFirst(SvgFontPrefixRecord.stride))
 }
 
 /// A marker property: `.some(nil)` for none, `.some(id)` for a reference, nil when invalid.
@@ -1261,17 +822,10 @@ private func applySvgStyle(_ parent: SvgStyleState, _ props: [String: String]) -
   case "bevel": s.lineJoin = .bevel
   default: break
   }
-  if let v = prop("stroke-miterlimit"), let m = Double(v), m >= 1 { s.miterLimit = CGFloat(m) }
+  if let v = prop("stroke-miterlimit"), let m = parseSvgScalar(v, .svgNumber), m >= 1 { s.miterLimit = m }
   if let v = prop("stroke-dasharray") {
-    if v == "none" {
-      s.dashArray = nil
-    } else {
-      let nums = parseSvgNumberList(v).map { CGFloat($0) }
-      if nums.isEmpty || nums.contains(where: { $0 < 0 }) || nums.allSatisfy({ $0 == 0 }) {
-        s.dashArray = nil
-      } else {
-        s.dashArray = nums.count % 2 == 1 ? nums + nums : nums
-      }
+    s.dashArray = withSvgValues(v, .svgDashArray) { fields in
+      fields.isEmpty ? nil : fields.map { CGFloat($0) }
     }
   }
   if let v = prop("stroke-dashoffset"), let o = parseSvgLength(v, 16) { s.dashOffset = o }
@@ -1284,10 +838,9 @@ private func applySvgStyle(_ parent: SvgStyleState, _ props: [String: String]) -
   }
   if let v = prop("font-size"), let size = parseSvgFontSize(v, parent: parent.fontSize) { s.fontSize = size }
   if let v = prop("font-weight"), let w = parseSvgFontWeight(v, parent: parent.fontWeight) { s.fontWeight = w }
-  switch prop("font-style") {
-  case "italic", "oblique": s.italic = true
-  case "normal": s.italic = false
-  default: break
+  if let value = prop("font-style"),
+     let code = NSCMason.expandCssShorthand("font-style", value: value)?.first {
+    s.italic = code != "0"
   }
   switch prop("text-anchor") {
   case "start": s.textAnchor = .start
@@ -1305,12 +858,8 @@ private func applySvgStyle(_ parent: SvgStyleState, _ props: [String: String]) -
   case "mathematical": s.baseline = .mathematical
   default: break
   }
-  if let v = prop("letter-spacing") {
-    if v == "normal" { s.letterSpacing = 0 } else if let l = parseSvgFontRelativeLength(v, s.fontSize, s.fontSize) { s.letterSpacing = l }
-  }
-  if let v = prop("word-spacing") {
-    if v == "normal" { s.wordSpacing = 0 } else if let l = parseSvgFontRelativeLength(v, s.fontSize, s.fontSize) { s.wordSpacing = l }
-  }
+  if let v = prop("letter-spacing"), let spacing = parseSvgFontSpacing(v, fontSize: s.fontSize) { s.letterSpacing = spacing }
+  if let v = prop("word-spacing"), let spacing = parseSvgFontSpacing(v, fontSize: s.fontSize) { s.wordSpacing = spacing }
   switch prop("xml:space") {
   case "preserve": s.preserveSpace = true
   case "default": s.preserveSpace = false
@@ -1523,26 +1072,17 @@ private struct SvgTextChar {
 
 /// Lengths in a list attribute such as a text's `x` or `dx`.
 private func parseSvgLengthList(_ raw: String?, _ percentBasis: CGFloat) -> [CGFloat] {
-  guard let raw = raw else { return [] }
-  var out: [CGFloat] = []
-  for token in raw.split(whereSeparator: { $0 == "," || $0.isWhitespace }) {
-    guard let v = parseSvgLength(String(token), percentBasis) else { break }
-    out.append(v)
+  guard let raw else { return [] }
+  return withSvgValues(raw, .svgLengthList) { fields in
+    let stride = SvgLengthComponentsRecord.stride
+    guard fields.count % stride == 0 else { return [] }
+    return Swift.stride(from: 0, to: fields.count, by: stride).map { svgLength(fields, $0, percentBasis) }
   }
-  return out
 }
 
-/// An angle in degrees: plain, or with `deg`, `rad`, `grad` or `turn`.
+/// An angle in degrees.
 func parseSvgAngle(_ raw: String) -> CGFloat? {
-  var sc = SvgScanner(raw.trimmingCharacters(in: .whitespacesAndNewlines))
-  guard let n = sc.number() else { return nil }
-  switch sc.rest.trimmingCharacters(in: .whitespaces).lowercased() {
-  case "", "deg": return CGFloat(n)
-  case "rad": return CGFloat(n * 180 / .pi)
-  case "grad": return CGFloat(n * 0.9)
-  case "turn": return CGFloat(n * 360)
-  default: return nil
-  }
+  parseSvgScalar(raw, .svgAngle)
 }
 
 func svgTranslated(_ commands: [SvgPathCommand], _ dx: CGFloat, _ dy: CGFloat) -> [SvgPathCommand] {
@@ -1753,15 +1293,8 @@ private final class SvgBuilder {
     var last: CGFloat = 0
     for stop in stopNodes {
       let props = cascade(stop)
-      var offset: CGFloat = 0
-      if let o = stop.attrs["offset"]?.trimmingCharacters(in: .whitespaces) {
-        if o.hasSuffix("%") {
-          offset = Float(o.dropLast().trimmingCharacters(in: .whitespaces)).map { CGFloat($0 / 100) } ?? 0
-        } else {
-          offset = Float(o).map { CGFloat($0) } ?? 0
-        }
-      }
-      last = max(last, min(max(offset, 0), 1))
+      let offset = stop.attrs["offset"].flatMap(parseSvgOpacity) ?? 0
+      last = max(last, offset)
       let opacity = props["stop-opacity"].flatMap(parseSvgOpacity) ?? 1
       var raw = props["stop-color"]?.trimmingCharacters(in: .whitespaces) ?? ""
       if raw.isEmpty || raw == "inherit" { raw = "black" }

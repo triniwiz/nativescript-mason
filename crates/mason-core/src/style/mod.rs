@@ -1,3 +1,4 @@
+pub mod css;
 use crate::style::utils::{
     dimension_from_type_value, dimension_to_type_value, get_style_data_bool, get_style_data_f32,
     get_style_data_i8, get_style_data_u8, length_percentage_auto_from_type_value,
@@ -45,6 +46,7 @@ pub(crate) fn dimension_to_length_percentage_auto(value: Dimension) -> LengthPer
     match value.tag() {
         CompactLength::LENGTH_TAG => LengthPercentageAuto::length(value.value()),
         CompactLength::PERCENT_TAG => LengthPercentageAuto::percent(value.value()),
+        CompactLength::CALC_TAG => LengthPercentageAuto::calc(value.into_raw().calc_value()),
         CompactLength::AUTO_TAG => LengthPercentageAuto::auto(),
         _ => LengthPercentageAuto::auto(),
     }
@@ -66,37 +68,39 @@ impl std::fmt::Display for ListStylePosition {
     }
 }
 
+// <style-keys:border-style> generated from tools/scripts/style-keys/style-keys.schema
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub enum BorderStyle {
     #[default]
-    None,
-    Hidden,
-    Dotted,
-    Dashed,
-    Solid,
-    Double,
-    Groove,
-    Ridge,
-    Inset,
-    Outset,
+    None = 0,
+    Hidden = 1,
+    Dotted = 2,
+    Dashed = 3,
+    Solid = 4,
+    Double = 5,
+    Groove = 6,
+    Ridge = 7,
+    Inset = 8,
+    Outset = 9,
 }
 
 impl std::fmt::Display for BorderStyle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BorderStyle::None => write!(f, "none"),
-            BorderStyle::Hidden => write!(f, "hidden"),
-            BorderStyle::Dotted => write!(f, "dotted"),
-            BorderStyle::Dashed => write!(f, "dashed"),
-            BorderStyle::Solid => write!(f, "solid"),
-            BorderStyle::Double => write!(f, "double"),
-            BorderStyle::Groove => write!(f, "groove"),
-            BorderStyle::Ridge => write!(f, "ridge"),
-            BorderStyle::Inset => write!(f, "inset"),
-            BorderStyle::Outset => write!(f, "outset"),
-        }
+        f.write_str(match self {
+            Self::None => "none",
+            Self::Hidden => "hidden",
+            Self::Dotted => "dotted",
+            Self::Dashed => "dashed",
+            Self::Solid => "solid",
+            Self::Double => "double",
+            Self::Groove => "groove",
+            Self::Ridge => "ridge",
+            Self::Inset => "inset",
+            Self::Outset => "outset",
+        })
     }
 }
+// </style-keys:border-style>
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub enum Overflow {
@@ -597,9 +601,9 @@ pub enum StyleKeys {
     FONT_METRICS_CAP_HEIGHT_OFFSET = 293, // f32 (293-296)
     VERTICAL_ALIGN_OFFSET_OFFSET = 297,   // f32 (297-300)
     VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301,
-    VERTICAL_ALIGN_ENUM_OFFSET = 302, // f32 (302-305)
-    FIRST_BASELINE_OFFSET = 306,      // f32 (306-309)
-    Z_INDEX = 310,                    // i32 (310-313)
+    VERTICAL_ALIGN_ENUM_OFFSET = 302,
+    FIRST_BASELINE_OFFSET = 306, // f32 (306-309), preserves the three reserved bytes after vertical-align
+    Z_INDEX = 310,               // i32 (310-313)
     ITEM_IS_LIST = 314,
     ITEM_IS_LIST_ITEM = 315,
     LIST_STYLE_POSITION = 316,
@@ -751,7 +755,19 @@ pub enum StyleKeys {
     TEXT_COMBINE_UPRIGHT_STATE = 739,
     TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
     TEXT_SPACING_TRIM_STATE = 741,
-    VISIBILITY = 742, // 0 visible, 1 hidden, 2 collapse
+    VISIBILITY = 742,               // 0 visible, 1 hidden, 2 collapse
+    FONT_FEATURES_REVISION = 743,   // Rust-owned OpenType feature settings change counter
+    BOX_SHADOW_REVISION = 744,      // u32 (744-747), Rust-owned box shadow records change counter
+    TEXT_SHADOW_REVISION = 748,     // u32 (748-751), Rust-owned text shadow records change counter
+    FILTER_REVISION = 752,          // u32 (752-755), Rust-owned filter records change counter
+    BACKDROP_FILTER_REVISION = 756, // u32 (756-759), Rust-owned backdrop-filter records change counter
+    BACKGROUND_REVISION = 760,      // u32 (760-763), Rust-owned background layers change counter
+    TRANSFORM_REVISION = 764,       // u32 (764-767), Rust-owned CSS transform list change counter
+    CLIP_PATH_REVISION = 768,       // u32 (768-771), Rust-owned CSS clip-path change counter
+    MASK_REVISION = 772,            // u32 (772-775), Rust-owned mask layer list change counter
+    BORDER_IMAGE_REVISION = 776,    // u32 (776-779), Rust-owned border-image change counter
+    MASK_BORDER_REVISION = 780,     // u32 (780-783), Rust-owned mask-border change counter
+    TEXT_OVERFLOW_TOKEN = 784,      // i64 (784-791), Rust-owned text-overflow string handle
     // </style-keys:offsets>
 }
 
@@ -884,6 +900,7 @@ bitflags! {
         const TEXT_COMBINE_UPRIGHT = 1u128 << 83;
         const TEXT_SPACING_TRIM = 1u128 << 84;
         const VISIBILITY = 1u128 << 85;
+        const FONT_FEATURE_SETTINGS = 1u128 << 86;
         // </style-keys:state>
     }
 }
@@ -972,6 +989,191 @@ impl PartialEq for NonBufferStyleSnapshot {
 }
 
 impl Style {
+    /// Stores a CSS math expression for a size to be evaluated during layout.
+    pub fn set_css_layout_length(&mut self, property: &str, value: &str, context: css::LengthContext) -> bool {
+        self.set_css_layout_length_in_state(property, value, context, false)
+    }
+
+    pub(crate) fn set_css_layout_length_in_state(&mut self, property: &str, value: &str, context: css::LengthContext, pseudo: bool) -> bool {
+        use css::layout_length::{self, LayoutLength};
+
+        let Some((kind, offset, stamp, signed)) = layout_length::field(property) else { return false };
+        let Some(length) = LayoutLength::parse(value, context, signed) else { return false };
+        self.prepare_mut();
+        self.write_css_layout_length(&arena::LayoutLengthRecord { kind, offset, length, pseudo_stamp: pseudo.then_some(stamp) }, stamp);
+        true
+    }
+
+    fn write_css_layout_length(&mut self, record: &arena::LayoutLengthRecord, stamp: css::layout_length::Stamp) {
+        use css::layout_length::{self, Stamp};
+        match stamp {
+            Stamp::None => {},
+            Stamp::Physical(order, count, mask) => self.stamp_physical(order, count, mask),
+            Stamp::Logical(order, slot) => {
+                let stamp = self.next_logical_stamp();
+                self.data_mut()[order as usize + slot] = stamp;
+            }
+        }
+        let data = self.data_mut();
+        set_style_data_i8(data, record.kind, layout_length::BUFFER_TYPE);
+        set_style_data_f32(data, record.offset, layout_length::handle_to_buffer(record.length.handle()));
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_layout_length(self.handle, record.clone());
+    }
+
+    pub(crate) fn merge_pseudo_css_layout_lengths(&mut self, pseudo: &Style) {
+        let arena = unsafe { &*pseudo.arena };
+        let records: Vec<_> = arena.css_layout_lengths(pseudo.handle).iter()
+            .filter(|record| record.matches(pseudo.data()) && (record.pseudo_stamp.is_some() || record.matches(self.data())))
+            .cloned().collect();
+        for mut record in records {
+            if let Some(stamp) = record.pseudo_stamp.take() {
+                self.write_css_layout_length(&record, stamp);
+            } else {
+                let arena = unsafe { &mut *self.arena };
+                arena.set_css_layout_length(self.handle, record);
+            }
+        }
+    }
+
+    pub(crate) fn has_pseudo_css_layout_lengths(&self) -> bool {
+        let arena = unsafe { &*self.arena };
+        arena.css_layout_lengths(self.handle).iter()
+            .any(|record| record.pseudo_stamp.is_some() && record.matches(self.data()))
+    }
+
+    pub(crate) fn prune_css_layout_lengths(&mut self) {
+        let arena = unsafe { &mut *self.arena };
+        arena.prune_css_layout_lengths(self.handle);
+    }
+
+    pub fn css_layout_length(&self, property: &str) -> Option<String> {
+        use css::layout_length;
+        let (kind, offset, _, _) = layout_length::field(property)?;
+        let data = self.data();
+        if get_style_data_i8(data, kind) != layout_length::BUFFER_TYPE {
+            return None;
+        }
+        layout_length::source(layout_length::handle_from_buffer(get_style_data_f32(data, offset)))
+    }
+
+    pub fn set_text_overflow(&mut self, overflow: css::text_overflow::TextOverflow) {
+        self.prepare_mut();
+        let arena = unsafe { &mut *self.arena };
+        arena.set_text_overflow(self.handle, overflow);
+    }
+
+    pub fn css_records(&self, kind: css::StyleRecordKind) -> Option<Arc<[f64]>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_records(self.handle, kind).cloned()
+    }
+
+    pub fn css_clip_path(&self) -> Option<Arc<css::clip_path::ClipPath>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_clip_path(self.handle).cloned()
+    }
+
+    pub fn css_mask(&self) -> Option<Arc<[css::mask::MaskLayer]>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_mask(self.handle).cloned()
+    }
+
+    pub fn css_nine_slice(&self, kind: css::nine_slice::Kind) -> Option<Arc<css::nine_slice::NineSlice>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_nine_slice(self.handle, kind).cloned()
+    }
+
+    pub fn set_css_nine_slice(
+        &mut self,
+        kind: css::nine_slice::Kind,
+        value: Option<Arc<css::nine_slice::NineSlice>>,
+    ) {
+        let value = value.filter(|value| value.source.is_some());
+        let arena = unsafe { &*self.arena };
+        if arena.css_nine_slice(self.handle, kind) == value.as_ref() {
+            return;
+        }
+        self.prepare_mut();
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_nine_slice(self.handle, kind, value);
+    }
+
+    pub fn set_css_mask(&mut self, mask: Option<Arc<[css::mask::MaskLayer]>>) {
+        let mask = mask.filter(|layers| layers.iter().any(|layer| layer.paint.image.is_some()));
+        let arena = unsafe { &*self.arena };
+        if arena.css_mask(self.handle) == mask.as_ref() {
+            return;
+        }
+        self.prepare_mut();
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_mask(self.handle, mask);
+    }
+
+    pub fn set_css_clip_path(&mut self, clip: Option<Arc<css::clip_path::ClipPath>>) {
+        let arena = unsafe { &*self.arena };
+        if arena.css_clip_path(self.handle) == clip.as_ref() {
+            return;
+        }
+        self.prepare_mut();
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_clip_path(self.handle, clip);
+    }
+
+    pub fn css_background(&self) -> Option<Arc<[css::background::Layer]>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_background(self.handle).cloned()
+    }
+
+    pub fn css_transform(&self) -> Option<Arc<css::transform::TransformProgram>> {
+        let arena = unsafe { &*self.arena };
+        arena.css_transform(self.handle).cloned()
+    }
+
+    pub fn set_css_transform(&mut self, transform: Option<Arc<css::transform::TransformProgram>>) {
+        let transform = transform.filter(|program| !program.is_empty());
+        let arena = unsafe { &*self.arena };
+        let legacy = self.transform_count() != 0 || self.transform_flags() != 0;
+        if !legacy && arena.css_transform(self.handle) == transform.as_ref() {
+            return;
+        }
+        self.prepare_mut();
+        if legacy {
+            self.clear_transform();
+        }
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_transform(self.handle, transform);
+    }
+
+    pub fn set_css_background(&mut self, layers: Arc<[css::background::Layer]>) {
+        let arena = unsafe { &*self.arena };
+        let previous = arena.css_background(self.handle).map_or(&[][..], AsRef::as_ref);
+        if std::ptr::eq(previous, layers.as_ref()) || previous == layers.as_ref() {
+            return;
+        }
+        self.prepare_mut();
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_background(self.handle, layers);
+    }
+
+    pub fn set_css_records(&mut self, kind: css::StyleRecordKind, records: Arc<[f64]>) {
+        let arena = unsafe { &*self.arena };
+        let previous = arena.css_records(self.handle, kind).map(AsRef::as_ref);
+        let text_shadow_state = u8::from(!records.is_empty());
+        let is_text_shadow = kind == css::StyleRecordKind::TextShadow;
+        let state_changed = is_text_shadow
+            && get_style_data_u8(self.data(), StyleKeys::TEXT_SHADOW_STATE) != text_shadow_state;
+        let unchanged = previous.map_or(records.is_empty() && !kind.stores_empty(), |previous| previous == records.as_ref());
+        if unchanged && !state_changed {
+            return;
+        }
+        self.prepare_mut();
+        if is_text_shadow {
+            set_style_data_u8(self.data_mut(), StyleKeys::TEXT_SHADOW_STATE, text_shadow_state);
+        }
+        let arena = unsafe { &mut *self.arena };
+        arena.set_css_records(self.handle, kind, records);
+    }
+
     pub(crate) fn non_buffer_snapshot(&self) -> NonBufferStyleSnapshot {
         NonBufferStyleSnapshot(self.grid.clone())
     }
@@ -1215,10 +1417,14 @@ impl Style {
             set_style_data_f32(buffer, StyleKeys::BORDER_BOTTOM_VALUE, 0.0);
         }
 
-        set_style_data_i8(buffer, StyleKeys::BORDER_LEFT_STYLE, 4); // Solid = 4
-        set_style_data_i8(buffer, StyleKeys::BORDER_RIGHT_STYLE, 4);
-        set_style_data_i8(buffer, StyleKeys::BORDER_TOP_STYLE, 4);
-        set_style_data_i8(buffer, StyleKeys::BORDER_BOTTOM_STYLE, 4);
+        for key in [
+            StyleKeys::BORDER_LEFT_STYLE,
+            StyleKeys::BORDER_RIGHT_STYLE,
+            StyleKeys::BORDER_TOP_STYLE,
+            StyleKeys::BORDER_BOTTOM_STYLE,
+        ] {
+            set_style_data_i8(buffer, key, BorderStyle::Solid as i8);
+        }
 
         set_style_data_u32(buffer, StyleKeys::BACKGROUND_COLOR, 0x00000000);
     }
@@ -2717,11 +2923,15 @@ impl Style {
     }
 
     pub fn set_grid_template_rows_css(&mut self, value: &str) {
+        self.set_grid_template_rows_css_with_context(value, css::LengthContext::for_scale(self.get_device_scale()));
+    }
+
+    pub(crate) fn set_grid_template_rows_css_with_context(&mut self, value: &str, context: css::LengthContext) {
         if value.is_empty() {
             self.grid_mut().grid_template_rows = vec![];
             self.grid_mut().grid_template_rows_raw = None;
         } else if let Ok(template) =
-            crate::utils::parse_grid_template(value, self.get_device_scale())
+            crate::utils::parse_grid_template_with_context(value, context)
         {
             self.grid_mut().grid_template_rows = template.0;
             self.grid_mut().grid_template_row_names = template.1;
@@ -2733,11 +2943,15 @@ impl Style {
     }
 
     pub fn set_grid_template_columns_css(&mut self, value: &str) {
+        self.set_grid_template_columns_css_with_context(value, css::LengthContext::for_scale(self.get_device_scale()));
+    }
+
+    pub(crate) fn set_grid_template_columns_css_with_context(&mut self, value: &str, context: css::LengthContext) {
         if value.is_empty() {
             self.grid_mut().grid_template_columns = vec![];
             self.grid_mut().grid_template_columns_raw = None;
         } else if let Ok(template) =
-            crate::utils::parse_grid_template(value, self.get_device_scale())
+            crate::utils::parse_grid_template_with_context(value, context)
         {
             self.grid_mut().grid_template_columns = template.0;
             self.grid_mut().grid_template_column_names = template.1;
@@ -2749,11 +2963,15 @@ impl Style {
     }
 
     pub fn set_grid_auto_rows_css(&mut self, value: &str) {
+        self.set_grid_auto_rows_css_with_context(value, css::LengthContext::for_scale(self.get_device_scale()));
+    }
+
+    pub(crate) fn set_grid_auto_rows_css_with_context(&mut self, value: &str, context: css::LengthContext) {
         if value.is_empty() {
             self.grid_mut().grid_auto_rows_raw = None;
             self.grid_mut().grid_auto_rows = vec![];
         } else if let Ok(tracks) =
-            crate::utils::parse_grid_auto_tracks(value, self.get_device_scale())
+            crate::utils::parse_grid_auto_tracks_with_context(value, context)
         {
             self.grid_mut().grid_auto_rows_raw = Some(Atom::from(value));
             self.grid_mut().grid_auto_rows = tracks
@@ -2765,11 +2983,15 @@ impl Style {
     }
 
     pub fn set_grid_auto_columns_css(&mut self, value: &str) {
+        self.set_grid_auto_columns_css_with_context(value, css::LengthContext::for_scale(self.get_device_scale()));
+    }
+
+    pub(crate) fn set_grid_auto_columns_css_with_context(&mut self, value: &str, context: css::LengthContext) {
         if value.is_empty() {
             self.grid_mut().grid_auto_columns_raw = None;
             self.grid_mut().grid_auto_columns = vec![];
         } else if let Ok(tracks) =
-            crate::utils::parse_grid_auto_tracks(value, self.get_device_scale())
+            crate::utils::parse_grid_auto_tracks_with_context(value, context)
         {
             self.grid_mut().grid_auto_columns_raw = Some(Atom::from(value));
             self.grid_mut().grid_auto_columns = tracks

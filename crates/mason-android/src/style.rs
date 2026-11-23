@@ -1,8 +1,90 @@
-use jni::objects::{JClass, JString};
+use jni::objects::{JByteArray, JClass, JString};
 use jni::signature::ReturnType;
-use jni::sys::{jbyte, jfloat, jint, jlong, jstring};
+use jni::sys::{jboolean, jbyte, jfloat, jint, jlong, jstring};
 use jni::JNIEnv;
 use mason_core::{Mason, NodeRef};
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeApplyLayoutLength(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+    property: JString,
+    value: JString,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) -> jboolean {
+    if mason == 0 || node == 0 {
+        return 0;
+    }
+    let (Some(property), Some(value)) = (get_string_lossy(&mut env, &property), get_string_lossy(&mut env, &value)) else {
+        return 0;
+    };
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        let context = mason_core::style::css::LengthContext {
+            scale: 1., font_size, root_font_size, viewport_width, viewport_height,
+        };
+        mason.set_node_css_layout_length(node.id(), flags as u16, &property, &value, context).into()
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeLayoutLengthCss(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    flags: jint,
+    property: JString,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return std::ptr::null_mut();
+    }
+    let Some(property) = get_string_lossy(&mut env, &property) else { return std::ptr::null_mut() };
+    let value = unsafe {
+        let mason = &*(mason as *const Mason);
+        let node = &*(node as *const NodeRef);
+        mason.node_css_layout_length(node.id(), flags as u16, &property)
+    };
+    value.and_then(|value| env.new_string(value).ok()).map_or(std::ptr::null_mut(), JString::into_raw)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeApplyGridWrites(
+    env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    input: JByteArray,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) {
+    if mason == 0 || node == 0 || input.is_null() { return; }
+    let Ok(bytes) = env.convert_byte_array(input) else { return };
+    let Ok(input) = std::str::from_utf8(&bytes) else { return };
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+        mason.with_style_mut(node.id().into(), |style| {
+            let context = mason_core::style::css::LengthContext {
+                scale: style.get_device_scale(),
+                font_size,
+                root_font_size,
+                viewport_width,
+                viewport_height,
+            };
+            mason_core::style::css::grid::apply_grid_writes(style, input, context);
+        });
+    }
+}
 
 pub(crate) const JAVA_INT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Int);
 pub(crate) const JAVA_SHORT_TYPE: ReturnType =

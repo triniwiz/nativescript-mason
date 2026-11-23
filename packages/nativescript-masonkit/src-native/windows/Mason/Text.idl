@@ -51,5 +51,7 @@ namespace NativeScript.Mason
         Boolean IsListItem;
         void SetTextShadow(String shadows);
         void SetFontFeatureSettings(String value);
+        void SetTextShadowCss(String value, Single fontSize, Single rootFontSize, Single viewportWidth,
+            Single viewportHeight, UInt32 currentColor);
     }
 }

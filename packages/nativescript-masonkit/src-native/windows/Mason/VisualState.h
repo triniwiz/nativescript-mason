@@ -46,8 +46,9 @@ namespace mason_visual
         float width{ -1.0f };
         float height{ -1.0f };
         uint32_t scaleEpoch{ 0 };
-        // Set by SyncStyle: the style buffer may no longer match `inputs`.
+        // Pending paint keys changed the fixed style inputs.
         bool styleDirty{ true };
+        bool usesCurrentColor{ false };
         // A rounded clip that depends on whether descendants overflow can't be skipped on size alone.
         bool subtreeDependent{ false };
         bool valid{ false };

@@ -1,4 +1,5 @@
 import { knownFolders, path } from '@nativescript/core';
+import { expandCssShorthand } from './native-css-values';
 
 let registered = false;
 
@@ -28,24 +29,7 @@ const GENERIC_FAMILIES = new Set(['serif', 'sans-serif', 'monospace', 'cursive',
 
 /** Splits a CSS `font-family` list into family names, without their quotes. */
 export function parseFontFamilyList(value: string): string[] {
-  const families: string[] = [];
-  let current = '';
-  let quote: string | null = null;
-  for (const ch of value) {
-    if (quote) {
-      if (ch === quote) quote = null;
-      else current += ch;
-    } else if (ch === '"' || ch === "'") {
-      quote = ch;
-    } else if (ch === ',') {
-      families.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  families.push(current);
-  return families.map((family) => family.trim().replace(/\s+/g, ' ')).filter(Boolean);
+  return expandCssShorthand('font-family', value) ?? [];
 }
 
 /** Available families by lowercased name, mapped to the name the natives should use. */

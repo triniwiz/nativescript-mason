@@ -59,6 +59,24 @@ describe('evaluateCssMath', () => {
     expect(evaluateCssMath('max(1, 2)', units)).toEqual({ kind: 'number', value: 2 });
   });
 
+  it('passes custom units to the resolver and accepts percentage points', () => {
+    const resolve: CssUnitResolver = (value, unit) => unit === 'qu' ? { percent: value } : undefined;
+    expect(evaluateCssMath('calc(25qu /* a CSS comment */ + 5%)', resolve)).toEqual({ kind: 'percent', percent: 30 });
+    expect(evaluateCssMath('calc(5%)', () => ({ percent: NaN }))).toBeUndefined();
+  });
+
+  it('allows nested evaluations and releases the input after a resolver throws', () => {
+    const result = evaluateCssMath('calc(2qu + 1px)', (value, unit) => {
+      if (unit !== 'qu') return units(value, unit);
+      const inner = evaluateCssMath('calc(2px + 3px)', units);
+      return inner?.kind === 'length' ? value * inner.px : undefined;
+    });
+    expect(result).toEqual({ kind: 'length', px: 11 });
+    const failure = new Error('Cannot measure units');
+    expect(() => evaluateCssMath('calc(1px)', () => { throw failure; })).toThrow(failure);
+    expect(evaluateCssMath('calc(2px + 3px)', units)).toEqual({ kind: 'length', px: 5 });
+  });
+
   it.each([
     // A percentage's basis is only known at layout.
     'calc(100% - 20px)',

@@ -1,4 +1,5 @@
 #pragma once
+#include "StyleKeys.h"
 // Paragraphs laid out with DirectWrite for Text. An IDWriteTextLayout costs a fraction of a
 // TextBlock layout and answers every width Taffy asks about without XAML; TextAtlas.h draws it.
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <dwrite_3.h>
 #include <winrt/base.h>
@@ -297,6 +299,8 @@ namespace mason_dwrite
         return cache->emplace(std::move(key), out).first->second;
     }
 
+    using FontFeatures = std::vector<std::pair<DWRITE_FONT_FEATURE_TAG, uint32_t>>;
+
     struct Span
     {
         uint32_t start{ 0 };
@@ -317,7 +321,7 @@ namespace mason_dwrite
         float decorationThickness{ 0.0f };
         DWRITE_FONT_STRETCH stretch{ DWRITE_FONT_STRETCH_NORMAL };
         float wordSpacing{ 0.0f };
-        std::wstring features;
+        FontFeatures features;
         // Vertical text: the element's own text-orientation, as Paragraph::upright, or
         // kParagraphUpright to use the paragraph's.
         uint8_t upright{ 0xFF };
@@ -342,6 +346,21 @@ namespace mason_dwrite
 
     // The text-shadow list style.ts encodes (encodeBoxShadows): "inset,x,y,blur,spread,argb" per
     // shadow, ';'-separated. Transparent shadows are dropped.
+    inline std::vector<Shadow> ProjectShadowRecords(double const* values, size_t len)
+    {
+        using namespace mason_css_records;
+        std::vector<Shadow> parsed;
+        parsed.reserve(len / shadow::kStride);
+        for (size_t i = 0; i + shadow::kStride <= len; i += shadow::kStride)
+        {
+            const auto* v = values + i;
+            const auto color = static_cast<uint32_t>(v[shadow::kColor]);
+            if ((color >> 24) == 0) continue;
+            parsed.push_back({ static_cast<float>(v[shadow::kX]), static_cast<float>(v[shadow::kY]), static_cast<float>(v[shadow::kBlur]), color });
+        }
+        return parsed;
+    }
+
     inline std::vector<Shadow> ParseShadows(std::wstring_view spec)
     {
         std::vector<Shadow> parsed;
@@ -577,39 +596,6 @@ namespace mason_dwrite
         return DWRITE_FONT_STRETCH_ULTRA_EXPANDED;
     }
 
-    inline std::vector<DWRITE_FONT_FEATURE> FeaturesOf(std::wstring_view spec)
-    {
-        std::vector<DWRITE_FONT_FEATURE> out;
-        size_t pos = 0;
-        while (pos < spec.size())
-        {
-            size_t end = spec.find(L',', pos);
-            if (end == std::wstring_view::npos) end = spec.size();
-            std::wstring_view part = spec.substr(pos, end - pos);
-            pos = end + 1;
-            const size_t open = part.find_first_of(L"\"'");
-            if (open == std::wstring_view::npos) continue;
-            const size_t close = part.find(part[open], open + 1);
-            if (close == std::wstring_view::npos || close - open != 5) continue;
-            const std::wstring_view tag = part.substr(open + 1, 4);
-            std::wstring rest(part.substr(close + 1));
-            rest.erase(0, rest.find_first_not_of(L" \t"));
-            rest.erase(rest.find_last_not_of(L" \t") + 1);
-            UINT32 value = 1;
-            if (rest == L"off") value = 0;
-            else if (!rest.empty() && rest != L"on")
-            {
-                wchar_t* stop = nullptr;
-                const long n = std::wcstol(rest.c_str(), &stop, 10);
-                if (stop == rest.c_str() || *stop != L'\0' || n < 0) continue;
-                value = static_cast<UINT32>(n);
-            }
-            const auto name = static_cast<DWRITE_FONT_FEATURE_TAG>(DWRITE_MAKE_OPENTYPE_TAG(tag[0], tag[1], tag[2], tag[3]));
-            out.push_back({ name, value });
-        }
-        return out;
-    }
-
     inline bool IsWordSeparator(wchar_t ch)
     {
         return ch == L' ' || ch == L'\u00A0' || ch == L'\u1361' || ch == L'\u3000';
@@ -706,11 +692,10 @@ namespace mason_dwrite
             }
             if (!s.features.empty())
             {
-                const auto features = FeaturesOf(s.features);
                 winrt::com_ptr<IDWriteTypography> typography;
-                if (!features.empty() && SUCCEEDED(factory->CreateTypography(typography.put())))
+                if (SUCCEEDED(factory->CreateTypography(typography.put())))
                 {
-                    for (auto const& f : features) typography->AddFontFeature(f);
+                    for (auto const& [tag, value] : s.features) typography->AddFontFeature({ tag, value });
                     layout->SetTypography(typography.get(), range);
                 }
             }

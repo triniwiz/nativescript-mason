@@ -53,6 +53,12 @@ object AppFonts {
 
   private fun squash(value: String) = normalize(value).filter { it.isLetterOrDigit() }
 
+  internal fun selectFamily(families: List<String>, context: Context?): String? =
+    families.firstOrNull { family ->
+      normalize(family) in GENERIC_FAMILIES || resolve(family, context) != null ||
+        Typeface.create(family, Typeface.NORMAL) != Typeface.DEFAULT
+    } ?: families.firstOrNull()
+
   /** Absolute path of an app-bundled font file for [family], or null. */
   @JvmStatic
   @JvmOverloads

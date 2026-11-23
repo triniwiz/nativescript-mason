@@ -16,6 +16,61 @@ import FontManager
 @objc(NSCMason)
 @objcMembers
 public class NSCMason: NSObject {
+  @nonobjc
+  internal static func htmlKeyword(_ property: String, _ value: String) -> Int8? {
+    guard let field = expandCssShorthand("html-keyword:\(property)", value: value)?.first else { return nil }
+    return Int8(field)
+  }
+
+  @objc(resolveCssLength:kind:scale:fontSize:rootFontSize:viewportWidth:viewportHeight:)
+  public static func resolveCssLength(_ value: String, kind: UInt8, scale: Float, fontSize: Float,
+                                      rootFontSize: Float, viewportWidth: Float, viewportHeight: Float) -> [NSNumber]? {
+    cssLengthValues(value, kind: kind, scale: scale, fontSize: fontSize, rootFontSize: rootFontSize,
+                    viewportWidth: viewportWidth, viewportHeight: viewportHeight)?.map { NSNumber(value: $0) }
+  }
+
+  internal static func cssLengthValues(_ value: String, kind: UInt8, scale: Float, fontSize: Float,
+                                       rootFontSize: Float, viewportWidth: Float, viewportHeight: Float) -> [Double]? {
+    let fields = value.withCString {
+      mason_css_parse($0, kind, scale, fontSize, rootFontSize, viewportWidth, viewportHeight, 0)
+    }
+    defer { mason_css_values_release(fields) }
+    let stride: Int
+    switch CssParseKind(rawValue: kind) {
+    case .borderRadius: stride = BorderRadiiRecord.stride * CssLengthResultRecord.stride
+    case .borderCornerRadius: stride = 2 * CssLengthResultRecord.stride
+    case .transformOrigin, .objectPosition: stride = CssPositionResultRecord.stride
+    default: stride = CssLengthResultRecord.stride
+    }
+    guard fields.len == stride else { return nil }
+    return Array(UnsafeBufferPointer(start: fields.values, count: Int(fields.len)))
+  }
+
+  @objc(expandCssShorthand:value:)
+  public static func expandCssShorthand(_ name: String, value: String) -> [String]? {
+    let fields = name.withCString { name in
+      value.withCString { mason_css_shorthand_expand(name, $0) }
+    }
+    return copyCssFields(fields)
+  }
+
+  internal static func compileInlineCss(_ value: String, fontSize: Float, parentFontSize: Float,
+                                        viewport: CGSize, previousFontSize: Float) -> [String]? {
+    let fields = value.withCString {
+      mason_css_compile_inline_replay($0, scale, fontSize, parentFontSize, rootFontSize,
+        Float(viewport.width), Float(viewport.height), previousFontSize)
+    }
+    return copyCssFields(fields)
+  }
+
+  private static func copyCssFields(_ fields: CMasonCssShorthand) -> [String]? {
+    guard let owner = fields.owner else { return nil }
+    defer { mason_css_shorthand_release(owner) }
+    return UnsafeBufferPointer(start: fields.data, count: Int(fields.len)).map {
+      String(decoding: UnsafeBufferPointer(start: $0.bytes, count: Int($0.len)), as: UTF8.self)
+    }
+  }
+
   public internal(set) var nativePtr: OpaquePointer?
   internal var nodes: [Int64: MasonNode] = [:]
   // Views with a node from nodeForView, only walked by clear(). The node itself
@@ -25,6 +80,45 @@ public class NSCMason: NSObject {
   // True while Rust holds a lock during compute — prevents a nested Mason
   // root from re-entering Rust on the same thread and deadlocking.
   internal var inCompute = false
+
+  private struct PendingStyleRecords {
+    let style: MasonStyle
+    let node: MasonNode
+    let pointer: OpaquePointer?
+    var textChanges: StateKeys
+  }
+
+  private var pendingStyleRecords: [ObjectIdentifier: PendingStyleRecords] = [:]
+
+  @nonobjc internal func deferStyleRecords(_ style: MasonStyle, kind: StyleRecordKind? = nil, textChanges: StateKeys = .none) {
+    let key = ObjectIdentifier(style)
+    let node = style.node
+    let recordChange: StateKeys = switch kind {
+    case .textShadow: .textShadow
+    case .fontFeatures: .fontFeatureSettings
+    default: .none
+    }
+    let textChange = textChanges.union(recordChange)
+    if var pending = pendingStyleRecords[key], pending.pointer == node.nativePtr {
+      pending.textChanges = pending.textChanges.union(textChange)
+      pendingStyleRecords[key] = pending
+    } else {
+      pendingStyleRecords[key] = PendingStyleRecords(style: style, node: node, pointer: node.nativePtr,
+                                                     textChanges: textChange)
+    }
+  }
+
+  internal func endCompute() {
+    inCompute = false
+    guard !pendingStyleRecords.isEmpty else { return }
+    let pending = pendingStyleRecords.values.filter { $0.pointer != nil && $0.node.nativePtr == $0.pointer }
+    pendingStyleRecords.removeAll(keepingCapacity: true)
+    for write in pending { write.style.prepareMut() }
+    mason_css_flush_style_records(nativePtr)
+    for write in pending where write.textChanges.low != 0 || write.textChanges.high != 0 {
+      write.style.notifyTextStyleChanged(write.textChanges)
+    }
+  }
 
   // Compute nesting depth, roots whose measure waited for the running compute,
   // and roots whose settled sizes last until the outermost compute ends.
@@ -332,6 +426,7 @@ public class NSCMason: NSObject {
   
   
   public func clear(){
+    pendingStyleRecords.removeAll()
     // Release Swift nodes first: their deinit still talks to their Rust nodes.
     nodes.removeAll()
     let key = UnsafeRawPointer(Unmanaged.passUnretained(self).toOpaque())

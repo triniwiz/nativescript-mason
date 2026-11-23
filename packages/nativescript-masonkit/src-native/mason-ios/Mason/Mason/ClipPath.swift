@@ -86,50 +86,27 @@ func cssNumber(_ token: String) -> CGFloat? {
   return CGFloat(v)
 }
 
-/// A `<length-percentage>` in points (CSS px) or a fraction.
+/// A projected clip-path length with optional Rust-owned math.
 enum CssLength: Equatable {
   case points(CGFloat)
   /// 0.5 = 50%.
   case percent(CGFloat)
+  case math(NativePaintOffset)
 
   func resolve(_ basis: CGFloat) -> CGFloat {
     switch self {
     case .points(let p): return p
     case .percent(let f): return f * basis
-    }
-  }
-
-  var isNegative: Bool {
-    switch self {
-    case .points(let p): return p < 0
-    case .percent(let f): return f < 0
+    case .math(let offset): return offset.resolve(basis: basis, units: nil)
     }
   }
 
   /// As a border-radius length (`.Points` holds device px there).
-  var mason: MasonLengthPercentage {
+  func mason(basis: CGFloat) -> MasonLengthPercentage {
     switch self {
     case .points(let p): return .Points(Float(p) * NSCMason.scale)
     case .percent(let f): return .Percent(Float(f))
-    }
-  }
-
-  /// `em` is the element's font size; other units go through the shared length scanner.
-  static func parse(_ token: String, em: CGFloat) -> CssLength? {
-    let t = token.lowercased()
-    if t.hasSuffix("%") {
-      guard let v = cssNumber(String(t.dropLast())) else { return nil }
-      return .percent(v / 100)
-    }
-    if t.hasSuffix("em") && !t.hasSuffix("rem") {
-      guard let v = cssNumber(String(t.dropLast(2))) else { return nil }
-      return .points(v * em)
-    }
-    guard let lp = parseLengthPercentage(t) else { return nil }
-    switch lp {
-    case .Points(let p): return .points(CGFloat(p) / CGFloat(NSCMason.scale))
-    case .Percent(let f): return .percent(CGFloat(f))
-    case .Zero: return .points(0)
+    case .math(let offset): return .Points(Float(max(0, offset.resolve(basis: basis, units: nil))) * NSCMason.scale)
     }
   }
 }
@@ -154,32 +131,14 @@ enum ClipBox: Equatable {
   case paddingBox
   case contentBox
   case marginBox
-
-  static func parse(_ value: String) -> ClipBox? {
-    switch value.lowercased() {
-    case "border-box", "fill-box", "stroke-box", "view-box": return .borderBox
-    case "padding-box": return .paddingBox
-    case "content-box": return .contentBox
-    case "margin-box": return .marginBox
-    default: return nil
-    }
-  }
 }
 
 enum ClipRadius: Equatable {
   case closestSide
   case farthestSide
+  case closestCorner
+  case farthestCorner
   case length(CssLength)
-
-  static func parse(_ token: String, em: CGFloat) -> ClipRadius? {
-    switch token.lowercased() {
-    case "closest-side": return .closestSide
-    case "farthest-side": return .farthestSide
-    default:
-      guard let l = CssLength.parse(token, em: em), !l.isNegative else { return nil }
-      return .length(l)
-    }
-  }
 }
 
 struct ClipCorner: Equatable {
@@ -208,129 +167,6 @@ enum ClipShape: Equatable {
     case .polygon(let e, _), .path(let e, _): return e
     default: return false
     }
-  }
-
-  static func parse(_ name: String, _ args: String, em: CGFloat) -> ClipShape? {
-    switch name {
-    case "inset":
-      guard let (lengths, radii) = splitRound(args, em: em), let values = expandCssBox(lengths) else { return nil }
-      return .inset(values, radii: radii)
-    case "rect":
-      guard let (tokens, radii) = splitRoundTokens(args, em: em), tokens.count == 4 else { return nil }
-      var edges: [CssLength?] = []
-      for t in tokens {
-        if t.lowercased() == "auto" { edges.append(nil); continue }
-        guard let l = CssLength.parse(t, em: em) else { return nil }
-        edges.append(l)
-      }
-      return .rect(edges, radii: radii)
-    case "xywh":
-      guard let (lengths, radii) = splitRound(args, em: em), lengths.count == 4,
-            !lengths[2].isNegative, !lengths[3].isNegative else { return nil }
-      return .xywh(x: lengths[0], y: lengths[1], width: lengths[2], height: lengths[3], radii: radii)
-    case "circle":
-      guard let (before, at) = splitAt(args) else { return nil }
-      guard before.count <= 1 else { return nil }
-      let radius = before.isEmpty ? .closestSide : ClipRadius.parse(before[0], em: em)
-      guard let r = radius else { return nil }
-      return .circle(r, at: at)
-    case "ellipse":
-      guard let (before, at) = splitAt(args) else { return nil }
-      if before.isEmpty { return .ellipse(.closestSide, .closestSide, at: at) }
-      guard before.count == 2, let rx = ClipRadius.parse(before[0], em: em),
-            let ry = ClipRadius.parse(before[1], em: em) else { return nil }
-      return .ellipse(rx, ry, at: at)
-    case "polygon":
-      var groups = splitCssCommaList(args).map { $0.trimmingCharacters(in: .whitespaces) }
-      let evenOdd = fillRule(&groups)
-      guard let evenOdd = evenOdd, !groups.isEmpty else { return nil }
-      var points: [ClipPoint] = []
-      for g in groups {
-        let pair = splitCssValue(g)
-        guard pair.count == 2, let x = CssLength.parse(pair[0], em: em), let y = CssLength.parse(pair[1], em: em) else { return nil }
-        points.append(ClipPoint(x: x, y: y))
-      }
-      return .polygon(evenOdd: evenOdd, points: points)
-    case "path":
-      var groups = splitCssCommaList(args).map { $0.trimmingCharacters(in: .whitespaces) }
-      guard let evenOdd = fillRule(&groups), groups.count == 1 else { return nil }
-      let quoted = groups[0]
-      guard quoted.count >= 2, let q = quoted.first, q == "\"" || q == "'", quoted.last == q else { return nil }
-      let commands = parseSvgPathData(String(quoted.dropFirst().dropLast()))
-      guard !commands.isEmpty else { return nil }
-      return .path(evenOdd: evenOdd, commands: commands)
-    default:
-      return nil
-    }
-  }
-
-  /// A leading `nonzero` / `evenodd` group is removed. Returns nil when the list is malformed
-  /// (an empty group), else whether the rule is even-odd.
-  private static func fillRule(_ groups: inout [String]) -> Bool? {
-    if groups.contains(where: { $0.isEmpty }) { return nil }
-    guard let first = groups.first?.lowercased() else { return nil }
-    if first == "evenodd" || first == "nonzero" {
-      groups.removeFirst()
-      return first == "evenodd"
-    }
-    return false
-  }
-
-  /// Arguments before `round` and the radii after it.
-  private static func splitRoundTokens(_ args: String, em: CGFloat) -> ([String], [ClipCorner]?)? {
-    let tokens = splitCssValue(args, separators: ["/"])
-    guard let round = tokens.firstIndex(where: { $0.lowercased() == "round" }) else {
-      if tokens.contains("/") { return nil }
-      return (tokens, nil)
-    }
-    let before = Array(tokens[..<round])
-    if before.contains("/") { return nil }
-    guard let radii = parseRadii(Array(tokens[(round + 1)...]), em: em) else { return nil }
-    return (before, radii)
-  }
-
-  private static func splitRound(_ args: String, em: CGFloat) -> ([CssLength], [ClipCorner]?)? {
-    guard let (tokens, radii) = splitRoundTokens(args, em: em), !tokens.isEmpty else { return nil }
-    var lengths: [CssLength] = []
-    for t in tokens {
-      guard let l = CssLength.parse(t, em: em) else { return nil }
-      lengths.append(l)
-    }
-    return (lengths, radii)
-  }
-
-  /// `<'border-radius'>`: 1-4 horizontal radii, optionally `/` 1-4 vertical ones; corners
-  /// come back top-left, top-right, bottom-right, bottom-left.
-  static func parseRadii(_ tokens: [String], em: CGFloat) -> [ClipCorner]? {
-    let slash = tokens.firstIndex(of: "/")
-    let hTokens = slash.map { Array(tokens[..<$0]) } ?? tokens
-    let vTokens = slash.map { Array(tokens[($0 + 1)...]) }
-    func lengths(_ ts: [String]) -> [CssLength]? {
-      var out: [CssLength] = []
-      for t in ts {
-        guard t != "/", let l = CssLength.parse(t, em: em), !l.isNegative else { return nil }
-        out.append(l)
-      }
-      return expandCssBox(out)
-    }
-    guard let h = lengths(hTokens) else { return nil }
-    let v: [CssLength]
-    if let vTokens = vTokens {
-      guard let parsed = lengths(vTokens) else { return nil }
-      v = parsed
-    } else {
-      v = h
-    }
-    return (0..<4).map { ClipCorner(x: h[$0], y: v[$0]) }
-  }
-
-  /// Tokens before `at`, and the position after it (nil when there is no `at`).
-  private static func splitAt(_ args: String) -> ([String], BackgroundPosition?)? {
-    let tokens = splitCssValue(args)
-    guard let at = tokens.firstIndex(where: { $0.lowercased() == "at" }) else { return (tokens, nil) }
-    let positionTokens = Array(tokens[(at + 1)...])
-    guard !positionTokens.isEmpty, let position = parsePosition(positionTokens) else { return nil }
-    return (Array(tokens[..<at]), position)
   }
 }
 
@@ -362,22 +198,7 @@ struct ClipPathValue: Equatable {
   var evenOdd: Bool { shape?.evenOdd ?? false }
 
   static func parse(_ value: String, em: CGFloat = 16) -> ClipPathValue? {
-    let tokens = splitCssValue(value.trimmingCharacters(in: .whitespacesAndNewlines))
-    guard !tokens.isEmpty, tokens.count <= 2 else { return nil }
-    var shape: ClipShape? = nil
-    var box: ClipBox? = nil
-    for t in tokens {
-      if let fn = cssFunction(t) {
-        guard shape == nil, fn.name != "url", let s = ClipShape.parse(fn.name, fn.args, em: em) else { return nil }
-        shape = s
-      } else if let b = ClipBox.parse(t) {
-        guard box == nil else { return nil }
-        box = b
-      } else {
-        return nil
-      }
-    }
-    return ClipPathValue(shape: shape, box: box ?? .borderBox)
+    NativeClipPath(value)?.project(em: em)
   }
 
   /// The clip path in the element's coordinates. `renderer` supplies the element's border radii
@@ -412,7 +233,7 @@ struct ClipPathValue: Equatable {
       return ClipPathValue.roundedRect(r, radii, renderer)
     case let .xywh(x, y, w, h, radii):
       let r = CGRect(x: ref.minX + x.resolve(ref.width), y: ref.minY + y.resolve(ref.height),
-                     width: w.resolve(ref.width), height: h.resolve(ref.height))
+                     width: max(0, w.resolve(ref.width)), height: max(0, h.resolve(ref.height)))
       return ClipPathValue.roundedRect(r, radii, renderer)
     case let .circle(radius, at):
       let c = ClipPathValue.center(at, ref)
@@ -422,8 +243,10 @@ struct ClipPathValue: Equatable {
       switch radius {
       case .closestSide: r = min(dx.min()!, dy.min()!)
       case .farthestSide: r = max(dx.max()!, dy.max()!)
+      case .closestCorner: r = hypot(dx.min()!, dy.min()!)
+      case .farthestCorner: r = hypot(dx.max()!, dy.max()!)
       // A percentage is of the box's normalized diagonal.
-      case .length(let l): r = l.resolve((ref.width * ref.width + ref.height * ref.height).squareRoot() / 2.0.squareRoot())
+      case .length(let l): r = max(0, l.resolve(hypot(ref.width, ref.height) / 2.0.squareRoot()))
       }
       return CGPath(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r), transform: nil)
     case let .ellipse(rxValue, ryValue, at):
@@ -432,7 +255,9 @@ struct ClipPathValue: Equatable {
         switch value {
         case .closestSide: return min(near, far)
         case .farthestSide: return max(near, far)
-        case .length(let l): return l.resolve(basis)
+        case .closestCorner: return min(near, far) * 2.0.squareRoot()
+        case .farthestCorner: return max(near, far) * 2.0.squareRoot()
+        case .length(let l): return max(0, l.resolve(basis))
         }
       }
       let rx = radius(rxValue, abs(c.x - ref.minX), abs(ref.maxX - c.x), ref.width)
@@ -473,7 +298,8 @@ struct ClipPathValue: Equatable {
     guard r.width > 0, r.height > 0 else { return CGMutablePath() }
     guard let c = radii else { return CGPath(rect: r, transform: nil) }
     func corner(_ i: Int) -> CSSBorderRenderer.CornerRadius {
-      CSSBorderRenderer.CornerRadius(horizontal: c[i].x.mason, vertical: c[i].y.mason, exponent: 1)
+      CSSBorderRenderer.CornerRadius(horizontal: c[i].x.mason(basis: r.width),
+                                     vertical: c[i].y.mason(basis: r.height), exponent: 1)
     }
     let radius = CSSBorderRenderer.BorderRadius(topLeft: corner(0), topRight: corner(1), bottomRight: corner(2), bottomLeft: corner(3))
     return renderer.buildRoundedPath(in: r, radius: radius).cgPath
@@ -483,6 +309,95 @@ struct ClipPathValue: Equatable {
   private static func center(_ at: BackgroundPosition?, _ ref: CGRect) -> CGPoint {
     guard let p = at else { return CGPoint(x: ref.midX, y: ref.midY) }
     return CGPoint(x: ref.minX + p.x.resolve(area: ref.width, drawSize: 0), y: ref.minY + p.y.resolve(area: ref.height, drawSize: 0))
+  }
+}
+
+final class NativeClipPath {
+  let handle: OpaquePointer
+
+  init?(_ value: String) {
+    guard let handle = value.withCString({ mason_css_clip_path_parse($0) }) else { return nil }
+    self.handle = handle
+  }
+
+  deinit { mason_css_clip_path_release(handle) }
+
+  static func install(_ clip: NativeClipPath?, on style: MasonStyle) {
+    let node = style.node
+    guard !node.isPlaceholder else { return }
+    let mason = node.mason
+    if mason.inCompute { mason.deferStyleRecords(style) }
+    else { style.prepareMut() }
+    mason_css_clip_path_install(mason.inCompute ? nil : mason.nativePtr, node.nativePtr, clip?.handle)
+  }
+
+  func project(em: CGFloat) -> ClipPathValue? {
+    let scale = NSCMason.scale
+    let viewport = NSCMason.viewportSize
+    let result = mason_css_clip_path_records(handle, scale, Float(em), NSCMason.rootFontSize,
+                                            Float(viewport.width), Float(viewport.height))
+    defer { mason_css_values_release(result) }
+    let records = UnsafeBufferPointer(start: result.values, count: Int(result.len))
+    let box: ClipBox = [.borderBox, .paddingBox, .contentBox, .marginBox][Int(records[ClipPathRecord.box])]
+    let evenOdd = records[ClipPathRecord.evenOdd] != 0
+    let args = records.dropFirst(ClipPathRecord.stride)
+    let hasMath = records[ClipPathRecord.hasMath] != 0
+    func pair(_ index: Int) -> (fraction: CGFloat, pixels: CGFloat) {
+      let offset = ClipPathRecord.stride + index * 2
+      return (CGFloat(records[offset]), CGFloat(records[offset + 1]))
+    }
+    func length(_ index: Int) -> CssLength {
+      if let offset = math(index) { return .math(offset) }
+      let (fraction, pixels) = pair(index)
+      return fraction == 0 ? .points(pixels / CGFloat(scale)) : .percent(fraction)
+    }
+    func math(_ index: Int) -> NativePaintOffset? {
+      guard hasMath, let offset = mason_css_clip_path_offset(handle, UInt(index), scale, Float(em),
+        NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height)) else { return nil }
+      return NativePaintOffset(owned: offset)
+    }
+    func position(_ index: Int) -> BackgroundOffset {
+      let (fraction, pixels) = pair(index)
+      return BackgroundOffset(fraction: fraction, px: pixels, math: math(index))
+    }
+    func center() -> BackgroundPosition? {
+      guard records[ClipPathRecord.hasPosition] != 0 else { return nil }
+      return BackgroundPosition(x: position(0), y: position(1))
+    }
+    func radius(_ kind: Int, _ index: Int) -> ClipRadius {
+      switch Int(records[kind]) {
+      case 1: return .closestSide
+      case 2: return .farthestSide
+      case 3: return .closestCorner
+      case 4: return .farthestCorner
+      default: return .length(length(index))
+      }
+    }
+    func corners() -> [ClipCorner]? {
+      guard args.count > 8 else { return nil }
+      return (0..<4).map { ClipCorner(x: length(4 + $0 * 2), y: length(5 + $0 * 2)) }
+    }
+
+    let shape: ClipShape?
+    switch Int(records[ClipPathRecord.kind]) {
+    case 0: shape = nil
+    case 1: shape = .inset((0..<4).map(length), radii: corners())
+    case 2: shape = .rect((0..<4).map { pair($0).fraction.isNaN ? nil : length($0) }, radii: corners())
+    case 3: shape = .xywh(x: length(0), y: length(1), width: length(2), height: length(3), radii: corners())
+    case 4:
+      shape = .circle(radius(ClipPathRecord.radiusXKind, 2), at: center())
+    case 5:
+      shape = .ellipse(radius(ClipPathRecord.radiusXKind, 2), radius(ClipPathRecord.radiusYKind, 3),
+                       at: center())
+    case 6:
+      shape = .polygon(evenOdd: evenOdd, points: (0..<(args.count / 4)).map {
+        ClipPoint(x: length($0 * 2), y: length($0 * 2 + 1))
+      })
+    case 7:
+      shape = .path(evenOdd: evenOdd, commands: decodeSvgPathRecords(records, offset: ClipPathRecord.stride))
+    default: return nil
+    }
+    return ClipPathValue(shape: shape, box: box)
   }
 }
 

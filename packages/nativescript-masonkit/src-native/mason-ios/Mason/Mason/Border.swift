@@ -50,212 +50,79 @@ public final class CSSBorderRenderer {
     case inset
     case outset
     
+    // <style-keys:border-style-conversions> generated from tools/scripts/style-keys/style-keys.schema
     public init?(rawValue: Int8) {
       switch rawValue {
-      case 0:
-        self = BorderStyle.none
-      case 1:
-        self = .hidden
-      case 2:
-        self = .dotted(dot: 1, gap: 3)
-      case 3:
-        self = .dashed(dash: 6, gap: 6)
-      case 4:
-        self = .solid
-      case 5:
-        self = .double(spacing: 3)
-      case 6:
-        self = .groove
-      case 7:
-        self = .ridge
-      case 8:
-        self = .inset
-      case 9:
-        self = .outset
-      default:
-        return nil
+      case 0: self = BorderStyle.none
+      case 1: self = BorderStyle.hidden
+      case 2: self = BorderStyle.dotted()
+      case 3: self = BorderStyle.dashed()
+      case 4: self = BorderStyle.solid
+      case 5: self = BorderStyle.double()
+      case 6: self = BorderStyle.groove
+      case 7: self = BorderStyle.ridge
+      case 8: self = BorderStyle.inset
+      case 9: self = BorderStyle.outset
+      default: return nil
       }
     }
-    
+
     public var rawValue: Int8 {
       switch self {
-      case .none:
-        return 0
-      case .hidden:
-        return 1
-      case .dotted(dot: _, gap: _):
-        return 2
-      case .dashed(dash: _, gap: _):
-        return 3
-      case .solid:
-        return 4
-      case .double(spacing: _):
-        return 5
-      case .groove:
-        return 6
-      case .ridge:
-        return 7
-      case .inset:
-        return 8
-      case .outset:
-        return 9
+      case .none: return 0
+      case .hidden: return 1
+      case .dotted: return 2
+      case .dashed: return 3
+      case .solid: return 4
+      case .double: return 5
+      case .groove: return 6
+      case .ridge: return 7
+      case .inset: return 8
+      case .outset: return 9
       }
     }
-    
-    public init?(name: String){
-      switch(name) {
-      case "none":
-        self = .none
-      case "hidden":
-        self = .hidden
-      case "dotted":
-        self = .dotted(dot: 1, gap: 3)
-      case "dashed":
-        self  = .dashed(dash: 6, gap: 6)
-      case "solid":
-        self = .solid
-      case "double":
-        self =  .double(spacing: 3)
-      case "groove":
-        self = .groove
-      case "ridge":
-        self = .ridge
-      case "inset":
-        self = .inset
-      case "outset":
-        self = .outset
-      default:
-        return nil
-      }
+    // </style-keys:border-style-conversions>
+    public init?(name: String) {
+      guard let field = NSCMason.expandCssShorthand("keyword:border-style", value: name)?.first,
+            let code = Int8(field) else { return nil }
+      self.init(rawValue: code)
     }
   }
   
-  protocol IKey {
-    var widthValue: Int { get }
-    var widthType: Int { get }
-    var style: Int { get }
-    var color: Int { get }
-    
-    var corner1RadiusXType: Int { get }
-    var corner1RadiusXValue: Int { get }
-    var corner1RadiusYType: Int { get }
-    var corner1RadiusYValue: Int { get }
-    var corner1Exponent: Int { get }
-    
-    var corner2RadiusXType: Int { get }
-    var corner2RadiusXValue: Int { get }
-    var corner2RadiusYType: Int { get }
-    var corner2RadiusYValue: Int { get }
-    var corner2Exponent: Int { get }
+  // <style-keys:border-keys> generated from tools/scripts/style-keys/style-keys.schema
+  struct Keys {
+    let widthType: Int
+    let widthValue: Int
+    let style: Int
+    let color: Int
+
+    static let top = Keys(
+      widthType: StyleKeys.BORDER_TOP_TYPE,
+      widthValue: StyleKeys.BORDER_TOP_VALUE,
+      style: StyleKeys.BORDER_TOP_STYLE,
+      color: StyleKeys.BORDER_TOP_COLOR
+    )
+    static let right = Keys(
+      widthType: StyleKeys.BORDER_RIGHT_TYPE,
+      widthValue: StyleKeys.BORDER_RIGHT_VALUE,
+      style: StyleKeys.BORDER_RIGHT_STYLE,
+      color: StyleKeys.BORDER_RIGHT_COLOR
+    )
+    static let bottom = Keys(
+      widthType: StyleKeys.BORDER_BOTTOM_TYPE,
+      widthValue: StyleKeys.BORDER_BOTTOM_VALUE,
+      style: StyleKeys.BORDER_BOTTOM_STYLE,
+      color: StyleKeys.BORDER_BOTTOM_COLOR
+    )
+    static let left = Keys(
+      widthType: StyleKeys.BORDER_LEFT_TYPE,
+      widthValue: StyleKeys.BORDER_LEFT_VALUE,
+      style: StyleKeys.BORDER_LEFT_STYLE,
+      color: StyleKeys.BORDER_LEFT_COLOR
+    )
   }
-  
-  
-  class Keys {
-    class Left: IKey {
-      var widthValue: Int {
-        return StyleKeys.BORDER_LEFT_VALUE
-      }
-      var widthType: Int {
-        return StyleKeys.BORDER_LEFT_TYPE
-      }
-      var style: Int {
-        StyleKeys.BORDER_LEFT_STYLE
-      }
-      var color: Int {
-        return StyleKeys.BORDER_LEFT_COLOR
-      }
-      
-      var corner1RadiusXType : Int {return StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE}
-      var corner1RadiusXValue : Int {return StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE}
-      var corner1RadiusYType : Int {return StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE}
-      var corner1RadiusYValue : Int {return StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE}
-      var corner1Exponent : Int {return StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT}
-      
-      var corner2RadiusXType : Int {return StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE}
-      var corner2RadiusXValue : Int {return StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE}
-      var corner2RadiusYType : Int {return StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE}
-      var corner2RadiusYValue : Int {return StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE}
-      var corner2Exponent : Int {return StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT}
-      
-      
-    }
-    
-    struct Top : IKey {
-      var widthValue :Int {
-        StyleKeys.BORDER_TOP_VALUE }
-      var widthType :Int {
-        StyleKeys.BORDER_TOP_TYPE }
-      var style :Int {
-        StyleKeys.BORDER_TOP_STYLE }
-      var color :Int {
-        StyleKeys.BORDER_TOP_COLOR }
-      
-      var corner1RadiusXType : Int { StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE }
-      var corner1RadiusXValue : Int { StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE }
-      var corner1RadiusYType : Int { StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE }
-      var corner1RadiusYValue : Int { StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE }
-      var corner1Exponent : Int { StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT }
-      
-      var corner2RadiusXType : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE }
-      var corner2RadiusXValue : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE }
-      var corner2RadiusYType : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE }
-      var corner2RadiusYValue : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE }
-      var corner2Exponent : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT }
-    }
-    
-    struct Right : IKey {
-      var widthValue :Int {
-        StyleKeys.BORDER_RIGHT_VALUE }
-      var widthType :Int {
-        StyleKeys.BORDER_RIGHT_TYPE }
-      var style :Int {
-        StyleKeys.BORDER_RIGHT_STYLE }
-      var color :Int {
-        StyleKeys.BORDER_RIGHT_COLOR }
-      
-      
-      var corner1RadiusXType : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE }
-      var corner1RadiusXValue : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE }
-      var corner1RadiusYType : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE }
-      var corner1RadiusYValue : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE }
-      var corner1Exponent : Int { StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT }
-      
-      var corner2RadiusXType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE }
-      var corner2RadiusXValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE }
-      var corner2RadiusYType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE }
-      var corner2RadiusYValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE }
-      var corner2Exponent : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT }
-    }
-    
-    struct Bottom : IKey {
-      var widthValue :Int {
-        StyleKeys.BORDER_BOTTOM_VALUE }
-      var widthType :Int {
-        StyleKeys.BORDER_BOTTOM_TYPE }
-      var style :Int {
-        StyleKeys.BORDER_BOTTOM_STYLE }
-      var color :Int {
-        StyleKeys.BORDER_BOTTOM_COLOR }
-      
-      var corner1RadiusXType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE }
-      var corner1RadiusXValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE }
-      var corner1RadiusYType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE }
-      var corner1RadiusYValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE }
-      var corner1Exponent : Int { StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT }
-      
-      var corner2RadiusXType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE }
-      var corner2RadiusXValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE }
-      var corner2RadiusYType : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE }
-      var corner2RadiusYValue : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE }
-      var corner2Exponent : Int { StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT }
-    }
-    
-    static let left = Keys.Left()
-    static let top = Keys.Top()
-    static let right = Keys.Right()
-    static let bottom = Keys.Bottom()
-  }
-  
+  // </style-keys:border-keys>
+
   public class BorderSide: CustomStringConvertible {
 
     public var description: String {
@@ -263,52 +130,43 @@ public final class CSSBorderRenderer {
     }
 
     unowned(unsafe) let owner: MasonStyle
+    // <style-keys:border-accessors> generated from tools/scripts/style-keys/style-keys.schema
     public var width: MasonLengthPercentage {
-      get {
-        return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), Int(owner.getInt8(keys.widthType)))!
-      }
-      
+      get { MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), Int(owner.getInt8(keys.widthType)))! }
       set {
         owner.prepareMut()
         owner.setInt8(keys.widthType, newValue.type)
         owner.setFloat(keys.widthValue, newValue.value)
       }
     }
-    
-    public func setColor(color: UInt32){
-      owner.prepareMut()
-      owner.setUInt32(keys.color, color)
-    }
-    
-    /// The resolved color as packed ARGB.
-    internal var argb: UInt32 {
-      let base = owner.getUInt32(keys.color)
-      return owner.resolvePseudoUInt32(keys.color, keys.color, base, .borderColor)
-    }
 
-    public var color: UIColor{
-      get {
-        return UIColor.colorFromARGB(argb)
-      }
-      
-      set {
-        owner.prepareMut()
-        owner.setUInt32(keys.color, newValue.toUInt32())
-      }
-    }
-    public var style: BorderStyle{
-      get {
-        return BorderStyle(rawValue: owner.getInt8(keys.style))!
-      }
-      
+    public var style: BorderStyle {
+      get { BorderStyle(rawValue: owner.getInt8(keys.style))! }
       set {
         owner.prepareMut()
         owner.setInt8(keys.style, newValue.rawValue)
       }
     }
-    
+
+    public var color: UIColor {
+      get { UIColor.colorFromARGB(argb) }
+      set { setColor(color: newValue.toUInt32()) }
+    }
+
+    public func setColor(color: UInt32) {
+      owner.prepareMut()
+      owner.setUInt32(keys.color, color)
+    }
+
+    /// The resolved color as packed ARGB.
+    internal var argb: UInt32 {
+      let base = owner.getUInt32(keys.color)
+      return owner.resolvePseudoUInt32(keys.color, keys.color, base, StateKeys.borderColor)
+    }
+    // </style-keys:border-accessors>
+
     internal let side: Side
-    internal let keys: any IKey
+    internal let keys: Keys
     
     public init(style: MasonStyle, side sideType : Side) {
       self.owner = style

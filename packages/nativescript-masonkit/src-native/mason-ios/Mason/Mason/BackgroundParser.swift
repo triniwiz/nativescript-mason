@@ -36,7 +36,7 @@ enum BackgroundClip: String {
 typealias BackgroundOrigin = BackgroundClip
 
 // MARK: - BackgroundAttachment
-enum BackgroundAttachment: String {
+enum BackgroundAttachment: String, CaseIterable {
   case scroll
   case fixed
   case local
@@ -47,7 +47,7 @@ enum BackgroundAttachment: String {
 }
 
 // MARK: - BackgroundBlendMode
-enum BackgroundBlendMode: String {
+enum BackgroundBlendMode: String, CaseIterable {
   case normal
   case multiply
   case screen
@@ -111,22 +111,7 @@ struct BackgroundRepeat: Equatable {
 
   /// One or two keywords (`repeat-x`, `space round`, ...); nil when invalid.
   static func parse(_ value: String) -> BackgroundRepeat? {
-    let tokens = splitTopLevelWhitespace(value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
-    switch tokens.count {
-    case 1:
-      switch tokens[0] {
-      case "repeat-x": return .repeatX
-      case "repeat-y": return .repeatY
-      default:
-        guard let style = RepeatStyle(rawValue: tokens[0]) else { return nil }
-        return BackgroundRepeat(x: style, y: style)
-      }
-    case 2:
-      guard let x = RepeatStyle(rawValue: tokens[0]), let y = RepeatStyle(rawValue: tokens[1]) else { return nil }
-      return BackgroundRepeat(x: x, y: y)
-    default:
-      return nil
-    }
+    readBackgroundLonghand("repeat", value) { $0.repeatType }
   }
 
   var rawValue: String {
@@ -138,30 +123,119 @@ struct BackgroundRepeat: Equatable {
 }
 
 // MARK: - Gradient
-struct Gradient {
-  let type: String       // "linear", "radial" or "conic"
-  let direction: String? // "to bottom" or angle like "0deg"
-  let stops: [String]    // color stops (unparsed strings)
-  var interpolation: ColorInterpolation? = nil
-  /// `repeating-*-gradient`: the stop list tiles along the gradient line.
-  var repeating = false
+final class Gradient {
+  struct Units: Equatable {
+    let scale = NSCMason.scale
+    let rootFontSize = NSCMason.rootFontSize
+    let viewport = NSCMason.viewportSize
+    let fontSize: Float
+
+    init(fontSize: Float = NSCMason.rootFontSize) {
+      self.fontSize = fontSize
+    }
+  }
+
+  private let handle: OpaquePointer
+  let type: String
+  let direction: String?
+  let interpolation: ColorInterpolation?
+  let repeating: Bool
+  let stopCount: Int
+
+  init(handle: OpaquePointer) {
+    self.handle = handle
+    let info = mason_css_gradient_info(handle)
+    switch info.kind {
+    case 1: type = "radial"
+    case 2: type = "conic"
+    default: type = "linear"
+    }
+    repeating = info.repeating
+    stopCount = Int(info.stop_count)
+    let direction = Self.string(info.direction)
+    self.direction = direction.isEmpty ? nil : direction
+    let space = Self.string(info.space)
+    interpolation = space.isEmpty ? nil : ColorInterpolation.fromRust(space, Self.string(info.hue))
+  }
+
+  deinit { mason_css_gradient_release(handle) }
+
+  private static func string(_ text: CMasonCssText) -> String {
+    String(decoding: UnsafeBufferPointer(start: text.bytes, count: Int(text.len)), as: UTF8.self)
+  }
+
+  func layout(width: CGFloat, height: CGFloat, units: Units = Units()) -> CMasonCssGradientLayout {
+    let scale = units.scale
+    var layout = mason_css_gradient_layout(handle, Float(width) * scale, Float(height) * scale, scale,
+                                           units.fontSize, units.rootFontSize,
+                                           Float(units.viewport.width), Float(units.viewport.height))
+    layout.center_x /= scale
+    layout.center_y /= scale
+    layout.radius_x /= scale
+    layout.radius_y /= scale
+    return layout
+  }
+
+  func resolvedStops(lineLength: CGFloat = 0, units: Units = Units()) -> [CMasonCssGradientStop] {
+    let scale = units.scale
+    var stops = [CMasonCssGradientStop](repeating: CMasonCssGradientStop(color: 0, position: 0), count: stopCount)
+    stops.withUnsafeMutableBufferPointer {
+      mason_css_gradient_resolve(handle, Float(lineLength) * scale, scale, units.fontSize,
+                                 units.rootFontSize, Float(units.viewport.width), Float(units.viewport.height), $0.baseAddress)
+    }
+    return stops
+  }
+
+  func paintStops(lineLength: CGFloat, units: Units = Units()) -> (colors: [CGColor], locations: [CGFloat]) {
+    let stops = resolvedStops(lineLength: lineLength, units: units)
+    return (stops.map { UIColor.cgColorFromARGB($0.color) }, stops.map { CGFloat($0.position) })
+  }
 }
 
 // MARK: - Background position / size
+final class NativePaintOffset: Equatable {
+  private let handle: OpaquePointer
+
+  init(owned handle: OpaquePointer) {
+    self.handle = handle
+  }
+
+  deinit { mason_css_paint_offset_release(handle) }
+
+  static func == (lhs: NativePaintOffset, rhs: NativePaintOffset) -> Bool { lhs === rhs }
+
+  func resolve(basis: CGFloat, units: Gradient.Units?, fallbackScale: Float = NSCMason.scale) -> CGFloat {
+    let scale = units?.scale ?? fallbackScale
+    let value = mason_css_paint_offset_resolve(handle, Float(basis) * scale, units?.scale ?? 0,
+      units?.fontSize ?? 0, units?.rootFontSize ?? 0,
+      Float(units?.viewport.width ?? 0), Float(units?.viewport.height ?? 0))
+    return CGFloat(value / scale)
+  }
+
+  func text(horizontal: Bool) -> String? {
+    guard let text = mason_css_paint_offset_text(handle, horizontal) else { return nil }
+    defer { mason_util_destroy_string(text) }
+    return String(cString: text)
+  }
+}
+
 /// One axis of `background-position`: a fraction of the free space plus a length.
 /// `px` is a device px like every other parsed length on iOS; `resolve` and
 /// `points` divide by NSCMason.scale because CoreGraphics draws in points.
 struct BackgroundOffset: Equatable {
   var fraction: CGFloat = 0
   var px: CGFloat = 0
+  var math: NativePaintOffset?
 
   var points: CGFloat { px / CGFloat(NSCMason.scale) }
 
-  func resolve(area: CGFloat, drawSize: CGFloat) -> CGFloat {
-    fraction * (area - drawSize) + points
+  func resolve(area: CGFloat, drawSize: CGFloat, units: Gradient.Units? = nil) -> CGFloat {
+    let basis = area - drawSize
+    return math?.resolve(basis: basis, units: units) ?? (fraction * basis + points)
   }
 
   func cssValue(horizontal: Bool = true) -> String {
+    if let formula = math?.text(horizontal: horizontal) { return formula }
     let cssPx = Int(points)
     let pct = Int(fraction * 100)
     if px == 0 { return "\(pct)%" }
@@ -202,6 +276,7 @@ class BackgroundLayer {
   /// A radial shader's end radius, in ending-shape radii.
   var shaderExtent: CGFloat = 1
   var shaderHeight: CGFloat = -1
+  var shaderUnits: Gradient.Units?
   /// The stops `shader` was built from; a conic gradient samples them itself.
   var shaderColors: [CGColor] = []
   var shaderLocations: [CGFloat] = []
@@ -280,11 +355,7 @@ class Background {
     }
   }
   var layers: [BackgroundLayer] = []
-  // Per-layer longhands in the order they were set. Layers come only from
-  // images/gradients, so a longhand set before the layers is kept and
-  // reapplied when they arrive. Core applies the `background` shorthand after
-  // the longhands whatever their declaration order, so it reapplies them too.
-  private var longhands: [(name: String, value: String)] = []
+  private var nativeBackground: NativeBackground?
   unowned(unsafe) let style: MasonStyle
   init(style: MasonStyle) {
     self.style = style
@@ -295,7 +366,8 @@ class Background {
     let invalidate = color != nil || !layers.isEmpty
     color = nil
     layers.removeAll()
-    longhands.removeAll()
+    nativeBackground = nil
+    installBackground(style, nil)
     if(invalidate){
       style.node.view?.setNeedsDisplay()
     }
@@ -308,27 +380,49 @@ class Background {
       reset()
       return
     }
-    let parsed = splitBackgroundLayers(css).map { parseLayer($0) }
+    let native = backgroundProgram()
+    let result = native.replace(css, currentColor: style.color)
+    guard result >= -1 else { return }
 
-    // The shorthand's color lives on its last layer; lift it off so the layer does not paint it too.
-    // Only the final layer may carry a color; the others never paint one.
-    let color = parsed.last?.backgroundColor
-    for layer in parsed { layer.backgroundColor = nil }
-
-    // `background: none` (or anything without a color) resets the color too.
-    self.color = color
-    self.layers = parsed.filter { !$0.isDefault }
-    for (name, value) in longhands { applyLonghand(name, value) }
+    applyShorthandColor(result)
+    layers = native.readLayers()
+    for layer in layers { layer.backgroundColor = nil }
+    installBackground(style, native)
     self.css = css
-    
-    let newValue = color?.toUInt32() ?? 0
-    // Ensure we prepare this style for mutation before writing low-level fields.
+    invalidateView()
+  }
+
+  private func applyShorthandColor(_ value: Int64) {
+    // A shorthand without a color resets the previous fill.
+    let argb = value < 0 ? nil : UInt32(value)
+    color = argb.map { UIColor.colorFromARGB($0) }
     style.prepareMut()
-    style.setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
+    style.setUInt32(StyleKeys.BACKGROUND_COLOR, argb ?? 0)
     style.setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-    // change view as well ??
-    // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
-    
+  }
+
+  func applyCompiled(_ fields: [String], initialColor: UInt32, fontSize: Float) {
+    let native = backgroundProgram()
+    guard let result = native.applyCompiled(fields, currentColor: initialColor, fontSize: fontSize) else { return }
+    let shorthand = result[CssBackgroundResultRecord.shorthandValue]
+    let reset = result[CssBackgroundResultRecord.shorthandReset] != 0
+    if reset { css = "" }
+    else if shorthand >= 0 { css = fields[Int(shorthand)] }
+    let fill = result[CssBackgroundResultRecord.color]
+    if result[CssBackgroundResultRecord.colorFromShorthand] != 0 {
+      if reset { color = nil }
+      else { applyShorthandColor(fill) }
+    } else if fill >= 0 {
+      style.backgroundColor = UInt32(fill)
+    }
+    if result[CssBackgroundResultRecord.layersChanged] != 0 {
+      let imagesReplaced = result[CssBackgroundResultRecord.imagesReplaced] != 0
+      layers = native.readLayers(reusing: imagesReplaced ? [] : layers)
+      if result[CssBackgroundResultRecord.lastImageFromShorthand] != 0 {
+        for layer in layers { layer.backgroundColor = nil }
+      }
+      installBackground(style, native)
+    }
     invalidateView()
   }
 
@@ -339,60 +433,30 @@ class Background {
   }
 
   private func setLonghand(_ name: String, _ value: String) {
-    longhands.removeAll { $0.name == name }
-    // `background-position` resets both axes set by the -x/-y longhands.
-    if name == "background-position" {
-      longhands.removeAll { $0.name == "background-position-x" || $0.name == "background-position-y" }
+    let native = backgroundProgram()
+    let property = String(name.dropFirst("background-".count))
+    let result = native.setLonghand(property, value)
+    guard result >= 0 else { return }
+    if result > 0 {
+      layers = native.readLayers(reusing: layers)
+      installBackground(style, native)
     }
-    longhands.append((name, value))
-    applyLonghand(name, value)
     invalidateView()
-  }
-
-  /// Apply a comma-separated per-layer list, repeating it cyclically as CSS does.
-  private func applyLonghand(_ name: String, _ value: String) {
-    let parts = splitBackgroundLayers(value).filter { !$0.isEmpty }
-    if parts.isEmpty { return }
-    for (idx, layer) in layers.enumerated() {
-      let v = parts[idx % parts.count]
-      switch name {
-      case "background-repeat":
-        if let r = BackgroundRepeat.parse(v) { layer.repeatType = r }
-      case "background-position":
-        if let p = parsePosition(splitTopLevelWhitespace(v)) { layer.position = p }
-      case "background-position-x":
-        if let x = parseAxisPosition(splitTopLevelWhitespace(v), horizontal: true) {
-          var p = layer.position ?? BackgroundPosition()
-          p.x = x
-          layer.position = p
-        }
-      case "background-position-y":
-        if let y = parseAxisPosition(splitTopLevelWhitespace(v), horizontal: false) {
-          var p = layer.position ?? BackgroundPosition()
-          p.y = y
-          layer.position = p
-        }
-      case "background-size":
-        if let size = parseSize(v) { layer.size = size }
-      case "background-clip":
-        if let clip = BackgroundClip.parse(v) { layer.clip = clip }
-      case "background-origin":
-        if let origin = BackgroundOrigin.parseOrigin(v) { layer.origin = origin }
-      case "background-attachment":
-        if let attachment = BackgroundAttachment.parse(v) { layer.attachment = attachment }
-      case "background-blend-mode":
-        if let mode = BackgroundBlendMode.parse(v) { layer.blendMode = mode }
-      default:
-        break
-      }
-    }
   }
 
   private func applyBackgroundImage(_ value: String) {
-    // Filtered: a stray color never creates a color-only layer.
-    layers = parseBackgroundLayers(value)
-    for (name, value) in longhands { applyLonghand(name, value) }
+    let native = backgroundProgram()
+    guard native.replace(value, currentColor: style.color) >= -1 else { return }
+    layers = native.readLayers()
+    installBackground(style, native)
     invalidateView()
+  }
+
+  private func backgroundProgram() -> NativeBackground {
+    if let nativeBackground { return nativeBackground }
+    let native = NativeBackground()
+    nativeBackground = native
+    return native
   }
 
   public func applyBackgroundProperty(name: String, value: String) {
@@ -457,34 +521,6 @@ class Background {
   }
 }
 
-// MARK: - Color Map
-internal let colorMap: [String: UIColor] = [
-  "crimson": UIColor(red: 220/255, green: 20/255, blue: 60/255, alpha: 1),
-  "skyblue": UIColor(red: 135/255, green: 206/255, blue: 235/255, alpha: 1),
-  "black": .black,
-  "silver": UIColor(white: 0.75, alpha: 1),
-  "gray": UIColor(red: 128/255, green: 128/255, blue: 128/255, alpha: 1),
-  "grey": UIColor(red: 128/255, green: 128/255, blue: 128/255, alpha: 1),
-  "white": .white,
-  "maroon": UIColor(red: 0.5, green: 0, blue: 0, alpha: 1),
-  "red": .red,
-  "purple": UIColor(red: 0.5, green: 0, blue: 0.5, alpha: 1),
-  "fuchsia": .magenta,
-  "green": UIColor(red: 0, green: 128/255, blue: 0, alpha: 1),
-  "lime": UIColor(red: 0, green: 1, blue: 0, alpha: 1),
-  "olive": UIColor(red: 0.5, green: 0.5, blue: 0, alpha: 1),
-  "yellow": .yellow,
-  "navy": UIColor(red: 0, green: 0, blue: 0.5, alpha: 1),
-  "blue": .blue,
-  "teal": UIColor(red: 0, green: 0.5, blue: 0.5, alpha: 1),
-  "aqua": .cyan,
-  "orange": UIColor(red: 1, green: 165/255, blue: 0, alpha: 1),
-  "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
-  "pink": UIColor(red: 1, green: 192/255, blue: 203/255, alpha: 1),
-  "transparent": .clear,
-  "cyan": .cyan
-]
-
 // MARK: - Top-level splitters
 
 /// Split background layers by top-level commas (commas not inside parentheses or
@@ -520,404 +556,221 @@ func splitBackgroundLayers(_ input: String) -> [String] {
   return result
 }
 
-/// Split gradient contents by top-level commas (safe for rgba(), functions, etc.)
-func splitGradientParts(_ content: String) -> [String] {
-  var parts: [String] = []
-  var current = ""
-  var depth = 0
-  
-  for ch in content {
-    if ch == "(" { depth += 1 }
-    else if ch == ")" { depth = max(0, depth - 1) }
-    
-    if ch == "," && depth == 0 {
-      parts.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
-      current = ""
-    } else {
-      current.append(ch)
+// MARK: - Parse Background Layers
+func parseBackgroundLayers(_ css: String, currentColor: UInt32 = 0xff000000) -> [BackgroundLayer] {
+  (parseNativeBackgroundLayers(css, currentColor: currentColor) ?? []).filter { !$0.isDefault }
+}
+
+func parseLayer(_ css: String, currentColor: UInt32 = 0xff000000) -> BackgroundLayer {
+  parseNativeBackgroundLayers(css, currentColor: currentColor)?.first ?? BackgroundLayer()
+}
+
+private func parseNativeBackgroundLayers(_ css: String, currentColor: UInt32) -> [BackgroundLayer]? {
+  NativeBackground(css, currentColor: currentColor)?.readLayers()
+}
+
+private func installBackground(_ style: MasonStyle, _ background: NativeBackground?) {
+  let node = style.node
+  guard !node.isPlaceholder else { return }
+  let mason = node.mason
+  if mason.inCompute { mason.deferStyleRecords(style) }
+  else { style.prepareMut() }
+  mason_css_background_install(mason.inCompute ? nil : mason.nativePtr, node.nativePtr, background?.handle)
+}
+
+private final class NativeBackground {
+  let handle: OpaquePointer
+
+  init?(_ css: String, currentColor: UInt32) {
+    let scale = NSCMason.scale
+    let rootFontSize = NSCMason.rootFontSize
+    let viewport = NSCMason.viewportSize
+    guard let parsed = css.withCString({
+      mason_css_background_parse($0, currentColor, scale, rootFontSize, rootFontSize,
+                                 Float(viewport.width), Float(viewport.height))
+    }) else { return nil }
+    handle = parsed
+  }
+
+  init() {
+    handle = mason_css_background_create()
+  }
+
+  deinit { mason_css_background_release(handle) }
+
+  func replace(_ css: String, currentColor: UInt32) -> Int64 {
+    let viewport = NSCMason.viewportSize
+    return css.withCString {
+      mason_css_background_mobile_replace(handle, $0, currentColor, NSCMason.scale, NSCMason.rootFontSize,
+                                          Float(viewport.width), Float(viewport.height))
     }
   }
-  
-  if !current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-    parts.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
-  }
-  
-  return parts
-}
 
-
-// MARK: - Parse Multiple Layers
-/// Layers of a `background`/`background-image` list, minus empty/default ones
-/// (a bare color like "#fff" lives on `Background.color`, not a layer).
-func parseBackgroundLayers(_ css: String) -> [BackgroundLayer] {
-  splitBackgroundLayers(css).map { parseLayer($0) }.filter { !$0.isDefault }
-}
-
-private let REPEAT_KEYS: Set<String> = ["repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round"]
-private let POSITION_KEYS: Set<String> = ["top", "bottom", "left", "right", "center"]
-private let BOX_KEYWORDS: Set<String> = ["border-box", "padding-box", "content-box"]
-private let ATTACHMENT_KEYWORDS: Set<String> = ["scroll", "fixed", "local"]
-
-func parseRepeat(_ value: String) -> BackgroundRepeat {
-  BackgroundRepeat.parse(value) ?? .noRepeat
-}
-
-/// Cut the first `linear-`/`radial-`/`conic-gradient(...)` (or its `repeating-` form) out of
-/// `value`, balancing parentheses.
-private func extractGradient(from value: String) -> (gradient: String, rest: String)? {
-  let starts = ["linear-gradient(", "radial-gradient(", "conic-gradient("].compactMap { value.range(of: $0, options: .caseInsensitive)?.lowerBound }
-  guard var start = starts.min() else { return nil }
-  let prefix = "repeating-"
-  if value.distance(from: value.startIndex, to: start) >= prefix.count {
-    let prefixStart = value.index(start, offsetBy: -prefix.count)
-    if value[prefixStart..<start].lowercased() == prefix { start = prefixStart }
-  }
-  var depth = 0
-  var end = value.endIndex
-  var i = start
-  while i < value.endIndex {
-    let ch = value[i]
-    if ch == "(" {
-      depth += 1
-    } else if ch == ")" {
-      depth -= 1
-      if depth == 0 { end = value.index(after: i); break }
-    }
-    i = value.index(after: i)
-  }
-  let rest = String(value[..<start]) + " " + String(value[end...])
-  return (String(value[start..<end]), rest.trimmingCharacters(in: .whitespacesAndNewlines))
-}
-
-// MARK: - Parse Single Layer
-/// One comma-separated layer of the `background` shorthand: image, gradient,
-/// repeat, attachment, position [/ size] and up to two box keywords (origin,
-/// then clip). A color token is kept on `backgroundColor` for the final layer.
-func parseLayer(_ str: String) -> BackgroundLayer {
-  let layer = BackgroundLayer()
-  var value = str.trimmingCharacters(in: .whitespacesAndNewlines)
-  
-  if value.hasSuffix(";") {
-    value = String(value.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  // Image URL first: its contents must not be tokenized.
-  if let url = parseImage(value) {
-    layer.image = url
-    value = removeImageURL(from: value)
-  }
-
-  // Gradient: the function consumes its own parentheses, the rest are tokens.
-  if let (gradientText, rest) = extractGradient(from: value) {
-    layer.gradient = parseGradient(gradientText)
-    value = rest
-  }
-
-  var boxes: [BackgroundClip] = []
-  var clipsToText = false
-  var positionTokens: [String] = []
-  var sizeTokens: [String] = []
-  var repeatTokens: [String] = []
-  var afterSlash = false
-  for raw in splitTopLevelWhitespace(value) {
-    let t = raw.lowercased()
-    // A "/" inside parentheses belongs to a color function such as rgb(0 0 0 / 50%).
-    let bareSlash = !t.contains("(")
-    if bareSlash && t == "/" {
-      afterSlash = true
-    } else if bareSlash && t.hasPrefix("/") {
-      afterSlash = true
-      sizeTokens.append(String(t.dropFirst()))
-    } else if bareSlash && t.hasSuffix("/") {
-      positionTokens.append(String(t.dropLast()))
-      afterSlash = true
-    } else if bareSlash, let slash = t.firstIndex(of: "/") {
-      positionTokens.append(String(t[..<slash]))
-      sizeTokens.append(String(t[t.index(after: slash)...]))
-      afterSlash = true
-    } else if afterSlash && (t == "auto" || t == "cover" || t == "contain" || parseBackgroundLength(t) != nil) {
-      sizeTokens.append(t)
-    } else if REPEAT_KEYS.contains(t) {
-      repeatTokens.append(t)
-    } else if ATTACHMENT_KEYWORDS.contains(t), let attachment = BackgroundAttachment.parse(t) {
-      layer.attachment = attachment
-    } else if t == "text" {
-      clipsToText = true
-    } else if BOX_KEYWORDS.contains(t), let box = BackgroundClip.parse(t) {
-      boxes.append(box)
-    } else if POSITION_KEYS.contains(t) || parseBackgroundLength(t) != nil {
-      afterSlash = false
-      positionTokens.append(t)
-    } else if let col = parseColor(raw) {
-      layer.backgroundColor = col
+  func setLonghand(_ property: String, _ value: String) -> Int32 {
+    let viewport = NSCMason.viewportSize
+    return property.withCString { name in
+      value.withCString {
+        mason_css_background_mobile_set_longhand(handle, name, $0, NSCMason.scale, NSCMason.rootFontSize,
+                                                 Float(viewport.width), Float(viewport.height))
+      }
     }
   }
-  if let r = BackgroundRepeat.parse(repeatTokens.joined(separator: " ")) { layer.repeatType = r }
-  if !positionTokens.isEmpty { layer.position = parsePosition(positionTokens) }
-  if !sizeTokens.isEmpty { layer.size = parseSize(sizeTokens.joined(separator: " ")) }
-  if boxes.count == 1 {
-    layer.origin = boxes[0]
-    layer.clip = boxes[0]
-  } else if boxes.count >= 2 {
-    layer.origin = boxes[0]
-    layer.clip = boxes[1]
+
+  func applyCompiled(_ fields: [String], currentColor: UInt32, fontSize: Float) -> [Int64]? {
+    var input = fields.joined(separator: "\u{0}")
+    var result = [Int64](repeating: 0, count: CssBackgroundResultRecord.stride)
+    let viewport = NSCMason.viewportSize
+    let applied = input.withUTF8 { bytes in
+      result.withUnsafeMutableBufferPointer { output in
+        mason_css_background_mobile_apply(handle, CMasonCssText(bytes: bytes.baseAddress, len: UInt(bytes.count)),
+          currentColor, NSCMason.scale, fontSize, NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height),
+          output.baseAddress, UInt(output.count))
+      }
+    }
+    return applied ? result : nil
   }
-  // `text` is the clip; a box keyword beside it is only the origin.
-  if clipsToText {
-    layer.clip = .text
-    Background.textClipsInUse = true
+
+  func readLayers(reusing existing: [BackgroundLayer] = []) -> [BackgroundLayer] {
+    let layers = mason_css_background_layers(handle)
+
+    return UnsafeBufferPointer(start: layers.data, count: Int(layers.count)).enumerated().map { index, parsed in
+      readBackgroundLayer(parsed, existing: existing.indices.contains(index) ? existing[index] : nil) {
+        mason_css_background_gradient(handle, UInt(index))
+      }
+    }
   }
-  
+}
+
+func readBackgroundLayer(_ parsed: CMasonCssBackgroundLayer, existing: BackgroundLayer? = nil,
+                         gradient: () -> OpaquePointer?) -> BackgroundLayer {
+  func offset(_ value: CMasonCssOffset) -> BackgroundOffset? {
+    guard value.present else { return nil }
+    let math = value.math.flatMap { mason_css_paint_offset_retain($0) }.map(NativePaintOffset.init(owned:))
+    return BackgroundOffset(fraction: CGFloat(value.fraction), px: CGFloat(value.pixels), math: math)
+  }
+  let layer = existing ?? BackgroundLayer()
+  if existing == nil {
+    if parsed.image_kind == 1 {
+      layer.image = String(decoding: UnsafeBufferPointer(start: parsed.image.bytes, count: Int(parsed.image.len)), as: UTF8.self)
+    } else if parsed.image_kind == 2, let gradient = gradient() {
+      layer.gradient = Gradient(handle: gradient)
+    }
+    if parsed.has_color { layer.backgroundColor = UIColor.colorFromARGB(parsed.color) }
+  }
+  layer.repeatType = BackgroundRepeat(x: repeatStyle(Int(parsed.repeat_x)), y: repeatStyle(Int(parsed.repeat_y)))
+  let x = offset(parsed.position_x)
+  let y = offset(parsed.position_y)
+  layer.position = x == nil && y == nil ? nil : BackgroundPosition(x: x ?? BackgroundOffset(), y: y ?? BackgroundOffset())
+  switch parsed.size_kind {
+  case 1: layer.size = BackgroundSize(width: offset(parsed.width), height: offset(parsed.height))
+  case 2: layer.size = BackgroundSize(keyword: "contain")
+  case 3: layer.size = BackgroundSize(keyword: "cover")
+  default: layer.size = nil
+  }
+  layer.origin = backgroundBox(Int(parsed.origin))
+  layer.clip = backgroundBox(Int(parsed.clip))
+  if layer.clip == .text { Background.textClipsInUse = true }
+  switch parsed.attachment {
+  case 1: layer.attachment = .fixed
+  case 2: layer.attachment = .local
+  default: layer.attachment = .scroll
+  }
+  layer.blendMode = BackgroundBlendMode.allCases[Int(parsed.blend)]
   return layer
 }
 
-// MARK: - Parse Position
-/// One `<length>` or `<percentage>` of a background position/size, or nil. Lengths are device px.
-func parseBackgroundLength(_ token: String) -> BackgroundOffset? {
-  let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  if t.isEmpty { return nil }
-  guard let lp = parseLengthPercentage(t) else { return nil }
-  switch lp {
-  case .Percent(let p): return BackgroundOffset(fraction: CGFloat(p), px: 0)
-  case .Points(let p): return BackgroundOffset(fraction: 0, px: CGFloat(p))
-  case .Zero: return BackgroundOffset()
+private func repeatStyle(_ value: Int) -> RepeatStyle {
+  switch value {
+  case 1: return .noRepeat
+  case 2: return .space
+  case 3: return .round
+  default: return .repeat
   }
 }
 
-private func isHorizontalKeyword(_ t: String) -> Bool { t == "left" || t == "right" }
-private func isVerticalKeyword(_ t: String) -> Bool { t == "top" || t == "bottom" }
-
-private func keywordOffset(_ t: String) -> BackgroundOffset? {
-  switch t {
-  case "left", "top": return BackgroundOffset(fraction: 0, px: 0)
-  case "center": return BackgroundOffset(fraction: 0.5, px: 0)
-  case "right", "bottom": return BackgroundOffset(fraction: 1, px: 0)
-  default: return nil
+private func backgroundBox(_ value: Int) -> BackgroundClip {
+  switch value {
+  case 1: return .paddingBox
+  case 2: return .contentBox
+  case 3: return .text
+  default: return .borderBox
   }
 }
 
-/// `background-position-x`/`-y`: a keyword, a length, or `<edge> <offset>`.
-func parseAxisPosition(_ parts: [String], horizontal: Bool) -> BackgroundOffset? {
-  let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty }
-  guard let first = tokens.first else { return nil }
-  let edgeOk = horizontal ? (isHorizontalKeyword(first) || first == "center") : (isVerticalKeyword(first) || first == "center")
-  if tokens.count == 1 {
-    return edgeOk ? keywordOffset(first) : parseBackgroundLength(first)
+private let backgroundLonghandRecordSize = 6
+
+private struct BackgroundLonghandRecord {
+  let values: UnsafeBufferPointer<Double>
+  let program: NativeBackgroundLonghand
+
+  subscript(_ index: Int) -> Double { values[index] }
+
+  func offset(_ index: Int, axis: Int) -> BackgroundOffset? {
+    self[index].isNaN ? nil : BackgroundOffset(fraction: CGFloat(self[index]), px: CGFloat(self[index + 1]), math: program.offset(axis))
   }
-  if tokens.count == 2 && edgeOk && first != "center" {
-    guard let offset = parseBackgroundLength(tokens[1]), let edge = keywordOffset(first) else { return nil }
-    // `right 10px` means 10px in from the right: a negative device offset.
-    return edge.fraction == 1 ? BackgroundOffset(fraction: 1 - offset.fraction, px: -offset.px) : offset
+
+  var repeatType: BackgroundRepeat {
+    BackgroundRepeat(x: repeatStyle(Int(self[1])), y: repeatStyle(Int(self[2])))
   }
-  return nil
+
+  var position: BackgroundPosition {
+    BackgroundPosition(x: offset(1, axis: 0)!, y: offset(3, axis: 1)!)
+  }
+
+  var size: BackgroundSize {
+    switch Int(self[1]) {
+    case 2: return BackgroundSize(keyword: "contain")
+    case 3: return BackgroundSize(keyword: "cover")
+    default: return BackgroundSize(width: offset(2, axis: 0), height: offset(4, axis: 1))
+    }
+  }
+
 }
 
-/// CSS `background-position` with the 1-, 2-, 3- and 4-value syntaxes.
+/// Projects a parsed layer list for the mask renderer and CSS accessors.
+final class NativeBackgroundLonghand {
+  fileprivate let handle: OpaquePointer
+
+  init?(_ name: String, _ value: String, allowInvalidEntries: Bool = false) {
+    guard let parsed = name.withCString({ property in
+      value.withCString { mason_css_background_longhand_parse(property, $0, allowInvalidEntries) }
+    }) else { return nil }
+    handle = parsed
+  }
+
+  deinit { mason_css_background_longhand_release(handle) }
+
+  func offset(_ index: Int) -> NativePaintOffset? {
+    let viewport = NSCMason.viewportSize
+    return mason_css_background_longhand_offset(handle, UInt(index), NSCMason.scale, NSCMason.rootFontSize,
+      Float(viewport.width), Float(viewport.height)).map(NativePaintOffset.init(owned:))
+  }
+
+  func withValues<Result>(_ body: (UnsafeBufferPointer<Double>) -> Result) -> Result {
+    let viewport = NSCMason.viewportSize
+    let result = mason_css_background_longhand_records(
+      handle, NSCMason.scale, NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height))
+    defer { mason_css_values_release(result) }
+    return body(UnsafeBufferPointer(start: result.values, count: Int(result.len)))
+  }
+
+}
+
+private func readBackgroundLonghand<Result>(_ property: String, _ value: String, _ read: (BackgroundLonghandRecord) -> Result) -> Result? {
+  guard let program = NativeBackgroundLonghand(property, value) else { return nil }
+  return program.withValues { values -> Result? in
+    guard values.count == backgroundLonghandRecordSize else { return nil }
+    return read(BackgroundLonghandRecord(values: values, program: program))
+  }
+}
+
 func parsePosition(_ parts: [String]) -> BackgroundPosition? {
-  let tokens = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }.filter { !$0.isEmpty }
-  if tokens.isEmpty || tokens.count > 4 { return nil }
-  switch tokens.count {
-  case 1:
-    let t = tokens[0]
-    if isVerticalKeyword(t), let y = keywordOffset(t) {
-      return BackgroundPosition(x: BackgroundOffset(fraction: 0.5), y: y)
-    }
-    guard let x = keywordOffset(t) ?? parseBackgroundLength(t) else { return nil }
-    return BackgroundPosition(x: x, y: BackgroundOffset(fraction: 0.5))
-  case 2:
-    var a = tokens[0]
-    var b = tokens[1]
-    // `top left` is legal: keywords may swap axes, lengths may not.
-    if isVerticalKeyword(a) || isHorizontalKeyword(b) { swap(&a, &b) }
-    let xKeyword = isVerticalKeyword(a) ? nil : keywordOffset(a)
-    let yKeyword = isHorizontalKeyword(b) ? nil : keywordOffset(b)
-    guard let x = xKeyword ?? parseBackgroundLength(a), let y = yKeyword ?? parseBackgroundLength(b) else { return nil }
-    return BackgroundPosition(x: x, y: y)
-  default:
-    // 3/4-value: edge keywords each optionally followed by an offset.
-    var x: BackgroundOffset? = nil
-    var y: BackgroundOffset? = nil
-    var i = 0
-    while i < tokens.count {
-      let kw = tokens[i]
-      let next = i + 1 < tokens.count ? tokens[i + 1] : nil
-      let pair = (next != nil && parseBackgroundLength(next!) != nil) ? [kw, next!] : [kw]
-      if isHorizontalKeyword(kw) || (kw == "center" && x == nil && !isVerticalKeyword(next ?? "")) {
-        guard let v = parseAxisPosition(pair, horizontal: true) else { return nil }
-        x = v
-      } else if isVerticalKeyword(kw) || kw == "center" {
-        guard let v = parseAxisPosition(pair, horizontal: false) else { return nil }
-        y = v
-      } else {
-        return nil
-      }
-      i += pair.count
-    }
-    return BackgroundPosition(x: x ?? BackgroundOffset(fraction: 0.5), y: y ?? BackgroundOffset(fraction: 0.5))
-  }
+  readBackgroundLonghand("position", parts.joined(separator: " ")) { $0.position }
 }
 
-// MARK: - Parse Size
-func parseSize(_ value: String) -> BackgroundSize? {
-  let s = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  switch s {
-  case "cover", "contain":
-    return BackgroundSize(keyword: s)
-  case "auto", "auto auto":
-    return BackgroundSize()
-  default:
-    let tokens = splitTopLevelWhitespace(s)
-    if tokens.isEmpty || tokens.count > 2 { return nil }
-    var w: BackgroundOffset? = nil
-    if tokens[0] != "auto" {
-      guard let v = parseBackgroundLength(tokens[0]) else { return nil }
-      w = v
-    }
-    var h: BackgroundOffset? = nil
-    if tokens.count > 1, tokens[1] != "auto" {
-      guard let v = parseBackgroundLength(tokens[1]) else { return nil }
-      h = v
-    }
-    return BackgroundSize(width: w, height: h)
-  }
-}
-
-func extractGradientContent(_ str: String) -> (type: String, content: String)? {
-  var lower = str.lowercased()
-  if lower.hasPrefix("repeating-") { lower.removeFirst("repeating-".count) }
-  if lower.hasPrefix("linear-gradient(") || lower.hasPrefix("radial-gradient(") || lower.hasPrefix("conic-gradient(") {
-    let typeEnd = str.firstIndex(of: "(")!
-    let type = String(str[..<typeEnd]).lowercased().replacingOccurrences(of: "-gradient", with: "")
-    var depth = 0
-    var content = ""
-    var started = false
-    
-    for ch in str[typeEnd...] {
-      if ch == "(" {
-        depth += 1
-        started = true
-        if depth == 1 { continue } // skip outer (
-      }
-      if ch == ")" {
-        depth -= 1
-        if depth == 0 { break } // stop at matching outer )
-      }
-      if started {
-        content.append(ch)
-      }
-    }
-    
-    return (type, content)
-  }
-  return nil
-}
-
-// MARK: - Parse Gradient (preserve full rgba/rgb)
-func parseGradient(_ str: String) -> Gradient? {
-  guard let (type, content) = extractGradientContent(str) else { return nil }
-  
-  var parts = splitGradientParts(content)
-  
-  var direction: String? = nil
-  var interpolation: ColorInterpolation? = nil
-  if let first = parts.first {
-    var t = first.trimmingCharacters(in: .whitespacesAndNewlines)
-    // `to right in oklab`: the method shares the first argument with the direction.
-    let extracted = ColorInterpolation.extract(t)
-    if let extracted = extracted {
-      interpolation = extracted.method
-      t = extracted.rest
-    }
-    if !t.isEmpty && (isAngleOrDirection(t) || (type.hasSuffix("radial") && isRadialPrelude(t))) {
-      direction = t
-    }
-    if direction != nil || extracted != nil {
-      parts = Array(parts.dropFirst())
-    }
-  }
-
-  var stops = expandColorStops(parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
-  var kind = type
-  let repeating = kind.hasPrefix("repeating-")
-  if repeating { kind.removeFirst("repeating-".count) }
-  // Conic stops may be placed by angle; the stop parser reads fractions of a turn.
-  if kind == "conic" { stops = stops.map(conicStopAsPercent) }
-  return Gradient(type: kind, direction: direction, stops: stops, interpolation: interpolation, repeating: repeating)
-}
-
-/// `red 90deg` -> `red 25%`; anything else is returned unchanged.
-private func conicStopAsPercent(_ stop: String) -> String {
-  var parts = splitTopLevelWhitespace(stop)
-  guard parts.count == 2, let turns = cssAngleInTurns(parts[1]) else { return stop }
-  parts[1] = "\(turns * 100)%"
-  return parts.joined(separator: " ")
-}
-
-/// A CSS `<angle>` as a fraction of a full turn, or nil when `token` is not one.
-func cssAngleInTurns(_ token: String) -> Double? {
-  let t = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  let units: [(String, Double)] = [("grad", 400), ("turn", 1), ("deg", 360), ("rad", 2 * Double.pi)]
-  for (unit, perTurn) in units where t.hasSuffix(unit) {
-    guard let v = Double(t.dropLast(unit.count)) else { return nil }
-    return v / perTurn
-  }
-  return nil
-}
-
-/// A stop with two positions ("red 10% 30%") is two stops of the same colour.
-func expandColorStops(_ stops: [String]) -> [String] {
-  return stops.flatMap { stop -> [String] in
-    let parts = splitTopLevelWhitespace(stop)
-    return parts.count == 3 ? ["\(parts[0]) \(parts[1])", "\(parts[0]) \(parts[2])"] : [stop]
-  }
-}
-
-/// A radial shape and size with no `at`: `circle 50px`, `40px 20%`, `ellipse closest-side`.
-private func isRadialPrelude(_ value: String) -> Bool {
-  let tokens = value.lowercased().split(separator: " ").map(String.init)
-  return !tokens.isEmpty && tokens.allSatisfy { radialShapeKeywords.contains($0) || parseLengthPercentage($0) != nil }
-}
-
-let radialShapeKeywords: Set<String> = ["circle", "ellipse", "closest-side", "closest-corner", "farthest-side", "farthest-corner"]
-
-// MARK: - Helper to detect if a token is an angle, direction, or radial shape/position
-private func isAngleOrDirection(_ token: String) -> Bool {
-  let v = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-  
-  // Check for angle: e.g., "180deg", "45deg"
-  if v.hasSuffix("deg") || v.hasSuffix("rad") || v.hasSuffix("turn") || v.hasSuffix("grad") {
-    return true
-  }
-  
-  // conic-gradient's `from <angle>` / `at <position>`, and radial's bare `at <position>`.
-  if v.hasPrefix("from ") || v.hasPrefix("at ") {
-    return true
-  }
-
-  // Check for linear-gradient direction: "to bottom", "to top left", etc.
-  if v.hasPrefix("to ") {
-    let parts = v.dropFirst(3).split(separator: " ")
-    let validDirections = Set(["top", "bottom", "left", "right"])
-    return parts.allSatisfy { validDirections.contains(String($0)) }
-  }
-  
-  // Check for radial-gradient shape/position: "ellipse at center", "circle at top left"
-  if v.contains(" at ") {
-    let beforeAt = v.components(separatedBy: " at ").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    let shapeKeywords = Set(["circle", "ellipse"])
-    let sizeKeywords = Set(["closest-side", "closest-corner", "farthest-side", "farthest-corner"])
-    let parts = beforeAt.split(separator: " ").map { String($0) }
-    if parts.isEmpty || parts.contains(where: { shapeKeywords.contains($0) || sizeKeywords.contains($0) }) {
-      return true
-    }
-  }
-  
-  // Check for standalone shape keywords: "circle", "ellipse"
-  if v == "circle" || v == "ellipse" {
-    return true
-  }
-  
-  return false
+func parseGradient(_ value: String, currentColor: UInt32 = 0xff000000) -> Gradient? {
+  guard let handle = value.withCString({ mason_css_gradient_parse($0, currentColor) }) else { return nil }
+  return Gradient(handle: handle)
 }
 
 // MARK: - Parse Image URL
@@ -970,14 +823,14 @@ func removeImageURL(from value: String) -> String {
   return result.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-// MARK: - Parse Color
-func parseColor(_ value: String) -> UIColor? {
-  let v = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: ";"))
-  if v.isEmpty { return nil }
-  if let mapped = colorMap[v.lowercased()] { return mapped }
-  return UIColor(css: v)
+func parseColorArgb(_ value: String) -> UInt32? {
+  guard let field = NSCMason.expandCssShorthand("color-value", value: value)?.first else { return nil }
+  return UInt32(field)
 }
 
+func parseColor(_ value: String) -> UIColor? {
+  UIColor(css: value)
+}
 
 extension UIColor {
   
@@ -999,101 +852,13 @@ extension UIColor {
       }
 
   convenience init?(css: String) {
-    let value = css
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
-    
-    // MARK: - Hex (#rgb, #rgba, #rrggbb, #rrggbbaa)
-    if value.hasPrefix("#") {
-      let hexString = String(value.dropFirst())
-      var hexValue = hexString
-      
-      // Expand #rgb → #rrggbb
-      if hexValue.count == 3 {
-        hexValue = hexValue.map { "\($0)\($0)" }.joined()
-      }
-      // Expand #rgba → #rrggbbaa
-      if hexValue.count == 4 {
-        hexValue = hexValue.map { "\($0)\($0)" }.joined()
-      }
-      
-      guard let hex = Int(hexValue, radix: 16) else { return nil }
-      
-      switch hexValue.count {
-      case 6: // RRGGBB
-        self.init(
-          red:   CGFloat((hex >> 16) & 0xFF) / 255,
-          green: CGFloat((hex >> 8)  & 0xFF) / 255,
-          blue:  CGFloat(hex & 0xFF)         / 255,
-          alpha: 1
-        )
-        return
-        
-      case 8: // RRGGBBAA
-        self.init(
-          red:   CGFloat((hex >> 24) & 0xFF) / 255,
-          green: CGFloat((hex >> 16) & 0xFF) / 255,
-          blue:  CGFloat((hex >> 8)  & 0xFF) / 255,
-          alpha: CGFloat(hex & 0xFF)         / 255
-        )
-        return
-        
-      default:
-        return nil
-      }
-    }
-    
-    // MARK: - rgb() / rgba()
-    if value.hasPrefix("rgb") {
-      // Remove "rgb(" or "rgba("
-      guard let open = value.firstIndex(of: "("),
-            let close = value.lastIndex(of: ")") else { return nil }
-      
-      let inside = value[value.index(after: open)..<close]
-        .trimmingCharacters(in: .whitespaces)
-      
-      // CSS4 allows: "rgb(255 0 0)" or "rgb(255, 0, 0)"
-      let parts = inside
-        .replacingOccurrences(of: "/", with: " ") // rgb(0 0 0 / 0.5)
-        .split(whereSeparator: { " ,".contains($0) })
-        .map { $0.trimmingCharacters(in: .whitespaces) }
-      
-      if parts.count < 3 { return nil }
-      
-      func parseComponent(_ s: String) -> CGFloat? {
-        if s.hasSuffix("%") {
-          let p = CGFloat(Double(s.dropLast()) ?? 0)
-          return max(0, min(1, p / 100))
-        }
-        if let v = Double(s) {
-          return max(0, min(1, CGFloat(v / 255)))
-        }
-        return nil
-      }
-      
-      let r = parseComponent(parts[0])
-      let g = parseComponent(parts[1])
-      let b = parseComponent(parts[2])
-      
-      let a: CGFloat
-      if parts.count >= 4 {
-        if parts[3].hasSuffix("%") {
-          a = CGFloat(Double(parts[3].dropLast()) ?? 100) / 100
-        } else {
-          a = CGFloat(Double(parts[3]) ?? 1)
-        }
-      } else {
-        a = 1
-      }
-      
-      guard let rr = r, let gg = g, let bb = b else { return nil }
-      
-      self.init(red: rr, green: gg, blue: bb, alpha: a)
-      return
-    }
-    
-    // MARK: - unsupported format
-    return nil
+    guard let argb = parseColorArgb(css) else { return nil }
+    self.init(
+      red: CGFloat((argb >> 16) & 0xff) / 255,
+      green: CGFloat((argb >> 8) & 0xff) / 255,
+      blue: CGFloat(argb & 0xff) / 255,
+      alpha: CGFloat(argb >> 24) / 255
+    )
   }
 }
 
@@ -1123,20 +888,16 @@ struct ColorInterpolation: Equatable {
   let space: Space
   var hue: HueMethod = .shorter
 
+  static func fromRust(_ space: String, _ hue: String) -> ColorInterpolation {
+    ColorInterpolation(space: Space.parse(space) ?? .srgb, hue: HueMethod(rawValue: hue) ?? .shorter)
+  }
+
   /// Splits the method from a gradient's first argument, or nil when there is none.
   static func extract(_ first: String) -> (rest: String, method: ColorInterpolation)? {
-    var tokens = first.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-    guard let at = tokens.firstIndex(where: { $0.lowercased() == "in" }), at + 1 < tokens.count else { return nil }
-    // Unknown spaces fall back to sRGB instead of dropping the gradient.
-    let space = Space.parse(tokens[at + 1]) ?? .srgb
-    var consumed = 2
-    var hue = HueMethod.shorter
-    if at + 3 < tokens.count, tokens[at + 3].lowercased() == "hue", let method = HueMethod(rawValue: tokens[at + 2].lowercased()) {
-      hue = method
-      consumed = 4
-    }
-    tokens.removeSubrange(at..<(at + consumed))
-    return (tokens.joined(separator: " "), ColorInterpolation(space: space, hue: hue))
+    guard let fields = NSCMason.expandCssShorthand("gradient-interpolation", value: first),
+          fields.count == GradientInterpolationRecord.stride else { return nil }
+    return (fields[GradientInterpolationRecord.direction],
+            fromRust(fields[GradientInterpolationRecord.space], fields[GradientInterpolationRecord.hue]))
   }
 }
 

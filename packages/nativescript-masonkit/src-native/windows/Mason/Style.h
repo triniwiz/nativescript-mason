@@ -42,6 +42,15 @@ namespace winrt::NativeScript::Mason::implementation
             hstring const& gridRowStart, hstring const& gridRowEnd, hstring const& gridTemplateRows,
             hstring const& gridTemplateColumns, hstring const& gridArea, hstring const& gridTemplateAreas);
 
+        void SetGridCss(int32_t property, winrt::hstring const& value,
+            float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
+        bool ApplyLayoutLength(winrt::hstring const& property, winrt::hstring const& value,
+            float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
+        hstring LayoutLengthCss(winrt::hstring const& property);
+        bool ApplyLayoutLengthForState(uint32_t flags, winrt::hstring const& property, winrt::hstring const& value,
+            float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
+        hstring LayoutLengthCssForState(uint32_t flags, winrt::hstring const& property);
+
         void PrepareForMutation();
 
         winrt::Windows::Foundation::Collections::IVectorView<uint8_t> GetStyleBuffer();

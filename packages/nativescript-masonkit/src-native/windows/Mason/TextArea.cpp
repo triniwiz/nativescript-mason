@@ -99,8 +99,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void TextArea::SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
     {
-        m_visual.styleDirty = true;
-        const auto dirty = mason_leaf::DirtyWords(d0, d1, d2, d3);
+        const auto dirty = mason_leaf::UpdatePaintStyle(m_visual.styleDirty, d0, d1, d2, d3);
         if (mason_leaf::AnyDirty(dirty, mason_leaf::kControlKeys)) SyncTextStyle(false);
         mason_leaf::StyleSynced(get_strong().as<mux::UIElement>(), m_node, dirty);
     }

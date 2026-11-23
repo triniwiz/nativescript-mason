@@ -2,65 +2,32 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Color
 
-/**
- * Tokenise a CSS shadow value, keeping parenthesised groups (e.g.
- * `rgba(26, 26, 46, 0.4)`) as single tokens even when they contain
- * spaces after commas.
- */
-private fun tokenizeShadow(value: String): List<String> {
-  val tokens = mutableListOf<String>()
-  val sb = StringBuilder()
-  var depth = 0
-  for (ch in value) {
-    when {
-      ch == '(' -> {
-        depth++; sb.append(ch)
-      }
-
-      ch == ')' -> {
-        depth--; sb.append(ch)
-      }
-
-      ch.isWhitespace() && depth == 0 -> {
-        if (sb.isNotEmpty()) {
-          tokens.add(sb.toString()); sb.clear()
-        }
-      }
-
-      else -> sb.append(ch)
-    }
-  }
-  if (sb.isNotEmpty()) tokens.add(sb.toString())
-  return tokens
+internal fun parseCssRecords(value: String, kind: Int, style: Style? = null): DoubleArray {
+  val mason = Mason.shared
+  return Mason.nativeParseCss(
+    value, kind, mason.scale, style?.fontSize ?: mason.rootFontSize, mason.rootFontSize,
+    mason.viewportWidth, mason.viewportHeight, style?.color ?: Color.BLACK
+  ) ?: doubleArrayOf()
 }
 
-/**
- * Split multiple comma-separated shadow values while respecting
- * parenthesised groups like `rgba(0, 0, 0, 0.5)`.
- */
-private fun splitShadowLayers(value: String): List<String> {
-  val layers = mutableListOf<String>()
-  val sb = StringBuilder()
-  var depth = 0
-  for (ch in value) {
-    when {
-      ch == '(' -> {
-        depth++; sb.append(ch)
-      }
+internal fun setStyleCssRecords(style: Style, value: String, kind: StyleRecordKind): DoubleArray =
+  installStyleCssRecords(style, value, kind) ?: doubleArrayOf()
 
-      ch == ')' -> {
-        depth--; sb.append(ch)
-      }
-
-      ch == ',' && depth == 0 -> {
-        layers.add(sb.toString()); sb.clear()
-      }
-
-      else -> sb.append(ch)
-    }
+internal fun installStyleCssRecords(style: Style, value: String, kind: StyleRecordKind): DoubleArray? {
+  val node = style.node
+  val mason = node.mason
+  val attached = !node.isPlaceholder
+  val deferred = attached && mason.inCompute
+  if (attached && !deferred) style.prepareMut()
+  val records = Mason.nativeSetStyleCssRecords(
+    if (attached && !deferred) mason.nativePtr else 0L, if (attached) node.nativePtr else 0L,
+    kind.id, value, mason.scale, style.fontSize,
+    mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, style.color
+  )
+  if (deferred && (kind != StyleRecordKind.FONT_FEATURES || records != null)) {
+    mason.deferStyleRecords(style, kind)
   }
-  if (sb.isNotEmpty()) layers.add(sb.toString())
-  return layers
+  return records
 }
 
 class Shadow {
@@ -81,108 +48,30 @@ class Shadow {
   )
 
   companion object {
-    fun parseTextShadow(style: Style, value: String): List<TextShadow> {
-      return splitShadowLayers(value).mapNotNull { shadow ->
-        try {
-          val tokens = tokenizeShadow(shadow.trim())
+    fun parseTextShadow(style: Style, value: String): List<TextShadow> =
+      readTextShadows(parseCssRecords(value, CssParseKind.SHADOWS, style))
 
-          var offsetX: Float? = null
-          var offsetY: Float? = null
-          var blur = 0f
-          var color: Int? = null
+    fun parseBoxShadow(style: Style, value: String): List<BoxShadow> =
+      readBoxShadows(parseCssRecords(value, CssParseKind.SHADOWS, style))
 
-          for (token in tokens) {
-            // Try length first
-            val length = parseLength(style, token)
-            if (length != null) {
-              when {
-                offsetX == null -> offsetX = length
-                offsetY == null -> offsetY = length
-                else -> blur = length.coerceAtLeast(0f) // blur must be ≥ 0
-              }
-              continue
-            }
+    internal fun setStyleTextShadows(style: Style, value: String): List<TextShadow> =
+      readTextShadows(setStyleCssRecords(style, value, StyleRecordKind.TEXT_SHADOW))
 
-            // Try color
-            val parsedColor = parseColor(token)
-            if (parsedColor != null) {
-              color = parsedColor
-            }
-          }
+    internal fun setStyleBoxShadows(style: Style, value: String): List<BoxShadow> =
+      readBoxShadows(setStyleCssRecords(style, value, StyleRecordKind.BOX_SHADOW))
 
-          // Must have at least two lengths
-          if (offsetX == null || offsetY == null) return@mapNotNull null
-
-          TextShadow(
-            offsetX = offsetX,
-            offsetY = offsetY,
-            blurRadius = blur,
-            color = color ?: Color.BLACK
-          )
-        } catch (_: Exception) {
-          null
-        }
+    internal fun readTextShadows(records: DoubleArray): List<TextShadow> {
+      return (records.indices step ShadowRecord.STRIDE).map { index ->
+        TextShadow(records[index + ShadowRecord.X].toFloat(), records[index + ShadowRecord.Y].toFloat(),
+          records[index + ShadowRecord.BLUR].toFloat(), records[index + ShadowRecord.COLOR].toLong().toInt())
       }
     }
 
-    /**
-     * Parse CSS box-shadow value.
-     * Syntax: [inset] <offset-x> <offset-y> [blur-radius] [spread-radius] <color>
-     * Multiple shadows separated by commas are supported.
-     */
-    fun parseBoxShadow(style: Style, value: String): List<BoxShadow> {
-      return splitShadowLayers(value).mapNotNull { shadow ->
-        try {
-          val tokens = tokenizeShadow(shadow.trim())
-
-          var inset = false
-          var offsetX: Float? = null
-          var offsetY: Float? = null
-          var blur = 0f
-          var spread = 0f
-          var color: Int? = null
-          val lengths = mutableListOf<Float>()
-
-          for (token in tokens) {
-            // Check for inset keyword
-            if (token.equals("inset", ignoreCase = true)) {
-              inset = true
-              continue
-            }
-
-            // Try length first
-            val length = parseLength(style, token)
-            if (length != null) {
-              lengths.add(length)
-              continue
-            }
-
-            // Try color
-            val parsedColor = parseColor(token)
-            if (parsedColor != null) {
-              color = parsedColor
-            }
-          }
-
-          // Must have at least two lengths (offset-x and offset-y)
-          if (lengths.size < 2) return@mapNotNull null
-
-          offsetX = lengths[0]
-          offsetY = lengths[1]
-          if (lengths.size >= 3) blur = lengths[2].coerceAtLeast(0f)
-          if (lengths.size >= 4) spread = lengths[3]
-
-          BoxShadow(
-            offsetX = offsetX,
-            offsetY = offsetY,
-            blurRadius = blur,
-            spreadRadius = spread,
-            color = color ?: Color.BLACK,
-            inset = inset
-          )
-        } catch (_: Exception) {
-          null
-        }
+    internal fun readBoxShadows(records: DoubleArray): List<BoxShadow> {
+      return (records.indices step ShadowRecord.STRIDE).map { index ->
+        BoxShadow(records[index + ShadowRecord.X].toFloat(), records[index + ShadowRecord.Y].toFloat(),
+          records[index + ShadowRecord.BLUR].toFloat(), records[index + ShadowRecord.SPREAD].toFloat(),
+          records[index + ShadowRecord.COLOR].toLong().toInt(), records[index + ShadowRecord.INSET] != 0.0)
       }
     }
   }

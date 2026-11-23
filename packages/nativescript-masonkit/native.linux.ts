@@ -2,6 +2,7 @@
 // Windows paths run unchanged. Elements extend interop.Pointer: core sees the GtkWidget.
 
 import { View as CoreView, Utils } from '@nativescript/core';
+import { encodeCssFilter, projectCssFilters } from './css-filter';
 import { viewForWidget } from '@nativescript/core/ui/core/view/gtk-layout';
 
 const enum Kind {
@@ -101,6 +102,18 @@ class Style {
 
   UpdateGrid(...values: string[]) {
     (mason_gtk_update_grid as any)(this.element, ...values.map((v) => v ?? ''));
+  }
+
+  SetGridCss(property: number, value: string, font: number, root: number, width: number, height: number) {
+    mason_gtk_set_grid_css(this.element, property, value, font, root, width, height);
+  }
+
+  ApplyLayoutLength(property: string, value: string, font: number, root: number, width: number, height: number): boolean {
+    return mason_gtk_css_layout_length(this.element, property, value, font, root, width, height);
+  }
+
+  LayoutLengthCss(property: string): string {
+    return mason_gtk_css_layout_length_value(this.element, property) ?? '';
   }
 
   PrepareForMutation() {}
@@ -707,6 +720,22 @@ export class Mason {
 const transformed = (element: any) => isElement(element);
 
 export class Css {
+  static SetCssEffects(element: Element, payload: string, font: number, root: number, width: number, height: number) {
+    if (!transformed(element)) return;
+    const result = mason_gtk_css_effects(element, payload, font, root, width, height);
+    if (!result) return;
+    const [filter, backdrop] = JSON.parse(result);
+    if (filter) this.SetFilter(element, encodeCssFilter(projectCssFilters(filter), Number));
+    if (backdrop) this.SetBackdropFilter(element, encodeCssFilter(projectCssFilters(backdrop), Number));
+  }
+
+  static SetCssBackground(element: Element, payload: string): number {
+    if (!transformed(element)) return -2;
+    const { writes, units, appRoot } = JSON.parse(payload);
+    const [font, root, width, height, color] = units;
+    return mason_gtk_css_background(element, JSON.stringify(writes), appRoot, font, root, width, height, color);
+  }
+
   static ClearBackground(element: Element) {
     if (transformed(element)) mason_gtk_css_clear_background(element);
   }
@@ -744,11 +773,11 @@ export class Css {
   }
 
   static SetMask(element: Element, spec: string) {
-    if (transformed(element)) mason_gtk_css_set_mask(element, 0, spec ?? '');
+    if (transformed(element)) mason_gtk_css_apply_mask(element, 0, spec ?? '');
   }
 
   static SetBorderImage(element: Element, spec: string) {
-    if (transformed(element)) mason_gtk_css_set_mask(element, 1, spec ?? '');
+    if (transformed(element)) mason_gtk_css_apply_mask(element, 1, spec ?? '');
   }
 
   static SetTransforms(element: Element, scaleX: number, scaleY: number, angle: number, translateX: number, translateY: number, originX: number, originY: number) {
@@ -761,6 +790,10 @@ export class Css {
 
   static ClearTransform(element: Element) {
     if (transformed(element)) mason_gtk_css_clear_transform(element);
+  }
+
+  static SetCssTransform(element: Element, value: string, boxWidth: number, boxHeight: number, font: number, root: number, width: number, height: number) {
+    if (transformed(element)) mason_gtk_css_transform(element, value, boxWidth, boxHeight, font, root, width, height);
   }
 
   static SetTransformOrigin(element: Element, x: number, y: number) {

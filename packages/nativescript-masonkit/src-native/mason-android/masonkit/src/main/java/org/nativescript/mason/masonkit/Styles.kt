@@ -84,23 +84,8 @@ class Styles {
       }
 
       /** Parse the `text-decoration-line` keywords; null when nothing valid was found. */
-      fun parse(css: String): DecorationLine? {
-        var mask = 0
-        var seen = false
-        for (token in css.trim().lowercase().split(Regex("\\s+"))) {
-          when (token) {
-            "" -> {}
-            "none" -> { seen = true }
-            "underline" -> { mask = mask or UNDERLINE; seen = true }
-            "overline" -> { mask = mask or OVERLINE; seen = true }
-            "line-through" -> { mask = mask or LINE_THROUGH; seen = true }
-            "spelling-error" -> return SpellingError
-            "grammar-error" -> return GrammarError
-            else -> return null
-          }
-        }
-        return if (seen) from(mask) else null
-      }
+      fun parse(css: String): DecorationLine? =
+        Mason.expandCssShorthand("text-decoration-line", css)?.firstOrNull()?.toByteOrNull()?.let { from(it) }
     }
   }
 
@@ -121,14 +106,8 @@ class Styles {
       }
 
     companion object {
-      fun parse(css: String): DecorationStyle? = when (css.trim().lowercase()) {
-        "solid" -> Solid
-        "double" -> Double
-        "dotted" -> Dotted
-        "dashed" -> Dashed
-        "wavy" -> Wavy
-        else -> null
-      }
+      fun parse(css: String): DecorationStyle? =
+        Mason.expandCssShorthand("text-decoration-style", css)?.firstOrNull()?.toByteOrNull()?.let { from(it) }
 
       fun from(value: Int): DecorationStyle = from(value.toByte())
 

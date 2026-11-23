@@ -23,6 +23,7 @@ export { CustomLayoutView, View } from '@nativescript/core/ui/core/view';
 export { ProxyViewContainer } from '@nativescript/core/ui/proxy-view-container';
 export { PseudoClassHandler, CSSType } from '@nativescript/core/ui/core/view/view-common';
 export { Screen } from '@nativescript/core/platform';
+export const knownFolders = { currentApp: () => ({ path: 'C:\\project' }) };
 
 // AddChildFromBuilder is an interface, so it has no runtime export; a value
 // import of the name still has to resolve.

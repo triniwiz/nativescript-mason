@@ -1,7 +1,5 @@
 package org.nativescript.mason.masonkit.enums
 
-import org.nativescript.mason.masonkit.Style
-import org.nativescript.mason.masonkit.StyleKeys
 import kotlin.Float
 
 enum class VerticalAlign(val type: Byte) {
@@ -40,22 +38,6 @@ enum class VerticalAlign(val type: Byte) {
 
   companion object {
     @JvmStatic
-    internal fun fromStyle(style: Style): VerticalAlign {
-      val isPercent = style.values.get(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1.toByte()
-      val ret = fromTypeValue(
-        style.values.get(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET),
-        isPercent,
-        style.values.getFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET)
-      )
-
-      if (ret == null) {
-        throw IllegalArgumentException("Invalid vertical-align value")
-      }
-
-      return ret
-    }
-
-    @JvmStatic
     fun fromTypeValue(type: Byte, isPercent: Boolean, value: Float): VerticalAlign? {
       if (isPercent) {
         return Percent.apply {
@@ -63,7 +45,7 @@ enum class VerticalAlign(val type: Byte) {
         }
       }
 
-      if (value > 0) {
+      if (value != 0f) {
         return Length.apply {
           this.value = value
         }

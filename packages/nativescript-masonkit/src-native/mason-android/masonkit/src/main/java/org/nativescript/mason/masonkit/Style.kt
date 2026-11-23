@@ -10,7 +10,6 @@ import dalvik.annotation.optimization.FastNative
 import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontStyle
 import org.nativescript.fontmanager.FontWeight
-import org.nativescript.mason.masonkit.Border.IKeyCorner
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Align
@@ -22,7 +21,6 @@ import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Clear
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.DisplayMode
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
 import org.nativescript.mason.masonkit.enums.FontVariantNumeric
@@ -60,211 +58,448 @@ internal fun Int.argbToCssHex(): String {
   return "#%02X%02X%02X%02X".format(r, g, b, a)
 }
 
-/**
- * Parse CSS shorthand for padding (1-4 values) and apply to style.padding
- */
+internal fun <T> parsePhysicalEdges(property: String, value: String, parse: (String) -> T?): Rect<T>? {
+  val words = Mason.expandCssShorthand(property, value) ?: return null
+  return parsePhysicalEdges(words, parse)
+}
+
+internal fun <T> parsePhysicalEdges(words: Array<String>, parse: (String) -> T?): Rect<T>? {
+  if (words.size != 4) return null
+  val sides = words.map { parse(it) ?: return null }
+  return Rect(sides[0], sides[1], sides[2], sides[3])
+}
+
 fun parsePaddingShorthand(style: Style, value: String) {
-  val cleaned = value.trim().removeSuffix(";")
+  val cleaned = value.trim().removeSuffix(";").trimEnd()
   if (cleaned.isEmpty()) {
-    if (!style.inBatch) style.inBatch = true
-    style.setPaddingWithValueType(0f, LengthPercentage.Kind.Points.value)
-    if (style.inBatch) style.inBatch = false
-    return
+    style.padding = Rect.uniform(LengthPercentage.Points(0f))
+  } else {
+    parsePhysicalEdges("padding", cleaned, ::parseLengthPercentage)?.let { style.padding = it }
   }
-
-  // CSS spec: if any value in a shorthand fails to parse, the whole
-  // declaration is invalid — don't drop the bad token and reinterpret the
-  // rest under a different shorthand arity.
-  val rawTokens = SPLIT_REGEX.split(cleaned)
-  if (rawTokens.isEmpty() || rawTokens.size > 4) return
-  val parsedTokens = rawTokens.map { parseLengthPercentage(it) }
-  if (parsedTokens.any { it == null }) return
-  val tokens = parsedTokens.filterNotNull()
-
-  var topType: Byte
-  var topValue: Float
-  var rightType: Byte
-  var rightValue: Float
-  var bottomType: Byte
-  var bottomValue: Float
-  var leftType: Byte
-  var leftValue: Float
-
-  when (tokens.size) {
-    1 -> {
-      val padding = tokens[0]
-      topType = padding.type
-      topValue = padding.value
-
-      rightType = padding.type
-      rightValue = padding.value
-
-      bottomType = padding.type
-      bottomValue = padding.value
-
-      leftType = padding.type
-      leftValue = padding.value
-    }
-
-    2 -> {
-      val tb = tokens[0]
-      val rl = tokens[1]
-
-
-      topType = tb.type
-      topValue = tb.value
-
-      rightType = rl.type
-      rightValue = rl.value
-
-      bottomType = tb.type
-      bottomValue = tb.value
-
-      leftType = rl.type
-      leftValue = rl.value
-
-    }
-
-    3 -> {
-
-      val top = tokens[0]
-      val right = tokens[1]
-      val bottom = tokens[2]
-
-      topType = top.type
-      topValue = top.value
-
-      rightType = right.type
-      rightValue = right.value
-
-      bottomType = bottom.type
-      bottomValue = bottom.value
-
-      leftType = right.type
-      leftValue = right.value
-    }
-
-    else -> {
-      val top = tokens[0]
-      val right = tokens[1]
-      val bottom = tokens[2]
-      val left = tokens[3]
-
-
-      topType = top.type
-      topValue = top.value
-
-      rightType = right.type
-      rightValue = right.value
-
-      bottomType = bottom.type
-      bottomValue = bottom.value
-
-      leftType = left.type
-      leftValue = left.value
-
-    }
-  }
-
-
-
-  style.prepareMut()
-  style.values.put(StyleKeys.PADDING_LEFT_TYPE, leftType)
-  style.values.putFloat(StyleKeys.PADDING_LEFT_VALUE, leftValue)
-
-  style.values.put(StyleKeys.PADDING_RIGHT_TYPE, rightType)
-  style.values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, rightValue)
-
-  style.values.put(StyleKeys.PADDING_TOP_TYPE, topType)
-  style.values.putFloat(StyleKeys.PADDING_TOP_VALUE, topValue)
-
-  style.values.put(StyleKeys.PADDING_BOTTOM_TYPE, bottomType)
-  style.values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, bottomValue)
-  style.setOrAppendState(StateKeys.PADDING)
-
 }
 
-/**
- * Parse CSS shorthand for margin (1-4 values) and apply to style.margin
- * margin accepts auto so use parseLengthPercentageAuto
- */
 fun parseMarginShorthand(style: Style, value: String) {
-  val cleaned = value.trim().removeSuffix(";")
-  if (cleaned.isEmpty()) {
-    if (!style.inBatch) style.inBatch = true
-    style.margin = Rect(
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero
-    )
-    if (style.inBatch) style.inBatch = false
-    return
-  }
-
-  // See the comment in parsePaddingShorthand above: an invalid token must
-  // invalidate the whole shorthand, not just get silently dropped (which
-  // reinterprets the remaining valid tokens under the wrong arity).
-  val rawParts = SPLIT_REGEX.split(cleaned)
-  if (rawParts.isEmpty() || rawParts.size > 4) return
-  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
-  if (parsedParts.any { it == null }) return
-  val tokens = parsedParts.filterNotNull()
-
-  val rect = when (tokens.size) {
-    1 -> Rect.uniform(tokens[0])
-    2 -> Rect(tokens[0], tokens[1], tokens[0], tokens[1])
-    3 -> Rect(tokens[0], tokens[1], tokens[2], tokens[1])
-    else -> Rect(tokens[0], tokens[1], tokens[2], tokens[3])
-  }
-
-  if (!style.inBatch) style.inBatch = true
+  val cleaned = value.trim().removeSuffix(";").trimEnd()
+  val rect: Rect<LengthPercentageAuto> = if (cleaned.isEmpty()) Rect.uniform(LengthPercentageAuto.Zero)
+    else parsePhysicalEdges("margin", cleaned, ::parseLengthPercentageAuto) ?: return
   style.margin = rect
-  if (style.inBatch) style.inBatch = false
 }
 
-/**
- * Parse CSS shorthand for inset/position (1-4 values) and apply to style.inset
- */
 fun parseInsetShorthand(style: Style, value: String) {
-  val cleaned = value.trim().removeSuffix(";")
-  if (cleaned.isEmpty()) {
-    if (!style.inBatch) style.inBatch = true
-    style.inset = Rect(
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero,
-      LengthPercentageAuto.Zero
-    )
-    if (style.inBatch) style.inBatch = false
-    return
-  }
-
-  // See the comment in parsePaddingShorthand above: an invalid token must
-  // invalidate the whole shorthand, not just get silently dropped (which
-  // reinterprets the remaining valid tokens under the wrong arity).
-  val rawParts = SPLIT_REGEX.split(cleaned)
-  if (rawParts.isEmpty() || rawParts.size > 4) return
-  val parsedParts = rawParts.map { parseLengthPercentageAuto(it) }
-  if (parsedParts.any { it == null }) return
-  val tokens = parsedParts.filterNotNull()
-
-  val rect = when (tokens.size) {
-    1 -> Rect.uniform(tokens[0])
-    2 -> Rect(tokens[0], tokens[1], tokens[0], tokens[1])
-    3 -> Rect(tokens[0], tokens[1], tokens[2], tokens[1])
-    else -> Rect(tokens[0], tokens[1], tokens[2], tokens[3])
-  }
-
-  if (!style.inBatch) style.inBatch = true
+  val cleaned = value.trim().removeSuffix(";").trimEnd()
+  val rect: Rect<LengthPercentageAuto> = if (cleaned.isEmpty()) Rect.uniform(LengthPercentageAuto.Zero)
+    else parsePhysicalEdges("inset", cleaned, ::parseLengthPercentageAuto) ?: return
   style.inset = rect
-  if (style.inBatch) style.inBatch = false
 }
 
+// <style-keys:records> generated from tools/scripts/style-keys/style-keys.schema
+internal enum class StyleRecordKind(val id: Int) {
+  BOX_SHADOW(0),
+  TEXT_SHADOW(1),
+  FILTER(2),
+  BACKDROP_FILTER(3),
+  FONT_FEATURES(4),
+}
+
+internal object ShadowRecord {
+  const val STRIDE = 6
+  const val X = 0
+  const val Y = 1
+  const val BLUR = 2
+  const val SPREAD = 3
+  const val COLOR = 4
+  const val INSET = 5
+}
+
+internal object FilterRecord {
+  const val STRIDE = 5
+  const val KIND = 0
+  const val AMOUNT_OR_X = 1
+  const val Y = 2
+  const val BLUR = 3
+  const val COLOR = 4
+}
+
+internal object FontFeatureRecord {
+  const val STRIDE = 2
+  const val TAG = 0
+  const val VALUE = 1
+}
+
+internal object BackgroundRecord {
+  const val STRIDE = 17
+  const val IMAGE_KIND = 0
+  const val COLOR = 1
+  const val REPEAT_X = 2
+  const val REPEAT_Y = 3
+  const val ORIGIN = 4
+  const val CLIP = 5
+  const val ATTACHMENT = 6
+  const val SIZE_KIND = 7
+  const val POSITION_X_FRACTION = 8
+  const val POSITION_X_PIXELS = 9
+  const val POSITION_Y_FRACTION = 10
+  const val POSITION_Y_PIXELS = 11
+  const val WIDTH_FRACTION = 12
+  const val WIDTH_PIXELS = 13
+  const val HEIGHT_FRACTION = 14
+  const val HEIGHT_PIXELS = 15
+  const val BLEND = 16
+}
+
+internal object BackgroundOffsetsRecord {
+  const val STRIDE = 4
+  const val POSITION_X = 0
+  const val POSITION_Y = 1
+  const val WIDTH = 2
+  const val HEIGHT = 3
+}
+
+internal object BackgroundInputRecord {
+  const val STRIDE = 8
+  const val COLOR = 0
+  const val IMAGE = 1
+  const val REPEAT = 2
+  const val POSITION = 3
+  const val SIZE = 4
+  const val CLIP = 5
+  const val ORIGIN = 6
+  const val ATTACHMENT = 7
+}
+
+internal object BorderComponentsRecord {
+  const val STRIDE = 6
+  const val TOP = 0
+  const val RIGHT = 1
+  const val BOTTOM = 2
+  const val LEFT = 3
+  const val STYLE = 4
+  const val COLOR = 5
+}
+
+internal object BorderSideComponentsRecord {
+  const val STRIDE = 3
+  const val WIDTH = 0
+  const val STYLE = 1
+  const val COLOR = 2
+}
+
+internal object BorderRadiiRecord {
+  const val STRIDE = 8
+  const val HORIZONTAL_TOP_LEFT = 0
+  const val HORIZONTAL_TOP_RIGHT = 1
+  const val HORIZONTAL_BOTTOM_RIGHT = 2
+  const val HORIZONTAL_BOTTOM_LEFT = 3
+  const val VERTICAL_TOP_LEFT = 4
+  const val VERTICAL_TOP_RIGHT = 5
+  const val VERTICAL_BOTTOM_RIGHT = 6
+  const val VERTICAL_BOTTOM_LEFT = 7
+}
+
+internal object ClipPathRecord {
+  const val STRIDE = 7
+  const val KIND = 0
+  const val BOX = 1
+  const val EVEN_ODD = 2
+  const val RADIUS_X_KIND = 3
+  const val RADIUS_Y_KIND = 4
+  const val HAS_POSITION = 5
+  const val HAS_MATH = 6
+}
+
+internal object SvgPathRecord {
+  const val STRIDE = 8
+  const val KIND = 0
+  const val VERTEX_END = 1
+  const val X1 = 2
+  const val Y1 = 3
+  const val X2 = 4
+  const val Y2 = 5
+  const val X = 6
+  const val Y = 7
+}
+
+internal object MaskLayerRecord {
+  const val STRIDE = 3
+  const val CLIP = 0
+  const val MODE = 1
+  const val COMPOSITE = 2
+}
+
+internal object MaskInputRecord {
+  const val STRIDE = 8
+  const val IMAGE = 0
+  const val SIZE = 1
+  const val POSITION = 2
+  const val REPEAT = 3
+  const val ORIGIN = 4
+  const val CLIP = 5
+  const val MODE = 6
+  const val COMPOSITE = 7
+}
+
+internal object NineSliceInputRecord {
+  const val STRIDE = 6
+  const val SOURCE = 0
+  const val SLICE = 1
+  const val WIDTH = 2
+  const val OUTSET = 3
+  const val REPEAT = 4
+  const val MODE = 5
+}
+
+internal object NineSliceRecord {
+  const val STRIDE = 4
+  const val FILL = 0
+  const val REPEAT_X = 1
+  const val REPEAT_Y = 2
+  const val LUMINANCE = 3
+}
+
+internal object NineSliceSideRecord {
+  const val STRIDE = 3
+  const val KIND = 0
+  const val VALUE = 1
+  const val HAS_MATH = 2
+}
+
+internal object TextDecorationRecord {
+  const val STRIDE = 4
+  const val LINE = 0
+  const val STYLE = 1
+  const val COLOR = 2
+  const val THICKNESS = 3
+}
+
+internal object CssLengthResultRecord {
+  const val STRIDE = 2
+  const val KIND = 0
+  const val VALUE = 1
+}
+
+internal object CssPositionResultRecord {
+  const val STRIDE = 4
+  const val X_TYPE = 0
+  const val X_VALUE = 1
+  const val Y_TYPE = 2
+  const val Y_VALUE = 3
+}
+
+internal object CssDeclarationHeaderRecord {
+  const val STRIDE = 3
+  const val NAME = 0
+  const val VALUE = 1
+  const val FIELD_COUNT = 2
+}
+
+internal object CssInlineReplayRecord {
+  const val STRIDE = 3
+  const val VIEWPORT_DEPENDENT = 0
+  const val FONT_DEPENDENT = 1
+  const val FONT_SIZE = 2
+}
+
+internal object CssBackgroundWriteRecord {
+  const val STRIDE = 3
+  const val PROPERTY = 0
+  const val VALUE = 1
+  const val CURRENT_COLOR = 2
+}
+
+internal object CssBackgroundResultRecord {
+  const val STRIDE = 8
+  const val LAYERS_CHANGED = 0
+  const val IMAGES_REPLACED = 1
+  const val IMAGE_DECLARATION = 2
+  const val SHORTHAND_VALUE = 3
+  const val COLOR = 4
+  const val COLOR_FROM_SHORTHAND = 5
+  const val LAST_IMAGE_FROM_SHORTHAND = 6
+  const val SHORTHAND_RESET = 7
+}
+
+internal object CssEffectWriteRecord {
+  const val STRIDE = 3
+  const val PROPERTY = 0
+  const val VALUE = 1
+  const val CURRENT_COLOR = 2
+}
+
+internal object CssEffectResultRecord {
+  const val STRIDE = 2
+  const val VALUE = 0
+  const val RECORDS = 1
+}
+
+internal object CssMaskWriteRecord {
+  const val STRIDE = 2
+  const val SLOT = 0
+  const val VALUE = 1
+}
+
+internal object CssBorderResultRecord {
+  const val STRIDE = 10
+  const val TOP_KIND = 0
+  const val TOP_VALUE = 1
+  const val RIGHT_KIND = 2
+  const val RIGHT_VALUE = 3
+  const val BOTTOM_KIND = 4
+  const val BOTTOM_VALUE = 5
+  const val LEFT_KIND = 6
+  const val LEFT_VALUE = 7
+  const val STYLE = 8
+  const val COLOR = 9
+}
+
+internal object CssBorderSideResultRecord {
+  const val STRIDE = 4
+  const val KIND = 0
+  const val VALUE = 1
+  const val STYLE = 2
+  const val COLOR = 3
+}
+
+internal object GradientInterpolationRecord {
+  const val STRIDE = 3
+  const val DIRECTION = 0
+  const val SPACE = 1
+  const val HUE = 2
+}
+
+internal object AndroidPaintReadRecord {
+  const val STRIDE = 6
+  const val VALUES = 0
+  const val IMAGES = 1
+  const val OFFSETS = 2
+  const val GRADIENTS = 3
+  const val GRADIENT_INFO = 4
+  const val SNAPSHOT = 5
+}
+
+internal object AndroidGradientInfoRecord {
+  const val STRIDE = 6
+  const val KIND = 0
+  const val REPEATING = 1
+  const val STOP_COUNT = 2
+  const val DIRECTION = 3
+  const val SPACE = 4
+  const val HUE = 5
+}
+
+internal object SvgFontPrefixRecord {
+  const val STRIDE = 3
+  const val ITALIC = 0
+  const val WEIGHT = 1
+  const val SIZE = 2
+}
+
+internal object SvgCssDeclarationRecord {
+  const val STRIDE = 3
+  const val NAME = 0
+  const val VALUE = 1
+  const val IMPORTANT = 2
+}
+
+internal object SvgCssSelectorRecord {
+  const val STRIDE = 3
+  const val TYPE = 0
+  const val ID_COUNT = 1
+  const val CLASS_COUNT = 2
+}
+
+internal object SvgCssRuleRecord {
+  const val STRIDE = 2
+  const val SELECTOR_COUNT = 0
+  const val DECLARATION_COUNT = 1
+}
+
+internal object SvgPaintRecord {
+  const val STRIDE = 2
+  const val KIND = 0
+  const val VALUE = 1
+}
+
+internal object CssAnimationLayerRecord {
+  const val STRIDE = 1
+  const val COMPONENT_COUNT = 0
+}
+
+internal object CssAnimationComponentRecord {
+  const val STRIDE = 3
+  const val KIND = 0
+  const val VALUE = 1
+  const val UNIT = 2
+}
+
+internal object SvgLengthComponentsRecord {
+  const val STRIDE = 2
+  const val LENGTH = 0
+  const val PERCENT = 1
+}
+
+internal object SvgAffineRecord {
+  const val STRIDE = 6
+  const val A = 0
+  const val B = 1
+  const val C = 2
+  const val D = 3
+  const val X = 4
+  const val Y = 5
+}
+
+internal object SvgAspectRatioRecord {
+  const val STRIDE = 4
+  const val ALIGN_X = 0
+  const val ALIGN_Y = 1
+  const val UNIFORM = 2
+  const val SLICE = 3
+}
+
+internal object FilterOperationCode {
+  const val BLUR = 0
+  const val BRIGHTNESS = 1
+  const val CONTRAST = 2
+  const val SATURATE = 3
+  const val HUE_ROTATE = 4
+  const val INVERT = 5
+  const val OPACITY = 6
+  const val SEPIA = 7
+  const val GRAYSCALE = 8
+  const val DROP_SHADOW = 9
+}
+
+internal object CssParseKind {
+  const val SHADOWS = 0
+  const val FILTERS = 1
+  const val LENGTH = 2
+  const val FONT_SIZE = 3
+  const val CLAMP_LENGTH = 4
+  const val TRANSFORM_ORIGIN = 5
+  const val OBJECT_POSITION = 6
+  const val LINE_HEIGHT = 7
+  const val LETTER_SPACING = 8
+  const val TEXT_INDENT = 9
+  const val WORD_SPACING = 10
+  const val VERTICAL_ALIGN = 11
+  const val DIMENSION = 12
+  const val LENGTH_AUTO = 13
+  const val BORDER_RADIUS = 14
+  const val BORDER_CORNER_RADIUS = 15
+  const val SVG_NUMBER_LIST = 16
+  const val SVG_TRANSFORM = 17
+  const val SVG_LENGTH = 18
+  const val SVG_LENGTH_LIST = 19
+  const val SVG_OPACITY = 20
+  const val SVG_ANGLE = 21
+  const val SVG_ASPECT_RATIO = 22
+  const val SVG_NUMBER = 23
+  const val SVG_DASH_ARRAY = 24
+}
+// </style-keys:records>
 
 object StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-  const val STYLE_BUFFER_SIZE = 744
+  const val STYLE_BUFFER_SIZE = 792
 
   const val DISPLAY = 0
   const val POSITION = 1
@@ -411,8 +646,8 @@ object StyleKeys {
   const val FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // f32 (293-296)
   const val VERTICAL_ALIGN_OFFSET_OFFSET = 297 // f32 (297-300)
   const val VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
-  const val VERTICAL_ALIGN_ENUM_OFFSET = 302 // f32 (302-305)
-  const val FIRST_BASELINE_OFFSET = 306 // f32 (306-309)
+  const val VERTICAL_ALIGN_ENUM_OFFSET = 302
+  const val FIRST_BASELINE_OFFSET = 306 // f32 (306-309), preserves the three reserved bytes after vertical-align
   const val Z_INDEX = 310 // i32 (310-313)
   const val ITEM_IS_LIST = 314
   const val ITEM_IS_LIST_ITEM = 315
@@ -566,6 +801,18 @@ object StyleKeys {
   const val TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   const val TEXT_SPACING_TRIM_STATE = 741
   const val VISIBILITY = 742 // 0 visible, 1 hidden, 2 collapse
+  const val FONT_FEATURES_REVISION = 743 // Rust-owned OpenType feature settings change counter
+  const val BOX_SHADOW_REVISION = 744 // u32 (744-747), Rust-owned box shadow records change counter
+  const val TEXT_SHADOW_REVISION = 748 // u32 (748-751), Rust-owned text shadow records change counter
+  const val FILTER_REVISION = 752 // u32 (752-755), Rust-owned filter records change counter
+  const val BACKDROP_FILTER_REVISION = 756 // u32 (756-759), Rust-owned backdrop-filter records change counter
+  const val BACKGROUND_REVISION = 760 // u32 (760-763), Rust-owned background layers change counter
+  const val TRANSFORM_REVISION = 764 // u32 (764-767), Rust-owned CSS transform list change counter
+  const val CLIP_PATH_REVISION = 768 // u32 (768-771), Rust-owned CSS clip-path change counter
+  const val MASK_REVISION = 772 // u32 (772-775), Rust-owned mask layer list change counter
+  const val BORDER_IMAGE_REVISION = 776 // u32 (776-779), Rust-owned border-image change counter
+  const val MASK_BORDER_REVISION = 780 // u32 (780-783), Rust-owned mask-border change counter
+  const val TEXT_OVERFLOW_TOKEN = 784 // i64 (784-791), Rust-owned text-overflow string handle
   // </style-keys:offsets>
   const val TRANSFORM_OP_SIZE = 12
   const val MAX_INLINE_TRANSFORM_OPS = 6
@@ -680,57 +927,17 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
     val TEXT_COMBINE_UPRIGHT = flag(83)
     val TEXT_SPACING_TRIM = flag(84)
     val VISIBILITY = flag(85)
+    val FONT_FEATURE_SETTINGS = flag(86)
     // </style-keys:state>
 
-    /**
-     * Union of every text flag TextEngine reacts to; `dirty ∩ ALL_TEXT` is forwarded,
-     * so an omitted key never relayouts/redraws. Keep in sync with TextEngine's
-     * hasTextLayoutFlags / hasTextVisualFlags / onTextStyleChanged.
-     */
-    val ALL_TEXT: StateKeys = FONT_COLOR or FONT_SIZE or FONT_WEIGHT or FONT_STYLE or
-      FONT_FAMILY or FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or
-      TEXT_TRANSFORM or DECORATION_LINE or DECORATION_COLOR or DECORATION_STYLE or DECORATION_THICKNESS or
-      LETTER_SPACING or TEXT_JUSTIFY or BACKGROUND_COLOR or LINE_HEIGHT or
-      TEXT_ALIGN or TEXT_OVERFLOW or TEXT_SHADOWS or
-      WORD_SPACING or WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or
-      TEXT_INDENT or LINE_CLAMP or TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT or TEXT_SPACING_TRIM
-
-    /**
-     * The text-affecting subset of [ALL_TEXT] that changes what the native
-     * text measure function returns (line breaking, intrinsic width/height) —
-     * mirrors TextEngine.hasTextLayoutFlags exactly; keep both in sync.
-     */
-    val TEXT_LAYOUT: StateKeys = FONT_SIZE or FONT_WEIGHT or FONT_STYLE or FONT_FAMILY or
-      FONT_VARIANT_NUMERIC or TEXT_WRAP or WHITE_SPACE or TEXT_TRANSFORM or LETTER_SPACING or
-      TEXT_JUSTIFY or LINE_HEIGHT or TEXT_ALIGN or TEXT_OVERFLOW or WORD_SPACING or
-      WRITING_MODE or UNICODE_BIDI or HYPHENS or FONT_STRETCH or TEXT_INDENT or LINE_CLAMP or
-      TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT or TEXT_SPACING_TRIM
-
-    /**
-     * Properties whose change can affect this node's contribution to Taffy
-     * layout (size, flex basis, intrinsic text size, etc.) — as opposed to
-     * purely visual properties (colors, border-style/-radius, shadows,
-     * decorations, list-style-type, object-fit, z-index, caret-color,
-     * object-position) which only need a repaint. Used to gate
-     * `invalidateLayout()` in `updateNativeStyle()`: a write outside this mask
-     * can't change layout, so scheduling a native recompute + relayout for it
-     * is pure waste (and, for animated visual properties, actively harmful —
-     * it can shift sibling views every frame for no layout-relevant reason).
-     *
-     * When adding a new StateKeys flag: if it's unclear whether the property
-     * affects layout, default to including it here — the cost of a false
-     * positive is a skipped optimization, the cost of a false negative is a
-     * stale layout.
-     */
-    val LAYOUT_MASK: StateKeys = DISPLAY or POSITION or DIRECTION or FLEX_DIRECTION or
-      FLEX_WRAP or OVERFLOW_X or OVERFLOW_Y or ALIGN_ITEMS or ALIGN_SELF or ALIGN_CONTENT or
-      JUSTIFY_ITEMS or JUSTIFY_SELF or JUSTIFY_CONTENT or INSET or MARGIN or PADDING or
-      BORDER or FLEX_GROW or FLEX_SHRINK or FLEX_BASIS or SIZE or MIN_SIZE or MAX_SIZE or
-      GAP or ASPECT_RATIO or GRID_AUTO_FLOW or GRID_COLUMN or GRID_ROW or SCROLLBAR_WIDTH or
-      ALIGN or BOX_SIZING or OVERFLOW or ITEM_IS_TABLE or ITEM_IS_REPLACED or DISPLAY_MODE or
-      FORCE_INLINE or MIN_CONTENT_WIDTH or MIN_CONTENT_HEIGHT or MAX_CONTENT_WIDTH or
-      MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or VISIBILITY or
-      TEXT_LAYOUT
+    // <style-keys:state-groups> generated from tools/scripts/style-keys/style-keys.schema
+    val TEXT_LAYOUT = StateKeys(0xbf63800000000000UL.toLong(), 0x00000000005deee7L)
+    val TEXT_VISUAL = StateKeys(0x409c000000000000L, 0x0000000000000018L)
+    val ALL_TEXT = StateKeys(0xffff800000000000UL.toLong(), 0x00000000005deeffL)
+    val LAYOUT_MASK = StateKeys(0xbf6398ffffffffffUL.toLong(), 0x00000000007deee7L)
+    val BORDER_PAINT = StateKeys(0x0000070000010000L, 0x0000000000000000L)
+    val OBJECT_PAINT = StateKeys(0x0000200000000000L, 0x0000000000000100L)
+    // </style-keys:state-groups>
 
     val TREE_HINTS: StateKeys = FLOAT or OVERFLOW_X or OVERFLOW_Y or OVERFLOW or WRITING_MODE or
       TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT
@@ -760,78 +967,6 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
   override fun hashCode(): Int = 31 * low.hashCode() + high.hashCode()
 }
 
-@JvmInline
-internal value class GridStateKeys internal constructor(val bits: Long) {
-  companion object {
-    val gridTemplateAreas = GridStateKeys(1L shl 0)
-    val gridAutoRows = GridStateKeys(1L shl 1)
-    val gridAutoColumns = GridStateKeys(1L shl 2)
-    val gridRowStart = GridStateKeys(1L shl 3)
-    val gridRowEnd = GridStateKeys(1L shl 4)
-    val gridColumnStart = GridStateKeys(1L shl 5)
-    val gridColumnEnd = GridStateKeys(1L shl 6)
-    val gridTemplateRows = GridStateKeys(1L shl 7)
-    val gridTemplateColumns = GridStateKeys(1L shl 8)
-  }
-
-  infix fun or(other: GridStateKeys): GridStateKeys = GridStateKeys(bits or other.bits)
-  infix fun and(other: GridStateKeys): GridStateKeys = GridStateKeys(bits and other.bits)
-  infix fun hasFlag(flag: GridStateKeys): Boolean = (bits and flag.bits) != 0L
-}
-
-internal class GridState {
-  var gridArea: String? = null
-  var gridTemplateAreas: String? = null
-  var gridAutoRows: String? = null
-  var gridAutoColumns: String? = null
-  var gridRow: String? = null
-  var gridRowStart: String? = null
-  var gridRowEnd: String? = null
-  var gridColumn: String? = null
-  var gridColumnStart: String? = null
-  var gridColumnEnd: String? = null
-  var gridTemplateRows: String? = null
-  var gridTemplateColumns: String? = null
-
-  fun clear() {
-    gridArea = null
-    gridTemplateAreas = null
-    gridAutoRows = null
-    gridAutoColumns = null
-    gridRow = null
-    gridRowStart = null
-    gridRowEnd = null
-    gridColumn = null
-    gridColumnStart = null
-    gridColumnEnd = null
-    gridTemplateRows = null
-    gridTemplateColumns = null
-  }
-
-  override fun toString(): String {
-    val props = buildList {
-      gridArea?.let { add("gridArea=$it") }
-      gridTemplateAreas?.let { add("gridTemplateAreas=$it") }
-      gridAutoRows?.let { add("gridAutoRows=$it") }
-      gridAutoColumns?.let { add("gridAutoColumns=$it") }
-      gridRow?.let { add("gridRow=$it") }
-      gridRowStart?.let { add("gridRowStart=$it") }
-      gridRowEnd?.let { add("gridRowEnd=$it") }
-      gridColumn?.let { add("gridColumn=$it") }
-      gridColumnStart?.let { add("gridColumnStart=$it") }
-      gridColumnEnd?.let { add("gridColumnEnd=$it") }
-      gridTemplateRows?.let { add("gridTemplateRows=$it") }
-      gridTemplateColumns?.let { add("gridTemplateColumns=$it") }
-    }
-
-    return if (props.isEmpty()) {
-      "GridState(empty)"
-    } else {
-      "GridState(\n  ${props.joinToString(",\n  ")}\n)"
-    }
-  }
-}
-
 interface StyleChangeListener {
   fun onChange(low: Long, high: Long)
 }
@@ -849,16 +984,2169 @@ internal object StyleState {
   const val SET: Byte = 1
 }
 
-private val STYLE_WHITESPACE_REGEX = Regex("""\s+""")
-
 class Style internal constructor(@Transient internal var node: Node) {
-  internal var isValueInitialized: Boolean = false
-  private var mGridState: GridState? = null
-  internal var gridState: GridState
-    get() = mGridState ?: GridState().also { mGridState = it }
-    set(value) {
-      mGridState = value
+  // <style-keys:writes> generated from tools/scripts/style-keys/style-keys.schema
+  private fun writeAlign(align: Byte) {
+    prepareMut()
+    values.put(StyleKeys.ALIGN, align)
+    setOrAppendState(StateKeys.ALIGN)
+  }
+
+  private fun writeAlignContent(alignContent: Byte) {
+    prepareMut()
+    values.put(StyleKeys.ALIGN_CONTENT, alignContent)
+    setOrAppendState(StateKeys.ALIGN_CONTENT)
+  }
+
+  private fun writeAlignItems(alignItems: Byte) {
+    prepareMut()
+    values.put(StyleKeys.ALIGN_ITEMS, alignItems)
+    setOrAppendState(StateKeys.ALIGN_ITEMS)
+  }
+
+  private fun writeAlignSelf(alignSelf: Byte) {
+    prepareMut()
+    values.put(StyleKeys.ALIGN_SELF, alignSelf)
+    setOrAppendState(StateKeys.ALIGN_SELF)
+  }
+
+  private fun writeAspectRatio(aspectRatio: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.ASPECT_RATIO, aspectRatio)
+    setOrAppendState(StateKeys.ASPECT_RATIO)
+  }
+
+  private fun writeBorderBottomStyle(borderBottomStyle: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_BOTTOM_STYLE, borderBottomStyle)
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  private fun writeBorderBottomWidth(borderBottomType: Byte, borderBottomValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_BOTTOM_TYPE, borderBottomType)
+    values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, borderBottomValue)
+    setOrAppendState(StateKeys.BORDER)
+  }
+
+  private fun writeBorderLeftStyle(borderLeftStyle: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_LEFT_STYLE, borderLeftStyle)
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  private fun writeBorderLeftWidth(borderLeftType: Byte, borderLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_LEFT_TYPE, borderLeftType)
+    values.putFloat(StyleKeys.BORDER_LEFT_VALUE, borderLeftValue)
+    setOrAppendState(StateKeys.BORDER)
+  }
+
+  private fun writeBorderRightStyle(borderRightStyle: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RIGHT_STYLE, borderRightStyle)
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  private fun writeBorderRightWidth(borderRightType: Byte, borderRightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RIGHT_TYPE, borderRightType)
+    values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, borderRightValue)
+    setOrAppendState(StateKeys.BORDER)
+  }
+
+  private fun writeBorderTopStyle(borderTopStyle: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_TOP_STYLE, borderTopStyle)
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  private fun writeBorderTopWidth(borderTopType: Byte, borderTopValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_TOP_TYPE, borderTopType)
+    values.putFloat(StyleKeys.BORDER_TOP_VALUE, borderTopValue)
+    setOrAppendState(StateKeys.BORDER)
+  }
+
+  private fun writeBorderStyles(borderTopStyle: Byte, borderRightStyle: Byte, borderBottomStyle: Byte, borderLeftStyle: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_TOP_STYLE, borderTopStyle)
+    values.put(StyleKeys.BORDER_RIGHT_STYLE, borderRightStyle)
+    values.put(StyleKeys.BORDER_BOTTOM_STYLE, borderBottomStyle)
+    values.put(StyleKeys.BORDER_LEFT_STYLE, borderLeftStyle)
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  private fun writeBorderColors(borderTopColor: Int, borderRightColor: Int, borderBottomColor: Int, borderLeftColor: Int) {
+    prepareMut()
+    values.putInt(StyleKeys.BORDER_TOP_COLOR, borderTopColor)
+    values.putInt(StyleKeys.BORDER_RIGHT_COLOR, borderRightColor)
+    values.putInt(StyleKeys.BORDER_BOTTOM_COLOR, borderBottomColor)
+    values.putInt(StyleKeys.BORDER_LEFT_COLOR, borderLeftColor)
+    setOrAppendState(StateKeys.BORDER_COLOR)
+  }
+
+  private fun writeBorderWidth(borderTopType: Byte, borderTopValue: Float, borderRightType: Byte, borderRightValue: Float, borderBottomType: Byte, borderBottomValue: Float, borderLeftType: Byte, borderLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_TOP_TYPE, borderTopType)
+    values.putFloat(StyleKeys.BORDER_TOP_VALUE, borderTopValue)
+    values.put(StyleKeys.BORDER_RIGHT_TYPE, borderRightType)
+    values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, borderRightValue)
+    values.put(StyleKeys.BORDER_BOTTOM_TYPE, borderBottomType)
+    values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, borderBottomValue)
+    values.put(StyleKeys.BORDER_LEFT_TYPE, borderLeftType)
+    values.putFloat(StyleKeys.BORDER_LEFT_VALUE, borderLeftValue)
+    setOrAppendState(StateKeys.BORDER)
+  }
+
+  private fun writeBorderTopLeftRadius(borderRadiusTopLeftXType: Byte, borderRadiusTopLeftXValue: Float, borderRadiusTopLeftYType: Byte, borderRadiusTopLeftYValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE, borderRadiusTopLeftXType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE, borderRadiusTopLeftXValue)
+    values.put(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE, borderRadiusTopLeftYType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE, borderRadiusTopLeftYValue)
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeBorderTopRightRadius(borderRadiusTopRightXType: Byte, borderRadiusTopRightXValue: Float, borderRadiusTopRightYType: Byte, borderRadiusTopRightYValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE, borderRadiusTopRightXType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE, borderRadiusTopRightXValue)
+    values.put(StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE, borderRadiusTopRightYType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE, borderRadiusTopRightYValue)
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeBorderBottomRightRadius(borderRadiusBottomRightXType: Byte, borderRadiusBottomRightXValue: Float, borderRadiusBottomRightYType: Byte, borderRadiusBottomRightYValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE, borderRadiusBottomRightXType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE, borderRadiusBottomRightXValue)
+    values.put(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE, borderRadiusBottomRightYType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE, borderRadiusBottomRightYValue)
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeBorderBottomLeftRadius(borderRadiusBottomLeftXType: Byte, borderRadiusBottomLeftXValue: Float, borderRadiusBottomLeftYType: Byte, borderRadiusBottomLeftYValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, borderRadiusBottomLeftXType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, borderRadiusBottomLeftXValue)
+    values.put(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, borderRadiusBottomLeftYType)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE, borderRadiusBottomLeftYValue)
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeCornerShapeTopLeft(borderRadiusTopLeftExponent: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent)
+    invalidateBorderRenderer()
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeCornerShapeTopRight(borderRadiusTopRightExponent: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent)
+    invalidateBorderRenderer()
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeCornerShapeBottomRight(borderRadiusBottomRightExponent: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent)
+    invalidateBorderRenderer()
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeCornerShapeBottomLeft(borderRadiusBottomLeftExponent: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent)
+    invalidateBorderRenderer()
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeCornerShape(borderRadiusTopLeftExponent: Float, borderRadiusTopRightExponent: Float, borderRadiusBottomRightExponent: Float, borderRadiusBottomLeftExponent: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent)
+    values.putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent)
+    values.putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent)
+    invalidateBorderRenderer()
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  private fun writeBoxSizing(boxSizing: Byte) {
+    prepareMut()
+    values.put(StyleKeys.BOX_SIZING, boxSizing)
+    setOrAppendState(StateKeys.BOX_SIZING)
+  }
+
+  private fun writeClear(clear: Byte) {
+    prepareMut()
+    values.put(StyleKeys.CLEAR, clear)
+    setOrAppendState(StateKeys.CLEAR)
+  }
+
+  private fun writeDecorationLine(decorationLine: Byte, decorationLineState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.DECORATION_LINE, decorationLine)
+    values.put(StyleKeys.DECORATION_LINE_STATE, decorationLineState)
+    val state = StateKeys.DECORATION_LINE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
     }
+  }
+
+  private fun writeDecorationStyle(decorationStyle: Byte, decorationStyleState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.DECORATION_STYLE, decorationStyle)
+    values.put(StyleKeys.DECORATION_STYLE_STATE, decorationStyleState)
+    val state = StateKeys.DECORATION_STYLE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeDecorationColor(decorationColor: Int, decorationColorState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.DECORATION_COLOR, decorationColor)
+    values.put(StyleKeys.DECORATION_COLOR_STATE, decorationColorState)
+    val state = StateKeys.DECORATION_COLOR
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeDecorationThickness(decorationThickness: Float, decorationThicknessState: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.DECORATION_THICKNESS, decorationThickness)
+    values.put(StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState)
+    val state = StateKeys.DECORATION_THICKNESS
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeDirection(direction: Byte) {
+    prepareMut()
+    values.put(StyleKeys.DIRECTION, direction)
+    setOrAppendState(StateKeys.DIRECTION)
+  }
+
+  private fun writeDisplay(display: Byte, displayMode: Byte) {
+    prepareMut()
+    values.put(StyleKeys.DISPLAY, display)
+    values.put(StyleKeys.DISPLAY_MODE, displayMode)
+    setOrAppendState(arrayOf(StateKeys.DISPLAY, StateKeys.DISPLAY_MODE))
+  }
+
+  private fun writeFlexBasisType(flexBasisType: Byte, flexBasisValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.FLEX_BASIS_TYPE, flexBasisType)
+    values.putFloat(StyleKeys.FLEX_BASIS_VALUE, flexBasisValue)
+    setOrAppendState(StateKeys.FLEX_BASIS)
+  }
+
+  private fun writeFlexDirection(flexDirection: Byte) {
+    prepareMut()
+    values.put(StyleKeys.FLEX_DIRECTION, flexDirection)
+    setOrAppendState(StateKeys.FLEX_DIRECTION)
+  }
+
+  private fun writeFlexGrow(flexGrow: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.FLEX_GROW, flexGrow)
+    setOrAppendState(StateKeys.FLEX_GROW)
+  }
+
+  private fun writeFlexShrink(flexShrink: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.FLEX_SHRINK, flexShrink)
+    setOrAppendState(StateKeys.FLEX_SHRINK)
+  }
+
+  private fun writeFlexWrap(flexWrap: Byte) {
+    prepareMut()
+    values.put(StyleKeys.FLEX_WRAP, flexWrap)
+    setOrAppendState(StateKeys.FLEX_WRAP)
+  }
+
+  private fun writeTextDecoration(decorationLine: Byte, decorationStyle: Byte, decorationColor: Int, decorationThickness: Float, decorationLineState: Byte, decorationStyleState: Byte, decorationColorState: Byte, decorationThicknessState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.DECORATION_LINE, decorationLine)
+    values.put(StyleKeys.DECORATION_STYLE, decorationStyle)
+    values.putInt(StyleKeys.DECORATION_COLOR, decorationColor)
+    values.putFloat(StyleKeys.DECORATION_THICKNESS, decorationThickness)
+    values.put(StyleKeys.DECORATION_LINE_STATE, decorationLineState)
+    values.put(StyleKeys.DECORATION_STYLE_STATE, decorationStyleState)
+    values.put(StyleKeys.DECORATION_COLOR_STATE, decorationColorState)
+    values.put(StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState)
+    val state = StateKeys.DECORATION_LINE or StateKeys.DECORATION_STYLE or StateKeys.DECORATION_COLOR or StateKeys.DECORATION_THICKNESS
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFloat(float: Byte) {
+    prepareMut()
+    values.put(StyleKeys.FLOAT, float)
+    setOrAppendState(StateKeys.FLOAT)
+  }
+
+  private fun writeFontColor(fontColor: Int, fontColorState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.FONT_COLOR, fontColor)
+    values.put(StyleKeys.FONT_COLOR_STATE, fontColorState)
+    val state = StateKeys.FONT_COLOR
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFontSize(fontSize: Float, fontSizeState: Byte, fontSizeType: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.FONT_SIZE, fontSize)
+    values.put(StyleKeys.FONT_SIZE_STATE, fontSizeState)
+    values.put(StyleKeys.FONT_SIZE_TYPE, fontSizeType)
+    val state = StateKeys.FONT_SIZE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFontStretch(fontStretch: Int, fontStretchState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.FONT_STRETCH, fontStretch)
+    values.put(StyleKeys.FONT_STRETCH_STATE, fontStretchState)
+    val state = StateKeys.FONT_STRETCH
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFontStyle(fontStyleType: Byte, fontStyleState: Byte, fontStyleSlant: Int) {
+    prepareMut()
+    values.put(StyleKeys.FONT_STYLE_TYPE, fontStyleType)
+    values.put(StyleKeys.FONT_STYLE_STATE, fontStyleState)
+    values.putInt(StyleKeys.FONT_STYLE_SLANT, fontStyleSlant)
+    val state = StateKeys.FONT_STYLE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFontVariantNumeric(fontVariantNumeric: Byte, fontVariantNumericState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.FONT_VARIANT_NUMERIC, fontVariantNumeric)
+    values.put(StyleKeys.FONT_VARIANT_NUMERIC_STATE, fontVariantNumericState)
+    val state = StateKeys.FONT_VARIANT_NUMERIC
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeFontWeight(fontWeight: Int, fontWeightState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.FONT_WEIGHT, fontWeight)
+    values.put(StyleKeys.FONT_WEIGHT_STATE, fontWeightState)
+    val state = StateKeys.FONT_WEIGHT
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeColumnGap(gapColumnType: Byte, gapColumnValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.GAP_COLUMN_TYPE, gapColumnType)
+    values.putFloat(StyleKeys.GAP_COLUMN_VALUE, gapColumnValue)
+    setOrAppendState(StateKeys.GAP)
+  }
+
+  private fun writeGap(gapRowType: Byte, gapRowValue: Float, gapColumnType: Byte, gapColumnValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.GAP_ROW_TYPE, gapRowType)
+    values.putFloat(StyleKeys.GAP_ROW_VALUE, gapRowValue)
+    values.put(StyleKeys.GAP_COLUMN_TYPE, gapColumnType)
+    values.putFloat(StyleKeys.GAP_COLUMN_VALUE, gapColumnValue)
+    setOrAppendState(StateKeys.GAP)
+  }
+
+  private fun writeRowGap(gapRowType: Byte, gapRowValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.GAP_ROW_TYPE, gapRowType)
+    values.putFloat(StyleKeys.GAP_ROW_VALUE, gapRowValue)
+    setOrAppendState(StateKeys.GAP)
+  }
+
+  private fun writeGridAutoFlow(gridAutoFlow: Byte) {
+    prepareMut()
+    values.put(StyleKeys.GRID_AUTO_FLOW, gridAutoFlow)
+    setOrAppendState(StateKeys.GRID_AUTO_FLOW)
+  }
+
+  private fun writeHeight(heightType: Byte, heightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.HEIGHT_TYPE, heightType)
+    values.putFloat(StyleKeys.HEIGHT_VALUE, heightValue)
+    setOrAppendState(StateKeys.SIZE)
+  }
+
+  private fun writeHyphens(hyphens: Byte, hyphensState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.HYPHENS, hyphens)
+    values.put(StyleKeys.HYPHENS_STATE, hyphensState)
+    val state = StateKeys.HYPHENS
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeInsetBottomType(insetBottomType: Byte, insetBottomValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.INSET_BOTTOM_TYPE, insetBottomType)
+    values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue)
+    setOrAppendState(StateKeys.INSET)
+  }
+
+  private fun writeInsetLeftType(insetLeftType: Byte, insetLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.INSET_LEFT_TYPE, insetLeftType)
+    values.putFloat(StyleKeys.INSET_LEFT_VALUE, insetLeftValue)
+    setOrAppendState(StateKeys.INSET)
+  }
+
+  private fun writeInsetRightType(insetRightType: Byte, insetRightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.INSET_RIGHT_TYPE, insetRightType)
+    values.putFloat(StyleKeys.INSET_RIGHT_VALUE, insetRightValue)
+    setOrAppendState(StateKeys.INSET)
+  }
+
+  private fun writeInsetTopType(insetTopType: Byte, insetTopValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.INSET_TOP_TYPE, insetTopType)
+    values.putFloat(StyleKeys.INSET_TOP_VALUE, insetTopValue)
+    setOrAppendState(StateKeys.INSET)
+  }
+
+  private fun writeJustifyContent(justifyContent: Byte) {
+    prepareMut()
+    values.put(StyleKeys.JUSTIFY_CONTENT, justifyContent)
+    setOrAppendState(StateKeys.JUSTIFY_CONTENT)
+  }
+
+  private fun writeJustifyItems(justifyItems: Byte) {
+    prepareMut()
+    values.put(StyleKeys.JUSTIFY_ITEMS, justifyItems)
+    setOrAppendState(StateKeys.JUSTIFY_ITEMS)
+  }
+
+  private fun writeJustifySelf(justifySelf: Byte) {
+    prepareMut()
+    values.put(StyleKeys.JUSTIFY_SELF, justifySelf)
+    setOrAppendState(StateKeys.JUSTIFY_SELF)
+  }
+
+  private fun writeLetterSpacing(letterSpacing: Float, letterSpacingState: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.LETTER_SPACING, letterSpacing)
+    values.put(StyleKeys.LETTER_SPACING_STATE, letterSpacingState)
+    val state = StateKeys.LETTER_SPACING
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeLineClamp(lineClamp: Int, lineClampState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.LINE_CLAMP, lineClamp)
+    values.put(StyleKeys.LINE_CLAMP_STATE, lineClampState)
+    setOrAppendState(StateKeys.LINE_CLAMP)
+  }
+
+  private fun writeLineHeight(lineHeight: Float, lineHeightState: Byte, lineHeightType: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.LINE_HEIGHT, lineHeight)
+    values.put(StyleKeys.LINE_HEIGHT_STATE, lineHeightState)
+    values.put(StyleKeys.LINE_HEIGHT_TYPE, lineHeightType)
+    val state = StateKeys.LINE_HEIGHT
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeLineHeightState(lineHeightState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.LINE_HEIGHT_STATE, lineHeightState)
+    val state = StateKeys.LINE_HEIGHT
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeListStylePosition(listStylePosition: Byte, listStylePositionState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.LIST_STYLE_POSITION, listStylePosition)
+    values.put(StyleKeys.LIST_STYLE_POSITION_STATE, listStylePositionState)
+    setOrAppendState(StateKeys.LIST_STYLE_POSITION)
+  }
+
+  private fun writeListStyleType(listStyleType: Byte, listStyleTypeState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.LIST_STYLE_TYPE, listStyleType)
+    values.put(StyleKeys.LIST_STYLE_TYPE_STATE, listStyleTypeState)
+    setOrAppendState(StateKeys.LIST_STYLE_TYPE)
+  }
+
+  private fun writeMarginBottomType(marginBottomType: Byte, marginBottomValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType)
+    values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue)
+    setOrAppendState(StateKeys.MARGIN)
+  }
+
+  private fun writeMarginLeftType(marginLeftType: Byte, marginLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MARGIN_LEFT_TYPE, marginLeftType)
+    values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue)
+    setOrAppendState(StateKeys.MARGIN)
+  }
+
+  private fun writeMarginRightType(marginRightType: Byte, marginRightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MARGIN_RIGHT_TYPE, marginRightType)
+    values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue)
+    setOrAppendState(StateKeys.MARGIN)
+  }
+
+  private fun writeMarginTopType(marginTopType: Byte, marginTopValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MARGIN_TOP_TYPE, marginTopType)
+    values.putFloat(StyleKeys.MARGIN_TOP_VALUE, marginTopValue)
+    setOrAppendState(StateKeys.MARGIN)
+  }
+
+  private fun writeMaxHeight(maxHeightType: Byte, maxHeightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MAX_HEIGHT_TYPE, maxHeightType)
+    values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, maxHeightValue)
+    setOrAppendState(StateKeys.MAX_SIZE)
+  }
+
+  private fun writeMaxSize(maxWidthType: Byte, maxWidthValue: Float, maxHeightType: Byte, maxHeightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MAX_WIDTH_TYPE, maxWidthType)
+    values.putFloat(StyleKeys.MAX_WIDTH_VALUE, maxWidthValue)
+    values.put(StyleKeys.MAX_HEIGHT_TYPE, maxHeightType)
+    values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, maxHeightValue)
+    setOrAppendState(StateKeys.MAX_SIZE)
+  }
+
+  private fun writeMaxWidth(maxWidthType: Byte, maxWidthValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MAX_WIDTH_TYPE, maxWidthType)
+    values.putFloat(StyleKeys.MAX_WIDTH_VALUE, maxWidthValue)
+    setOrAppendState(StateKeys.MAX_SIZE)
+  }
+
+  private fun writeMinHeight(minHeightType: Byte, minHeightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MIN_HEIGHT_TYPE, minHeightType)
+    values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, minHeightValue)
+    setOrAppendState(StateKeys.MIN_SIZE)
+  }
+
+  private fun writeMinSize(minWidthType: Byte, minWidthValue: Float, minHeightType: Byte, minHeightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MIN_WIDTH_TYPE, minWidthType)
+    values.putFloat(StyleKeys.MIN_WIDTH_VALUE, minWidthValue)
+    values.put(StyleKeys.MIN_HEIGHT_TYPE, minHeightType)
+    values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, minHeightValue)
+    setOrAppendState(StateKeys.MIN_SIZE)
+  }
+
+  private fun writeMinWidth(minWidthType: Byte, minWidthValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MIN_WIDTH_TYPE, minWidthType)
+    values.putFloat(StyleKeys.MIN_WIDTH_VALUE, minWidthValue)
+    setOrAppendState(StateKeys.MIN_SIZE)
+  }
+
+  private fun writeObjectFit(objectFit: Byte) {
+    prepareMut()
+    values.put(StyleKeys.OBJECT_FIT, objectFit)
+    setOrAppendState(StateKeys.OBJECT_FIT)
+  }
+
+  private fun writeOverflowX(overflowX: Byte) {
+    prepareMut()
+    values.put(StyleKeys.OVERFLOW_X, overflowX)
+    setOrAppendState(StateKeys.OVERFLOW_X)
+  }
+
+  private fun writeOverflow(overflowX: Byte, overflowY: Byte) {
+    prepareMut()
+    values.put(StyleKeys.OVERFLOW_X, overflowX)
+    values.put(StyleKeys.OVERFLOW_Y, overflowY)
+    setOrAppendState(arrayOf(StateKeys.OVERFLOW_X, StateKeys.OVERFLOW_Y))
+  }
+
+  private fun writeOverflowY(overflowY: Byte) {
+    prepareMut()
+    values.put(StyleKeys.OVERFLOW_Y, overflowY)
+    setOrAppendState(StateKeys.OVERFLOW_Y)
+  }
+
+  private fun writePaddingBottomType(paddingBottomType: Byte, paddingBottomValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType)
+    values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue)
+    setOrAppendState(StateKeys.PADDING)
+  }
+
+  private fun writePaddingLeftType(paddingLeftType: Byte, paddingLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.PADDING_LEFT_TYPE, paddingLeftType)
+    values.putFloat(StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue)
+    setOrAppendState(StateKeys.PADDING)
+  }
+
+  private fun writePaddingRightType(paddingRightType: Byte, paddingRightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.PADDING_RIGHT_TYPE, paddingRightType)
+    values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue)
+    setOrAppendState(StateKeys.PADDING)
+  }
+
+  private fun writePaddingTopType(paddingTopType: Byte, paddingTopValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.PADDING_TOP_TYPE, paddingTopType)
+    values.putFloat(StyleKeys.PADDING_TOP_VALUE, paddingTopValue)
+    setOrAppendState(StateKeys.PADDING)
+  }
+
+  private fun writePosition(position: Byte) {
+    prepareMut()
+    values.put(StyleKeys.POSITION, position)
+    setOrAppendState(StateKeys.POSITION)
+  }
+
+  private fun writeScrollbarWidth(scrollbarWidth: Float) {
+    prepareMut()
+    values.putFloat(StyleKeys.SCROLLBAR_WIDTH, scrollbarWidth)
+    setOrAppendState(StateKeys.SCROLLBAR_WIDTH)
+  }
+
+  private fun writeSize(widthType: Byte, widthValue: Float, heightType: Byte, heightValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.WIDTH_TYPE, widthType)
+    values.putFloat(StyleKeys.WIDTH_VALUE, widthValue)
+    values.put(StyleKeys.HEIGHT_TYPE, heightType)
+    values.putFloat(StyleKeys.HEIGHT_VALUE, heightValue)
+    setOrAppendState(StateKeys.SIZE)
+  }
+
+  private fun writeTextAlign(textAlign: Byte, textAlignState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_ALIGN, textAlign)
+    values.put(StyleKeys.TEXT_ALIGN_STATE, textAlignState)
+    setOrAppendState(StateKeys.TEXT_ALIGN)
+  }
+
+  private fun writeTextCombineUpright(textCombineUpright: Byte, textCombineUprightState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_COMBINE_UPRIGHT, textCombineUpright)
+    values.put(StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, textCombineUprightState)
+    val state = StateKeys.TEXT_COMBINE_UPRIGHT
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextIndent(textIndent: Float, textIndentType: Byte, textIndentState: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.TEXT_INDENT, textIndent)
+    values.put(StyleKeys.TEXT_INDENT_TYPE, textIndentType)
+    values.put(StyleKeys.TEXT_INDENT_STATE, textIndentState)
+    val state = StateKeys.TEXT_INDENT
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextJustify(textJustify: Byte, textJustifyState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_JUSTIFY, textJustify)
+    values.put(StyleKeys.TEXT_JUSTIFY_STATE, textJustifyState)
+    val state = StateKeys.TEXT_JUSTIFY
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextOrientation(textOrientation: Byte, textOrientationState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_ORIENTATION, textOrientation)
+    values.put(StyleKeys.TEXT_ORIENTATION_STATE, textOrientationState)
+    val state = StateKeys.TEXT_ORIENTATION
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextSpacingTrim(textSpacingTrim: Byte, textSpacingTrimState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_SPACING_TRIM, textSpacingTrim)
+    values.put(StyleKeys.TEXT_SPACING_TRIM_STATE, textSpacingTrimState)
+    val state = StateKeys.TEXT_SPACING_TRIM
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextTransform(textTransform: Byte, textTransformState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_TRANSFORM, textTransform)
+    values.put(StyleKeys.TEXT_TRANSFORM_STATE, textTransformState)
+    val state = StateKeys.TEXT_TRANSFORM
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTextWrap(textWrap: Byte, textWrapState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TEXT_WRAP, textWrap)
+    values.put(StyleKeys.TEXT_WRAP_STATE, textWrapState)
+    val state = StateKeys.TEXT_WRAP
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeTransformOrigin(transformOriginXType: Byte, transformOriginYType: Byte, transformOriginXValue: Float, transformOriginYValue: Float, transformOriginState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, transformOriginXType)
+    values.put(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, transformOriginYType)
+    values.putFloat(StyleKeys.TRANSFORM_ORIGIN_X_VALUE, transformOriginXValue)
+    values.putFloat(StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, transformOriginYValue)
+    values.put(StyleKeys.TRANSFORM_ORIGIN_STATE, transformOriginState)
+    setOrAppendState(StateKeys.TRANSFORM_ORIGIN)
+  }
+
+  private fun writeUnicodeBidi(unicodeBidi: Byte, unicodeBidiState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.UNICODE_BIDI, unicodeBidi)
+    values.put(StyleKeys.UNICODE_BIDI_STATE, unicodeBidiState)
+    val state = StateKeys.UNICODE_BIDI
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeVerticalAlign(verticalAlignOffsetOffset: Float, verticalAlignIsPercentOffset: Byte, verticalAlignEnumOffset: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, verticalAlignOffsetOffset)
+    values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, verticalAlignIsPercentOffset)
+    values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, verticalAlignEnumOffset)
+    val state = StateKeys.VERTICAL_ALIGN
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeWhiteSpace(whiteSpace: Byte, whiteSpaceState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.WHITE_SPACE, whiteSpace)
+    values.put(StyleKeys.WHITE_SPACE_STATE, whiteSpaceState)
+    val state = StateKeys.WHITE_SPACE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeWidth(widthType: Byte, widthValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.WIDTH_TYPE, widthType)
+    values.putFloat(StyleKeys.WIDTH_VALUE, widthValue)
+    setOrAppendState(StateKeys.SIZE)
+  }
+
+  private fun writeWritingMode(writingMode: Byte, writingModeState: Byte) {
+    prepareMut()
+    values.put(StyleKeys.WRITING_MODE, writingMode)
+    values.put(StyleKeys.WRITING_MODE_STATE, writingModeState)
+    val state = StateKeys.WRITING_MODE
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeWordSpacing(wordSpacing: Float, wordSpacingType: Byte, wordSpacingState: Byte) {
+    prepareMut()
+    values.putFloat(StyleKeys.WORD_SPACING, wordSpacing)
+    values.put(StyleKeys.WORD_SPACING_TYPE, wordSpacingType)
+    values.put(StyleKeys.WORD_SPACING_STATE, wordSpacingState)
+    val state = StateKeys.WORD_SPACING
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeZIndex(zIndex: Int) {
+    prepareMut()
+    values.putInt(StyleKeys.Z_INDEX, zIndex)
+    setOrAppendState(StateKeys.Z_INDEX)
+  }
+
+  private fun writeBackgroundColorNative(backgroundColor: Int, backgroundColorState: Byte) {
+    prepareMut()
+    values.putInt(StyleKeys.BACKGROUND_COLOR, backgroundColor)
+    values.put(StyleKeys.BACKGROUND_COLOR_STATE, backgroundColorState)
+    val state = StateKeys.BACKGROUND_COLOR
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private fun writeInset(insetTopType: Byte, insetTopValue: Float, insetRightType: Byte, insetRightValue: Float, insetBottomType: Byte, insetBottomValue: Float, insetLeftType: Byte, insetLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.INSET_TOP_TYPE, insetTopType)
+    values.putFloat(StyleKeys.INSET_TOP_VALUE, insetTopValue)
+    values.put(StyleKeys.INSET_RIGHT_TYPE, insetRightType)
+    values.putFloat(StyleKeys.INSET_RIGHT_VALUE, insetRightValue)
+    values.put(StyleKeys.INSET_BOTTOM_TYPE, insetBottomType)
+    values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue)
+    values.put(StyleKeys.INSET_LEFT_TYPE, insetLeftType)
+    values.putFloat(StyleKeys.INSET_LEFT_VALUE, insetLeftValue)
+    setOrAppendState(StateKeys.INSET)
+  }
+
+  private fun writeMargin(marginTopType: Byte, marginTopValue: Float, marginRightType: Byte, marginRightValue: Float, marginBottomType: Byte, marginBottomValue: Float, marginLeftType: Byte, marginLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.MARGIN_TOP_TYPE, marginTopType)
+    values.putFloat(StyleKeys.MARGIN_TOP_VALUE, marginTopValue)
+    values.put(StyleKeys.MARGIN_RIGHT_TYPE, marginRightType)
+    values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue)
+    values.put(StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType)
+    values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue)
+    values.put(StyleKeys.MARGIN_LEFT_TYPE, marginLeftType)
+    values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue)
+    setOrAppendState(StateKeys.MARGIN)
+  }
+
+  private fun writePadding(paddingTopType: Byte, paddingTopValue: Float, paddingRightType: Byte, paddingRightValue: Float, paddingBottomType: Byte, paddingBottomValue: Float, paddingLeftType: Byte, paddingLeftValue: Float) {
+    prepareMut()
+    values.put(StyleKeys.PADDING_TOP_TYPE, paddingTopType)
+    values.putFloat(StyleKeys.PADDING_TOP_VALUE, paddingTopValue)
+    values.put(StyleKeys.PADDING_RIGHT_TYPE, paddingRightType)
+    values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue)
+    values.put(StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType)
+    values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue)
+    values.put(StyleKeys.PADDING_LEFT_TYPE, paddingLeftType)
+    values.putFloat(StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue)
+    setOrAppendState(StateKeys.PADDING)
+  }
+  // </style-keys:writes>
+
+  // <style-keys:accessors> generated from tools/scripts/style-keys/style-keys.schema
+  private fun readDisplayFrom(buffer: ByteBuffer): Display {
+    val base = buffer.get(StyleKeys.DISPLAY).toInt()
+    val mode = buffer.get(StyleKeys.DISPLAY_MODE).toInt()
+    return when {
+      mode == 0 -> Display.from(base.toByte())
+      mode == 1 -> Display.Inline
+      mode == 2 && base == 3 -> Display.InlineBlock
+      mode == 2 && base == 1 -> Display.InlineFlex
+      mode == 2 && base == 2 -> Display.InlineGrid
+      mode == 3 -> Display.ListItem
+      else -> error("Invalid display encoding")
+    }
+  }
+
+  var display: Display
+    get() {
+      if (visibilityCode == 2.toByte()) return Display.None
+      return resolvePseudo(StateKeys.DISPLAY, readDisplayFrom(values), ::readDisplayFrom)
+    }
+    set(value) {
+      when (value) {
+        Display.None -> writeDisplay(0, 0)
+        Display.Flex -> writeDisplay(1, 0)
+        Display.Grid -> writeDisplay(2, 0)
+        Display.Block -> writeDisplay(3, 0)
+        Display.Inline -> writeDisplay(3, 1)
+        Display.InlineBlock -> writeDisplay(3, 2)
+        Display.InlineFlex -> writeDisplay(1, 2)
+        Display.InlineGrid -> writeDisplay(2, 2)
+        Display.ListItem -> writeDisplay(3, 3)
+      }
+      updateDisplayVisibility(value)
+    }
+
+  var textOverflow: Styles.TextOverflow
+    get() = decodeTextOverflow(values.get(StyleKeys.TEXT_OVERFLOW))
+    set(value) {
+      applyTextOverflow(value)
+    }
+
+  /** CSS transform origin as two axes. */
+  var transformOrigin: String
+    get() {
+      if (values.get(StyleKeys.TRANSFORM_ORIGIN_STATE) == StyleState.INHERIT) return "50% 50%"
+      val scale = node.mason.scale
+      fun side(typeKey: Int, valueKey: Int): String {
+        val value = values.getFloat(valueKey)
+        return if (values.get(typeKey).toInt() == 1) "${cssNumber(value)}%" else "${cssNumber(value / scale)}px"
+      }
+      return "${side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)} ${side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)}"
+    }
+    set(value) {
+      val mason = node.mason
+      val fields = Mason.nativeParseCss(value, CssParseKind.TRANSFORM_ORIGIN, mason.scale, fontSize.toFloat(),
+        mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, 0) ?: return
+      if (fields.size != CssPositionResultRecord.STRIDE) return
+      setResolvedTransformOrigin(fields[CssPositionResultRecord.X_VALUE].toFloat(),
+        fields[CssPositionResultRecord.X_TYPE] == 1.0, fields[CssPositionResultRecord.Y_VALUE].toFloat(),
+        fields[CssPositionResultRecord.Y_TYPE] == 1.0)
+    }
+
+  internal fun setResolvedTransformOrigin(x: Float, xIsPercent: Boolean, y: Float, yIsPercent: Boolean) {
+    writeTransformOrigin(if (xIsPercent) 1 else 0, if (yIsPercent) 1 else 0, x, y, StyleState.SET)
+  }
+
+  /** Applies the shorthand as one style write. */
+  fun setTextDecoration(css: String) {
+    val fields = Mason.expandCssShorthand("text-decoration", css) ?: return
+    val thickness = fields.getOrNull(TextDecorationRecord.THICKNESS)?.let { resolveDecorationThickness(it) } ?: return
+    setParsedTextDecoration(fields, thickness)
+  }
+
+  internal fun setParsedTextDecoration(fields: Array<String>, thickness: Float) {
+    if (fields.size != TextDecorationRecord.STRIDE) return
+    val line = fields[TextDecorationRecord.LINE].toByteOrNull() ?: return
+    val style = fields[TextDecorationRecord.STYLE].toByteOrNull() ?: return
+    val color = fields[TextDecorationRecord.COLOR].toUIntOrNull()?.toInt() ?: return
+    writeTextDecoration(line, style, color, thickness, StyleState.SET, StyleState.SET, StyleState.SET, StyleState.SET)
+  }
+
+  var textDecorationLine: String
+    get() = decorationLine.cssValue
+    set(value) { Styles.DecorationLine.parse(value)?.let { decorationLine = it } }
+
+  var textDecorationStyle: String
+    get() = decorationStyle.cssValue
+    set(value) { Styles.DecorationStyle.parse(value)?.let { decorationStyle = it } }
+
+  var textDecorationColor: String
+    get() {
+      val color = decorationColor
+      return if (color == Constants.UNSET_COLOR.toInt()) "currentcolor" else color.argbToCssHex()
+    }
+    set(value) {
+      Mason.expandCssShorthand("text-decoration-color", value)
+        ?.firstOrNull()?.toUIntOrNull()?.let { decorationColor = it.toInt() }
+    }
+
+  /** Text indent as a length or a percentage of the line width. */
+  var textIndent: String
+    get() {
+      if (values.get(StyleKeys.TEXT_INDENT_STATE) == StyleState.INHERIT) return "0px"
+      val amount = values.getFloat(StyleKeys.TEXT_INDENT)
+      return if (values.get(StyleKeys.TEXT_INDENT_TYPE).toInt() == 1) "${cssNumber(amount)}%"
+      else "${cssNumber(amount / node.mason.scale)}px"
+    }
+    set(value) {
+      val fields = textIndentFields(value) ?: return
+      setResolvedTextIndent(fields[CssLengthResultRecord.VALUE].toFloat(), fields[CssLengthResultRecord.KIND] == 2.0)
+    }
+
+  var verticalAlign: VerticalAlign
+    get() = VerticalAlign.fromTypeValue(values.get(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET), values.get(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET).toInt() == 1, values.getFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET))
+      ?: throw IllegalArgumentException("Invalid vertical-align value")
+    set(value) {
+      when (value) {
+        VerticalAlign.Length -> writeVerticalAlign(value.value, 0, 0)
+        VerticalAlign.Percent -> writeVerticalAlign(value.value, 1, 0)
+        else -> writeVerticalAlign(0f, 0, value.type)
+      }
+    }
+
+  var fontVariantNumeric: Int
+    get() = values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
+    set(value) {
+      if (value != fontVariantNumeric || values.get(StyleKeys.FONT_VARIANT_NUMERIC_STATE) != StyleState.SET) {
+        writeFontVariantNumeric(value.toByte(), StyleState.SET)
+      }
+    }
+
+  private fun readFontStyle(buffer: ByteBuffer): FontStyle = decodeFontStyle(buffer.get(StyleKeys.FONT_STYLE_TYPE), buffer.getInt(StyleKeys.FONT_STYLE_SLANT))
+
+  var fontStyle: FontStyle
+    get() = readFontStyle(values)
+    set(value) = applyFontStyle(value)
+
+  var fontWeight: FontWeight
+    get() = FontWeight.from(values.getInt(StyleKeys.FONT_WEIGHT))
+    set(value) = applyFontWeight(value)
+
+  var fontStretch: String
+    get() {
+      if (values.get(StyleKeys.FONT_STRETCH_STATE) == StyleState.INHERIT) return "normal"
+      val pct = values.getInt(StyleKeys.FONT_STRETCH)
+      return Mason.expandCssShorthand("font-stretch-name", pct.toString())?.firstOrNull() ?: "normal"
+    }
+    set(value) {
+      val field = Mason.expandCssShorthand("font-stretch", value)?.firstOrNull()?.toIntOrNull() ?: return
+      writeFontStretch(field, StyleState.SET)
+    }
+
+  internal val visibilityCode: Byte
+    get() = values.get(StyleKeys.VISIBILITY)
+
+  internal var hyphens: Byte
+    get() = values.get(StyleKeys.HYPHENS)
+    set(value) {
+      writeHyphens(value, StyleState.SET)
+    }
+
+  internal var writingMode: Byte
+    get() = values.get(StyleKeys.WRITING_MODE)
+    set(value) {
+      writeWritingMode(value, StyleState.SET)
+    }
+
+  internal var unicodeBidi: Byte
+    get() = values.get(StyleKeys.UNICODE_BIDI)
+    set(value) {
+      writeUnicodeBidi(value, StyleState.SET)
+    }
+
+  internal var textOrientation: Byte
+    get() = values.get(StyleKeys.TEXT_ORIENTATION)
+    set(value) {
+      writeTextOrientation(value, StyleState.SET)
+    }
+
+  internal var textCombineUpright: Byte
+    get() = values.get(StyleKeys.TEXT_COMBINE_UPRIGHT)
+    set(value) {
+      writeTextCombineUpright(value, StyleState.SET)
+    }
+
+  internal var textSpacingTrim: Byte
+    get() = values.get(StyleKeys.TEXT_SPACING_TRIM)
+    set(value) {
+      writeTextSpacingTrim(value, StyleState.SET)
+    }
+
+  var align: Align
+    get() {
+      val base = Align.from(values.get(StyleKeys.ALIGN))
+      return resolvePseudo(StateKeys.ALIGN, base) { buf ->
+        Align.from(buf.get(StyleKeys.ALIGN))
+      }
+    }
+    set(value) {
+      writeAlign(value.value)
+    }
+
+  var alignContent: AlignContent
+    get() {
+      val base = AlignContent.from(values.get(StyleKeys.ALIGN_CONTENT))
+      return resolvePseudo(StateKeys.ALIGN_CONTENT, base) { buf ->
+        AlignContent.from(buf.get(StyleKeys.ALIGN_CONTENT))
+      }
+    }
+    set(value) {
+      writeAlignContent(value.value)
+    }
+
+  var alignItems: AlignItems
+    get() {
+      val base = AlignItems.from(values.get(StyleKeys.ALIGN_ITEMS))
+      return resolvePseudo(StateKeys.ALIGN_ITEMS, base) { buf ->
+        AlignItems.from(buf.get(StyleKeys.ALIGN_ITEMS))
+      }
+    }
+    set(value) {
+      writeAlignItems(value.value)
+    }
+
+  var alignSelf: AlignSelf
+    get() {
+      val base = AlignSelf.from(values.get(StyleKeys.ALIGN_SELF))
+      return resolvePseudo(StateKeys.ALIGN_SELF, base) { buf ->
+        AlignSelf.from(buf.get(StyleKeys.ALIGN_SELF))
+      }
+    }
+    set(value) {
+      writeAlignSelf(value.value)
+    }
+
+  var aspectRatio: Float?
+    get() {
+      val base = values.getFloat(StyleKeys.ASPECT_RATIO).takeUnless { it.isNaN() }
+      return resolvePseudo(StateKeys.ASPECT_RATIO, base) { buf ->
+        buf.getFloat(StyleKeys.ASPECT_RATIO).takeUnless { it.isNaN() }
+      }
+    }
+    set(value) {
+      writeAspectRatio(value ?: Float.NaN)
+    }
+
+  var backgroundColor: Int
+    get() = values.getInt(StyleKeys.BACKGROUND_COLOR)
+    set(value) {
+      writeBackgroundColorNative(value, StyleState.SET)
+    }
+
+  var borderBottomStyle: BorderStyle
+    get() {
+      val base = BorderStyle.from(values.get(StyleKeys.BORDER_BOTTOM_STYLE))
+      return resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
+        BorderStyle.from(buf.get(StyleKeys.BORDER_BOTTOM_STYLE))
+      }
+    }
+    set(value) {
+      if (value == borderBottomStyle) return
+      writeBorderBottomStyle(value.value)
+    }
+
+  var borderLeftStyle: BorderStyle
+    get() {
+      val base = BorderStyle.from(values.get(StyleKeys.BORDER_LEFT_STYLE))
+      return resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
+        BorderStyle.from(buf.get(StyleKeys.BORDER_LEFT_STYLE))
+      }
+    }
+    set(value) {
+      if (value == borderLeftStyle) return
+      writeBorderLeftStyle(value.value)
+    }
+
+  var borderRightStyle: BorderStyle
+    get() {
+      val base = BorderStyle.from(values.get(StyleKeys.BORDER_RIGHT_STYLE))
+      return resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
+        BorderStyle.from(buf.get(StyleKeys.BORDER_RIGHT_STYLE))
+      }
+    }
+    set(value) {
+      if (value == borderRightStyle) return
+      writeBorderRightStyle(value.value)
+    }
+
+  var borderTopStyle: BorderStyle
+    get() {
+      val base = BorderStyle.from(values.get(StyleKeys.BORDER_TOP_STYLE))
+      return resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
+        BorderStyle.from(buf.get(StyleKeys.BORDER_TOP_STYLE))
+      }
+    }
+    set(value) {
+      if (value == borderTopStyle) return
+      writeBorderTopStyle(value.value)
+    }
+
+  var borderStyle: Rect<BorderStyle>
+    get() {
+      val base = Rect(
+        BorderStyle.from(values.get(StyleKeys.BORDER_TOP_STYLE)),
+        BorderStyle.from(values.get(StyleKeys.BORDER_RIGHT_STYLE)),
+        BorderStyle.from(values.get(StyleKeys.BORDER_BOTTOM_STYLE)),
+        BorderStyle.from(values.get(StyleKeys.BORDER_LEFT_STYLE))
+      )
+      return resolvePseudo(StateKeys.BORDER_STYLE, base) { buf ->
+        Rect(
+          BorderStyle.from(buf.get(StyleKeys.BORDER_TOP_STYLE)),
+          BorderStyle.from(buf.get(StyleKeys.BORDER_RIGHT_STYLE)),
+          BorderStyle.from(buf.get(StyleKeys.BORDER_BOTTOM_STYLE)),
+          BorderStyle.from(buf.get(StyleKeys.BORDER_LEFT_STYLE))
+        )
+      }
+    }
+    set(value) {
+      writeBorderStyles(
+        value.top.value,
+        value.right.value,
+        value.bottom.value,
+        value.left.value
+      )
+    }
+
+  var borderColor: Rect<Int>
+    get() {
+      val base = Rect(
+        values.getInt(StyleKeys.BORDER_TOP_COLOR),
+        values.getInt(StyleKeys.BORDER_RIGHT_COLOR),
+        values.getInt(StyleKeys.BORDER_BOTTOM_COLOR),
+        values.getInt(StyleKeys.BORDER_LEFT_COLOR)
+      )
+      return resolvePseudo(StateKeys.BORDER_COLOR, base) { buf ->
+        Rect(
+          buf.getInt(StyleKeys.BORDER_TOP_COLOR),
+          buf.getInt(StyleKeys.BORDER_RIGHT_COLOR),
+          buf.getInt(StyleKeys.BORDER_BOTTOM_COLOR),
+          buf.getInt(StyleKeys.BORDER_LEFT_COLOR)
+        )
+      }
+    }
+    set(value) {
+      writeBorderColors(
+        value.top,
+        value.right,
+        value.bottom,
+        value.left
+      )
+    }
+
+  var borderBottomWidth: LengthPercentage
+    get() {
+      val base = LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_BOTTOM_TYPE), values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE))!!
+      return resolvePseudo(StateKeys.BORDER, base) { buf ->
+        LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_BOTTOM_TYPE), buf.getFloat(StyleKeys.BORDER_BOTTOM_VALUE))!!
+      }
+    }
+    set(value) {
+      if (values.get(StyleKeys.BORDER_BOTTOM_TYPE) == value.type && values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE) == value.value) return
+      writeBorderBottomWidth(value.type, value.value)
+    }
+
+  var borderLeftWidth: LengthPercentage
+    get() {
+      val base = LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_LEFT_TYPE), values.getFloat(StyleKeys.BORDER_LEFT_VALUE))!!
+      return resolvePseudo(StateKeys.BORDER, base) { buf ->
+        LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_LEFT_TYPE), buf.getFloat(StyleKeys.BORDER_LEFT_VALUE))!!
+      }
+    }
+    set(value) {
+      if (values.get(StyleKeys.BORDER_LEFT_TYPE) == value.type && values.getFloat(StyleKeys.BORDER_LEFT_VALUE) == value.value) return
+      writeBorderLeftWidth(value.type, value.value)
+    }
+
+  var borderRightWidth: LengthPercentage
+    get() {
+      val base = LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RIGHT_TYPE), values.getFloat(StyleKeys.BORDER_RIGHT_VALUE))!!
+      return resolvePseudo(StateKeys.BORDER, base) { buf ->
+        LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_RIGHT_TYPE), buf.getFloat(StyleKeys.BORDER_RIGHT_VALUE))!!
+      }
+    }
+    set(value) {
+      if (values.get(StyleKeys.BORDER_RIGHT_TYPE) == value.type && values.getFloat(StyleKeys.BORDER_RIGHT_VALUE) == value.value) return
+      writeBorderRightWidth(value.type, value.value)
+    }
+
+  var borderTopWidth: LengthPercentage
+    get() {
+      val base = LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_TOP_TYPE), values.getFloat(StyleKeys.BORDER_TOP_VALUE))!!
+      return resolvePseudo(StateKeys.BORDER, base) { buf ->
+        LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_TOP_TYPE), buf.getFloat(StyleKeys.BORDER_TOP_VALUE))!!
+      }
+    }
+    set(value) {
+      if (values.get(StyleKeys.BORDER_TOP_TYPE) == value.type && values.getFloat(StyleKeys.BORDER_TOP_VALUE) == value.value) return
+      writeBorderTopWidth(value.type, value.value)
+    }
+
+  var borderWidth: Rect<LengthPercentage>
+    get() {
+      val base = Rect(
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_TOP_TYPE), values.getFloat(StyleKeys.BORDER_TOP_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RIGHT_TYPE), values.getFloat(StyleKeys.BORDER_RIGHT_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_BOTTOM_TYPE), values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_LEFT_TYPE), values.getFloat(StyleKeys.BORDER_LEFT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.BORDER, base) { buf ->
+        Rect(
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_TOP_TYPE), buf.getFloat(StyleKeys.BORDER_TOP_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_RIGHT_TYPE), buf.getFloat(StyleKeys.BORDER_RIGHT_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_BOTTOM_TYPE), buf.getFloat(StyleKeys.BORDER_BOTTOM_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.BORDER_LEFT_TYPE), buf.getFloat(StyleKeys.BORDER_LEFT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeBorderWidth(
+        value.top.type,
+        value.top.value,
+        value.right.type,
+        value.right.value,
+        value.bottom.type,
+        value.bottom.value,
+        value.left.type,
+        value.left.value
+      )
+    }
+
+  var borderTopLeftRadius: Point<LengthPercentage>
+    get() = Point(
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE))!!,
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE))!!
+    )
+    set(value) {
+      writeBorderTopLeftRadius(
+        value.x.type,
+        value.x.value,
+        value.y.type,
+        value.y.value
+      )
+    }
+
+  var borderTopRightRadius: Point<LengthPercentage>
+    get() = Point(
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE))!!,
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE))!!
+    )
+    set(value) {
+      writeBorderTopRightRadius(
+        value.x.type,
+        value.x.value,
+        value.y.type,
+        value.y.value
+      )
+    }
+
+  var borderBottomRightRadius: Point<LengthPercentage>
+    get() = Point(
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE))!!,
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE))!!
+    )
+    set(value) {
+      writeBorderBottomRightRadius(
+        value.x.type,
+        value.x.value,
+        value.y.type,
+        value.y.value
+      )
+    }
+
+  var borderBottomLeftRadius: Point<LengthPercentage>
+    get() = Point(
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE))!!,
+      LengthPercentage.fromTypeValue(values.get(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE), values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE))!!
+    )
+    set(value) {
+      writeBorderBottomLeftRadius(
+        value.x.type,
+        value.x.value,
+        value.y.type,
+        value.y.value
+      )
+    }
+
+  var cornerShapeTopLeft: String
+    get() {
+      val base = values.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT)
+      val exponent = resolvePseudo(StateKeys.BORDER_RADIUS, base) { it.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT) }
+      return exponentToCornerShapeToken(exponent)
+    }
+    set(value) {
+      parseCornerShapeToken(value)?.let { writeCornerShapeTopLeft(it) }
+    }
+
+  var cornerShapeTopRight: String
+    get() {
+      val base = values.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT)
+      val exponent = resolvePseudo(StateKeys.BORDER_RADIUS, base) { it.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT) }
+      return exponentToCornerShapeToken(exponent)
+    }
+    set(value) {
+      parseCornerShapeToken(value)?.let { writeCornerShapeTopRight(it) }
+    }
+
+  var cornerShapeBottomRight: String
+    get() {
+      val base = values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT)
+      val exponent = resolvePseudo(StateKeys.BORDER_RADIUS, base) { it.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT) }
+      return exponentToCornerShapeToken(exponent)
+    }
+    set(value) {
+      parseCornerShapeToken(value)?.let { writeCornerShapeBottomRight(it) }
+    }
+
+  var cornerShapeBottomLeft: String
+    get() {
+      val base = values.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT)
+      val exponent = resolvePseudo(StateKeys.BORDER_RADIUS, base) { it.getFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT) }
+      return exponentToCornerShapeToken(exponent)
+    }
+    set(value) {
+      parseCornerShapeToken(value)?.let { writeCornerShapeBottomLeft(it) }
+    }
+
+  var cornerShape: String = ""
+    set(value) {
+      field = value
+      applyCornerShape(value)
+    }
+
+  internal fun applyCornerShape(value: String) {
+    val fields = Mason.expandCssShorthand("corner-shape", value) ?: return
+    if (fields.size != 4) return
+    val (topLeft, topRight, bottomRight, bottomLeft) = fields.map { it.toFloatOrNull() ?: return }
+    writeCornerShape(topLeft, topRight, bottomRight, bottomLeft)
+  }
+
+  var color: Int
+    get() = values.getInt(StyleKeys.FONT_COLOR)
+    set(value) {
+      writeFontColor(value, StyleState.SET)
+    }
+
+  var boxSizing: BoxSizing
+    get() {
+      val base = BoxSizing.from(values.get(StyleKeys.BOX_SIZING))
+      return resolvePseudo(StateKeys.BOX_SIZING, base) { buf ->
+        BoxSizing.from(buf.get(StyleKeys.BOX_SIZING))
+      }
+    }
+    set(value) {
+      writeBoxSizing(value.value)
+    }
+
+  var clear: Clear
+    get() {
+      val base = Clear.from(values.get(StyleKeys.CLEAR))
+      return resolvePseudo(StateKeys.CLEAR, base) { buf ->
+        Clear.from(buf.get(StyleKeys.CLEAR))
+      }
+    }
+    set(value) {
+      writeClear(value.value)
+    }
+
+  var decorationColor: Int
+    get() = values.getInt(StyleKeys.DECORATION_COLOR)
+    set(value) {
+      writeDecorationColor(value, StyleState.SET)
+    }
+
+  var decorationLine: Styles.DecorationLine
+    get() = Styles.DecorationLine.from(values.get(StyleKeys.DECORATION_LINE))
+    set(value) {
+      writeDecorationLine(value.value, StyleState.SET)
+    }
+
+  var decorationStyle: Styles.DecorationStyle
+    get() = Styles.DecorationStyle.from(values.get(StyleKeys.DECORATION_STYLE))
+    set(value) {
+      writeDecorationStyle(value.value, StyleState.SET)
+    }
+
+  /** Device px. Zero uses the font's underline thickness. */
+  var decorationThickness: Float
+    get() = values.getFloat(StyleKeys.DECORATION_THICKNESS)
+    set(value) {
+      writeDecorationThickness(value, StyleState.SET)
+    }
+
+  var direction: Direction
+    get() {
+      val base = Direction.from(values.get(StyleKeys.DIRECTION))
+      return resolvePseudo(StateKeys.DIRECTION, base) { buf ->
+        Direction.from(buf.get(StyleKeys.DIRECTION))
+      }
+    }
+    set(value) {
+      writeDirection(value.value)
+    }
+
+  var flexBasis: Dimension
+    get() {
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.FLEX_BASIS_TYPE), values.getFloat(StyleKeys.FLEX_BASIS_VALUE))!!
+      return resolvePseudo(StateKeys.FLEX_BASIS, base) { buf ->
+        Dimension.fromTypeValue(buf.get(StyleKeys.FLEX_BASIS_TYPE), buf.getFloat(StyleKeys.FLEX_BASIS_VALUE))!!
+      }
+    }
+    set(value) {
+      writeFlexBasisType(value.type, value.value)
+    }
+
+  var flexDirection: FlexDirection
+    get() {
+      val base = FlexDirection.from(values.get(StyleKeys.FLEX_DIRECTION))
+      return resolvePseudo(StateKeys.FLEX_DIRECTION, base) { buf ->
+        FlexDirection.from(buf.get(StyleKeys.FLEX_DIRECTION))
+      }
+    }
+    set(value) {
+      writeFlexDirection(value.value)
+    }
+
+  var flexGrow: Float
+    get() {
+      val base = values.getFloat(StyleKeys.FLEX_GROW)
+      return resolvePseudo(StateKeys.FLEX_GROW, base) { buf ->
+        buf.getFloat(StyleKeys.FLEX_GROW)
+      }
+    }
+    set(value) {
+      writeFlexGrow(value)
+    }
+
+  var flexShrink: Float
+    get() {
+      val base = values.getFloat(StyleKeys.FLEX_SHRINK)
+      return resolvePseudo(StateKeys.FLEX_SHRINK, base) { buf ->
+        buf.getFloat(StyleKeys.FLEX_SHRINK)
+      }
+    }
+    set(value) {
+      writeFlexShrink(value)
+    }
+
+  var flexWrap: FlexWrap
+    get() {
+      val base = FlexWrap.from(values.get(StyleKeys.FLEX_WRAP))
+      return resolvePseudo(StateKeys.FLEX_WRAP, base) { buf ->
+        FlexWrap.from(buf.get(StyleKeys.FLEX_WRAP))
+      }
+    }
+    set(value) {
+      writeFlexWrap(value.value)
+    }
+
+  var float: org.nativescript.mason.masonkit.enums.Float
+    get() {
+      val base = org.nativescript.mason.masonkit.enums.Float.from(values.get(StyleKeys.FLOAT))
+      return resolvePseudo(StateKeys.FLOAT, base) { buf ->
+        org.nativescript.mason.masonkit.enums.Float.from(buf.get(StyleKeys.FLOAT))
+      }
+    }
+    set(value) {
+      writeFloat(value.value)
+      node.dirty()
+    }
+
+  var fontSize: Float
+    get() = values.getFloat(StyleKeys.FONT_SIZE)
+    set(value) {
+      writeFontSize(value, StyleState.SET, 0)
+    }
+
+  var gap: Size<LengthPercentage>
+    get() {
+      val base = Size(
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.GAP_ROW_TYPE), values.getFloat(StyleKeys.GAP_ROW_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.GAP_COLUMN_TYPE), values.getFloat(StyleKeys.GAP_COLUMN_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.GAP, base) { buf ->
+        Size(
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.GAP_ROW_TYPE), buf.getFloat(StyleKeys.GAP_ROW_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.GAP_COLUMN_TYPE), buf.getFloat(StyleKeys.GAP_COLUMN_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeGap(
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      )
+    }
+
+  var gridAutoFlow: GridAutoFlow
+    get() {
+      val base = GridAutoFlow.from(values.get(StyleKeys.GRID_AUTO_FLOW))
+      return resolvePseudo(StateKeys.GRID_AUTO_FLOW, base) { buf ->
+        GridAutoFlow.from(buf.get(StyleKeys.GRID_AUTO_FLOW))
+      }
+    }
+    set(value) {
+      writeGridAutoFlow(value.value)
+    }
+
+  var inset: Rect<LengthPercentageAuto>
+    get() {
+      val base = Rect(
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.INSET, base) { buf ->
+        Rect(
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_TOP_TYPE), buf.getFloat(StyleKeys.INSET_TOP_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_RIGHT_TYPE), buf.getFloat(StyleKeys.INSET_RIGHT_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_BOTTOM_TYPE), buf.getFloat(StyleKeys.INSET_BOTTOM_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.INSET_LEFT_TYPE), buf.getFloat(StyleKeys.INSET_LEFT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeInset(
+        value.top.type,
+        value.top.value,
+        value.right.type,
+        value.right.value,
+        value.bottom.type,
+        value.bottom.value,
+        value.left.type,
+        value.left.value
+      )
+    }
+
+  var justifyContent: JustifyContent
+    get() {
+      val base = JustifyContent.from(values.get(StyleKeys.JUSTIFY_CONTENT))
+      return resolvePseudo(StateKeys.JUSTIFY_CONTENT, base) { buf ->
+        JustifyContent.from(buf.get(StyleKeys.JUSTIFY_CONTENT))
+      }
+    }
+    set(value) {
+      writeJustifyContent(value.value)
+    }
+
+  var justifyItems: JustifyItems
+    get() {
+      val base = JustifyItems.from(values.get(StyleKeys.JUSTIFY_ITEMS))
+      return resolvePseudo(StateKeys.JUSTIFY_ITEMS, base) { buf ->
+        JustifyItems.from(buf.get(StyleKeys.JUSTIFY_ITEMS))
+      }
+    }
+    set(value) {
+      writeJustifyItems(value.value)
+    }
+
+  var justifySelf: JustifySelf
+    get() {
+      val base = JustifySelf.from(values.get(StyleKeys.JUSTIFY_SELF))
+      return resolvePseudo(StateKeys.JUSTIFY_SELF, base) { buf ->
+        JustifySelf.from(buf.get(StyleKeys.JUSTIFY_SELF))
+      }
+    }
+    set(value) {
+      writeJustifySelf(value.value)
+    }
+
+  var letterSpacing: Float
+    get() = values.getFloat(StyleKeys.LETTER_SPACING)
+    set(value) {
+      writeLetterSpacing(value, StyleState.SET)
+    }
+
+  var lineHeight: Float
+    get() = values.getFloat(StyleKeys.LINE_HEIGHT)
+    set(value) {
+      writeLineHeight(value, StyleState.SET, 0)
+    }
+
+  var lineClamp: Int
+    get() = if (values.get(StyleKeys.LINE_CLAMP_STATE) == StyleState.INHERIT) 0 else values.getInt(StyleKeys.LINE_CLAMP)
+    set(value) {
+      writeLineClamp(value.coerceAtLeast(0), StyleState.SET)
+    }
+
+  var listStylePosition: ListStylePosition
+    get() = ListStylePosition.from(values.get(StyleKeys.LIST_STYLE_POSITION))
+    set(value) {
+      writeListStylePosition(value.value, StyleState.SET)
+    }
+
+  var listStyleType: ListStyleType
+    get() = ListStyleType.from(values.get(StyleKeys.LIST_STYLE_TYPE))
+    set(value) {
+      writeListStyleType(value.value, StyleState.SET)
+      // A summary can build its marker before the list style is applied.
+      if (node.detailsRole == Details.SUMMARY) Details.refreshMarker(node)
+    }
+
+  var margin: Rect<LengthPercentageAuto>
+    get() {
+      val base = Rect(
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE))!!,
+        LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.MARGIN, base) { buf ->
+        Rect(
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_TOP_TYPE), buf.getFloat(StyleKeys.MARGIN_TOP_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_RIGHT_TYPE), buf.getFloat(StyleKeys.MARGIN_RIGHT_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_BOTTOM_TYPE), buf.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE))!!,
+          LengthPercentageAuto.fromTypeValue(buf.get(StyleKeys.MARGIN_LEFT_TYPE), buf.getFloat(StyleKeys.MARGIN_LEFT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeMargin(
+        value.top.type,
+        value.top.value,
+        value.right.type,
+        value.right.value,
+        value.bottom.type,
+        value.bottom.value,
+        value.left.type,
+        value.left.value
+      )
+    }
+
+  var marginBottom: LengthPercentageAuto
+    get() = LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE))!!
+    set(value) {
+      writeMarginBottomType(value.type, value.value)
+    }
+
+  var marginLeft: LengthPercentageAuto
+    get() = LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE))!!
+    set(value) {
+      writeMarginLeftType(value.type, value.value)
+    }
+
+  var marginRight: LengthPercentageAuto
+    get() = LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE))!!
+    set(value) {
+      writeMarginRightType(value.type, value.value)
+    }
+
+  var marginTop: LengthPercentageAuto
+    get() = LengthPercentageAuto.fromTypeValue(values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE))!!
+    set(value) {
+      writeMarginTopType(value.type, value.value)
+    }
+
+  var maxHeight: Dimension
+    get() {
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MAX_HEIGHT_TYPE), values.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
+        Dimension.fromTypeValue(buf.get(StyleKeys.MAX_HEIGHT_TYPE), buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+      }
+    }
+    set(value) {
+      writeMaxHeight(value.type, value.value)
+    }
+
+  var maxSize: Size<Dimension>
+    get() {
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.MAX_WIDTH_TYPE), values.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.MAX_HEIGHT_TYPE), values.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.MAX_WIDTH_TYPE), buf.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.MAX_HEIGHT_TYPE), buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeMaxSize(
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      )
+    }
+
+  var maxWidth: Dimension
+    get() {
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MAX_WIDTH_TYPE), values.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!
+      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
+        Dimension.fromTypeValue(buf.get(StyleKeys.MAX_WIDTH_TYPE), buf.getFloat(StyleKeys.MAX_WIDTH_VALUE))!!
+      }
+    }
+    set(value) {
+      writeMaxWidth(value.type, value.value)
+    }
+
+  var minHeight: Dimension
+    get() {
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MIN_HEIGHT_TYPE), values.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
+        Dimension.fromTypeValue(buf.get(StyleKeys.MIN_HEIGHT_TYPE), buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+      }
+    }
+    set(value) {
+      writeMinHeight(value.type, value.value)
+    }
+
+  var minSize: Size<Dimension>
+    get() {
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.MIN_WIDTH_TYPE), values.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.MIN_HEIGHT_TYPE), values.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.MIN_WIDTH_TYPE), buf.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.MIN_HEIGHT_TYPE), buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeMinSize(
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      )
+    }
+
+  var minWidth: Dimension
+    get() {
+      val base = Dimension.fromTypeValue(values.get(StyleKeys.MIN_WIDTH_TYPE), values.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!
+      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
+        Dimension.fromTypeValue(buf.get(StyleKeys.MIN_WIDTH_TYPE), buf.getFloat(StyleKeys.MIN_WIDTH_VALUE))!!
+      }
+    }
+    set(value) {
+      writeMinWidth(value.type, value.value)
+    }
+
+  var objectFit: ObjectFit
+    get() {
+      val base = ObjectFit.from(values.get(StyleKeys.OBJECT_FIT))
+      return resolvePseudo(StateKeys.OBJECT_FIT, base) { buf ->
+        ObjectFit.from(buf.get(StyleKeys.OBJECT_FIT))
+      }
+    }
+    set(value) {
+      writeObjectFit(value.value)
+    }
+
+  var overflowX: Overflow
+    get() {
+      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_X))
+      return resolvePseudo(StateKeys.OVERFLOW_X, base) { buf ->
+        Overflow.from(buf.get(StyleKeys.OVERFLOW_X))
+      }
+    }
+    set(value) {
+      writeOverflowX(value.value)
+    }
+
+  var overflowY: Overflow
+    get() {
+      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
+      return resolvePseudo(StateKeys.OVERFLOW_Y, base) { buf ->
+        Overflow.from(buf.get(StyleKeys.OVERFLOW_Y))
+      }
+    }
+    set(value) {
+      writeOverflowY(value.value)
+    }
+
+  var overflow: Point<Overflow>
+    get() = Point(overflowX, overflowY)
+    set(value) {
+      writeOverflow(value.x.value, value.y.value)
+    }
+
+  var padding: Rect<LengthPercentage>
+    get() {
+      val base = Rect(
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.PADDING_RIGHT_TYPE), values.getFloat(StyleKeys.PADDING_RIGHT_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.PADDING_BOTTOM_TYPE), values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE))!!,
+        LengthPercentage.fromTypeValue(values.get(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.PADDING, base) { buf ->
+        Rect(
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_TOP_TYPE), buf.getFloat(StyleKeys.PADDING_TOP_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_RIGHT_TYPE), buf.getFloat(StyleKeys.PADDING_RIGHT_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_BOTTOM_TYPE), buf.getFloat(StyleKeys.PADDING_BOTTOM_VALUE))!!,
+          LengthPercentage.fromTypeValue(buf.get(StyleKeys.PADDING_LEFT_TYPE), buf.getFloat(StyleKeys.PADDING_LEFT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writePadding(
+        value.top.type,
+        value.top.value,
+        value.right.type,
+        value.right.value,
+        value.bottom.type,
+        value.bottom.value,
+        value.left.type,
+        value.left.value
+      )
+    }
+
+  var position: Position
+    get() {
+      val base = Position.from(values.get(StyleKeys.POSITION))
+      return resolvePseudo(StateKeys.POSITION, base) { buf ->
+        Position.from(buf.get(StyleKeys.POSITION))
+      }
+    }
+    set(value) {
+      writePosition(value.value)
+    }
+
+  var scrollBarWidth: Float
+    get() {
+      val base = values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
+      return resolvePseudo(StateKeys.SCROLLBAR_WIDTH, base) { buf ->
+        buf.getFloat(StyleKeys.SCROLLBAR_WIDTH)
+      }
+    }
+    set(value) {
+      writeScrollbarWidth(value)
+    }
+
+  var size: Size<Dimension>
+    get() {
+      val base = Size(
+        Dimension.fromTypeValue(values.get(StyleKeys.WIDTH_TYPE), values.getFloat(StyleKeys.WIDTH_VALUE))!!,
+        Dimension.fromTypeValue(values.get(StyleKeys.HEIGHT_TYPE), values.getFloat(StyleKeys.HEIGHT_VALUE))!!
+      )
+      return resolvePseudo(StateKeys.SIZE, base) { buf ->
+        Size(
+          Dimension.fromTypeValue(buf.get(StyleKeys.WIDTH_TYPE), buf.getFloat(StyleKeys.WIDTH_VALUE))!!,
+          Dimension.fromTypeValue(buf.get(StyleKeys.HEIGHT_TYPE), buf.getFloat(StyleKeys.HEIGHT_VALUE))!!
+        )
+      }
+    }
+    set(value) {
+      writeSize(
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      )
+    }
+
+  var textAlign: TextAlign
+    get() = TextAlign.from(values.get(StyleKeys.TEXT_ALIGN))
+    set(value) {
+      writeTextAlign(value.value, StyleState.SET)
+    }
+
+  var textJustify: TextJustify
+    get() = TextJustify.from(values.get(StyleKeys.TEXT_JUSTIFY))
+    set(value) {
+      writeTextJustify(value.value, StyleState.SET)
+    }
+
+  var textTransform: Styles.TextTransform
+    get() = Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
+    set(value) {
+      writeTextTransform(value.value, StyleState.SET)
+    }
+
+  var textWrap: TextWrap
+    get() = TextWrap.from(values.get(StyleKeys.TEXT_WRAP))
+    set(value) {
+      writeTextWrap(value.value, StyleState.SET)
+    }
+
+  var whiteSpace: Styles.WhiteSpace
+    get() = Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
+    set(value) {
+      writeWhiteSpace(value.value, StyleState.SET)
+    }
+
+  var zIndex: Int
+    get() {
+      val base = values.getInt(StyleKeys.Z_INDEX)
+      return resolvePseudo(StateKeys.Z_INDEX, base) { buf ->
+        buf.getInt(StyleKeys.Z_INDEX)
+      }
+    }
+    set(value) {
+      writeZIndex(value)
+    }
+  // </style-keys:accessors>
+
+  // <style-keys:native-methods> generated from tools/scripts/style-keys/style-keys.schema
+  fun setInsetLeft(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeInsetLeftType(type, value)
+  }
+
+  fun setInsetRight(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeInsetRightType(type, value)
+  }
+
+  fun setInsetTop(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeInsetTopType(type, value)
+  }
+
+  fun setInsetBottom(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeInsetBottomType(type, value)
+  }
+
+  fun setInsetWithValueType(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeInset(type, value, type, value, type, value, type, value)
+  }
+
+  fun setMarginLeft(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeMarginLeftType(type, value)
+  }
+
+  fun setMarginRight(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeMarginRightType(type, value)
+  }
+
+  fun setMarginTop(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeMarginTopType(type, value)
+  }
+
+  fun setMarginBottom(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeMarginBottomType(type, value)
+  }
+
+  fun setMarginWithValueType(value: Float, type: Byte) {
+    if (LengthPercentageAuto.isValid(type, value)) writeMargin(type, value, type, value, type, value, type, value)
+  }
+
+  fun setPaddingLeft(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writePaddingLeftType(type, value)
+  }
+
+  fun setPaddingRight(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writePaddingRightType(type, value)
+  }
+
+  fun setPaddingTop(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writePaddingTopType(type, value)
+  }
+
+  fun setPaddingBottom(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writePaddingBottomType(type, value)
+  }
+
+  fun setPaddingWithValueType(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writePadding(type, value, type, value, type, value, type, value)
+  }
+
+  fun setBorderLeftWidth(value: Float, type: Byte) {
+    LengthPercentage.fromTypeValue(type, value)?.let { borderLeftWidth = it }
+  }
+
+  fun setBorderRightWidth(value: Float, type: Byte) {
+    LengthPercentage.fromTypeValue(type, value)?.let { borderRightWidth = it }
+  }
+
+  fun setBorderTopWidth(value: Float, type: Byte) {
+    LengthPercentage.fromTypeValue(type, value)?.let { borderTopWidth = it }
+  }
+
+  fun setBorderBottomWidth(value: Float, type: Byte) {
+    LengthPercentage.fromTypeValue(type, value)?.let { borderBottomWidth = it }
+  }
+
+  fun setBorderWidth(value: Float, type: Byte) {
+    LengthPercentage.fromTypeValue(type, value)?.let { borderWidth = Rect.uniform(it) }
+  }
+
+  fun setFlexBasis(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeFlexBasisType(type, value)
+  }
+
+  fun setMinSizeWidth(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeMinWidth(type, value)
+  }
+
+  fun setMinSizeWidth(value: Dimension) {
+    writeMinWidth(value.type, value.value)
+  }
+
+  fun setMinSizeHeight(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeMinHeight(type, value)
+  }
+
+  fun setMinSizeHeight(value: Dimension) {
+    writeMinHeight(value.type, value.value)
+  }
+
+  fun setSizeWidth(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeWidth(type, value)
+  }
+
+  fun setSizeWidth(value: Dimension) {
+    writeWidth(value.type, value.value)
+  }
+
+  fun setSizeHeight(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeHeight(type, value)
+  }
+
+  fun setSizeHeight(value: Dimension) {
+    writeHeight(value.type, value.value)
+  }
+
+  fun setMaxSizeWidth(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeMaxWidth(type, value)
+  }
+
+  fun setMaxSizeWidth(value: Dimension) {
+    writeMaxWidth(value.type, value.value)
+  }
+
+  fun setMaxSizeHeight(value: Float, type: Byte) {
+    if (Dimension.isValid(type, value)) writeMaxHeight(type, value)
+  }
+
+  fun setMaxSizeHeight(value: Dimension) {
+    writeMaxHeight(value.type, value.value)
+  }
+
+  fun setGapRow(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writeRowGap(type, value)
+  }
+
+  fun setGapColumn(value: Float, type: Byte) {
+    if (LengthPercentage.isValid(type, value)) writeColumnGap(type, value)
+  }
+  // </style-keys:native-methods>
+
+  internal var isValueInitialized: Boolean = false
 
   internal var fontDirty = false
     private set(value) {
@@ -1205,6 +3493,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   val values: ByteBuffer
     get() {
+      if (node.isPlaceholder) return mPlaceholder
       if (mWritableValue != null) return mWritableValue!!
       if (mValues != null) return mValues!!
       // During compute Rust holds the lock — use placeholder to avoid deadlock
@@ -1219,15 +3508,6 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal var isDirty = -1L
   internal var isDirtyHigh = -1L
-  private var isSlowDirty = false
-    set(value) {
-      if (value && !inBatch) {
-        node.dirty()
-        updateNativeStyle()
-      }
-      field = value
-    }
-
   private fun isDirtyEmpty(): Boolean = (isDirty == -1L && isDirtyHigh == -1L)
 
   internal fun setOrAppendState(value: StateKeys) {
@@ -1358,6 +3638,9 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   internal fun setStateFromHalves(low: Long, high: Long) {
+    if (StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) && textOverflowKind < 2 && textOverflowTokenKey != 0L) {
+      installTextOverflow(textOverflowKind, null)
+    }
     styleVersion++
     if (isDirtyEmpty()) {
       isDirty = low
@@ -1391,8 +3674,6 @@ class Style internal constructor(@Transient internal var node: Node) {
   private fun resetState() {
     isDirty = -1
     isDirtyHigh = -1L
-    isSlowDirty = false
-    mGridState?.clear()
   }
 
   var inBatch: Boolean = false
@@ -1424,7 +3705,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   @Suppress("NOTHING_TO_INLINE")
-  private inline fun notifyTextStyleChanged(state: StateKeys) {
+  internal inline fun notifyTextStyleChanged(state: StateKeys) {
     styleChangeListener?.onChange(state.low, state.high)
   }
 
@@ -1450,83 +3731,35 @@ class Style internal constructor(@Transient internal var node: Node) {
       setOrAppendState(StateKeys.FORCE_INLINE)
     }
 
-  var zIndex: Int
-    get() {
-      val base = values.getInt(StyleKeys.Z_INDEX)
-      return resolvePseudo(StateKeys.Z_INDEX, base) { buf -> buf.getInt(StyleKeys.Z_INDEX) }
-    }
-    set(value) {
-      prepareMut()
-      values.putInt(StyleKeys.Z_INDEX, value)
-      setOrAppendState(StateKeys.Z_INDEX)
-    }
-
-
-  var objectFit: ObjectFit
-    get() {
-      val base = ObjectFit.from(values.get(StyleKeys.OBJECT_FIT))
-      return resolvePseudo(
-        StateKeys.OBJECT_FIT,
-        base
-      ) { buf -> ObjectFit.from(buf.get(StyleKeys.OBJECT_FIT)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.OBJECT_FIT, value.value)
-      setOrAppendState(StateKeys.OBJECT_FIT)
-    }
-
-
-  var float: org.nativescript.mason.masonkit.enums.Float
-    get() {
-      val base = org.nativescript.mason.masonkit.enums.Float.from(values.get(StyleKeys.FLOAT))
-      return resolvePseudo(
-        StateKeys.FLOAT,
-        base
-      ) { buf -> org.nativescript.mason.masonkit.enums.Float.from(buf.get(StyleKeys.FLOAT)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.FLOAT, value.value)
-      setOrAppendState(StateKeys.FLOAT)
-      // Tells the native tree it now has floats, also for nodes without a view.
-      node.dirty()
-    }
-
-  var clear: Clear
-    get() {
-      val base = Clear.from(values.get(StyleKeys.CLEAR))
-      return resolvePseudo(
-        StateKeys.CLEAR,
-        base
-      ) { buf -> Clear.from(buf.get(StyleKeys.CLEAR)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.CLEAR, value.value)
-      setOrAppendState(StateKeys.CLEAR)
-    }
-
   internal var mFilter: CSSFilters.CSSFilter? = null
+    private set
+  private var baseFilter: CSSFilters.CSSFilter? = null
+  private var activePseudoFilter: NativeFilterProgram? = null
 
-  var filter: String = ""
-    set(value) {
-      // Whether inline text is merged into its parent's depends on the filter.
-      if (value.isEmpty() != field.isEmpty()) {
-        (node.parent?.view as? TextView)?.engine?.invalidateInlineSegments()
-      }
-      field = value
-      val hadFilters = mFilter?.filters?.isNotEmpty() ?: false
-      mFilter = CSSFilters.parse(value)
-      if (mFilter?.filters?.isNotEmpty() == true || (value.isEmpty() && hadFilters)) {
-        (node.view as? View)?.invalidate()
-      }
+  private var filterCss = ""
+  var filter: String
+    get() = filterCss
+    set(value) = applyFilter(value, CSSFilters.setStyleFilter(value, this))
+
+  private fun applyFilter(value: String, filter: CSSFilters.CSSFilter) {
+    // Whether inline text is merged into its parent's depends on the filter.
+    if (value.isEmpty() != filterCss.isEmpty()) {
+      (node.parent?.view as? TextView)?.engine?.invalidateInlineSegments()
     }
+    filterCss = value
+    val hadFilters = mFilter?.filters?.isNotEmpty() ?: false
+    baseFilter = filter
+    mFilter = filter
+    activePseudoFilter = null
+    if (filter.filters.isNotEmpty() || (value.isEmpty() && hadFilters)) {
+      (node.view as? View)?.invalidate()
+    }
+  }
 
   // Transform
 
   internal var mTransformRaw: String = ""
-  internal var mTransformFns: List<TransformFn> = emptyList()
+  private var transformProgram: NativeTransformProgram? = null
 
   /** The part of the transform view properties can't hold (see [decompose]); drawn by [beginMask]. */
   internal var transformShear = 0f
@@ -1536,14 +3769,15 @@ class Style internal constructor(@Transient internal var node: Node) {
   var transform: String
     get() = mTransformRaw
     set(value) {
-      val fns = parseTransformList(value) ?: return
+      val program = NativeTransformProgram.parse(value) ?: return
+      program.install(this)
       mTransformRaw = value
-      mTransformFns = fns
+      transformProgram = program.takeUnless { it.isEmpty }
       applyTransformToView()
     }
 
   private val hasCssTransform: Boolean
-    get() = mTransformFns.isNotEmpty()
+    get() = transformProgram != null
 
   /**
    * Sets the pivot from transform-origin (device px from the left/top edge, or % of the size).
@@ -1596,9 +3830,9 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun applyTransformToView() {
     val v = node.view as? View ?: return
-    val fns = mTransformFns
+    val program = transformProgram
 
-    if (fns.isEmpty()) {
+    if (program == null) {
       applyPivot(v, false)
       v.translationX = 0f; v.translationY = 0f
       v.scaleX = 1f; v.scaleY = 1f; v.rotation = node.inlineTurn
@@ -1608,7 +3842,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
     // Percentages in translate() are of the border box, so this reruns on resize.
-    val t = decompose(projectAffine(fns, v.width.toFloat(), v.height.toFloat(), LengthContext.forStyle(this)))
+    val t = decompose(program.affine(v.width.toFloat(), v.height.toFloat(), LengthContext.forStyle(this)))
     applyPivot(v, true)
     v.translationX = t.translationX; v.translationY = t.translationY
     v.rotation = t.rotation + node.inlineTurn; v.scaleX = t.scaleX; v.scaleY = t.scaleY
@@ -1618,22 +3852,28 @@ class Style internal constructor(@Transient internal var node: Node) {
     v.invalidate()
   }
 
-  /**
-   * Resolve filter string with pseudo-aware cascade. Returns the active
-   * pseudo's filter string according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
-   */
-  internal val resolvedFilterString: String
+  private val resolvedPseudoFilter: NativeFilterProgram?
     get() {
       for (i in PSEUDO_CSS_ORDER.indices.reversed()) {
         val state = PSEUDO_CSS_ORDER[i]
-        if (node.hasPseudo(state)) {
-          node.getPseudoString(state.mask, "filter")?.let { s ->
-            if (s.isNotEmpty()) return s
-          }
-        }
+        if (node.hasPseudo(state)) node.pseudoFilter(state.mask)?.let { return it }
       }
-      return filter
+      return null
     }
+
+  internal val resolvedFilterString: String
+    get() = resolvedPseudoFilter?.css ?: filter
+
+  internal fun updateResolvedFilter() {
+    val program = resolvedPseudoFilter
+    if (program === activePseudoFilter) return
+    val hadFilters = mFilter?.filters?.isNotEmpty() ?: false
+    mFilter = if (program == null) baseFilter else CSSFilters.project(program, this)
+    activePseudoFilter = program
+    if (hadFilters || mFilter?.filters?.isNotEmpty() == true) {
+      (node.view as? View)?.invalidate()
+    }
+  }
 
   internal var mBackground: Background? = null
   internal var mBackgroundRaw: String = ""
@@ -1643,10 +3883,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       if (value.isEmpty()) {
         mBackground?.clear()
       } else {
-        parseBackground(this, value)?.let {
-          mBackground?.longhands?.let { old -> it.longhands.putAll(old) }
-          it.reapplyLonghands()
-          mBackground = it
+        val background = mBackground ?: Background(this)
+        if (background.replaceLayers(value, shorthand = true)) {
+          background.install()
+          mBackground = background
           mBackgroundRaw = value
           (node.view as? View)?.invalidate()
         }
@@ -1659,12 +3899,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       return mBackground?.layers?.joinToString(",", "", ";") { it.image.toString() } ?: ""
     }
     set(value) {
-      if (mBackground == null) {
-        mBackground = Background(this)
-      }
-      val layers = parseBackgroundLayers(value)
-      mBackground?.layers = layers.toMutableList()
-      mBackground?.reapplyLonghands()
+      val background = mBackground ?: Background(this)
+      if (!background.replaceLayers(value, shorthand = false)) return
+      background.install()
+      mBackground = background
       isValueInitialized = true
       (node.view as? android.view.View)?.invalidate()
     }
@@ -1687,6 +3925,10 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private fun ensureBackground(): Background {
     return mBackground ?: Background(this).also { mBackground = it }
+  }
+
+  internal fun applyCompiledBackground(fields: Array<String>, initialColor: Int, fontSize: Float) {
+    ensureBackground().applyCompiled(fields, initialColor, fontSize)
   }
 
   var backgroundPosition: String
@@ -1722,39 +3964,15 @@ class Style internal constructor(@Transient internal var node: Node) {
     set(value) = ensureBackground().applyBackgroundBlendMode(value)
 
   fun setBackgroundColor(value: String) {
-    parseColor(value)?.let {
-      if (mBackground == null) mBackground = Background(this)
-      mBackground!!.color = it
-    }
+    parseColor(value)?.let { setParsedBackgroundColor(it) }
   }
 
-  var textJustify: TextJustify
-    get() {
-      return TextJustify.from(values.get(StyleKeys.TEXT_JUSTIFY))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.TEXT_JUSTIFY, value.value)
-      values.put(StyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.TEXT_JUSTIFY)
-      } else {
-        notifyTextStyleChanged(StateKeys.TEXT_JUSTIFY)
-      }
-    }
+  internal fun setParsedBackgroundColor(color: Int) {
+    prepareMut()
+    ensureBackground().color = color
+  }
 
-  var color: Int
-    get() = values.getInt(StyleKeys.FONT_COLOR)
-    set(value) {
-      prepareMut()
-      values.putInt(StyleKeys.FONT_COLOR, value)
-      values.put(StyleKeys.FONT_COLOR_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.FONT_COLOR)
-      } else {
-        notifyTextStyleChanged(StateKeys.FONT_COLOR)
-      }
-    }
+
 
   fun setColor(value: String) {
     parseColor(value)?.let {
@@ -1799,22 +4017,43 @@ class Style internal constructor(@Transient internal var node: Node) {
       notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
     }
 
-  var fontStretch: String
-    get() {
-      return font.stretch
-    }
-    set(value) {
-      font.stretch = value
-      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
-    }
+  internal fun setParsedFontStretch(code: Int) {
+    writeFontStretch(code, StyleState.SET)
+  }
+
+  private var fontFeatureSettingsCss = "normal"
+  private var fontFeatures: String? = null
 
   var fontFeatureSettings: String
-    get() {
-      return font.featureSettings
-    }
+    get() = fontFeatureSettingsCss
     set(value) {
-      font.featureSettings = value
-      notifyTextStyleChanged(StateKeys.INVALIDATE_TEXT)
+      if (fontFeatures != null && value == fontFeatureSettingsCss) return
+      val records = installStyleCssRecords(this, value, StyleRecordKind.FONT_FEATURES) ?: return
+      fontFeatures = (records.indices step FontFeatureRecord.STRIDE).joinToString(", ") { index ->
+        val tag = records[index + FontFeatureRecord.TAG].toLong()
+        val name = CharArray(4) { byte -> ((tag shr (byte * 8)) and 0xff).toInt().toChar() }.concatToString()
+        val quote = if ('\'' in name) '"' else '\''
+        "$quote$name$quote ${records[index + FontFeatureRecord.VALUE].toLong()}"
+      }
+      fontFeatureSettingsCss = value
+      if (node.isPlaceholder || !node.mason.inCompute) {
+        if (inBatch) setOrAppendState(StateKeys.FONT_FEATURE_SETTINGS)
+        else notifyTextStyleChanged(StateKeys.FONT_FEATURE_SETTINGS)
+      }
+    }
+
+  internal val resolvedFontFeatures: String
+    get() = fontFeatures ?: parentStyleWithTextValues?.resolvedFontFeatures.orEmpty()
+
+  internal val fontFeaturesForPaint: String
+    get() {
+      val numeric = FontVariantNumeric.toFontFeatureSettings(resolvedFontVariantNumeric)
+      val custom = resolvedFontFeatures
+      return when {
+        numeric.isEmpty() -> custom
+        custom.isEmpty() -> numeric
+        else -> "$numeric, $custom"
+      }
     }
 
   var fontKerning: String
@@ -1836,119 +4075,45 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
 
-  var fontSize: Float
-    get() {
-      return values.getFloat(StyleKeys.FONT_SIZE)
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.FONT_SIZE, value)
-      values.put(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.FONT_SIZE)
-      } else {
-        notifyTextStyleChanged(StateKeys.FONT_SIZE)
-      }
-    }
+  private fun applyFontWeight(value: FontWeight) {
+    if (value == fontWeight && values.get(StyleKeys.FONT_WEIGHT_STATE) == StyleState.SET) return
+    // Weight lives in the buffer; only a face this style already owns needs it.
+    _font?.weight = value
+    invalidateResolvedFontFace()
+    writeFontWeight(value.weight, StyleState.SET)
+  }
 
-  var fontWeight: FontWeight
-    get() {
-      val weight = values.getInt(StyleKeys.FONT_WEIGHT)
-      return FontWeight.from(weight)
-    }
-    set(value) {
-      prepareMut()
-      val old = fontWeight
-      if (value != old) {
-        values.putInt(StyleKeys.FONT_WEIGHT, value.weight)
-        values.put(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
-        // Weight lives in the buffer; only a face this style already owns needs it.
-        _font?.weight = value
-        invalidateResolvedFontFace()
-        if (inBatch) {
-          setOrAppendState(StateKeys.FONT_WEIGHT)
-        } else {
-          notifyTextStyleChanged(StateKeys.FONT_WEIGHT)
-        }
-      }
-    }
+  internal fun setParsedFontWeight(weight: Int) {
+    fontWeight = FontWeight.from(weight)
+  }
 
-  var fontStyle: FontStyle
-    set(value) {
-      prepareMut()
-      val previous = fontStyle
-      if (previous != value) {
-        // Buffer encoding: 0 normal, 1 italic, 2 oblique.
-        val encoded: Byte = when (value) {
-          FontStyle.Normal -> 0
-          FontStyle.Italic -> 1
-          is FontStyle.Oblique -> 2
-        }
-        values.put(StyleKeys.FONT_STYLE_TYPE, encoded)
-        values.put(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
-        _font?.style = value
-        invalidateResolvedFontFace()
-        if (inBatch) {
-          setOrAppendState(StateKeys.FONT_STYLE)
-        } else {
-          notifyTextStyleChanged(StateKeys.FONT_STYLE)
-        }
-      }
+  private fun applyFontStyle(value: FontStyle) {
+    val (type, slant) = when (value) {
+      FontStyle.Normal -> 0.toByte() to 0
+      FontStyle.Italic -> 1.toByte() to 0
+      is FontStyle.Oblique -> 2.toByte() to value.angle
     }
-    get() {
-      val style = values.get(StyleKeys.FONT_STYLE_TYPE)
-      when (style) {
-        0.toByte() -> {
-          return FontStyle.Normal
-        }
+    if (values.get(StyleKeys.FONT_STYLE_STATE) == StyleState.SET && fontStyle == value) return
+    _font?.style = value
+    invalidateResolvedFontFace()
+    writeFontStyle(type, StyleState.SET, slant)
+  }
 
-        1.toByte() -> {
-          return FontStyle.Italic
-        }
+  private fun decodeFontStyle(type: Byte, slant: Int): FontStyle = when (type.toInt()) {
+    1 -> FontStyle.Italic
+    2 -> FontStyle.Oblique(slant)
+    else -> FontStyle.Normal
+  }
 
-        2.toByte() -> {
-          return FontStyle.Oblique()
-        }
-
-        else -> {
-          return FontStyle.Normal
-        }
-      }
+  internal fun setParsedFontStyle(fields: Array<String>) {
+    val style = when (fields.firstOrNull()) {
+      "0" -> FontStyle.Normal
+      "1" -> FontStyle.Italic
+      "2" -> FontStyle.Oblique(fields.getOrNull(1)?.toIntOrNull() ?: return)
+      else -> return
     }
-
-
-  var letterSpacing: Float
-    get() {
-      return values.getFloat(StyleKeys.LETTER_SPACING)
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.LETTER_SPACING, value)
-      values.put(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.LETTER_SPACING)
-      } else {
-        notifyTextStyleChanged(StateKeys.LETTER_SPACING)
-      }
-    }
-
-  var fontVariantNumeric: Int
-    get() {
-      return values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
-    }
-    set(value) {
-      prepareMut()
-      val old = values.get(StyleKeys.FONT_VARIANT_NUMERIC).toInt() and 0xFF
-      if (value != old) {
-        values.put(StyleKeys.FONT_VARIANT_NUMERIC, value.toByte())
-        values.put(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.SET)
-        if (inBatch) {
-          setOrAppendState(StateKeys.FONT_VARIANT_NUMERIC)
-        } else {
-          notifyTextStyleChanged(StateKeys.FONT_VARIANT_NUMERIC)
-        }
-      }
-    }
+    fontStyle = style
+  }
 
   var fontVariantNumericString: String
     get() = FontVariantNumeric.toCssString(fontVariantNumeric)
@@ -1956,822 +4121,127 @@ class Style internal constructor(@Transient internal var node: Node) {
       fontVariantNumeric = FontVariantNumeric.parse(value)
     }
 
-  var textWrap: TextWrap
-    get() {
-      return TextWrap.from(values.get(StyleKeys.TEXT_WRAP))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.TEXT_WRAP, value.value)
-      values.put(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.TEXT_WRAP)
-      } else {
-        notifyTextStyleChanged(StateKeys.TEXT_WRAP)
-      }
-    }
-
-  var whiteSpace: Styles.WhiteSpace
-    get() {
-      return Styles.WhiteSpace.from(values.get(StyleKeys.WHITE_SPACE))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.WHITE_SPACE, value.value)
-      values.put(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.WHITE_SPACE)
-      } else {
-        notifyTextStyleChanged(StateKeys.WHITE_SPACE)
-      }
-    }
-
-  var textTransform: Styles.TextTransform
-    get() {
-      return Styles.TextTransform.from(values.get(StyleKeys.TEXT_TRANSFORM))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.TEXT_TRANSFORM, value.value)
-      values.put(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.TEXT_TRANSFORM)
-      } else {
-        notifyTextStyleChanged(StateKeys.TEXT_TRANSFORM)
-      }
-    }
-
-  var verticalAlign: VerticalAlign
-    get() {
-      return VerticalAlign.fromStyle(this)
-    }
-    set(value) {
-      when (value) {
-        VerticalAlign.Length -> {
-          prepareMut()
-          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
-          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
-          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
-        }
-
-        VerticalAlign.Percent -> {
-          prepareMut()
-          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
-          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
-          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
-        }
-
-        else -> {
-          prepareMut()
-          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, value.type)
-          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
-          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0f)
-        }
-      }
-
-      if (inBatch) {
-        setOrAppendState(StateKeys.VERTICAL_ALIGN)
-      } else {
-        notifyTextStyleChanged(StateKeys.VERTICAL_ALIGN)
-      }
-    }
 
 
-  var backgroundColor: Int
-    get() {
-      return values.getInt(StyleKeys.BACKGROUND_COLOR)
-    }
-    set(value) {
-      prepareMut()
-      values.putInt(StyleKeys.BACKGROUND_COLOR, value)
-      values.put(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.BACKGROUND_COLOR)
-      } else {
-        notifyTextStyleChanged(StateKeys.BACKGROUND_COLOR)
-      }
-    }
 
-  var decorationLine: Styles.DecorationLine
-    get() {
-      return Styles.DecorationLine.from(values.get(StyleKeys.DECORATION_LINE))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.DECORATION_LINE, value.value)
-      values.put(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.DECORATION_LINE)
-      } else {
-        notifyTextStyleChanged(StateKeys.DECORATION_LINE)
-      }
-    }
-
-  /** `text-decoration-line` as CSS text. */
-  var textDecorationLine: String
-    get() = decorationLine.cssValue
-    set(value) {
-      Styles.DecorationLine.parse(value)?.let { decorationLine = it }
-    }
-
-  /** `text-decoration-style` as CSS text. */
-  var textDecorationStyle: String
-    get() = decorationStyle.cssValue
-    set(value) {
-      Styles.DecorationStyle.parse(value)?.let { decorationStyle = it }
-    }
-
-  /** `text-decoration-color` as CSS text. */
-  var textDecorationColor: String
-    get() {
-      val c = decorationColor
-      return if (c == Constants.UNSET_COLOR.toInt()) "currentcolor" else c.argbToCssHex()
-    }
-    set(value) {
-      if (value.trim().lowercase() == "currentcolor") {
-        decorationColor = Constants.UNSET_COLOR.toInt()
-      } else {
-        parseColor(value)?.let { decorationColor = it }
-      }
-    }
-
-  /**
-   * `text-decoration` shorthand: line keywords, a style, a color and a thickness
-   * in any order. Omitted longhands reset, as on the web.
-   */
-  fun setTextDecoration(css: String) {
-    var mask = 0
-    var single: Styles.DecorationLine? = null
-    var lineStyle = Styles.DecorationStyle.Solid
-    var color = Constants.UNSET_COLOR.toInt()
-    var thickness = 0f
-    for (raw in splitTopLevelWhitespace(css.trim())) {
-      val token = raw.lowercase()
-      when (token) {
-        "", "none" -> {}
-        "underline" -> mask = mask or Styles.DecorationLine.UNDERLINE
-        "overline" -> mask = mask or Styles.DecorationLine.OVERLINE
-        "line-through" -> mask = mask or Styles.DecorationLine.LINE_THROUGH
-        "spelling-error" -> single = Styles.DecorationLine.SpellingError
-        "grammar-error" -> single = Styles.DecorationLine.GrammarError
-        "auto", "from-font" -> thickness = 0f
-        "currentcolor" -> color = Constants.UNSET_COLOR.toInt()
-        else -> {
-          val parsedStyle = Styles.DecorationStyle.parse(token)
-          val parsedColor = if (parsedStyle == null) parseColor(raw) else null
-          val parsedLength = if (parsedStyle == null && parsedColor == null) parseLength(this, token) else null
-          when {
-            parsedStyle != null -> lineStyle = parsedStyle
-            parsedColor != null -> color = parsedColor
-            parsedLength != null -> thickness = parsedLength
-            else -> return
-          }
-        }
-      }
-    }
-    decorationLine = single ?: Styles.DecorationLine.from(mask)
-    decorationStyle = lineStyle
-    decorationColor = color
-    decorationThickness = thickness
+  internal fun setResolvedVerticalAlign(kind: Int, amount: Float) {
+    writeVerticalAlign(if (kind == 3) 0f else amount, if (kind == 2) 1 else 0,
+      if (kind == 3) amount.toInt().toByte() else 0)
   }
 
-  var decorationColor: Int
-    get() {
-      return values.getInt(StyleKeys.DECORATION_COLOR)
-    }
-    set(value) {
-      prepareMut()
-      values.putInt(StyleKeys.DECORATION_COLOR, value)
-      values.put(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.DECORATION_COLOR)
-      } else {
-        notifyTextStyleChanged(StateKeys.DECORATION_COLOR)
-      }
-    }
 
-  var decorationStyle: Styles.DecorationStyle
-    get() {
-      return Styles.DecorationStyle.from(
-        values.get(StyleKeys.DECORATION_STYLE)
-      )
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.DECORATION_STYLE, value.value)
-      values.put(StyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.DECORATION_STYLE)
-      } else {
-        notifyTextStyleChanged(StateKeys.DECORATION_STYLE)
-      }
-    }
-
-
-  var decorationThickness: Float
-    get() {
-      return values.getFloat(StyleKeys.DECORATION_THICKNESS)
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.DECORATION_THICKNESS, value)
-      values.put(StyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.DECORATION_THICKNESS)
-      } else {
-        notifyTextStyleChanged(StateKeys.DECORATION_THICKNESS)
-      }
-    }
-
-  var lineHeight: Float
-    get() {
-      return values.getFloat(StyleKeys.LINE_HEIGHT)
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.LINE_HEIGHT, value)
-      values.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
-      values.put(StyleKeys.LINE_HEIGHT_TYPE, 0)
-      if (inBatch) {
-        setOrAppendState(StateKeys.LINE_HEIGHT)
-      } else {
-        notifyTextStyleChanged(StateKeys.LINE_HEIGHT)
-      }
-    }
+  private fun resolveDecorationThickness(length: String): Float? =
+    if (length.isEmpty()) 0f else parseLength(this, length.lowercase())
 
   fun setLineHeight(value: Float, isRelative: Boolean) {
-    prepareMut()
-    values.putFloat(StyleKeys.LINE_HEIGHT, value)
-    values.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
-    if (!isRelative) {
-      values.put(StyleKeys.LINE_HEIGHT_TYPE, 1)
+    writeLineHeight(value, StyleState.SET, if (isRelative) 0 else 1)
+  }
+
+  private fun textIndentFields(value: String): DoubleArray? {
+    val mason = node.mason
+    return Mason.nativeParseCss(value, CssParseKind.TEXT_INDENT, mason.scale, resolvedFontSize,
+      mason.rootFontSize, mason.viewportWidth, mason.viewportHeight, 0)
+      ?.takeIf { it.size == CssLengthResultRecord.STRIDE }
+  }
+
+  internal fun setResolvedFontSize(amount: Float, isPercent: Boolean) {
+    writeFontSize(if (isPercent) amount * 100f else amount, StyleState.SET, if (isPercent) 1 else 0)
+  }
+
+  internal fun setResolvedLineHeight(amount: Float, kind: Int) {
+    if (kind == 3) {
+      writeLineHeightState(StyleState.INHERIT)
     } else {
-      values.put(StyleKeys.LINE_HEIGHT_TYPE, 0)
-    }
-    if (inBatch) {
-      setOrAppendState(StateKeys.LINE_HEIGHT)
-    } else {
-      notifyTextStyleChanged(StateKeys.LINE_HEIGHT)
+      setLineHeight(amount, kind == 0)
     }
   }
 
+  internal fun setResolvedWordSpacing(amount: Float, kind: Int) {
+    writeWordSpacing(amount, kind.toByte(), StyleState.SET)
+  }
 
   /** text-indent: [value] in CSS px, or a percentage of the line length when [isPercent]. */
   fun setTextIndent(value: Float, isPercent: Boolean) {
-    prepareMut()
-    values.putFloat(StyleKeys.TEXT_INDENT, if (isPercent) value else value * node.mason.scale)
-    values.put(StyleKeys.TEXT_INDENT_TYPE, (if (isPercent) 1 else 0).toByte())
-    values.put(StyleKeys.TEXT_INDENT_STATE, StyleState.SET)
-    setOrAppendState(StateKeys.TEXT_INDENT)
+    writeTextIndent(if (isPercent) value else value * node.mason.scale, if (isPercent) 1 else 0, StyleState.SET)
   }
 
-  /** CSS text-indent, e.g. `2em`, `24px` or `10%`. `each-line` and `hanging` are ignored. */
-  var textIndent: String
-    get() {
-      if (values.get(StyleKeys.TEXT_INDENT_STATE) == StyleState.INHERIT) return "0px"
-      val value = values.getFloat(StyleKeys.TEXT_INDENT)
-      return if (values.get(StyleKeys.TEXT_INDENT_TYPE).toInt() == 1) "${cssNumber(value)}%"
-      else "${cssNumber(value / node.mason.scale)}px"
-    }
-    set(value) {
-      val token = value.trim().lowercase().split(STYLE_WHITESPACE_REGEX).firstOrNull { it != "each-line" && it != "hanging" } ?: return
-      val length = parseOriginLength(token) ?: return
-      setTextIndent(length.first, length.second)
-    }
-
-  /** line-clamp: at most this many lines, the last one ending in an ellipsis. 0 for none. */
-  var lineClamp: Int
-    get() = if (values.get(StyleKeys.LINE_CLAMP_STATE) == StyleState.INHERIT) 0 else values.getInt(StyleKeys.LINE_CLAMP)
-    set(value) {
-      prepareMut()
-      values.putInt(StyleKeys.LINE_CLAMP, value.coerceAtLeast(0))
-      values.put(StyleKeys.LINE_CLAMP_STATE, StyleState.SET)
-      setOrAppendState(StateKeys.LINE_CLAMP)
-    }
+  internal fun setResolvedTextIndent(value: Float, isPercent: Boolean) {
+    writeTextIndent(if (isPercent) value * 100f else value, if (isPercent) 1 else 0, StyleState.SET)
+  }
 
   /** transform-origin: each axis in CSS px from the left/top edge, or a percentage of the size. */
   fun setTransformOrigin(x: Float, xIsPercent: Boolean, y: Float, yIsPercent: Boolean) {
-    prepareMut()
     val scale = node.mason.scale
-    values.put(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, (if (xIsPercent) 1 else 0).toByte())
-    values.put(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, (if (yIsPercent) 1 else 0).toByte())
-    values.putFloat(StyleKeys.TRANSFORM_ORIGIN_X_VALUE, if (xIsPercent) x else x * scale)
-    values.putFloat(StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, if (yIsPercent) y else y * scale)
-    values.put(StyleKeys.TRANSFORM_ORIGIN_STATE, StyleState.SET)
-    setOrAppendState(StateKeys.TRANSFORM_ORIGIN)
-  }
-
-  /** CSS transform-origin, e.g. `left top`, `20px 50%` or `center`. A z component is ignored. */
-  var transformOrigin: String
-    get() {
-      if (values.get(StyleKeys.TRANSFORM_ORIGIN_STATE) == StyleState.INHERIT) return "50% 50%"
-      val scale = node.mason.scale
-      fun side(typeKey: Int, valueKey: Int): String {
-        val v = values.getFloat(valueKey)
-        return if (values.get(typeKey).toInt() == 1) "${cssNumber(v)}%" else "${cssNumber(v / scale)}px"
-      }
-      return "${side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)} " +
-        side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)
-    }
-    set(value) {
-      val tokens = value.trim().lowercase().split(STYLE_WHITESPACE_REGEX).filter { it.isNotEmpty() }
-      if (tokens.isEmpty()) return
-      var first = tokens[0]
-      var second = tokens.getOrNull(1) ?: "center"
-      // A lone vertical keyword, or a pair written vertical-first, puts y first.
-      if (first == "top" || first == "bottom" || second == "left" || second == "right") {
-        val t = first; first = second; second = t
-      }
-      val x = originKeyword(first, "left", "right") ?: parseOriginLength(first) ?: return
-      val y = originKeyword(second, "top", "bottom") ?: parseOriginLength(second) ?: return
-      setTransformOrigin(x.first, x.second, y.first, y.second)
-    }
-
-  private fun originKeyword(token: String, start: String, end: String): Pair<Float, Boolean>? = when (token) {
-    start -> 0f to true
-    "center" -> 50f to true
-    end -> 100f to true
-    else -> null
-  }
-
-  // A length in CSS px (`dppx` converted back from device px), or a percentage.
-  private fun parseOriginLength(token: String): Pair<Float, Boolean>? {
-    val m = scanNumberUnit(token.trim().lowercase()) ?: return null
-    if (!m.num.isFinite()) return null
-    return when (m.unit) {
-      "%" -> m.num to true
-      "dppx" -> m.num / node.mason.scale to false
-      else -> cssPxForUnit(m.num, m.unit, fontSize.toFloat()) to false
-    }
+    setResolvedTransformOrigin(if (xIsPercent) x else x * scale, xIsPercent, if (yIsPercent) y else y * scale, yIsPercent)
   }
 
   private fun cssNumber(v: Float): String =
     if (v == v.toLong().toFloat()) v.toLong().toString() else v.toString()
 
-  var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
-    set(value) {
-      prepareMut()
-      field = value
-      values.put(StyleKeys.TEXT_OVERFLOW, value.value)
-      values.put(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
-      if (inBatch) {
-        setOrAppendState(StateKeys.TEXT_OVERFLOW)
-      } else {
-        notifyTextStyleChanged(StateKeys.TEXT_OVERFLOW)
-      }
-    }
+  private class DetachedTextOverflowToken(val key: Long)
+  private var detachedTextOverflowToken: DetachedTextOverflowToken? = null
+  private val textOverflowTokenKey: Long get() = values.getLong(StyleKeys.TEXT_OVERFLOW_TOKEN)
 
+  private fun readTextOverflowToken(): String? = Mason.nativeTextOverflowToken(textOverflowTokenKey)
 
-  private fun readDisplayFrom(buf: ByteBuffer): Display {
-    val mode = DisplayMode.from(buf.get(StyleKeys.DISPLAY_MODE))
-    return when (mode) {
-      DisplayMode.None -> Display.from(buf.get(StyleKeys.DISPLAY))
-      DisplayMode.Inline -> Display.Inline
-      DisplayMode.ListItem -> Display.ListItem
-      DisplayMode.Box -> {
-        when (Display.from(buf.get(StyleKeys.DISPLAY))) {
-          Display.Flex -> Display.InlineFlex
-          Display.Grid -> Display.InlineGrid
-          Display.Block -> Display.InlineBlock
-          else -> throw IllegalStateException("Display cannot be anything other than 0,1,2 when mode is set")
-        }
-      }
-    }
+  private fun decodeTextOverflow(kind: Byte): Styles.TextOverflow = when (kind.toInt()) {
+    1 -> Styles.TextOverflow.from(Styles.TextOverflow.Ellipse.value)
+    2 -> readTextOverflowToken()?.let { Styles.TextOverflow.ellipse(it) } ?: Styles.TextOverflow.from(Styles.TextOverflow.Custom.value)
+    3 -> Styles.TextOverflow.from(Styles.TextOverflow.Custom.value, readTextOverflowToken())
+    else -> Styles.TextOverflow.Clip
   }
 
-  var display: Display
-    get() {
-      if (values.get(StyleKeys.VISIBILITY) == VISIBILITY_COLLAPSE) return Display.None
-      val base = readDisplayFrom(values)
-      return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
+  private fun applyTextOverflow(flow: Styles.TextOverflow) {
+    val token = flow.token
+    val kind: Byte = when (flow) {
+      Styles.TextOverflow.Clip -> 0
+      Styles.TextOverflow.Ellipse -> if (token == null) 1 else 2
+      Styles.TextOverflow.Custom -> 3
     }
-    set(value) {
-      var displayMode = DisplayMode.None
-      val display = when (value) {
-        Display.None, Display.Flex, Display.Grid, Display.Block -> value.value
-        Display.Inline -> {
-          displayMode = DisplayMode.Inline
-          Display.Block.value
-        }
+    if (!installTextOverflow(kind, if (kind == 3.toByte()) token ?: "" else token)) return
+    if (inBatch) setOrAppendState(StateKeys.TEXT_OVERFLOW)
+    else notifyTextStyleChanged(StateKeys.TEXT_OVERFLOW)
+  }
 
-        Display.InlineBlock -> {
-          displayMode = DisplayMode.Box
-          Display.Block.value
-        }
-
-        Display.InlineFlex -> {
-          displayMode = DisplayMode.Box
-          Display.Flex.value
-        }
-
-        Display.InlineGrid -> {
-          displayMode = DisplayMode.Box
-          Display.Grid.value
-        }
-
-        Display.ListItem -> {
-          displayMode = DisplayMode.ListItem
-          Display.Block.value
+  private fun installTextOverflow(kind: Byte, token: String?): Boolean {
+    if (node.isPlaceholder) {
+      detachedTextOverflowToken?.let { Mason.nativeReleaseDetachedTextOverflowToken(it.key) }
+      detachedTextOverflowToken = token?.let {
+        val key = Mason.nativeDetachedTextOverflowToken(it.encodeToByteArray())
+        DetachedTextOverflowToken(key).also { owner ->
+          node.mason.gc.track(owner) { Mason.nativeReleaseDetachedTextOverflowToken(key) }
         }
       }
-
-      prepareMut()
-      values.put(StyleKeys.DISPLAY_MODE, displayMode.value)
-      values.put(StyleKeys.DISPLAY, display)
-
-      setOrAppendState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE))
-
-      // `display: none` gives the subtree a zero-sized layout, but a
-      // zero-sized View still draws unclipped. INVISIBLE rather than GONE:
-      // Mason positions children itself, and GONE is `visibility: collapse`.
-      (node.view as? View)?.visibility =
-        if (value == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
+      values.putLong(StyleKeys.TEXT_OVERFLOW_TOKEN, detachedTextOverflowToken?.key ?: 0)
+      values.put(StyleKeys.TEXT_OVERFLOW, kind)
+      values.put(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
+      return true
     }
+    val mason = node.mason
+    val deferred = mason.inCompute
+    if (!deferred) prepareMut()
+    Mason.nativeSetTextOverflow(if (deferred) 0L else mason.nativePtr, node.nativePtr, kind, token?.encodeToByteArray())
+    if (deferred) mason.deferStyleRecords(this, textChanges = StateKeys.TEXT_OVERFLOW)
+    return !deferred
+  }
+
+  private fun updateDisplayVisibility(value: Display) {
+    // Mason positions children itself. GONE is reserved for visibility: collapse and removal.
+    (node.view as? View)?.visibility =
+      if (value == Display.None || node.detailsHidden || hidesView) View.INVISIBLE else View.VISIBLE
+  }
 
   // `visibility: hidden` or `collapse`: the view isn't drawn, though a hidden one keeps its box.
   internal val hidesView: Boolean
-    get() = values.get(StyleKeys.VISIBILITY) != 0.toByte()
-
-  var position: Position
-    get() {
-      val base = Position.from(values.get(StyleKeys.POSITION))
-      return resolvePseudo(
-        StateKeys.POSITION,
-        base
-      ) { buf -> Position.from(buf.get(StyleKeys.POSITION)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.POSITION, value.value)
-      setOrAppendState(StateKeys.POSITION)
-    }
-
-  var direction: Direction
-    get() {
-      val base = Direction.from(values.get(StyleKeys.DIRECTION))
-      return resolvePseudo(
-        StateKeys.DIRECTION,
-        base
-      ) { buf -> Direction.from(buf.get(StyleKeys.DIRECTION)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.DIRECTION, value.value)
-      setOrAppendState(StateKeys.DIRECTION)
-    }
-
-  var flexDirection: FlexDirection
-    get() {
-      val base = FlexDirection.from(values.get(StyleKeys.FLEX_DIRECTION))
-      return resolvePseudo(StateKeys.FLEX_DIRECTION, base) { buf ->
-        FlexDirection.from(
-          buf.get(
-            StyleKeys.FLEX_DIRECTION
-          )
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.FLEX_DIRECTION, value.value)
-      setOrAppendState(StateKeys.FLEX_DIRECTION)
-    }
-
-  var flexWrap: FlexWrap
-    get() {
-      val base = FlexWrap.from(values.get(StyleKeys.FLEX_WRAP))
-      return resolvePseudo(
-        StateKeys.FLEX_WRAP,
-        base
-      ) { buf -> FlexWrap.from(buf.get(StyleKeys.FLEX_WRAP)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.FLEX_WRAP, value.value)
-      setOrAppendState(StateKeys.FLEX_WRAP)
-    }
-
-  var overflow: Point<Overflow>
-    get() {
-      val baseX = Overflow.from(values.get(StyleKeys.OVERFLOW_X))
-      val baseY = Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
-      val x = resolvePseudo(
-        StateKeys.OVERFLOW_X,
-        baseX
-      ) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_X)) }
-      val y = resolvePseudo(
-        StateKeys.OVERFLOW_Y,
-        baseY
-      ) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_Y)) }
-      return Point(x, y)
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.OVERFLOW_X, value.x.value)
-      values.put(StyleKeys.OVERFLOW_Y, value.y.value)
-      setOrAppendState(arrayOf(StateKeys.OVERFLOW_X, StateKeys.OVERFLOW_Y))
-    }
-
-  var overflowX: Overflow
-    get() {
-      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_X))
-      return resolvePseudo(
-        StateKeys.OVERFLOW_X,
-        base
-      ) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_X)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.OVERFLOW_X, value.value)
-      setOrAppendState(StateKeys.OVERFLOW_X)
-    }
-
-  var overflowY: Overflow
-    get() {
-      val base = Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
-      return resolvePseudo(
-        StateKeys.OVERFLOW_Y,
-        base
-      ) { buf -> Overflow.from(buf.get(StyleKeys.OVERFLOW_Y)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.OVERFLOW_Y, value.value)
-      setOrAppendState(StateKeys.OVERFLOW_Y)
-    }
-
-  var alignItems: AlignItems
-    get() {
-      val base = AlignItems.from(values.get(StyleKeys.ALIGN_ITEMS))
-      return resolvePseudo(
-        StateKeys.ALIGN_ITEMS,
-        base
-      ) { buf -> AlignItems.from(buf.get(StyleKeys.ALIGN_ITEMS)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.ALIGN_ITEMS, value.value)
-      setOrAppendState(StateKeys.ALIGN_ITEMS)
-    }
-
-  var alignSelf: AlignSelf
-    get() {
-      val base = AlignSelf.from(values.get(StyleKeys.ALIGN_SELF))
-      return resolvePseudo(
-        StateKeys.ALIGN_SELF,
-        base
-      ) { buf -> AlignSelf.from(buf.get(StyleKeys.ALIGN_SELF)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.ALIGN_SELF, value.value)
-      setOrAppendState(StateKeys.ALIGN_SELF)
-    }
-
-  var alignContent: AlignContent
-    get() {
-      val base = AlignContent.from(values.get(StyleKeys.ALIGN_CONTENT))
-      return resolvePseudo(StateKeys.ALIGN_CONTENT, base) { buf ->
-        AlignContent.from(
-          buf.get(
-            StyleKeys.ALIGN_CONTENT
-          )
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.ALIGN_CONTENT, value.value)
-      setOrAppendState(StateKeys.ALIGN_CONTENT)
-    }
+    get() = visibilityCode != 0.toByte()
 
 
-  var justifyItems: JustifyItems
-    get() {
-      val base = JustifyItems.from(values.get(StyleKeys.JUSTIFY_ITEMS))
-      return resolvePseudo(StateKeys.JUSTIFY_ITEMS, base) { buf ->
-        JustifyItems.from(
-          buf.get(
-            StyleKeys.JUSTIFY_ITEMS
-          )
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.JUSTIFY_ITEMS, value.value)
-      setOrAppendState(StateKeys.JUSTIFY_ITEMS)
-    }
 
 
-  var justifySelf: JustifySelf
-    get() {
-      val base = JustifySelf.from(values.get(StyleKeys.JUSTIFY_SELF))
-      return resolvePseudo(
-        StateKeys.JUSTIFY_SELF,
-        base
-      ) { buf -> JustifySelf.from(buf.get(StyleKeys.JUSTIFY_SELF)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.JUSTIFY_SELF, value.value)
-      setOrAppendState(StateKeys.JUSTIFY_SELF)
-    }
-
-  var justifyContent: JustifyContent
-    get() {
-      val base = JustifyContent.from(values.get(StyleKeys.JUSTIFY_CONTENT))
-      return resolvePseudo(StateKeys.JUSTIFY_CONTENT, base) { buf ->
-        JustifyContent.from(
-          buf.get(
-            StyleKeys.JUSTIFY_CONTENT
-          )
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.JUSTIFY_CONTENT, value.value)
-      setOrAppendState(StateKeys.JUSTIFY_CONTENT)
-    }
 
 
-  var align: Align
-    get() {
-      val base = Align.from(values.get(StyleKeys.ALIGN))
-      return resolvePseudo(StateKeys.ALIGN, base) { buf -> Align.from(buf.get(StyleKeys.ALIGN)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.ALIGN, value.value)
-      setOrAppendState(StateKeys.ALIGN)
-    }
-
-  var textAlign: TextAlign
-    get() {
-      return TextAlign.from(values.get(StyleKeys.TEXT_ALIGN))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.TEXT_ALIGN, value.value)
-      values.put(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
-      setOrAppendState(StateKeys.TEXT_ALIGN)
-    }
-
-  var boxSizing: BoxSizing
-    get() {
-      val base = BoxSizing.from(values.get(StyleKeys.BOX_SIZING))
-      return resolvePseudo(
-        StateKeys.BOX_SIZING,
-        base
-      ) { buf -> BoxSizing.from(buf.get(StyleKeys.BOX_SIZING)) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.BOX_SIZING, value.value)
-      setOrAppendState(StateKeys.BOX_SIZING)
-    }
 
 
-  private fun readInsetFrom(buf: ByteBuffer): Rect<LengthPercentageAuto> {
-    return Rect(
-      left = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.INSET_LEFT_TYPE),
-        buf.getFloat(StyleKeys.INSET_LEFT_VALUE)
-      )!!,
-      top = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.INSET_TOP_TYPE),
-        buf.getFloat(StyleKeys.INSET_TOP_VALUE)
-      )!!,
-      right = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.INSET_RIGHT_TYPE),
-        buf.getFloat(StyleKeys.INSET_RIGHT_VALUE)
-      )!!,
-      bottom = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.INSET_BOTTOM_TYPE),
-        buf.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
-      )!!
-    )
-  }
-
-  var inset: Rect<LengthPercentageAuto>
-    get() {
-      val base = readInsetFrom(values)
-      return resolvePseudo(StateKeys.INSET, base) { buf -> readInsetFrom(buf) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.INSET_LEFT_TYPE, value.left.type)
-      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value.left.value)
-
-      values.put(StyleKeys.INSET_RIGHT_TYPE, value.right.type)
-      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value.right.value)
-
-      values.put(StyleKeys.INSET_TOP_TYPE, value.top.type)
-      values.putFloat(StyleKeys.INSET_TOP_VALUE, value.top.value)
-
-      values.put(StyleKeys.INSET_BOTTOM_TYPE, value.bottom.type)
-      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value.bottom.value)
-
-      setOrAppendState(StateKeys.INSET)
-    }
-
-  fun setInsetLeft(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.INSET_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
-      setOrAppendState(StateKeys.INSET)
-    }
-  }
-
-  fun setInsetRight(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.INSET_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
-      setOrAppendState(StateKeys.INSET)
-    }
-  }
-
-  fun setInsetTop(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.INSET_TOP_TYPE, type)
-      values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
-      setOrAppendState(StateKeys.INSET)
-    }
-  }
-
-  fun setInsetBottom(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.INSET_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.INSET)
-    }
-  }
-
-  fun setInsetWithValueType(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.INSET_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
-
-      values.put(StyleKeys.INSET_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
-
-      values.put(StyleKeys.INSET_TOP_TYPE, type)
-      values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
-
-      values.put(StyleKeys.INSET_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.INSET)
-    }
-  }
-
-  private fun readMarginFrom(buf: ByteBuffer): Rect<LengthPercentageAuto> {
-    return Rect(
-      left = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.MARGIN_LEFT_TYPE),
-        buf.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-      )!!,
-      top = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.MARGIN_TOP_TYPE),
-        buf.getFloat(StyleKeys.MARGIN_TOP_VALUE)
-      )!!,
-      right = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.MARGIN_RIGHT_TYPE),
-        buf.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-      )!!,
-      bottom = LengthPercentageAuto.fromTypeValue(
-        buf.get(StyleKeys.MARGIN_BOTTOM_TYPE),
-        buf.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
-      )!!
-    )
-  }
-
-  var margin: Rect<LengthPercentageAuto>
-    get() {
-      val base = readMarginFrom(values)
-      return resolvePseudo(StateKeys.MARGIN, base) { buf -> readMarginFrom(buf) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_LEFT_TYPE, value.left.type)
-      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value.left.value)
-
-      values.put(StyleKeys.MARGIN_RIGHT_TYPE, value.right.type)
-      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value.right.value)
-
-      values.put(StyleKeys.MARGIN_TOP_TYPE, value.top.type)
-      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value.top.value)
-
-      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, value.bottom.type)
-      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.bottom.value)
-
-      setOrAppendState(StateKeys.MARGIN)
-    }
 
   fun setMargin(left: Float, top: Float, right: Float, bottom: Float) {
     margin = Rect(
@@ -2807,157 +4277,12 @@ class Style internal constructor(@Transient internal var node: Node) {
     )
   }
 
-  fun setMarginLeft(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-  }
-
-  fun setMarginRight(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-  }
-
-  fun setMarginTop(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_TOP_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-  }
-
-  fun setMarginBottom(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-  }
-
-  fun setMarginWithValueType(value: Float, type: Byte) {
-    if (LengthPercentageAuto.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
-
-      values.put(StyleKeys.MARGIN_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
-
-      values.put(StyleKeys.MARGIN_TOP_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
-
-      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-  }
 
 
-  var marginTop: LengthPercentageAuto
-    get() {
-      return LengthPercentageAuto.fromTypeValue(
-        values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
-      )!!
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_TOP_TYPE, value.type)
-      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value.value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
 
 
-  var marginRight: LengthPercentageAuto
-    get() {
-      return LengthPercentageAuto.fromTypeValue(
-        values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-      )!!
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_RIGHT_TYPE, value.type)
-      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value.value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-
-  var marginBottom: LengthPercentageAuto
-    get() {
-      return LengthPercentageAuto.fromTypeValue(
-        values.get(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
-      )!!
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, value.type)
-      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
-
-  var marginLeft: LengthPercentageAuto
-    get() {
-      return LengthPercentageAuto.fromTypeValue(
-        values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-      )!!
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MARGIN_LEFT_TYPE, value.type)
-      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value.value)
-      setOrAppendState(StateKeys.MARGIN)
-    }
 
 
-  private fun readPaddingFrom(buf: ByteBuffer): Rect<LengthPercentage> {
-    return Rect(
-      top = LengthPercentage.fromTypeValue(
-        buf.get(StyleKeys.PADDING_TOP_TYPE),
-        buf.getFloat(StyleKeys.PADDING_TOP_VALUE)
-      )!!,
-      right = LengthPercentage.fromTypeValue(
-        buf.get(StyleKeys.PADDING_RIGHT_TYPE),
-        buf.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
-      )!!,
-      bottom = LengthPercentage.fromTypeValue(
-        buf.get(StyleKeys.PADDING_BOTTOM_TYPE),
-        buf.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
-      )!!,
-      left = LengthPercentage.fromTypeValue(
-        buf.get(StyleKeys.PADDING_LEFT_TYPE),
-        buf.getFloat(StyleKeys.PADDING_LEFT_VALUE)
-      )!!
-    )
-  }
-
-  var padding: Rect<LengthPercentage>
-    get() {
-      val base = readPaddingFrom(values)
-      return resolvePseudo(StateKeys.PADDING, base) { buf -> readPaddingFrom(buf) }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_TOP_TYPE, value.top.type)
-      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value.top.value)
-
-      values.put(StyleKeys.PADDING_RIGHT_TYPE, value.right.type)
-      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value.right.value)
-
-      values.put(StyleKeys.PADDING_BOTTOM_TYPE, value.bottom.type)
-      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value.bottom.value)
-
-      values.put(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
-      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
-
-      setOrAppendState(StateKeys.PADDING)
-    }
 
   fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
     padding = Rect(
@@ -2993,59 +4318,10 @@ class Style internal constructor(@Transient internal var node: Node) {
     )
   }
 
-  fun setPaddingLeft(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
-      setOrAppendState(StateKeys.PADDING)
-    }
-  }
 
-  fun setPaddingRight(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
-      setOrAppendState(StateKeys.PADDING)
-    }
-  }
 
-  fun setPaddingTop(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_TOP_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
-      setOrAppendState(StateKeys.PADDING)
-    }
-  }
 
-  fun setPaddingBottom(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.PADDING)
-    }
-  }
 
-  fun setPaddingWithValueType(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.PADDING_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
-
-      values.put(StyleKeys.PADDING_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
-
-      values.put(StyleKeys.PADDING_TOP_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
-
-      values.put(StyleKeys.PADDING_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.PADDING)
-    }
-  }
 
   internal var boxShadows: List<Shadow.BoxShadow> = listOf()
   private var mHasOutsetBoxShadow = false
@@ -3079,33 +4355,40 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   var boxShadow: String
     get() = mBoxShadowRaw
-    set(value) {
-      mBoxShadowRaw = value
-      boxShadows = Shadow.parseBoxShadow(this, value)
-      mHasOutsetBoxShadow = boxShadows.any { !it.inset }
-      mBoxShadowRenderer.invalidate()
-      val view = node.view as? android.view.View
-      if (view != null) {
-        view.invalidate()
-        if (mHasOutsetBoxShadow) {
-          (view.parent as? android.view.View)?.invalidate()
-        }
+    set(value) = applyBoxShadow(value, Shadow.setStyleBoxShadows(this, value))
+
+  private fun applyBoxShadow(value: String, shadows: List<Shadow.BoxShadow>) {
+    mBoxShadowRaw = value
+    boxShadows = shadows
+    mBoxShadowsHash = computeBoxShadowsHash(shadows)
+    mHasOutsetBoxShadow = shadows.any { !it.inset }
+    mBoxShadowRenderer.invalidate()
+    val view = node.view as? android.view.View
+    if (view != null) {
+      view.invalidate()
+      if (mHasOutsetBoxShadow) {
+        (view.parent as? android.view.View)?.invalidate()
       }
     }
+  }
 
   internal var textShadows: List<Shadow.TextShadow> = listOf()
-  var textShadow: String = ""
-    set(value) {
-      prepareMut()
-      field = value
-      textShadows = Shadow.parseTextShadow(this, value)
-      if (textShadows.isEmpty()) {
-        values.put(StyleKeys.TEXT_SHADOW_STATE, StyleState.INHERIT)
-      } else {
-        values.put(StyleKeys.TEXT_SHADOW_STATE, StyleState.SET)
-      }
-      notifyTextStyleChanged(StateKeys.TEXT_SHADOWS)
+  private var textShadowCss = ""
+  var textShadow: String
+    get() = textShadowCss
+    set(value) = applyTextShadow(value, Shadow.setStyleTextShadows(this, value))
+
+  private fun applyTextShadow(value: String, shadows: List<Shadow.TextShadow>) {
+    textShadowCss = value
+    textShadows = shadows
+    if (node.isPlaceholder) {
+      val state = if (shadows.isEmpty()) StyleState.INHERIT else StyleState.SET
+      values.put(StyleKeys.TEXT_SHADOW_STATE, state)
     }
+    if (node.isPlaceholder || !node.mason.inCompute) notifyTextShadowChanged()
+  }
+
+  internal fun notifyTextShadowChanged() = notifyTextStyleChanged(StateKeys.TEXT_SHADOWS)
 
   internal var mBorder: String = ""
   private var mBorderRendererOrNull: BorderRenderer? = null
@@ -3183,11 +4466,18 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseBorderSideShorthand(this, Border.Side.Bottom, value)
     }
 
-  var borderRadius: String = ""
+  private var authoredBorderRadius = ""
+  var borderRadius: String
+    get() = authoredBorderRadius
     set(value) {
-      field = value
+      authoredBorderRadius = value
       parseBorderRadius(this, value)
     }
+
+  internal fun setCompiledBorderRadius(css: String, radii: List<LengthPercentage>) {
+    authoredBorderRadius = css
+    applyResolvedBorderRadius(this, radii)
+  }
 
   var paddingCss: String
     get() = padding.cssValue
@@ -3207,62 +4497,16 @@ class Style internal constructor(@Transient internal var node: Node) {
       parseInsetShorthand(this, value)
     }
 
-  var cornerShape: String = ""
-    set(value) {
-      field = value
-      parseCornerShape(this, value)
-    }
-
-  var cornerShapeTopLeft: String
-    get() = exponentToCornerShapeToken(mBorderTop.corner1Exponent)
-    set(value) {
-      parseCornerShapeToken(value)?.let {
-        mBorderTop.corner1Exponent = it
-        setOrAppendState(StateKeys.BORDER_RADIUS)
-        invalidateBorderRenderer()
-      }
-    }
-
-  var cornerShapeTopRight: String
-    get() = exponentToCornerShapeToken(mBorderTop.corner2Exponent)
-    set(value) {
-      parseCornerShapeToken(value)?.let {
-        mBorderTop.corner2Exponent = it
-        setOrAppendState(StateKeys.BORDER_RADIUS)
-        invalidateBorderRenderer()
-      }
-    }
-
-  var cornerShapeBottomRight: String
-    get() = exponentToCornerShapeToken(mBorderBottom.corner2Exponent)
-    set(value) {
-      parseCornerShapeToken(value)?.let {
-        mBorderBottom.corner2Exponent = it
-        setOrAppendState(StateKeys.BORDER_RADIUS)
-        invalidateBorderRenderer()
-      }
-    }
-
-  var cornerShapeBottomLeft: String
-    get() = exponentToCornerShapeToken(mBorderBottom.corner1Exponent)
-    set(value) {
-      parseCornerShapeToken(value)?.let {
-        mBorderBottom.corner1Exponent = it
-        setOrAppendState(StateKeys.BORDER_RADIUS)
-        invalidateBorderRenderer()
-      }
-    }
-
   // ============================================================
   // border-image (string-based)
   // ============================================================
   var borderImage: String = ""
     set(value) {
+      if (value == field) return
       field = value
-      // Parsed once here; null (nothing drawn, the normal border shows) for `none` or invalid.
-      mBorderImage = parseBorderImage(value)?.let { spec ->
-        mBorderImage?.takeIf { it.spec == spec } ?: BorderImage(spec)
-      }
+      val program = NativeNineSlice.parseBorderImage(value, color)
+      NativeNineSlice.install(program, this, mask = false)
+      mBorderImage = program?.let(::BorderImage)
       (node.view as? android.view.View)?.invalidate()
     }
 
@@ -3276,16 +4520,40 @@ class Style internal constructor(@Transient internal var node: Node) {
   // Filters content BEHIND the view; unlike setRenderEffect, children stay sharp.
   internal var mBackdropHelper: BackdropHelper? = null
 
-  var backdropFilter: String = ""
-    set(value) {
-      field = value
-      mBackdropFilter = if (value.isNotEmpty() && value != "none") {
-        CSSFilters.parse(value)
-      } else {
-        null
-      }
-      applyBackdropFilter()
+  private var backdropFilterCss = ""
+  var backdropFilter: String
+    get() = backdropFilterCss
+    set(value) = installBackdropFilter(value, CSSFilters.setStyleFilter(value, this, backdrop = true))
+
+  private fun installBackdropFilter(value: String, filter: CSSFilters.CSSFilter) {
+    backdropFilterCss = value
+    mBackdropFilter = filter.takeIf { it.filters.isNotEmpty() }
+    applyBackdropFilter()
+  }
+
+  internal fun applyCompiledEffects(fields: Array<String>, initialColor: Int, fontSize: Float) {
+    if (fields.isEmpty() || fields.size % CssEffectWriteRecord.STRIDE != 0) return
+    val mason = node.mason
+    val attached = !node.isPlaceholder
+    val deferred = attached && mason.inCompute
+    if (attached && !deferred) prepareMut()
+    val batch = Mason.nativeApplyEffectBatch(
+      if (attached && !deferred) mason.nativePtr else 0L, if (attached) node.nativePtr else 0L,
+      fields.joinToString("\u0000").encodeToByteArray(), mason.scale, fontSize, mason.rootFontSize,
+      mason.viewportWidth, mason.viewportHeight, initialColor,
+    ) ?: return
+    fun apply(kind: StyleRecordKind, install: (String, DoubleArray) -> Unit) {
+      val base = kind.id * CssEffectResultRecord.STRIDE
+      val value = batch[base + CssEffectResultRecord.VALUE] as? String ?: return
+      val records = batch[base + CssEffectResultRecord.RECORDS] as? DoubleArray ?: return
+      if (deferred) mason.deferStyleRecords(this, kind)
+      install(value, records)
     }
+    apply(StyleRecordKind.FILTER) { value, records -> applyFilter(value, CSSFilters.decode(value, records)) }
+    apply(StyleRecordKind.BACKDROP_FILTER) { value, records -> installBackdropFilter(value, CSSFilters.decode(value, records)) }
+    apply(StyleRecordKind.BOX_SHADOW) { value, records -> applyBoxShadow(value, Shadow.readBoxShadows(records)) }
+    apply(StyleRecordKind.TEXT_SHADOW) { value, records -> applyTextShadow(value, Shadow.readTextShadows(records)) }
+  }
 
   private fun applyBackdropFilter() {
     val view = node.view as? android.view.View ?: return
@@ -3314,11 +4582,37 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun ensureMask(): Mask = mMask ?: Mask(this).also { mMask = it }
 
+  internal fun applyCompiledMask(fields: Array<String>) {
+    val stride = CssMaskWriteRecord.STRIDE
+    if (fields.size % stride != 0) return
+    val clipSlot = MaskInputRecord.STRIDE + NineSliceInputRecord.STRIDE
+    var mask: Mask? = null
+    var clip: String? = null
+    for (offset in fields.indices step stride) {
+      val slot = fields[offset + CssMaskWriteRecord.SLOT].toIntOrNull() ?: continue
+      val value = fields[offset + CssMaskWriteRecord.VALUE]
+      if (slot == clipSlot) {
+        clip = value
+      } else if (slot in 0 until clipSlot) {
+        if (mMask == null && value.isBlank()) continue
+        val target = mask ?: ensureMask()
+        target.setBase(slot, value)
+        mask = target
+      }
+    }
+    val clipTarget = clip?.takeIf { mClipPath != null || it.isNotBlank() }?.let { value ->
+      ensureClipPath().also { it.setBase(value) }
+    }
+    // Both changed() methods schedule the same draw and parent shadow refresh.
+    if (mask != null) mask.changed() else clipTarget?.changed()
+  }
+
   private fun setMaskLonghand(index: Int, value: String) {
     if (mMask == null && value.isBlank()) return
     ensureMask().set(index, value)
   }
 
+  // <style-keys:mask-accessors> generated from tools/scripts/style-keys/style-keys.schema
   var maskImage: String
     get() = mMask?.get(Mask.IMAGE) ?: ""
     set(value) = setMaskLonghand(Mask.IMAGE, value)
@@ -3351,7 +4645,10 @@ class Style internal constructor(@Transient internal var node: Node) {
     get() = mMask?.get(Mask.COMPOSITE) ?: ""
     set(value) = setMaskLonghand(Mask.COMPOSITE, value)
 
-  // mask-border-* (the shorthand is split in JS); composed into the mask by Mask.kt.
+  var clipPath: String
+    get() = mClipPath?.get() ?: ""
+    set(value) = setClipPathValue(value)
+
   var maskBorderSource: String
     get() = mMask?.get(Mask.BORDER_SOURCE) ?: ""
     set(value) = setMaskLonghand(Mask.BORDER_SOURCE, value)
@@ -3375,6 +4672,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   var maskBorderMode: String
     get() = mMask?.get(Mask.BORDER_MODE) ?: ""
     set(value) = setMaskLonghand(Mask.BORDER_MODE, value)
+  // </style-keys:mask-accessors>
 
   // ============================================================
   // clip-path (string-based; see ClipPath.kt)
@@ -3384,515 +4682,28 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun ensureClipPath(): ClipPath = mClipPath ?: ClipPath(this).also { mClipPath = it }
 
-  var clipPath: String
-    get() = mClipPath?.get() ?: ""
-    set(value) {
-      if (mClipPath == null && value.isBlank()) return
-      ensureClipPath().set(value)
-    }
-
-
-  internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {
-    val x = LengthPercentage.fromTypeValue(
-      values.get(keys.xType), values.getFloat(keys.xValue)
-    )!!
-    val y = LengthPercentage.fromTypeValue(
-      values.get(keys.yType), values.getFloat(keys.yValue)
-    )!!
-    return Point(x, y)
-  }
-
-  internal fun setRadiusPoint(keys: IKeyCorner, value: Point<LengthPercentage>) {
-    prepareMut()
-    values.put(keys.xType, value.x.type)
-    values.putFloat(keys.xValue, value.x.value)
-    values.put(keys.yType, value.y.type)
-    values.putFloat(keys.yValue, value.y.value)
-    setOrAppendState(StateKeys.BORDER_RADIUS)
+  private fun setClipPathValue(value: String) {
+    if (mClipPath == null && value.isBlank()) return
+    ensureClipPath().set(value)
   }
 
   fun setBorderStyle(value: BorderStyle) {
-    mBorderLeft.apply {
-      setState = false
-      style = value
-      setState = true
-    }
-
-    mBorderTop.apply {
-      setState = false
-      style = value
-      setState = true
-    }
-
-    mBorderRight.apply {
-      setState = false
-      style = value
-      setState = true
-    }
-
-    mBorderBottom.apply {
-      setState = false
-      style = value
-      setState = true
-    }
-
-    setOrAppendState(StateKeys.BORDER_STYLE)
+    borderStyle = Rect.uniform(value)
   }
-
-  var borderStyle: Rect<BorderStyle>
-    get() {
-      return Rect(
-        mBorderTop.style,
-        mBorderRight.style,
-        mBorderBottom.style,
-        mBorderLeft.style
-      )
-    }
-    set(value) {
-      mBorderLeft.apply {
-        setState = false
-        style = value.left
-        setState = true
-      }
-
-      mBorderTop.apply {
-        setState = false
-        style = value.top
-        setState = true
-      }
-
-      mBorderRight.apply {
-        setState = false
-        style = value.right
-        setState = true
-      }
-
-      mBorderBottom.apply {
-        setState = false
-        style = value.bottom
-        setState = true
-      }
-
-      setOrAppendState(StateKeys.BORDER_STYLE)
-    }
-
-
-  var borderLeftStyle: BorderStyle
-    get() {
-      return mBorderLeft.style
-    }
-    set(value) {
-      mBorderLeft.style = value
-    }
-
-
-  var borderTopStyle: BorderStyle
-    get() {
-      return mBorderTop.style
-    }
-    set(value) {
-      mBorderTop.style = value
-    }
-
-
-  var borderRightStyle: BorderStyle
-    get() {
-      return mBorderRight.style
-    }
-    set(value) {
-      mBorderRight.style = value
-    }
-
-  var borderBottomStyle: BorderStyle
-    get() {
-      return mBorderBottom.style
-    }
-    set(value) {
-      mBorderBottom.style = value
-    }
-
-
-  var borderTopLeftRadius: Point<LengthPercentage>
-    get() = getRadiusPoint(Border.cornerTopLeftKeys)
-    set(value) = setRadiusPoint(Border.cornerTopLeftKeys, value)
-
-  var borderTopRightRadius: Point<LengthPercentage>
-    get() = getRadiusPoint(Border.cornerTopRightKeys)
-    set(value) = setRadiusPoint(Border.cornerTopRightKeys, value)
-
-  var borderBottomRightRadius: Point<LengthPercentage>
-    get() = getRadiusPoint(Border.cornerBottomRightKeys)
-    set(value) = setRadiusPoint(Border.cornerBottomRightKeys, value)
-
-  var borderBottomLeftRadius: Point<LengthPercentage>
-    get() = getRadiusPoint(Border.cornerBottomLeftKeys)
-    set(value) = setRadiusPoint(Border.cornerBottomLeftKeys, value)
-
-
-  var borderColor: Rect<Int>
-    get() {
-      return Rect(
-        left = mBorderLeft.color,
-        right = mBorderRight.color,
-        top = mBorderTop.color,
-        bottom = mBorderBottom.color
-      )
-    }
-    set(value) {
-      mBorderLeft.apply {
-        setState = false
-        color = value.left
-        setState = true
-      }
-
-      mBorderTop.apply {
-        setState = false
-        color = value.top
-        setState = true
-      }
-
-      mBorderRight.apply {
-        setState = false
-        color = value.right
-        setState = true
-      }
-
-      mBorderBottom.apply {
-        setState = false
-        color = value.bottom
-        setState = true
-      }
-
-      setOrAppendState(StateKeys.BORDER_COLOR)
-    }
 
   fun setBorderColor(value: Int) {
-    mBorderLeft.apply {
-      setState = false
-      color = value
-      setState = true
-    }
-
-    mBorderTop.apply {
-      setState = false
-      color = value
-      setState = true
-    }
-
-    mBorderRight.apply {
-      setState = false
-      color = value
-      setState = true
-    }
-
-    mBorderBottom.apply {
-      setState = false
-      color = value
-      setState = true
-    }
-    setOrAppendState(StateKeys.BORDER_COLOR)
-  }
-
-  var borderWidth: Rect<LengthPercentage>
-    get() {
-      return Rect(
-        right = mBorderRight.width,
-        top = mBorderTop.width,
-        bottom = mBorderBottom.width,
-        left = mBorderLeft.width,
-      )
-    }
-    set(value) {
-      mBorderLeft.apply {
-        setState = false
-        width = value.left
-        setState = true
-      }
-
-      mBorderTop.apply {
-        setState = false
-        width = value.top
-        setState = true
-      }
-
-      mBorderRight.apply {
-        setState = false
-        width = value.right
-        setState = true
-      }
-
-      mBorderBottom.apply {
-        setState = false
-        width = value.bottom
-        setState = true
-      }
-      setOrAppendState(StateKeys.BORDER)
-    }
-
-  var borderLeftWidth: LengthPercentage
-    get() {
-      return mBorderLeft.width
-    }
-    set(value) {
-      mBorderLeft.width = value
-    }
-
-  var borderTopWidth: LengthPercentage
-    get() {
-      return mBorderTop.width
-    }
-    set(value) {
-      mBorderTop.width = value
-    }
-
-  var borderRightWidth: LengthPercentage
-    get() {
-      return mBorderRight.width
-    }
-    set(value) {
-      mBorderRight.width = value
-    }
-
-  var borderBottomWidth: LengthPercentage
-    get() {
-      return mBorderBottom.width
-    }
-    set(value) {
-      mBorderBottom.width = value
-    }
-
-  fun setBorderLeftWidth(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      mBorderLeft.width = LengthPercentage.fromTypeValue(type, value)!!
-    }
-  }
-
-  fun setBorderRightWidth(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      mBorderRight.width = LengthPercentage.fromTypeValue(type, value)!!
-    }
-  }
-
-  fun setBorderTopWidth(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      mBorderTop.width = LengthPercentage.fromTypeValue(type, value)!!
-    }
-  }
-
-  fun setBorderBottomWidth(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      mBorderBottom.width = LengthPercentage.fromTypeValue(type, value)!!
-    }
-  }
-
-  fun setBorderWidth(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      val it = LengthPercentage.fromTypeValue(type, value)!!
-      mBorderLeft.apply {
-        setState = false
-        width = it
-        setState = true
-      }
-
-      mBorderTop.apply {
-        setState = false
-        width = it
-        setState = true
-      }
-
-      mBorderRight.apply {
-        setState = false
-        width = it
-        setState = true
-      }
-
-      mBorderBottom.apply {
-        setState = false
-        width = it
-        setState = true
-      }
-    }
-  }
-
-  var flexGrow: Float
-    get() {
-      val base = values.getFloat(StyleKeys.FLEX_GROW)
-      return resolvePseudo(StateKeys.FLEX_GROW, base) { buf -> buf.getFloat(StyleKeys.FLEX_GROW) }
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.FLEX_GROW, value)
-      setOrAppendState(StateKeys.FLEX_GROW)
-    }
-
-  var flexShrink: Float
-    get() {
-      val base = values.getFloat(StyleKeys.FLEX_SHRINK)
-      return resolvePseudo(
-        StateKeys.FLEX_SHRINK,
-        base
-      ) { buf -> buf.getFloat(StyleKeys.FLEX_SHRINK) }
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.FLEX_SHRINK, value)
-      setOrAppendState(StateKeys.FLEX_SHRINK)
-    }
-
-  var flexBasis: Dimension
-    get() {
-      val base = Dimension.fromTypeValue(
-        values.get(StyleKeys.FLEX_BASIS_TYPE),
-        values.getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      )!!
-      return resolvePseudo(StateKeys.FLEX_BASIS, base) { buf ->
-        Dimension.fromTypeValue(
-          buf.get(
-            StyleKeys.FLEX_BASIS_TYPE
-          ), buf.getFloat(StyleKeys.FLEX_BASIS_VALUE)
-        )!!
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.FLEX_BASIS_TYPE, value.type)
-      values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value.value)
-      setOrAppendState(StateKeys.FLEX_BASIS)
-    }
-
-
-  var scrollBarWidth: Float
-    get() {
-      val base = values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
-      return resolvePseudo(
-        StateKeys.SCROLLBAR_WIDTH,
-        base
-      ) { buf -> buf.getFloat(StyleKeys.SCROLLBAR_WIDTH) }
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.SCROLLBAR_WIDTH, value)
-      setOrAppendState(StateKeys.SCROLLBAR_WIDTH)
-    }
-
-
-  fun setFlexBasis(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.FLEX_BASIS_TYPE, type)
-      values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value)
-      setOrAppendState(StateKeys.FLEX_BASIS)
-    }
-  }
-
-  var minSize: Size<Dimension>
-    get() {
-      val base = Size(
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.MIN_WIDTH_TYPE),
-          values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-        )!!,
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.MIN_HEIGHT_TYPE),
-          values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-        )!!
-      )
-      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
-        Size(
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.MIN_WIDTH_TYPE),
-            buf.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-          )!!,
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.MIN_HEIGHT_TYPE),
-            buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-          )!!
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MIN_WIDTH_TYPE, value.width.type)
-      values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.width.value)
-      values.put(StyleKeys.MIN_HEIGHT_TYPE, value.height.type)
-      values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.height.value)
-      setOrAppendState(StateKeys.MIN_SIZE)
-    }
-
-  fun setMinSizeWidth(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MIN_WIDTH_TYPE, type)
-      values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value)
-      setOrAppendState(StateKeys.MIN_SIZE)
-    }
-  }
-
-  fun setMinSizeHeight(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MIN_HEIGHT_TYPE, type)
-      values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value)
-      setOrAppendState(StateKeys.MIN_SIZE)
-    }
-  }
-
-  fun setMinSizeWidth(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.MIN_WIDTH_TYPE, value.type)
-    values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.value)
-    setOrAppendState(StateKeys.MIN_SIZE)
-  }
-
-  fun setMinSizeHeight(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.MIN_HEIGHT_TYPE, value.type)
-    values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.value)
-    setOrAppendState(StateKeys.MIN_SIZE)
+    borderColor = Rect.uniform(value)
   }
 
 
-  var minWidth: Dimension
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MIN_WIDTH_TYPE, value.type)
-      values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.value)
-      setOrAppendState(StateKeys.MIN_SIZE)
-    }
-    get() {
-      val base = Dimension.fromTypeValue(
-        values.get(StyleKeys.MIN_WIDTH_TYPE),
-        values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-      )!!
-      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
-        Dimension.fromTypeValue(
-          buf.get(
-            StyleKeys.MIN_WIDTH_TYPE
-          ), buf.getFloat(StyleKeys.MIN_WIDTH_VALUE)
-        )!!
-      }
-    }
 
-  var minHeight: Dimension
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MIN_HEIGHT_TYPE, value.type)
-      values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.value)
-      setOrAppendState(StateKeys.MIN_SIZE)
-    }
-    get() {
-      val base = Dimension.fromTypeValue(
-        values.get(StyleKeys.MIN_HEIGHT_TYPE),
-        values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-      )!!
-      return resolvePseudo(StateKeys.MIN_SIZE, base) { buf ->
-        Dimension.fromTypeValue(
-          buf.get(
-            StyleKeys.MIN_HEIGHT_TYPE
-          ), buf.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-        )!!
-      }
-    }
+
+
+
+
+
+
+
 
 
   internal val isSizeAuto: Boolean
@@ -3902,235 +4713,24 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   internal fun setSize(width: Int, height: Int) {
-    prepareMut()
-    values.put(StyleKeys.WIDTH_TYPE, 1)
-    values.putFloat(StyleKeys.WIDTH_VALUE, width.toFloat())
-
-    values.put(StyleKeys.HEIGHT_TYPE, 1)
-    values.putFloat(StyleKeys.HEIGHT_VALUE, height.toFloat())
-    setOrAppendState(StateKeys.SIZE)
+    val points = Dimension.Kind.Points.value
+    writeSize(points, width.toFloat(), points, height.toFloat())
   }
 
-  var size: Size<Dimension>
-    get() {
-      val base = Size(
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.WIDTH_TYPE),
-          values.getFloat(StyleKeys.WIDTH_VALUE)
-        )!!,
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.HEIGHT_TYPE),
-          values.getFloat(StyleKeys.HEIGHT_VALUE)
-        )!!
-      )
-      return resolvePseudo(StateKeys.SIZE, base) { buf ->
-        Size(
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.WIDTH_TYPE),
-            buf.getFloat(StyleKeys.WIDTH_VALUE)
-          )!!,
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.HEIGHT_TYPE),
-            buf.getFloat(StyleKeys.HEIGHT_VALUE)
-          )!!
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.WIDTH_TYPE, value.width.type)
-      values.putFloat(StyleKeys.WIDTH_VALUE, value.width.value)
-
-      values.put(StyleKeys.HEIGHT_TYPE, value.height.type)
-      values.putFloat(StyleKeys.HEIGHT_VALUE, value.height.value)
-      setOrAppendState(StateKeys.SIZE)
-    }
 
   fun setSizePoints(width: Float, height: Float) {
-    prepareMut()
-    values.put(StyleKeys.WIDTH_TYPE, Dimension.Kind.Points.value)
-    values.putFloat(StyleKeys.WIDTH_VALUE, width)
-
-    values.put(StyleKeys.HEIGHT_TYPE, Dimension.Kind.Points.value)
-    values.putFloat(StyleKeys.HEIGHT_VALUE, height)
-    setOrAppendState(StateKeys.SIZE)
+    val points = Dimension.Kind.Points.value
+    writeSize(points, width, points, height)
   }
 
 
-  fun setSizeWidth(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.WIDTH_TYPE, type)
-      values.putFloat(StyleKeys.WIDTH_VALUE, value)
-      setOrAppendState(StateKeys.SIZE)
-    }
-  }
-
-  fun setSizeWidth(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.WIDTH_TYPE, value.type)
-    values.putFloat(StyleKeys.WIDTH_VALUE, value.value)
-    setOrAppendState(StateKeys.SIZE)
-  }
-
-  fun setSizeHeight(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.HEIGHT_TYPE, type)
-      values.putFloat(StyleKeys.HEIGHT_VALUE, value)
-      setOrAppendState(StateKeys.SIZE)
-    }
-  }
-
-  fun setSizeHeight(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.HEIGHT_TYPE, value.type)
-    values.putFloat(StyleKeys.HEIGHT_VALUE, value.value)
-    setOrAppendState(StateKeys.SIZE)
-  }
-
-  var maxSize: Size<Dimension>
-    get() {
-      val base = Size(
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.MAX_WIDTH_TYPE),
-          values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-        )!!,
-        Dimension.fromTypeValue(
-          values.get(StyleKeys.MAX_HEIGHT_TYPE),
-          values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-        )!!
-      )
-      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
-        Size(
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.MAX_WIDTH_TYPE),
-            buf.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-          )!!,
-          Dimension.fromTypeValue(
-            buf.get(StyleKeys.MAX_HEIGHT_TYPE),
-            buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-          )!!
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MAX_WIDTH_TYPE, value.width.type)
-      values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.width.value)
-      values.put(StyleKeys.MAX_HEIGHT_TYPE, value.height.type)
-      values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.height.value)
-      setOrAppendState(StateKeys.MAX_SIZE)
-    }
-
-  fun setMaxSizeWidth(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MAX_WIDTH_TYPE, type)
-      values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value)
-      setOrAppendState(StateKeys.MAX_SIZE)
-    }
-  }
-
-  fun setMaxSizeHeight(value: Float, type: Byte) {
-    if (Dimension.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.MAX_HEIGHT_TYPE, type)
-      values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value)
-      setOrAppendState(StateKeys.MAX_SIZE)
-    }
-  }
-
-  fun setMaxSizeWidth(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.MAX_WIDTH_TYPE, value.type)
-    values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.value)
-    setOrAppendState(StateKeys.MAX_SIZE)
-  }
-
-  fun setMaxSizeHeight(value: Dimension) {
-    prepareMut()
-    values.put(StyleKeys.MAX_HEIGHT_TYPE, value.type)
-    values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.value)
-    setOrAppendState(StateKeys.MAX_SIZE)
-  }
-
-  var maxWidth: Dimension
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MAX_WIDTH_TYPE, value.type)
-      values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.value)
-      setOrAppendState(StateKeys.MAX_SIZE)
-    }
-    get() {
-      val base = Dimension.fromTypeValue(
-        values.get(StyleKeys.MAX_WIDTH_TYPE),
-        values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-      )!!
-      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
-        Dimension.fromTypeValue(
-          buf.get(
-            StyleKeys.MAX_WIDTH_TYPE
-          ), buf.getFloat(StyleKeys.MAX_WIDTH_VALUE)
-        )!!
-      }
-    }
-
-  var maxHeight: Dimension
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.MAX_HEIGHT_TYPE, value.type)
-      values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.value)
-      setOrAppendState(StateKeys.MAX_SIZE)
-    }
-    get() {
-      val base = Dimension.fromTypeValue(
-        values.get(StyleKeys.MAX_HEIGHT_TYPE),
-        values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-      )!!
-      return resolvePseudo(StateKeys.MAX_SIZE, base) { buf ->
-        Dimension.fromTypeValue(
-          buf.get(
-            StyleKeys.MAX_HEIGHT_TYPE
-          ), buf.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-        )!!
-      }
-    }
 
 
-  var gap: Size<LengthPercentage>
-    get() {
-      val base = Size(
-        LengthPercentage.fromTypeValue(
-          values.get(StyleKeys.GAP_ROW_TYPE),
-          values.getFloat(StyleKeys.GAP_ROW_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
-          values.get(StyleKeys.GAP_COLUMN_TYPE),
-          values.getFloat(StyleKeys.GAP_COLUMN_VALUE)
-        )!!
-      )
-      return resolvePseudo(StateKeys.GAP, base) { buf ->
-        Size(
-          LengthPercentage.fromTypeValue(
-            buf.get(StyleKeys.GAP_ROW_TYPE),
-            buf.getFloat(StyleKeys.GAP_ROW_VALUE)
-          )!!,
-          LengthPercentage.fromTypeValue(
-            buf.get(StyleKeys.GAP_COLUMN_TYPE),
-            buf.getFloat(StyleKeys.GAP_COLUMN_VALUE)
-          )!!
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.GAP_ROW_TYPE, value.width.type)
-      values.putFloat(StyleKeys.GAP_ROW_VALUE, value.width.value)
-      values.put(StyleKeys.GAP_COLUMN_TYPE, value.height.type)
-      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value.height.value)
-      setOrAppendState(StateKeys.GAP)
-    }
+
+
+
+
+
 
   fun setGap(widthValue: Float, widthType: Byte, heightValue: Float, heightType: Byte) {
     if (LengthPercentage.isValid(widthType, widthValue) && LengthPercentage.isValid(
@@ -4138,47 +4738,10 @@ class Style internal constructor(@Transient internal var node: Node) {
         heightValue
       )
     ) {
-      prepareMut()
-      values.put(StyleKeys.GAP_ROW_TYPE, widthType)
-      values.putFloat(StyleKeys.GAP_ROW_VALUE, widthValue)
-      values.put(StyleKeys.GAP_COLUMN_TYPE, heightType)
-      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, heightValue)
-      setOrAppendState(StateKeys.GAP)
+      writeGap(widthType, widthValue, heightType, heightValue)
     }
   }
 
-  fun setGapRow(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.GAP_ROW_TYPE, type)
-      values.putFloat(StyleKeys.GAP_ROW_VALUE, value)
-      setOrAppendState(StateKeys.GAP)
-    }
-  }
-
-  fun setGapColumn(value: Float, type: Byte) {
-    if (LengthPercentage.isValid(type, value)) {
-      prepareMut()
-      values.put(StyleKeys.GAP_COLUMN_TYPE, type)
-      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value)
-      setOrAppendState(StateKeys.GAP)
-    }
-  }
-
-  var aspectRatio: Float?
-    get() {
-      val raw = values.getFloat(StyleKeys.ASPECT_RATIO)
-      val base: Float? = if (raw.isNaN()) null else raw
-      return resolvePseudo(StateKeys.ASPECT_RATIO, base) { buf ->
-        val v = buf.getFloat(StyleKeys.ASPECT_RATIO)
-        if (v.isNaN()) null else v
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.putFloat(StyleKeys.ASPECT_RATIO, value ?: Float.NaN)
-      setOrAppendState(StateKeys.ASPECT_RATIO)
-    }
 
 
   /* legacy helpers */
@@ -4212,212 +4775,96 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   /* legacy helpers */
 
-  private fun <T> lazyCache(getCache: () -> T?, setCache: (T?) -> Unit, fetch: () -> T): T? {
-    val cached = getCache()
-    return cached ?: fetch().also { setCache(it) }
+  private var gridCssCache: MutableMap<Int, String>? = null
+  private var gridWrites: MutableList<String>? = null
+
+  private inline fun readGridCss(property: Int, read: () -> String): String {
+    val cache = gridCssCache ?: mutableMapOf<Int, String>().also { gridCssCache = it }
+    return cache.getOrPut(property, read)
   }
 
-  private var _gridArea: String? = null
-  var gridArea: String
-    get() {
-      return lazyCache({ _gridArea }, { _gridArea = it }) {
-        nativeGetGridArea(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
+  private fun queueGridCss(property: Int, value: String) {
+    val writes = gridWrites ?: mutableListOf<String>().also { gridWrites = it }
+    writes.add(property.toString())
+    writes.add(value.replace('\u0000', '\uFFFD'))
+    if (!inBatch) {
+      node.dirty()
+      updateNativeStyle()
     }
-    set(value) {
-      gridState.gridArea = value
-      _gridArea = null
-      _gridColumnStart = null
-      _gridColumnEnd = null
-      _gridRowStart = null
-      _gridRowEnd = null
-      isSlowDirty = true
-    }
+  }
 
-  private var _gridTemplateAreas: String? = null
-  var gridTemplateAreas: String
-    get() {
-      return lazyCache({ _gridTemplateAreas }, { _gridTemplateAreas = it }) {
-        nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridTemplateAreas = value
-      _gridTemplateAreas = null
-      isSlowDirty = true
-    }
+  internal fun applyLayoutLength(property: String, value: String, flags: Int = 0): Boolean {
+    val mason = node.mason
+    if (node.isPlaceholder || mason.inCompute) return false
+    if (flags == 0) prepareMut()
+    val applied = nativeApplyLayoutLength(mason.nativePtr, node.nativePtr, flags, property, value,
+      resolvedFontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight)
+    if (applied && flags != 0) node.pseudoLayoutLengthChanged(flags)
+    return applied
+  }
 
-  private var _gridAutoRows: String? = null
+  internal fun layoutLengthCss(property: String, flags: Int = 0): String? =
+    nativeLayoutLengthCss(node.mason.nativePtr, node.nativePtr, flags, property)
+
+  private fun flushGridCss(): Boolean {
+    val writes = gridWrites ?: return false
+    gridWrites = null
+    gridCssCache?.clear()
+    val mason = node.mason
+    nativeApplyGridWrites(mason.nativePtr, node.nativePtr, writes.joinToString("\u0000").toByteArray(),
+      resolvedFontSize, mason.rootFontSize, mason.viewportWidth, mason.viewportHeight)
+    return true
+  }
+
+  // <style-keys:grid-accessors>
   var gridAutoRows: String
-    get() {
-      return lazyCache({ _gridAutoRows }, { _gridAutoRows = it }) {
-        nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridAutoRows = value
-      _gridAutoRows = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(0) { nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(0, value)
 
-  private var _gridAutoColumns: String? = null
   var gridAutoColumns: String
-    get() {
-      return lazyCache({ _gridAutoColumns }, { _gridAutoColumns = it }) {
-        nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridAutoColumns = value
-      _gridAutoColumns = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(1) { nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(1, value)
 
-  var gridAutoFlow: GridAutoFlow
-    get() {
-      val base = GridAutoFlow.from(values.get(StyleKeys.GRID_AUTO_FLOW))
-      return resolvePseudo(StateKeys.GRID_AUTO_FLOW, base) { buf ->
-        GridAutoFlow.from(
-          buf.get(
-            StyleKeys.GRID_AUTO_FLOW
-          )
-        )
-      }
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.GRID_AUTO_FLOW, value.value)
-      setOrAppendState(StateKeys.GRID_AUTO_FLOW)
-    }
-
-  private var _gridColumn: String? = null
   var gridColumn: String
-    get() {
-      return lazyCache({ _gridColumn }, { _gridColumn = it }) {
-        nativeGetGridColumn(node.mason.nativePtr, node.nativePtr) ?: ""
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridColumn = value
-      _gridColumn = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(2) { nativeGetGridColumn(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(2, value)
 
-  private var _gridColumnStart: String? = null
   var gridColumnStart: String
-    get() {
-      return lazyCache({
-        _gridColumnStart
-      }, {
-        _gridColumnStart = it
-      }) {
-        nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridColumnStart = value
-      _gridColumnStart = null
-      _gridColumn = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(3) { nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(3, value)
 
-  private var _gridColumnEnd: String? = null
   var gridColumnEnd: String
-    get() {
-      return lazyCache({
-        _gridColumnEnd
-      }, {
-        _gridColumnEnd = it
-      }) {
-        nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridColumnEnd = value
-      _gridColumnEnd = null
-      _gridColumn = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(4) { nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(4, value)
 
-  private var _gridRow: String? = null
   var gridRow: String
-    get() {
-      return lazyCache({ _gridRow }, { _gridRow = it }) {
-        nativeGetGridRow(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridRow = value
-      _gridRow = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(5) { nativeGetGridRow(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(5, value)
 
-  private var _gridRowStart: String? = null
   var gridRowStart: String
-    get() {
-      return lazyCache({
-        _gridRowStart
-      }, {
-        _gridRowStart = it
-      }) {
-        nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridRowStart = value
-      _gridRowStart = null
-      _gridRow = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(6) { nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(6, value)
 
-  private var _gridRowEnd: String? = null
   var gridRowEnd: String
-    get() {
-      return lazyCache({
-        _gridRowEnd
-      }, {
-        _gridRowEnd = it
-      }) {
-        nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr)
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridRowEnd = value
-      _gridRowEnd = null
-      _gridRow = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(7) { nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(7, value)
 
-
-  private var _gridTemplateRows: String? = null
   var gridTemplateRows: String
-    get() {
-      return lazyCache({ _gridTemplateRows }, { _gridTemplateRows = it }) {
-        nativeGetGridTemplateRows(
-          node.mason.nativePtr, node.nativePtr
-        )
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridTemplateRows = value
-      _gridTemplateRows = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(8) { nativeGetGridTemplateRows(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(8, value)
 
-  private var _gridTemplateColumns: String? = null
   var gridTemplateColumns: String
-    get() {
-      return lazyCache({ _gridTemplateColumns }, { _gridTemplateColumns = it }) {
-        nativeGetGridTemplateColumns(
-          node.mason.nativePtr, node.nativePtr
-        )
-      } ?: ""
-    }
-    set(value) {
-      gridState.gridTemplateColumns = value
-      _gridTemplateColumns = null
-      isSlowDirty = true
-    }
+    get() = readGridCss(9) { nativeGetGridTemplateColumns(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(9, value)
+
+  var gridArea: String
+    get() = readGridCss(10) { nativeGetGridArea(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(10, value)
+
+  var gridTemplateAreas: String
+    get() = readGridCss(11) { nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr) ?: "" }
+    set(value) = queueGridCss(11, value)
+  // </style-keys:grid-accessors>
 
   internal fun updateNativeStyle() {
     if (node.nativePtr == 0L) {
@@ -4450,16 +4897,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       androidView?.layoutDirection = toAndroidLayoutDirection(direction)
     }
 
-    val borderState = (isDirty and StateKeys.BORDER.low) or (isDirtyHigh and StateKeys.BORDER.high)
-    val borderRadius =
-      (isDirty and StateKeys.BORDER_RADIUS.low) or (isDirtyHigh and StateKeys.BORDER_RADIUS.high)
-    val borderStyle =
-      (isDirty and StateKeys.BORDER_STYLE.low) or (isDirtyHigh and StateKeys.BORDER_STYLE.high)
-    val borderColor =
-      (isDirty and StateKeys.BORDER_COLOR.low) or (isDirtyHigh and StateKeys.BORDER_COLOR.high)
-    val zIndex = (isDirty and StateKeys.Z_INDEX.low) or (isDirtyHigh and StateKeys.Z_INDEX.high)
+    val zIndexChanged = stateKeys.hasFlag(StateKeys.Z_INDEX)
 
-    if (borderState != 0L || borderRadius != 0L || borderStyle != 0L || borderColor != 0L) {
+    if (stateKeys.hasFlag(StateKeys.BORDER_PAINT)) {
       invalidateBorderRenderer()
     }
 
@@ -4473,163 +4913,21 @@ class Style internal constructor(@Transient internal var node: Node) {
       (node.view as? View)?.takeIf { it is Element }?.let { applyPivot(it, hasCssTransform, reset = true) }
     }
 
-    // Dispatch object-position to image views
-    val objectPositionDirty = stateKeys.hasFlag(StateKeys.OBJECT_POSITION)
-    if (objectPositionDirty) {
+    if (stateKeys.hasFlag(StateKeys.OBJECT_PAINT)) {
       (node.view as? android.widget.ImageView)?.invalidate()
     }
 
-    if (isSlowDirty) {
-      if (isDirtyEmpty()) {
-        nativeNonBufferData(
-          node.mason.nativePtr,
-          node.nativePtr,
-          0,
-          gridState.gridAutoRows,
-          gridState.gridAutoColumns,
-          gridState.gridColumn,
-          gridState.gridColumnStart,
-          gridState.gridColumnEnd,
-          gridState.gridRow,
-          gridState.gridRowStart,
-          gridState.gridRowEnd,
-          gridState.gridTemplateRows,
-          gridState.gridTemplateColumns,
-          gridState.gridArea,
-          gridState.gridTemplateAreas
-        )
-        resetState()
-        (node.view as? Element)?.invalidateLayout()
-        // A CSS-class match can commit visual properties (border-radius,
-        // background, ...) alongside a layout-affecting one in the same
-        // batch. invalidateLayout() only guarantees a relayout, not a
-        // repaint — if bounds don't change, Android never re-runs onDraw.
-        (node.view as? View)?.invalidate()
-        return
-      }
-
-      nativeUpdateWithValues(
-        node.mason.nativePtr,
-        node.nativePtr,
-        display.value,
-        position.value,
-        direction.value,
-        flexDirection.value,
-        flexWrap.value,
-        0,
-        alignItems.value,
-        alignSelf.value,
-        alignContent.value,
-        justifyItems.value,
-        justifySelf.value,
-        justifyContent.value,
-
-        inset.left.type,
-        inset.left.value,
-        inset.right.type,
-        inset.right.value,
-        inset.top.type,
-        inset.top.value,
-        inset.bottom.type,
-        inset.bottom.value,
-
-        margin.left.type,
-        margin.left.value,
-        margin.right.type,
-        margin.right.value,
-        margin.top.type,
-        margin.top.value,
-        margin.bottom.type,
-        margin.bottom.value,
-
-
-        padding.left.type,
-        padding.left.value,
-        padding.right.type,
-        padding.right.value,
-        padding.top.type,
-        padding.top.value,
-        padding.bottom.type,
-        padding.bottom.value,
-
-
-        mBorderLeft.width.type,
-        mBorderLeft.width.value,
-        mBorderRight.width.type,
-        mBorderRight.width.value,
-        mBorderTop.width.type,
-        mBorderTop.width.value,
-        mBorderBottom.width.type,
-        mBorderBottom.width.value,
-        flexGrow,
-        flexShrink,
-        flexBasis.type,
-        flexBasis.value,
-
-        size.width.type,
-        size.width.value,
-        size.height.type,
-        size.height.value,
-
-
-        minSize.width.type,
-        minSize.width.value,
-        minSize.height.type,
-        minSize.height.value,
-
-        maxSize.width.type,
-        maxSize.width.value,
-        maxSize.height.type,
-        maxSize.height.value,
-
-        gap.width.type,
-        gap.width.value,
-        gap.height.type,
-        gap.height.value,
-        aspectRatio ?: Float.NaN,
-        gridState.gridAutoRows,
-        gridState.gridAutoColumns,
-        gridAutoFlow.value,
-        gridState.gridColumn,
-        gridState.gridColumnStart,
-        gridState.gridColumnEnd,
-        gridState.gridRow,
-        gridState.gridRowStart,
-        gridState.gridRowEnd,
-        gridState.gridTemplateRows,
-        gridState.gridTemplateColumns,
-        overflowX.value,
-        overflowY.value,
-        scrollBarWidth,
-        textAlign.value,
-        boxSizing.value,
-        gridState.gridArea,
-        gridState.gridTemplateAreas
-      )
-
-      if (zIndex != 0L) {
-        (node.parent?.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
-      }
-
-      resetState()
-      (node.view as? Element)?.invalidateLayout()
-      // Same reasoning as the sibling `isDirtyEmpty()` branch above: force the
-      // repaint since an unchanged-bounds relayout won't trigger one on its own.
-      (node.view as? View)?.invalidate()
-      return
-    }
-
-    if (isDirty != -1L) {
+    val gridChanged = flushGridCss()
+    if (gridChanged || !isDirtyEmpty()) {
       // Purely-visual writes (colors, border-style/-radius, shadows,
       // decorations, list-style-type, object-fit, z-index, caret-color,
       // object-position, ...) can't change this node's contribution to Taffy
       // layout — their own targeted repaint already happened above (border
       // renderer, caret/object-position dispatch) or happens via the fallback
       // View.invalidate() below, so skip the native recompute + relayout.
-      val layoutAffecting = (isDirty and StateKeys.LAYOUT_MASK.low) != 0L ||
-        (isDirtyHigh and StateKeys.LAYOUT_MASK.high) != 0L
+      val layoutAffecting = gridChanged || stateKeys.hasFlag(StateKeys.LAYOUT_MASK)
 
-      if (zIndex != 0L) {
+      if (zIndexChanged) {
         (node.parent?.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
@@ -4638,10 +4936,10 @@ class Style internal constructor(@Transient internal var node: Node) {
       resetState()
       if (layoutAffecting) {
         (node.view as? Element)?.invalidateLayout()
-      } else {
+      }
+      if (gridChanged || !layoutAffecting) {
         (node.view as? View)?.invalidate()
       }
-      return
     }
   }
 
@@ -4688,31 +4986,6 @@ class Style internal constructor(@Transient internal var node: Node) {
     )
     return Size(width as Dimension, height as Dimension)
   }
-
-  var listStylePosition: ListStylePosition
-    get() {
-      return ListStylePosition.from(values.get(StyleKeys.LIST_STYLE_POSITION))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.LIST_STYLE_POSITION, value.value)
-      values.put(StyleKeys.LIST_STYLE_POSITION_STATE, StyleState.SET)
-      setOrAppendState(StateKeys.LIST_STYLE_POSITION)
-    }
-
-
-  var listStyleType: ListStyleType
-    get() {
-      return ListStyleType.from(values.get(StyleKeys.LIST_STYLE_TYPE))
-    }
-    set(value) {
-      prepareMut()
-      values.put(StyleKeys.LIST_STYLE_TYPE, value.value)
-      values.put(StyleKeys.LIST_STYLE_TYPE_STATE, StyleState.SET)
-      setOrAppendState(StateKeys.LIST_STYLE_TYPE)
-      // A summary's marker is text in its first child, built before this rule may have arrived.
-      if (node.detailsRole == Details.SUMMARY) Details.refreshMarker(node)
-    }
 
   override fun toString(): String {
     var ret = "(MasonStyle)("
@@ -5073,21 +5346,7 @@ class Style internal constructor(@Transient internal var node: Node) {
       } else {
         fontStyle
       }
-      val pseudoRaw = resolvePseudoByte(
-        StyleKeys.FONT_STYLE_TYPE,
-        StyleKeys.FONT_STYLE_STATE,
-        values.get(StyleKeys.FONT_STYLE_TYPE),
-        StateKeys.FONT_STYLE
-      )
-      return if (node.pseudoMask != 0 && pseudoRaw != values.get(StyleKeys.FONT_STYLE_TYPE)) {
-        when (pseudoRaw) {
-          2.toByte() -> FontStyle.Oblique()
-          1.toByte() -> FontStyle.Italic
-          else -> FontStyle.Normal
-        }
-      } else {
-        base
-      }
+      return resolvePseudo(StateKeys.FONT_STYLE, base, ::readFontStyle)
     }
 
   val resolvedBackgroundColor: Int
@@ -5462,7 +5721,14 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   internal val resolvedWordSpacingType: Byte
-    get() = values.get(StyleKeys.WORD_SPACING_TYPE)
+    get() {
+      val type = values.get(StyleKeys.WORD_SPACING_TYPE)
+      return if (values.get(StyleKeys.WORD_SPACING_STATE) == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedWordSpacingType ?: type
+      } else {
+        type
+      }
+    }
 
   internal val resolvedWritingMode: Byte
     get() {
@@ -5604,9 +5870,8 @@ class Style internal constructor(@Transient internal var node: Node) {
       return value
     }
 
-  // text-overflow as written to the buffer (the typed property only tracks Kotlin writes).
-  internal val textOverflowEllipsis: Boolean
-    get() = values.get(StyleKeys.TEXT_OVERFLOW) != Styles.TextOverflow.Clip.value
+  internal val textOverflowKind: Byte get() = values.get(StyleKeys.TEXT_OVERFLOW)
+  internal val textOverflowEllipsis: Boolean get() = textOverflowKind != Styles.TextOverflow.Clip.value
 
 
   /* Resolved Styles */
@@ -5615,8 +5880,6 @@ class Style internal constructor(@Transient internal var node: Node) {
     init {
       Mason.initLib()
     }
-
-    private const val VISIBILITY_COLLAPSE: Byte = 2
 
     private val pendingMetricsStyles = java.util.WeakHashMap<Style, Boolean>()
 
@@ -5889,6 +6152,17 @@ class Style internal constructor(@Transient internal var node: Node) {
       chunk: Int,
     ): ByteBuffer?
 
+
+    @JvmStatic
+    external fun nativeApplyLayoutLength(mason: Long, node: Long, flags: Int, property: String, value: String,
+      fontSize: Float, rootFontSize: Float, viewportWidth: Float, viewportHeight: Float): Boolean
+
+    @JvmStatic
+    external fun nativeLayoutLengthCss(mason: Long, node: Long, flags: Int, property: String): String?
+
+    @JvmStatic
+    external fun nativeApplyGridWrites(mason: Long, node: Long, input: ByteArray,
+                                       fontSize: Float, rootFontSize: Float, viewportWidth: Float, viewportHeight: Float)
 
     @JvmStatic
     external fun nativeNonBufferData(
