@@ -746,7 +746,7 @@ extension MasonElement {
 
   /// Runs a compute with Rust's lock held and applies the layout it returns.
   /// Roots a foreign host measured meanwhile are computed right after, and the
-  /// pass reruns (at most twice) when one of them had reported a stale size.
+  /// pass reruns when one of them had reported a stale size.
   private func runPass(_ compute: () -> UnsafeMutableRawPointer?) {
     let mason = node.mason
     mason.passDepth += 1
@@ -754,7 +754,11 @@ extension MasonElement {
       mason.passDepth -= 1
       if mason.passDepth == 0 { mason.endPass() }
     }
-    for _ in 0..<3 {
+    // A grid can settle one width, change its track size, and then ask for a
+    // previously unseen width on the third compute. Leave room to consume
+    // that result, while bounding the work for measures that never settle.
+    let passLimit = 10
+    for _ in 0..<passLimit {
       mason.inCompute = true
       let points = compute()
       mason.inCompute = false

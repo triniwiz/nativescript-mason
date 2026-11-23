@@ -185,6 +185,107 @@ final class CoreLayoutInteropTests: XCTestCase {
     XCTAssertTrue(nested.node.settledRootSizes.isEmpty, "settled sizes only last for one outer compute")
   }
 
+  func test_foreignRootResizesInTheSamePass() {
+    assertForeignRootResizes(viewport: false)
+  }
+
+  func test_foreignRootResizesInTheSameScrollViewportPass() {
+    assertForeignRootResizes(viewport: true)
+  }
+
+  private func assertForeignRootResizes(viewport: Bool) {
+    let engine = NSCMason()
+    let scale = CGFloat(NSCMason.scale)
+    let root = MasonUIView(mason: engine)
+    let bounds = MasonUIView(mason: engine)
+    let grid = MasonUIView(mason: engine)
+    let sibling = MasonUIView(mason: engine)
+    let layer = MasonUIView(mason: engine)
+    let host = UIView()
+    let nested = MasonUIView(mason: engine)
+    let stage = MasonUIView(mason: engine)
+    let content = MasonUIView(mason: engine)
+
+    for view in [root, bounds, layer, nested] {
+      view.display = .Flex
+      view.flexDirection = .Column
+    }
+    if viewport {
+      root.isScrollContainer = true
+      root.overflowY = .Scroll
+    }
+    for view in [grid, stage] {
+      view.display = .Grid
+      view.gridTemplateRows = "1fr"
+      view.gridTemplateColumns = "1fr"
+      view.flexGrow = 1
+    }
+    sibling.gridArea = "1 / 1"
+    sibling.setSize(50 * Float(scale), 50 * Float(scale))
+    layer.gridArea = "1 / 1"
+    nested.setSizeWidth(1, 2)
+    nested.setSizeHeight(1, 2)
+    stage.flexShrink = 1
+    stage.setMinSizeHeight(0, 1)
+    content.setSizeWidth(1, 2)
+    content.aspectRatio = 360.0 / 640.0
+
+    stage.addView(content)
+    nested.addView(stage)
+    layer.addView(host)
+    host.addSubview(nested)
+    grid.addView(sibling)
+    grid.addView(layer)
+    bounds.addView(grid)
+    root.addView(bounds)
+
+    func measureSpec(known: CGFloat, available: CGFloat) -> Int {
+      if !known.isNaN { return spec(known, 1) }
+      if available > 0 { return spec(available, 2) }
+      return spec(0, 0)
+    }
+
+    func resolve(_ measured: CGFloat, known: CGFloat, available: CGFloat) -> CGFloat {
+      if !known.isNaN { return CGFloat(Int(known)) }
+      if available > 0 { return min(measured, CGFloat(Int(available))) }
+      return measured
+    }
+
+    engine.setMeasure(for: host) { [weak nested] knownWidth, knownHeight, availableWidth, availableHeight in
+      guard let nested = nested else { return .zero }
+      let width = measureSpec(known: knownWidth, available: availableWidth)
+      let height = measureSpec(known: knownHeight, available: availableHeight)
+      let size = self.unpack(nested.measure(width, height, root: true, viewport: false))
+      return CGSize(
+        width: resolve(size.width, known: knownWidth, available: availableWidth),
+        height: resolve(size.height, known: knownHeight, available: availableHeight)
+      )
+    }
+
+    let sizes: [(CGFloat, CGFloat)] = [(107, 400), (107, 300), (107, 500), (200, 500), (107, 300)]
+    for (width, height) in sizes {
+      bounds.setSize(Float(width * scale), Float(height * scale))
+      engine.invalidateForeignView(host)
+      if viewport {
+        _ = root.measure(spec(402 * scale, 1), spec(874 * scale, 1), root: true, viewport: true)
+      } else {
+        root.computeWithSize(Float(402 * scale), Float(874 * scale))
+      }
+
+      // Lay out the independent root at the box assigned to its host, as a
+      // NativeScript layout container would after the outer compute returns.
+      _ = nested.measure(spec(host.bounds.width * scale, 1), spec(host.bounds.height * scale, 1),
+                         root: true, viewport: false)
+      nested.frame = host.bounds
+      nested.layoutIfNeeded()
+
+      let intrinsicHeight = width * 640 / 360
+      XCTAssertEqual(layer.frame.height, max(height, intrinsicHeight), accuracy: 1)
+      XCTAssertEqual(host.frame.height, intrinsicHeight, accuracy: 1)
+      XCTAssertEqual(stage.frame.height, intrinsicHeight, accuracy: 1)
+    }
+  }
+
   /// Content changes reported during a compute are applied once it returns.
   func test_foreignInvalidationDuringAComputeWaitsForIt() {
     let root = MasonUIView(mason: mason)
