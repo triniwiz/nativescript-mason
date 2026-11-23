@@ -1,19 +1,10 @@
-import { parseBoxShadows } from './box-shadow';
-import { parseAngle } from './css-transform';
+import { withPortableCss } from './portable-css';
 
 export type ColorMatrix = number[];
 
 export type FilterStep = { kind: 'matrix'; matrix: ColorMatrix } | { kind: 'blur'; sigma: number } | { kind: 'shadow'; x: number; y: number; sigma: number; color: string | null };
 
 const IDENTITY: ColorMatrix = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
-
-function amount(arg: string, fallback: number): number {
-  const t = arg.trim();
-  if (!t) return fallback;
-  const n = parseFloat(t);
-  if (!Number.isFinite(n)) return fallback;
-  return t.endsWith('%') ? n / 100 : n;
-}
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -77,62 +68,87 @@ export function composeMatrices(first: ColorMatrix, second: ColorMatrix): ColorM
   return out;
 }
 
-const FUNCTION = /([a-z-]+)\s*\(((?:[^()]|\([^()]*\))*)\)/gi;
+// <style-keys:filter-operations>
+enum FilterKind {
+  Blur = 0,
+  Brightness = 1,
+  Contrast = 2,
+  Saturate = 3,
+  HueRotate = 4,
+  Invert = 5,
+  Opacity = 6,
+  Sepia = 7,
+  Grayscale = 8,
+  DropShadow = 9,
+}
+// </style-keys:filter-operations>
 
 export function parseCssFilter(value: string, toDip: (token: string) => number | undefined): FilterStep[] {
+  const source = (value ?? '').trim();
   const steps: FilterStep[] = [];
-  const v = (value ?? '').trim();
-  if (!v || v === 'none') return steps;
+  if (!source) return steps;
+
+  return projectFilters((add) => {
+    withPortableCss(source, 0, {
+      resolveLength: toDip,
+      filter: add,
+    }, (engine, input) => engine.css_visit_filters(input, source.length));
+  });
+}
+
+type AddFilter = (kind: number, amount: number, y: number, blur: number, color: string | null) => void;
+
+export function projectCssFilters(records: [number, number, number, number, number][]): FilterStep[] {
+  return projectFilters((add) => {
+    for (const [kind, amount, y, blur, color] of records) add(kind, amount, y, blur, String(color));
+  });
+}
+
+function projectFilters(visit: (add: AddFilter) => void): FilterStep[] {
+  const steps: FilterStep[] = [];
   const push = (matrix: ColorMatrix) => {
     const last = steps[steps.length - 1];
-    if (last && last.kind === 'matrix') last.matrix = composeMatrices(last.matrix, matrix);
+    if (last?.kind === 'matrix') last.matrix = composeMatrices(last.matrix, matrix);
     else steps.push({ kind: 'matrix', matrix });
   };
-  for (const match of v.matchAll(FUNCTION)) {
-    const name = match[1].toLowerCase();
-    const arg = match[2];
-    switch (name) {
-      case 'blur': {
-        const t = arg.trim();
-        const sigma = t ? (toDip(t) ?? parseFloat(t)) : 0;
-        if (Number.isFinite(sigma) && sigma > 0) steps.push({ kind: 'blur', sigma });
-        break;
-      }
-      case 'grayscale':
-        push(grayscale(amount(arg, 1)));
-        break;
-      case 'sepia':
-        push(sepia(amount(arg, 1)));
-        break;
-      case 'saturate':
-        push(saturate(Math.max(0, amount(arg, 1))));
-        break;
-      case 'hue-rotate':
-        push(hueRotate(arg.trim() ? parseAngle(arg) : 0));
-        break;
-      case 'invert': {
-        const a = clamp01(amount(arg, 1));
-        push(linear(1 - 2 * a, a));
-        break;
-      }
-      case 'opacity':
-        push(alpha(amount(arg, 1)));
-        break;
-      case 'brightness':
-        push(linear(Math.max(0, amount(arg, 1)), 0));
-        break;
-      case 'contrast': {
-        const c = Math.max(0, amount(arg, 1));
-        push(linear(c, 0.5 - 0.5 * c));
-        break;
-      }
-      case 'drop-shadow': {
-        const shadow = parseBoxShadows(arg, toDip)[0];
-        if (shadow) steps.push({ kind: 'shadow', x: shadow.offsetX, y: shadow.offsetY, sigma: shadow.blur / 2, color: shadow.color });
-        break;
-      }
+  visit((kind, value, y, blur, color) => {
+  switch (kind) {
+    case FilterKind.Blur:
+      if (value > 0) steps.push({ kind: 'blur', sigma: value });
+      break;
+    case FilterKind.Grayscale:
+      push(grayscale(value));
+      break;
+    case FilterKind.Sepia:
+      push(sepia(value));
+      break;
+    case FilterKind.Saturate:
+      push(saturate(Math.max(0, value)));
+      break;
+    case FilterKind.HueRotate:
+      push(hueRotate(value * Math.PI / 180));
+      break;
+    case FilterKind.Invert: {
+      const a = clamp01(value);
+      push(linear(1 - 2 * a, a));
+      break;
     }
+    case FilterKind.Opacity:
+      push(alpha(value));
+      break;
+    case FilterKind.Brightness:
+      push(linear(Math.max(0, value), 0));
+      break;
+    case FilterKind.Contrast: {
+      const c = Math.max(0, value);
+      push(linear(c, 0.5 - 0.5 * c));
+      break;
+    }
+    case FilterKind.DropShadow:
+      steps.push({ kind: 'shadow', x: value, y, sigma: blur / 2, color });
+      break;
   }
+  });
   return steps.filter((s) => s.kind !== 'matrix' || s.matrix.some((n, i) => Math.abs(n - IDENTITY[i]) > 1e-6));
 }
 

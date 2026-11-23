@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.app.ActivityManager
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -30,10 +29,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 
-private val FILTER_REGEX = Regex("""(\w+(?:-\w+)?)\(([^()]*(?:\([^()]*\)[^()]*)*)\)""")
 internal val SPLIT_REGEX = Regex("""\s+""")
-private const val PI_FLOAT = Math.PI.toFloat()
-private const val RAD_TO_DEG = (180f / PI_FLOAT)
 
 // Keep author-supplied blur radii bounded before they reach RenderEffect.
 internal const val MAX_RENDER_EFFECT_BLUR_RADIUS_PX = 100f
@@ -45,6 +41,25 @@ internal fun skiaBlurRadius(sigma: Float): Float =
 
 internal fun renderScriptBlurRadius(sigma: Float): Float = ((sigma - 0.6f) / 0.4f).coerceIn(0.0001f, 25f)
 
+
+internal class NativeFilterProgram private constructor(val css: String, private val handle: Long) {
+  fun records(style: Style): DoubleArray {
+    val mason = style.node.mason
+    return Mason.nativeFilterProject(this, handle, mason.scale, style.fontSize, mason.rootFontSize,
+      mason.viewportWidth, mason.viewportHeight, style.color) ?: doubleArrayOf()
+  }
+
+  companion object {
+    fun parse(css: String): NativeFilterProgram? {
+      if (css.isEmpty()) return null
+      val handle = Mason.nativeFilterParse(css)
+      if (handle == 0L) return null
+      val program = NativeFilterProgram(css, handle)
+      Mason.shared.gc.track(program) { Mason.nativeFilterRelease(handle) }
+      return program
+    }
+  }
+}
 
 class CSSFilters {
 
@@ -1125,134 +1140,6 @@ class CSSFilters {
       return cm
     }
 
-    internal fun parseCssColor(value: String): Int {
-      val trimmed = value.trim().lowercase()
-
-      return when {
-        trimmed.startsWith("#") -> {
-          val hex = trimmed.removePrefix("#")
-          when (hex.length) {
-            3 -> {
-              // #RGB → expand
-              val r = hex[0].toString().repeat(2).toInt(16)
-              val g = hex[1].toString().repeat(2).toInt(16)
-              val b = hex[2].toString().repeat(2).toInt(16)
-              0xFF000000.toInt() or (r shl 16) or (g shl 8) or b
-            }
-
-            6 -> {
-              // #RRGGBB
-              0xFF000000.toInt() or hex.toInt(16)
-            }
-
-            8 -> {
-              // #AARRGGBB
-              hex.toLong(16).toInt()
-            }
-
-            else -> Color.BLACK
-          }
-        }
-
-        trimmed.startsWith("rgb(") -> {
-          val nums =
-            trimmed.removePrefix("rgb(").removeSuffix(")").split(",").map { it.trim().toInt() }
-          val (r, g, b) = nums
-          0xFF000000.toInt() or (r shl 16) or (g shl 8) or b
-        }
-
-        trimmed.startsWith("rgba(") -> {
-          val nums = trimmed.removePrefix("rgba(").removeSuffix(")").split(",").map { it.trim() }
-          val r = nums[0].toInt()
-          val g = nums[1].toInt()
-          val b = nums[2].toInt()
-          val a = (nums[3].toFloat() * 255f).toInt().coerceIn(0, 255)
-          (a shl 24) or (r shl 16) or (g shl 8) or b
-        }
-
-        else -> COLOR_MAP[trimmed] ?: Color.BLACK
-      }
-    }
-
-    private fun parseCssAngle(value: String): Float {
-      val trimmed = value.trim().lowercase()
-      return when {
-        trimmed.endsWith("deg") -> trimmed.removeSuffix("deg").toFloatOrNull() ?: 0f
-        trimmed.endsWith("grad") -> (trimmed.removeSuffix("grad").toFloatOrNull() ?: 0f) * 0.9f
-        trimmed.endsWith("rad") -> (trimmed.removeSuffix("rad").toFloatOrNull() ?: 0f) * RAD_TO_DEG
-        trimmed.endsWith("turn") -> (trimmed.removeSuffix("turn").toFloatOrNull() ?: 0f) * 360f
-        else -> trimmed.toFloatOrNull() ?: 0f
-      }
-    }
-
-    private fun parseCssFloat(
-      value: String,
-      default: Float = 0f,
-      canUseDip: Boolean = false
-    ): Float {
-      return when {
-        // px is a CSS pixel: a length scales with the density like a bare number.
-        value.endsWith("px") -> (value.removeSuffix("px").toFloatOrNull() ?: default).let {
-          if (canUseDip) it * Resources.getSystem().displayMetrics.density else it
-        }
-        value.endsWith("%") -> (value.removeSuffix("%").toFloatOrNull() ?: default) / 100f
-        else -> {
-          val ret = value.toFloatOrNull() ?: default
-          if (canUseDip) {
-            ret * Resources.getSystem().displayMetrics.density
-          } else {
-            ret
-          }
-        }
-      }
-    }
-
-    private fun parseDropShadow(value: String): Filter.DropShadow? {
-      val tokens = mutableListOf<String>()
-      val sb = StringBuilder()
-      var parenDepth = 0
-
-      for (c in value.trim()) {
-        when {
-          c == '(' -> {
-            parenDepth++
-            sb.append(c)
-          }
-
-          c == ')' -> {
-            parenDepth--
-            sb.append(c)
-          }
-
-          c.isWhitespace() && parenDepth == 0 -> {
-            if (sb.isNotEmpty()) {
-              tokens.add(sb.toString())
-              sb.clear()
-            }
-          }
-
-          else -> sb.append(c)
-        }
-      }
-
-      if (sb.isNotEmpty()) tokens.add(sb.toString())
-      if (tokens.size < 2) return null
-
-      val offsetX = parseCssFloat(tokens[0], 0f, true)
-      val offsetY = parseCssFloat(tokens[1], 0f, true)
-      // A shadow's blur is a radius, twice the deviation the other blurs carry.
-      val blur = if (tokens.size >= 3) parseCssFloat(tokens[2], 0f, true) / 2f else 0f
-
-      val color = if (tokens.size >= 4) {
-        parseCssColor(tokens.subList(3, tokens.size).joinToString(" "))
-      } else {
-        Color.BLACK
-      }
-
-      return Filter.DropShadow(offsetX, offsetY, blur, color)
-    }
-
-
     // small LRU to avoid re-blurring identical source + params in the same runtime
     private val dropShadowCache = LruCache<String, Bitmap>(32)
 
@@ -1282,34 +1169,36 @@ class CSSFilters {
     }
 
     @JvmStatic
-    fun parse(value: String): CSSFilter {
-      val filters = mutableListOf<Filter>()
+    fun parse(value: String): CSSFilter = parse(value, null)
 
-      FILTER_REGEX.findAll(value).forEach { match ->
-        val name = match.groupValues[1].lowercase()
-        val value = match.groupValues[2].trim()
+    internal fun parse(value: String, style: Style?): CSSFilter =
+      decode(value, parseCssRecords(value, CssParseKind.FILTERS, style))
 
-        when (name) {
-          "blur" -> filters.add(Filter.Blur(parseCssFloat(value, 0f, true)))
-          "brightness" -> filters.add(Filter.Brightness(parseCssFloat(value, 1f)))
-          "contrast" -> filters.add(Filter.Contrast(parseCssFloat(value, 1f)))
-          "saturate" -> filters.add(Filter.Saturate(parseCssFloat(value, 1f)))
-          "hue-rotate" -> filters.add(Filter.HueRotate(parseCssAngle(value)))
-          "invert" -> filters.add(Filter.Invert(parseCssFloat(value, 0f)))
-          "opacity" -> filters.add(Filter.Opacity(parseCssFloat(value, 1f)))
-          "sepia" -> filters.add(Filter.Sepia(parseCssFloat(value, 0f)))
-          "grayscale" -> filters.add(Filter.Grayscale(parseCssFloat(value, 0f)))
-          "drop-shadow" -> parseDropShadow(value)?.let { filters.add(it) }
+    internal fun setStyleFilter(value: String, style: Style, backdrop: Boolean = false): CSSFilter =
+      decode(value, setStyleCssRecords(style, value, if (backdrop) StyleRecordKind.BACKDROP_FILTER else StyleRecordKind.FILTER))
+
+    internal fun project(program: NativeFilterProgram, style: Style): CSSFilter =
+      decode(program.css, program.records(style))
+
+    internal fun decode(value: String, records: DoubleArray): CSSFilter {
+      val filters = (records.indices step FilterRecord.STRIDE).mapNotNull { index ->
+        val amount = records[index + FilterRecord.AMOUNT_OR_X].toFloat()
+        when (records[index + FilterRecord.KIND].toInt()) {
+          FilterOperationCode.BLUR -> Filter.Blur(amount)
+          FilterOperationCode.BRIGHTNESS -> Filter.Brightness(amount)
+          FilterOperationCode.CONTRAST -> Filter.Contrast(amount)
+          FilterOperationCode.SATURATE -> Filter.Saturate(amount)
+          FilterOperationCode.HUE_ROTATE -> Filter.HueRotate(amount)
+          FilterOperationCode.INVERT -> Filter.Invert(amount)
+          FilterOperationCode.OPACITY -> Filter.Opacity(amount)
+          FilterOperationCode.SEPIA -> Filter.Sepia(amount)
+          FilterOperationCode.GRAYSCALE -> Filter.Grayscale(amount)
+          FilterOperationCode.DROP_SHADOW -> Filter.DropShadow(amount, records[index + FilterRecord.Y].toFloat(),
+            records[index + FilterRecord.BLUR].toFloat() / 2f, records[index + FilterRecord.COLOR].toLong().toInt())
+          else -> null
         }
       }
-
-      return CSSFilter(
-        if (filters.isNotEmpty()) {
-          value
-        } else {
-          ""
-        }, filters
-      )
+      return CSSFilter(if (filters.isEmpty()) "" else value, filters)
     }
   }
 }

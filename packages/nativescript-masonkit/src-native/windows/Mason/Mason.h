@@ -27,6 +27,8 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Windows::Storage::Streams::IBuffer StyleValues(winrt::NativeScript::Mason::IMasonElement const& element);
         winrt::Windows::Storage::Streams::IBuffer ForeignStyleValues(winrt::Microsoft::UI::Xaml::UIElement const& element);
         void SyncForeignStyle(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t d0, int32_t d1, int32_t d2, int32_t d3);
+        winrt::com_array<uint8_t> ReadPseudoStyleValues(winrt::NativeScript::Mason::Node const& node, uint32_t flags);
+        void WritePseudoStyleValues(winrt::NativeScript::Mason::Node const& node, uint32_t flags, winrt::array_view<uint8_t const> values);
         void ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index);
         void RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child);
         void SetPercentWidth(winrt::Microsoft::UI::Xaml::UIElement const& element, float fraction);

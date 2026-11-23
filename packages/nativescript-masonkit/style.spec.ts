@@ -4,7 +4,8 @@ import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { styleKey } from '../../tools/testing/mason-test-kit/style-keys';
 import { setCssUnitContext } from './units';
 import { style_ } from './symbols';
-import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseCornerShape, parseLinearGradientCss, parseRadialGradientCss, parseTextDecoration, refreshViewportUnits, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
+import { parseTouchAction } from './properties';
+import { DECORATION_COLOR_UNSET, isSideList, parseBorderRadiusShorthand, parseTextDecoration, refreshViewportUnits, parseTextDecorationLine, parseTransformOrigin, textDecorationLineToCss } from './style';
 
 // The unit contract these tests encode:
 //
@@ -193,7 +194,63 @@ describe('scale invariance', () => {
   });
 });
 
+it('keeps fit-content lengths and percentage limits when reading them back', () => {
+  setScreenScale(2);
+  setCssUnitContext({ rootFontSize: 16 });
+  const { style, getInt8, getFloat32 } = styleUnderTest();
+  style.width = 'fit-content(calc(1rem + 2px))';
+  style.height = 'fit-content(calc(50% - 25%))';
+  expect(getInt8(styleKey('WIDTH_TYPE'))).toBe(6);
+  expect(getFloat32(styleKey('WIDTH_VALUE'))).toBe(36);
+  expect(getInt8(styleKey('HEIGHT_TYPE'))).toBe(7);
+  expect(getFloat32(styleKey('HEIGHT_VALUE'))).toBe(0.25);
+  expect(style.width).toBe('fit-content(18px)');
+  expect(style.height).toBe('fit-content(25%)');
+});
+
 describe('get/set round-trips in CSS pixels', () => {
+  it('reads text overflow with a custom ellipsis token as ellipsis', () => {
+    const t = styleUnderTest();
+    const overflow = styleKey('TEXT_OVERFLOW');
+    t.view.setUint8(overflow, 2);
+    expect(t.style.textOverflow).toBe('ellipsis');
+    t.style.textOverflow = 'ellipsis';
+    expect(t.getUint8(overflow)).toBe(1);
+  });
+
+  it('round-trips display with the layout engine’s base and mode bytes', () => {
+    const t = styleUnderTest();
+    const display = styleKey('DISPLAY');
+    const mode = styleKey('DISPLAY_MODE');
+    for (const [value, base, modifier] of [
+      ['none', 0, 0], ['flex', 1, 0], ['grid', 2, 0], ['block', 3, 0],
+      ['inline', 1, 1], ['inline-block', 3, 2], ['inline-flex', 1, 2], ['inline-grid', 2, 2],
+    ] as const) {
+      t.style.display = value;
+      expect([t.getUint8(display), t.getUint8(mode)]).toEqual([base, modifier]);
+      expect(t.style.display).toBe(value);
+    }
+    t.view.setUint8(display, 3);
+    t.view.setUint8(mode, 1);
+    expect(t.style.display).toBe('inline');
+  });
+
+  it('round-trips vertical alignment without touching the next ABI field', () => {
+    setScreenScale(2);
+    const t = styleUnderTest();
+    const baseline = styleKey('FIRST_BASELINE_OFFSET');
+    t.view.setFloat32(baseline, 18, true);
+    t.style.verticalAlign = 'sub';
+    expect(t.style.verticalAlign).toBe('sub');
+    expect(t.getUint8(styleKey('VERTICAL_ALIGN_ENUM_OFFSET'))).toBe(6);
+    t.style.verticalAlign = '-2px';
+    expect(t.style.verticalAlign).toBe('-2px');
+    expect(t.getFloat32(styleKey('VERTICAL_ALIGN_OFFSET_OFFSET'))).toBe(-4);
+    t.style.verticalAlign = '25%';
+    expect(t.style.verticalAlign).toBe('25%');
+    expect(t.getFloat32(baseline)).toBe(18);
+  });
+
   // The buffer stores device pixels, but the public unit is the CSS pixel in
   // both directions — otherwise reading a value and writing it back would
   // multiply it by the screen scale each time.
@@ -388,29 +445,6 @@ describe('Windows border-radius parsing', () => {
   });
 });
 
-describe('Windows corner-shape parsing', () => {
-  it('maps keywords to their CSS superellipse parameter', () => {
-    expect(parseCornerShape('round')).toEqual([1, 1, 1, 1]);
-    expect(parseCornerShape('squircle')).toEqual([2, 2, 2, 2]);
-    expect(parseCornerShape('bevel scoop')).toEqual([0, -1, 0, -1]);
-    expect(parseCornerShape('notch square round')).toEqual([-Infinity, Infinity, 1, Infinity]);
-    expect(parseCornerShape('round bevel scoop squircle')).toEqual([1, 0, -1, 2]);
-  });
-
-  it('takes any number or infinity in superellipse()', () => {
-    expect(parseCornerShape('superellipse(1.5)')).toEqual([1.5, 1.5, 1.5, 1.5]);
-    expect(parseCornerShape('superellipse(-2) superellipse(infinity)')).toEqual([-2, Infinity, -2, Infinity]);
-    expect(parseCornerShape('superellipse(-infinity)')).toEqual([-Infinity, -Infinity, -Infinity, -Infinity]);
-  });
-
-  it('rejects unknown tokens', () => {
-    expect(parseCornerShape('superellipse')).toBeNull();
-    expect(parseCornerShape('superellipse(nan)')).toBeNull();
-    expect(parseCornerShape('round wobbly')).toBeNull();
-    expect(parseCornerShape('round round round round round')).toBeNull();
-  });
-});
-
 describe('Windows CSS-string shorthands', () => {
   // `__WINDOWS__` is compiled out here, so these call the handler setPseudoCssStringValue routes to.
   const apply = (t: StyleUnderTest, name: string, value: string) => (t.style as any).applyWindowsCssString(name, value);
@@ -463,6 +497,13 @@ describe('Windows CSS-string shorthands', () => {
     expect(t.getFloat32(K.BORDER_TOP_VALUE)).toBe(8);
   });
 
+  it('applies both axes of an elliptical border radius in DIPs', () => {
+    const t = styleUnderTest();
+    apply(t, 'border-radius', '8px / 2px');
+    expect(t.getFloat32(K.BORDER_RADIUS_TOP_LEFT_X_VALUE)).toBe(8);
+    expect(t.getFloat32(K.BORDER_RADIUS_TOP_LEFT_Y_VALUE)).toBe(2);
+  });
+
   it('writes the text-decoration shorthand and resets omitted longhands', () => {
     const t = styleUnderTest();
     apply(t, 'text-decoration-style', 'wavy');
@@ -478,6 +519,11 @@ describe('Windows CSS-string shorthands', () => {
     apply(t, 'text-decoration', 'overline dotted');
     apply(t, 'text-decoration-line', 'none');
     expect(t.getUint8(K.DECORATION_LINE)).toBe(0);
+    expect(t.getUint8(K.DECORATION_STYLE)).toBe(2);
+    apply(t, 'text-decoration-thickness', '3px');
+    expect(t.getFloat32(K.DECORATION_THICKNESS)).toBe(3);
+    apply(t, 'text-decoration-thickness', 'from-font');
+    expect(t.getFloat32(K.DECORATION_THICKNESS)).toBe(0);
     expect(t.getUint8(K.DECORATION_STYLE)).toBe(2);
   });
 
@@ -559,54 +605,6 @@ describe('text-decoration parsing', () => {
   });
 });
 
-describe('gradient length stops', () => {
-  it('keeps a length position apart and places that stop as if it had none', () => {
-    const g = parseLinearGradientCss('repeating-linear-gradient(0deg, red 0px 20px, transparent 20px 40px)')!;
-    expect(g.lengths).toEqual([0, 20, 20, 40]);
-    expect(g.positions).toEqual([null, null, null, null]);
-    expect(g.offsets).toEqual([0, 1 / 3, 2 / 3, 1]);
-    expect(parseLinearGradientCss('linear-gradient(red 10%, blue)')!.lengths).toBeUndefined();
-  });
-
-  it('marks a radial circle with its size keyword or radius', () => {
-    expect(parseRadialGradientCss('radial-gradient(circle, red, blue)')!.circle).toBe(3);
-    expect(parseRadialGradientCss('radial-gradient(circle closest-side at 20% 30%, red, blue)')!.circle).toBe(0);
-    expect(parseRadialGradientCss('radial-gradient(circle 20px, red, blue)')!.circleRadius).toBe(20);
-    expect(parseRadialGradientCss('radial-gradient(red, blue)')!.circle).toBeUndefined();
-    expect(parseRadialGradientCss('radial-gradient(ellipse at top, red, blue)')!.circle).toBeUndefined();
-  });
-});
-
-describe('parseLinearGradientCss', () => {
-  it('separates the interpolation method from the direction', () => {
-    const g = parseLinearGradientCss('linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)');
-    expect(g?.angle).toBe(135);
-    expect(g?.interpolation).toBe('oklab');
-    expect(g?.colors.length).toBe(2);
-    expect(g?.offsets).toEqual([0, 1]);
-  });
-
-  it('accepts the method before the direction, alone, or with a hue method', () => {
-    expect(parseLinearGradientCss('linear-gradient(in oklch to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: 'oklch' });
-    expect(parseLinearGradientCss('linear-gradient(in oklab, #f00, #00f)')).toMatchObject({ angle: 180, interpolation: 'oklab' });
-    const hue = parseLinearGradientCss('linear-gradient(90deg in oklch longer hue, #f00, #00f)');
-    expect(hue).toMatchObject({ angle: 90, interpolation: 'oklch longer hue' });
-    expect(hue?.colors.length).toBe(2);
-  });
-
-  it('leaves gradients without a method interpolating in sRGB', () => {
-    expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')).toMatchObject({ angle: 90, interpolation: '' });
-  });
-
-  it('reports corner keywords, whose line depends on the box', () => {
-    expect(parseLinearGradientCss('linear-gradient(to bottom right, #f00, #00f)')?.corner).toEqual([1, 1]);
-    expect(parseLinearGradientCss('linear-gradient(to left top in oklab, #f00, #00f)')?.corner).toEqual([-1, -1]);
-    expect(parseLinearGradientCss('linear-gradient(to top right, #f00, #00f)')?.corner).toEqual([1, -1]);
-    expect(parseLinearGradientCss('linear-gradient(to right, #f00, #00f)')?.corner).toBeUndefined();
-    expect(parseLinearGradientCss('linear-gradient(135deg, #f00, #00f)')?.corner).toBeUndefined();
-  });
-});
-
 describe('text-orientation', () => {
   it.each([
     ['mixed', 0, 'mixed'],
@@ -647,6 +645,25 @@ describe('text-combine-upright', () => {
     const t = styleUnderTest();
     assign(t, 'textCombineUpright', input);
     expect(t.getUint8(K.TEXT_COMBINE_UPRIGHT_STATE)).toBe(0);
+  });
+});
+
+describe('shared CSS value decoding', () => {
+  it('writes every side from one parsed border-style value', () => {
+    const t = styleUnderTest();
+    assign(t, 'borderStyle', 'SOLID /* sides */ dashed dotted');
+    expect(t.getUint8(K.BORDER_TOP_STYLE)).toBe(4);
+    expect(t.getUint8(K.BORDER_RIGHT_STYLE)).toBe(3);
+    expect(t.getUint8(K.BORDER_BOTTOM_STYLE)).toBe(2);
+    expect(t.getUint8(K.BORDER_LEFT_STYLE)).toBe(3);
+    assign(t, 'borderStyle', 'solid invalid');
+    expect(t.getUint8(K.BORDER_BOTTOM_STYLE)).toBe(2);
+  });
+
+  it('reads the touch flags returned by the shared parser', () => {
+    expect(parseTouchAction('pan-x /* y */ pan-up pinch-zoom')).toBe(7);
+    expect(parseTouchAction('auto pan-left unknown')).toBe(1);
+    expect(parseTouchAction('none')).toBe(0);
   });
 });
 
@@ -702,11 +719,43 @@ describe('text-indent', () => {
   });
 });
 
+it('projects resolved font size, line height, letter spacing, and stretch to the text buffer', () => {
+  setScreenScale(2);
+  const t = styleUnderTest();
+  assign(t, 'fontSize', '20px');
+  assign(t, 'lineHeight', '150%');
+  assign(t, 'letterSpacing', '0.25em');
+  assign(t, 'fontStretch', '113.25%');
+  expect(t.getFloat32(K.LINE_HEIGHT)).toBe(30);
+  expect(t.getUint8(K.LINE_HEIGHT_TYPE)).toBe(1);
+  expect(t.getFloat32(K.LETTER_SPACING)).toBe(10);
+  expect((t.style as any).fontStretch).toBe('113.25%');
+});
+
+it('writes both font style and slant and projects word spacing by type', () => {
+  setScreenScale(2);
+  const t = styleUnderTest();
+  assign(t, 'fontStyle', 'oblique -0.125turn');
+  expect(t.getUint8(K.FONT_STYLE_TYPE)).toBe(2);
+  expect(t.getInt32(K.FONT_STYLE_SLANT)).toBe(-45);
+  assign(t, 'fontStyle', 'italic');
+  expect(t.getInt32(K.FONT_STYLE_SLANT)).toBe(0);
+  assign(t, 'wordSpacing', '25%');
+  expect(t.getUint8(K.WORD_SPACING_TYPE)).toBe(1);
+  expect(t.getFloat32(K.WORD_SPACING)).toBe(25);
+  assign(t, 'wordSpacing', '4px');
+  expect(t.getUint8(K.WORD_SPACING_TYPE)).toBe(0);
+  expect(t.getFloat32(K.WORD_SPACING)).toBe(8);
+});
+
 describe('line-clamp', () => {
   it.each([
     ['lineClamp', 3, 3],
     ['lineClamp', '2', 2],
+    ['lineClamp', '3.8', 3],
+    ['lineClamp', '2147483647', 2147483647],
     ['line-clamp', 'none', 0],
+    ['line-clamp', 'NONE', 0],
     ['-webkit-line-clamp', '4', 4],
   ])('%s = %j', (prop, input, lines) => {
     const t = styleUnderTest();
@@ -716,7 +765,7 @@ describe('line-clamp', () => {
     expect((t.style as any).lineClamp).toBe(lines || 'none');
   });
 
-  it.each(['-1', 'bananas'])('ignores %s', (input) => {
+  it.each(['-1', 'bananas', '3px', '2147483648', 2147483648])('ignores %s', (input) => {
     const t = styleUnderTest();
     assign(t, 'lineClamp', input);
     expect(t.getUint8(K.LINE_CLAMP_STATE)).toBe(0);
@@ -750,6 +799,17 @@ describe('transform-origin', () => {
     expect(t.getFloat32(K.TRANSFORM_ORIGIN_X_VALUE)).toBe(20);
     expect((t.style as any).transformOrigin).toBe('10px 20%');
   });
+});
+
+it('stores object-position lengths in CSS pixels and vertical keywords on the y axis', () => {
+  setScreenScale(2);
+  const t = styleUnderTest();
+  assign(t, 'objectPosition', '10px 20%');
+  expect(t.getFloat32(K.OBJECT_POSITION_X_VALUE)).toBe(10);
+  expect((t.style as any).objectPosition).toBe('10px 20%');
+  assign(t, 'objectPosition', 'top');
+  assign(t, 'objectPosition', 'left right');
+  expect((t.style as any).objectPosition).toBe('50% 0%');
 });
 
 describe('em resolves against the font size CSS would compute', () => {
@@ -789,6 +849,15 @@ describe('em resolves against the font size CSS would compute', () => {
     expect(leaf.getFloat32(K.PADDING_TOP_VALUE)).toBeCloseTo(24, 3);
   });
 
+  it('uses the parent font size when a calculation mixes a percentage and an absolute length', () => {
+    const parent = styleUnderTest();
+    parent.style.fontSize = 20;
+    const child = linked(parent);
+    child.style.fontSize = 'calc(125% + 5px)';
+    expect(child.getFloat32(K.FONT_SIZE)).toBe(30);
+    expect(child.getUint8(K.FONT_SIZE_TYPE)).toBe(0);
+  });
+
   it('with no font size of its own, the element inherits one', () => {
     const parent = styleUnderTest();
     parent.style.fontSize = 24 as never;
@@ -825,6 +894,19 @@ describe('flex-wrap', () => {
   });
 });
 
+describe('overflow', () => {
+  it('round-trips auto on both axes and clip on the horizontal axis', () => {
+    const t = styleUnderTest();
+    t.style.overflow = 'auto';
+    expect(t.getUint8(K.OVERFLOW_X)).toBe(4);
+    expect(t.getUint8(K.OVERFLOW_Y)).toBe(4);
+    expect(t.style.overflow).toBe('auto');
+    t.style.overflowX = 'clip';
+    expect(t.getUint8(K.OVERFLOW_X)).toBe(3);
+    expect(t.style.overflow).toBe('clip auto');
+  });
+});
+
 describe('text-align', () => {
   it('writes one byte, leaving text-justify alone', () => {
     const t = styleUnderTest();
@@ -836,6 +918,15 @@ describe('text-align', () => {
     expect(t.getInt8(K.TEXT_JUSTIFY_STATE)).toBe(justifyState);
     expect(t.getInt8(K.TEXT_ALIGN_STATE)).toBe(1);
     expect((t.style as any).textAlignment).toBe('center');
+  });
+
+  it('uses the signed text-justify code and ignores invalid keywords', () => {
+    const t = styleUnderTest();
+    assign(t, 'textJustify', 'NONE');
+    expect(t.getInt8(K.TEXT_JUSTIFY)).toBe(-1);
+    expect(t.style.textJustify).toBe('none');
+    assign(t, 'textJustify', 'unknown');
+    expect(t.style.textJustify).toBe('none');
   });
 });
 

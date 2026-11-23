@@ -64,6 +64,12 @@ void mason_gtk_list_set_ordered(void *element, bool ordered);
 bool mason_gtk_list_ordered(void *element);
 
 void mason_gtk_update_grid(void *element, const char *auto_rows, const char *auto_columns, const char *column, const char *column_start, const char *column_end, const char *row, const char *row_start, const char *row_end, const char *template_rows, const char *template_columns, const char *area, const char *template_areas);
+const char *mason_gtk_css_expand(const char *name, const char *value);
+const char *mason_gtk_css_parse(const char *value, uint8_t kind, float scale, float font, float root, float width, float height);
+void mason_gtk_set_grid_css(void *element, uint8_t property, const char *value, float font, float root, float width, float height);
+bool mason_gtk_css_layout_length(void *element, const char *property, const char *value, float font, float root, float width, float height);
+const char *mason_gtk_css_layout_length_value(void *element, const char *property);
+void mason_gtk_css_transform(void *element, const char *value, float box_width, float box_height, float font, float root, float width, float height);
 const char *mason_gtk_grid_css(void *element, int32_t which);
 
 void mason_gtk_text_set_content(void *element, const char *value);
@@ -103,6 +109,8 @@ int32_t mason_gtk_input_int(void *element, int32_t which);
 void mason_gtk_input_set_placeholder_color(void *element, uint32_t argb, bool clear);
 void mason_gtk_input_focus(void *element);
 
+const char *mason_gtk_css_effects(void *element, const char *payload, float font, float root, float width, float height);
+double mason_gtk_css_background(void *element, const char *payload, const char *app_root, float font, float root, float width, float height, uint32_t current_color);
 void mason_gtk_css_clear_background(void *element);
 void mason_gtk_css_linear_gradient(void *element, double angle, int32_t corner_x, int32_t corner_y, const char *stops, const char *interpolation);
 void mason_gtk_css_radial_gradient(void *element, double center_x, double center_y, double radius_x, double radius_y, const char *stops, const char *interpolation);
@@ -110,6 +118,7 @@ void mason_gtk_css_background_image(void *element, const char *source, int32_t f
 void mason_gtk_css_set_layers(void *element, const char *spec);
 void mason_gtk_css_set_box_shadow(void *element, const char *spec);
 void mason_gtk_css_set_filter(void *element, const char *spec, bool backdrop);
+void mason_gtk_css_apply_mask(void *element, int32_t which, const char *payload);
 void mason_gtk_css_set_mask(void *element, int32_t which, const char *spec);
 void mason_gtk_css_set_transforms(void *element, double scale_x, double scale_y, double angle, double translate_x, double translate_y, double origin_x, double origin_y);
 void mason_gtk_css_apply_transform(void *element, double m11, double m12, double m21, double m22, double dx, double dy);

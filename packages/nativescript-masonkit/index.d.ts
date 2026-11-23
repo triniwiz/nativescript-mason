@@ -11,9 +11,11 @@ export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url'
  * device pixel; note this differs from `@nativescript/core`, where `px` itself
  * means a device pixel.
  */
-export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip` | `${number}dppx`;
+export type CssMathLength = `${'calc' | 'min' | 'max' | 'clamp'}(${string})`;
 
-export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip` | `${number}dppx`;
+export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip` | `${number}dppx` | CssMathLength;
+
+export type LengthAuto = Length | 'auto';
 
 export type DimensionKeyword = 'min-content' | 'max-content' | 'fit-content' | 'stretch' | 'content' | `fit-content(${string})`;
 

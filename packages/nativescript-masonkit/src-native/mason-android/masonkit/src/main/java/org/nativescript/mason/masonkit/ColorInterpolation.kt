@@ -41,25 +41,18 @@ data class ColorInterpolation(val space: Space, val hue: HueMethod = HueMethod.S
   enum class HueMethod { SHORTER, LONGER, INCREASING, DECREASING }
 
   companion object {
-    private val WHITESPACE = Regex("\\s+")
+    internal fun fromRust(space: String, hue: String): ColorInterpolation {
+      val method = HueMethod.entries.firstOrNull { it.name.equals(hue, ignoreCase = true) }
+      return ColorInterpolation(Space.parse(space) ?: Space.SRGB, method ?: HueMethod.SHORTER)
+    }
 
     /** Splits the method from a gradient's first argument: (the rest, the method), or null. */
     fun extract(first: String): Pair<String, ColorInterpolation>? {
-      val tokens = first.trim().split(WHITESPACE).filter { it.isNotEmpty() }.toMutableList()
-      val at = tokens.indexOfFirst { it.equals("in", ignoreCase = true) }
-      if (at < 0 || at + 1 >= tokens.size) return null
-      // Unknown spaces fall back to sRGB instead of dropping the gradient.
-      val space = Space.parse(tokens[at + 1]) ?: Space.SRGB
-      var consumed = 2
-      var hue = HueMethod.SHORTER
-      if (at + 3 < tokens.size && tokens[at + 3].equals("hue", ignoreCase = true)) {
-        HueMethod.entries.firstOrNull { it.name.equals(tokens[at + 2], ignoreCase = true) }?.let {
-          hue = it
-          consumed = 4
-        }
-      }
-      repeat(consumed) { tokens.removeAt(at) }
-      return tokens.joinToString(" ") to ColorInterpolation(space, hue)
+      val fields = Mason.expandCssShorthand("gradient-interpolation", first) ?: return null
+      if (fields.size != GradientInterpolationRecord.STRIDE) return null
+      return fields[GradientInterpolationRecord.DIRECTION] to fromRust(
+        fields[GradientInterpolationRecord.SPACE], fields[GradientInterpolationRecord.HUE]
+      )
     }
   }
 }

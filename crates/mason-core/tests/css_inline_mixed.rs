@@ -41,6 +41,72 @@ fn approx(a: f32, b: f32) -> bool {
 }
 
 #[test]
+fn mixed_width_math_uses_the_containing_width_each_layout() {
+    use mason_core::style::css::LengthContext;
+    use taffy::{Dimension, FlexDirection};
+
+    let mut mason = Mason::new();
+    let parent = mason.create_node();
+    let child = mason.create_node();
+    mason.with_style_mut(parent.id(), |style| {
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::Column);
+        style.set_width(Dimension::length(1206.));
+    });
+    mason.with_style_mut(child.id(), |style| {
+        let context = LengthContext {
+            scale: 3., font_size: 16., root_font_size: 16., viewport_width: 402., viewport_height: 800.,
+        };
+        assert!(style.set_css_layout_length("width", "clamp(12px, calc(100% - 24px), 400px)", context));
+        style.set_height(Dimension::length(240.));
+    });
+    mason.append_node(parent.id(), &[child.id()]);
+    mason.compute_wh(parent.id(), 1206., 1200.);
+    assert!(approx(mason.layout_raw(child.id()).size.width, 1134.));
+
+    mason.with_style_mut(parent.id(), |style| style.set_width(Dimension::length(960.)));
+    mason.compute_wh(parent.id(), 960., 1200.);
+    assert!(approx(mason.layout_raw(child.id()).size.width, 888.));
+
+    mason.with_style_mut(child.id(), |style| style.set_width(Dimension::length(150.)));
+    mason.compute_wh(parent.id(), 960., 1200.);
+    assert!(approx(mason.layout_raw(child.id()).size.width, 150.));
+}
+
+#[test]
+fn pseudo_layout_math_overrides_one_property_and_recomputes_while_active() {
+    use mason_core::style::css::LengthContext;
+    use taffy::{Dimension, FlexDirection};
+
+    let mut mason = Mason::new();
+    let parent_node = mason.create_node();
+    let child_node = mason.create_node();
+    let (parent, child) = (parent_node.id(), child_node.id());
+    mason.with_style_mut(parent, |style| {
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::Column);
+        style.set_width(Dimension::length(120.));
+    });
+    mason.append_node(parent, &[child]);
+    let context = LengthContext { scale: 1., font_size: 16., root_font_size: 16., viewport_width: 120., viewport_height: 200. };
+    assert!(mason.set_node_css_layout_length(child, 0, "width", "calc(100% - 20px)", context));
+    assert!(mason.set_node_css_layout_length(child, 1, "inline-size", "calc(50% + 10px)", context));
+    mason.with_style_mut(child, |style| style.set_height(Dimension::length(32.)));
+    mason.compute_wh(parent, 120., 200.);
+    assert_eq!(mason.layout_raw(child).size.width, 100.);
+    mason.set_pseudo_states(child, 1);
+    mason.compute_wh(parent, 120., 200.);
+    assert_eq!(mason.layout_raw(child).size.width, 70.);
+    assert_eq!(mason.layout_raw(child).size.height, 32.);
+    assert!(mason.set_node_css_layout_length(child, 1, "width", "calc(50% + 20px)", context));
+    mason.compute_wh(parent, 120., 200.);
+    assert_eq!(mason.layout_raw(child).size.width, 80.);
+    mason.set_pseudo_states(child, 0);
+    mason.compute_wh(parent, 120., 200.);
+    assert_eq!(mason.layout_raw(child).size.width, 100.);
+}
+
+#[test]
 fn mixed_block_child_uses_parent_content_width() {
     let mut mason = Mason::new();
 

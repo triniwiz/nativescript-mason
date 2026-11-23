@@ -989,10 +989,12 @@ impl Mason {
 
     /// Set the pseudo-state bitmask for a node and mark it dirty.
     pub fn set_pseudo_states(&mut self, node: Id, flags: u16) {
-        if let Some(node) = self.0.nodes_mut().get_mut(node) {
-            node.set_pseudo_states(crate::node::PseudoStates::from_bits_truncate(flags));
-            node.mark_dirty();
+        {
+            let mut nodes = self.0.nodes_mut();
+            let Some(style_node) = nodes.get_mut(node) else { return };
+            style_node.set_pseudo_states(crate::node::PseudoStates::from_bits_truncate(flags));
         }
+        self.mark_dirty(node);
     }
 
     /// Read the pseudo-state bitmask for a node.
@@ -1039,6 +1041,168 @@ impl Mason {
         F: FnOnce(&mut Style),
     {
         self.0.with_style_mut(node, func)
+    }
+
+    /// Stores a layout expression on the base style or a single pseudo style.
+    pub fn set_node_css_layout_length(
+        &mut self, node: Id, flags: u16, property: &str, value: &str,
+        context: style::css::LengthContext,
+    ) -> bool {
+        let mut applied = false;
+        let apply = |style: &mut Style| {
+            let context = style::css::LengthContext { scale: style.get_device_scale(), ..context };
+            applied = style.set_css_layout_length_in_state(property, value, context, flags != 0);
+        };
+        if flags == 0 {
+            self.with_style_mut(node, apply);
+        } else {
+            self.with_pseudo_style_mut(node, flags, apply);
+            if applied {
+                self.0.inner_mut().pseudo_layout_nodes.insert(node, ());
+                if self.get_pseudo_states(node) & flags != 0 {
+                    self.mark_dirty(node);
+                }
+            }
+        }
+        applied
+    }
+
+    pub fn node_css_layout_length(&self, node: Id, flags: u16, property: &str) -> Option<String> {
+        let nodes = self.0.nodes();
+        let node = nodes.get(node)?;
+        let style = if flags == 0 { node.style() } else { node.pseudo_styles.as_ref()?.resolve(flags)? };
+        style.css_layout_length(property)
+    }
+
+    /// Paint-only writes need the style slot's COW discipline, but leave layout caches alone.
+    pub fn set_style_css_records(
+        &mut self,
+        id: Id,
+        kind: style::css::StyleRecordKind,
+        records: std::sync::Arc<[f64]>,
+    ) -> Option<std::sync::Arc<[f64]>> {
+        let mut nodes = self.0.nodes_mut();
+        let style = nodes.get_mut(id)?.inner_style_mut();
+        style.set_css_records(kind, records);
+        style.css_records(kind)
+    }
+
+    pub fn set_style_css_effects(&mut self, id: Id, effects: &style::css::EffectBatch) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            let style = node.inner_style_mut();
+            for (kind, effect) in effects.iter() {
+                style.set_css_records(kind, std::sync::Arc::clone(&effect.records));
+            }
+        }
+    }
+
+    pub fn set_style_css_background(
+        &mut self,
+        id: Id,
+        layers: std::sync::Arc<[style::css::background::Layer]>,
+    ) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_css_background(layers);
+        }
+    }
+
+    pub fn set_style_css_transform(
+        &mut self,
+        id: Id,
+        transform: Option<std::sync::Arc<style::css::transform::TransformProgram>>,
+    ) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_css_transform(transform);
+        }
+    }
+
+    pub fn set_style_css_clip_path(
+        &mut self,
+        id: Id,
+        clip: Option<std::sync::Arc<style::css::clip_path::ClipPath>>,
+    ) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_css_clip_path(clip);
+        }
+    }
+
+    pub fn set_style_css_mask(
+        &mut self,
+        id: Id,
+        mask: Option<std::sync::Arc<[style::css::mask::MaskLayer]>>,
+    ) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_css_mask(mask);
+        }
+    }
+
+    pub fn set_style_css_nine_slice(
+        &mut self,
+        id: Id,
+        kind: style::css::nine_slice::Kind,
+        value: Option<std::sync::Arc<style::css::nine_slice::NineSlice>>,
+    ) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_css_nine_slice(kind, value);
+        }
+    }
+
+    pub fn set_style_text_overflow(&mut self, id: Id, overflow: style::css::text_overflow::TextOverflow) {
+        if let Some(node) = self.0.nodes_mut().get_mut(id) {
+            node.inner_style_mut().set_text_overflow(overflow);
+        }
+    }
+
+    /// Install the last CSS write for each node and record group after layout
+    /// releases the tree lock. Nodes removed in the meantime are skipped.
+    pub fn flush_style_css_records(&mut self) {
+        let pending = std::mem::take(&mut *self.0.1.style_records.lock());
+        if pending.lists.is_empty()
+            && pending.backgrounds.is_empty()
+            && pending.transforms.is_empty()
+            && pending.clip_paths.is_empty()
+            && pending.masks.is_empty()
+            && pending.nine_slices.is_empty()
+            && pending.text_overflows.is_empty()
+        {
+            return;
+        }
+        let mut nodes = self.0.nodes_mut();
+        for ((id, kind), records) in pending.lists {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_records(kind, records);
+            }
+        }
+        for (id, layers) in pending.backgrounds {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_background(layers);
+            }
+        }
+        for (id, transform) in pending.transforms {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_transform(transform);
+            }
+        }
+        for (id, clip) in pending.clip_paths {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_clip_path(clip);
+            }
+        }
+        for (id, mask) in pending.masks {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_mask(mask);
+            }
+        }
+        for ((id, kind), value) in pending.nine_slices {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_css_nine_slice(kind, value);
+            }
+        }
+        for (id, overflow) in pending.text_overflows {
+            if let Some(node) = nodes.get_mut(id) {
+                node.inner_style_mut().set_text_overflow(overflow);
+            }
+        }
     }
 
     /// Prepare and invoke `func` on a mutable pseudo `Style` for `node` matching `flags`.

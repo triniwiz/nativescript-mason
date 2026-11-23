@@ -45,10 +45,10 @@ internal class GC(val mason: Mason) {
   }
 
   private class NativePhantomReference(
-    referent: NativeObject,
+    referent: Any,
     val release: () -> Unit,
     queue: ReferenceQueue<Any>
-  ) : PhantomReference<NativeObject>(referent, queue)
+  ) : PhantomReference<Any>(referent, queue)
 
   private val phantomRefs by lazy {
     Collections.synchronizedSet(mutableSetOf<PhantomReference<*>>())
@@ -77,46 +77,24 @@ internal class GC(val mason: Mason) {
     }
     val measureSlot = (native as? Node)?.measureSlot
 
-    if (Build.VERSION.SDK_INT >= 33) {
-      cleaner.register(native) {
-        when (type) {
-          NativeObjectType.Node -> {
-            if (nativePtr != 0L) {
-              NativeHelpers.nativeNodeDestroy(nativePtr)
-              mason.nodes.remove(nativePtr)
-              if (objectId != -1) {
-                ObjectManager.shared.remove(objectId)
-              }
-              measureSlot?.let { releaseMeasure(it) }
-            }
-          }
-
-          else -> {}
+    track(native) {
+      if (type == NativeObjectType.Node && nativePtr != 0L) {
+        NativeHelpers.nativeNodeDestroy(nativePtr)
+        mason.nodes.remove(nativePtr)
+        if (objectId != -1) {
+          ObjectManager.shared.remove(objectId)
         }
+        measureSlot?.let { releaseMeasure(it) }
       }
-      return
     }
+  }
 
-    phantomRefs.add(
-      NativePhantomReference(
-        native, {
-          when (type) {
-            NativeObjectType.Node -> {
-              if (nativePtr != 0L) {
-                NativeHelpers.nativeNodeDestroy(nativePtr)
-                mason.nodes.remove(nativePtr)
-                if (objectId != -1) {
-                  ObjectManager.shared.remove(objectId)
-                }
-                measureSlot?.let { releaseMeasure(it) }
-              }
-            }
-
-            else -> {}
-          }
-        }, queue
-      )
-    )
+  fun track(referent: Any, release: () -> Unit) {
+    if (Build.VERSION.SDK_INT >= 33) {
+      cleaner.register(referent, release)
+    } else {
+      phantomRefs.add(NativePhantomReference(referent, release, queue))
+    }
   }
 
   private fun drainImmediate() {

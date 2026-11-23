@@ -5,6 +5,7 @@
 #include <winrt/Windows.UI.Text.h>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace mason_atlas
@@ -66,6 +67,9 @@ namespace winrt::NativeScript::Mason::implementation
         void FontSize(double value);
         void SetFontFamily(hstring const& families);
         void SetTextShadow(hstring const& shadows);
+        void SetTextShadowCss(hstring const& value, float fontSize, float rootFontSize, float viewportWidth,
+            float viewportHeight, uint32_t currentColor);
+        void ApplyTextShadowRecords(double const* values, size_t len);
         void SetFontFeatureSettings(hstring const& value);
         static hstring Transformed(hstring const& text, uint8_t transform);
         static hstring ResolveFontFamily(hstring const& families);
@@ -130,7 +134,7 @@ namespace winrt::NativeScript::Mason::implementation
             float decorationThickness{ 0.0f };
             int32_t fontStretch{ 0 };
             float wordSpacing{ 0.0f };
-            winrt::hstring features{};
+            mason_dwrite::FontFeatures features;
             uint8_t hyphens{ 0 };
             bool operator==(Resolved const&) const = default;
         };
@@ -405,14 +409,14 @@ namespace winrt::NativeScript::Mason::implementation
         bool m_hasDecorationColor{ false };
         uint32_t m_decorationColor{ 0 };
         float m_decorationThickness{ 0.0f };
+        void UpdateTextShadows(std::vector<mason_dwrite::Shadow> parsed);
         std::vector<mason_dwrite::Shadow> m_shadows;
         int32_t m_fontStretch{ 0 };
         bool m_hasWordSpacing{ false };
         float m_wordSpacing{ 0.0f };
         bool m_hasHyphens{ false };
         uint8_t m_hyphens{ 0 };
-        bool m_hasFeatures{ false };
-        winrt::hstring m_features{};
+        std::optional<mason_dwrite::FontFeatures> m_features;
         bool m_rtl{ false };
         winrt::hstring m_fontFamily{};
         // The CSS family list, resolved again when a font loads.

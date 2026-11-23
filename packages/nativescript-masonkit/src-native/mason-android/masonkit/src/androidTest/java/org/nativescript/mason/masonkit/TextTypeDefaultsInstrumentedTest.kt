@@ -26,6 +26,68 @@ class TextTypeDefaultsInstrumentedTest {
   // Display defaults
 
   @Test
+  fun displayAndTextOverflowReadFromTheStyleBuffer() {
+    val mason = Mason()
+    val style = mason.createNode().style
+    val other = mason.createNode().style
+    for ((display, base, mode) in listOf(
+      Triple(Display.Inline, 3, 1), Triple(Display.InlineBlock, 3, 2),
+      Triple(Display.InlineFlex, 1, 2), Triple(Display.InlineGrid, 2, 2), Triple(Display.ListItem, 3, 3),
+    )) {
+      style.display = display
+      Assert.assertEquals(display, style.display)
+      Assert.assertEquals(base, style.values.get(StyleKeys.DISPLAY).toInt())
+      Assert.assertEquals(mode, style.values.get(StyleKeys.DISPLAY_MODE).toInt())
+    }
+    style.values.put(StyleKeys.VISIBILITY, 2)
+    Assert.assertEquals(Display.None, style.display)
+    Assert.assertTrue(style.hidesView)
+    Assert.assertFalse(other.hidesView)
+
+    style.textOverflow = Styles.TextOverflow.Ellipse
+    Assert.assertTrue(style.textOverflowEllipsis)
+    style.values.put(StyleKeys.TEXT_OVERFLOW, Styles.TextOverflow.Clip.value)
+    Assert.assertEquals(Styles.TextOverflow.Clip, style.textOverflow)
+    Assert.assertFalse(other.textOverflowEllipsis)
+  }
+
+  @Test
+  fun customTextOverflowUsesRustStorageAndClearsOnKeywordWrite() {
+    val mason = Mason()
+    val style = mason.createNode().style
+    val other = mason.createNode().style
+    style.textOverflow = Styles.TextOverflow.custom("…\u0000more")
+    other.textOverflow = Styles.TextOverflow.custom("second")
+    Assert.assertEquals("…\u0000more", style.textOverflow.token)
+    Assert.assertEquals("second", other.textOverflow.token)
+    other.textOverflow = Styles.TextOverflow.ellipse("↪")
+    Assert.assertEquals("…\u0000more", style.textOverflow.token)
+    Assert.assertEquals("↪", other.textOverflow.token)
+
+    mason.inCompute = true
+    style.textOverflow = Styles.TextOverflow.custom("pending")
+    Assert.assertEquals("…\u0000more", style.textOverflow.token)
+    mason.endCompute()
+    Assert.assertEquals("pending", style.textOverflow.token)
+    val key = style.values.getLong(StyleKeys.TEXT_OVERFLOW_TOKEN)
+    Assert.assertNotEquals(0L, key)
+
+    style.values.put(StyleKeys.TEXT_OVERFLOW, 1)
+    style.setStateFromHalves(StateKeys.TEXT_OVERFLOW.low, StateKeys.TEXT_OVERFLOW.high)
+    Assert.assertEquals(Styles.TextOverflow.Ellipse, style.textOverflow)
+    Assert.assertNull(style.textOverflow.token)
+    Assert.assertNull(Mason.nativeTextOverflowToken(key))
+    Assert.assertEquals("↪", other.textOverflow.token)
+
+    val detached = TextNode(mason, "text").style
+    detached.textOverflow = Styles.TextOverflow.custom("detached")
+    val detachedKey = detached.values.getLong(StyleKeys.TEXT_OVERFLOW_TOKEN)
+    Assert.assertEquals("detached", Mason.nativeTextOverflowToken(detachedKey))
+    detached.textOverflow = Styles.TextOverflow.Clip
+    Assert.assertNull(Mason.nativeTextOverflowToken(detachedKey))
+  }
+
+  @Test
   fun blockquoteHasBlockDisplay() {
     val tv = createTextView(TextType.Blockquote)
     Assert.assertEquals("Blockquote should be display: block", Display.Block, tv.style.display)

@@ -573,24 +573,42 @@ Byte offsets (`StyleKeys`) and dirty bits (`StateKeys`) for Rust, Kotlin, Swift,
 TypeScript and the Windows shell are generated from one file,
 `tools/scripts/style-keys/style-keys.schema`. To add a field:
 
-1. Append it to `[style]` (and a bit to `[state]` if it needs its own dirty flag).
-   Never move or resize an existing field.
-2. `npm run gen:style-keys` rewrites the blocks between the `<style-keys:...>`
-   markers in `mod.rs`, `arena.rs`, `Style.kt`, `MasonStyle.swift` and `style.ts`,
-   and the whole of `windows/Mason/StyleKeys.h`.
-3. Write the setter in `style.ts` (straight into the buffer, then `commitState`),
-   register the CSS property in `properties.ts`, and read the bytes natively.
+1. Append it to `[style]` and add a bit to `[state]` if it needs its own dirty flag.
+   Classify the bit under layout or paint in `[state_groups]`. Never move or
+   resize an existing field.
+2. For a fixed-size value, declare the writer fields and dirty bits in `[writes]`
+   and the typed API in `[accessors]`. The generated writer detaches the shared
+   buffer before writing and signals the declared dirty bits.
+3. Add CSS value grammar under `crates/mason-core/src/style/css`. Register the
+   property in `properties.ts` if it is exposed through NativeScript stylesheets.
+4. Run `npm run gen:style-keys` to regenerate the bindings and Windows headers.
 
 `npm run test:keys` (and CI) fail when a generated block is stale or was edited
 by hand. C++ names are `kPascalCase` because Win32 headers define macros such as
 `OVERFLOW`.
 
+## CSS value parsing and storage
+
+NativeScript selects the winning declarations. Rust parses the values and owns
+the variable-length records for backgrounds, gradients, masks and effects. Typed
+Swift and Kotlin bindings still expose the style API. Their renderers read the
+records through native snapshots and use the schema's dirty groups to distinguish
+layout, text and paint updates. Where a TypeScript consumer needs a value before
+it can reach a native view, it runs the same Rust parser through WebAssembly.
+The workspace patch for `@nativescript/core` 9.1.4 lets NativeScript resolve
+`var()` while passing Mason's authored `calc()` expressions through intact.
+Mixed percentages and lengths in sizing, margins, padding, offsets, and gaps
+stay in Rust until layout supplies the reference size. The schema gives each
+physical and logical property its buffer fields and dirty flag.
+An active pseudo-state applies its stored expressions over the current base
+style for layout. Each expression overrides only its own property.
+
 ## CSS property coverage
 
-NativeScript's own CSS engine does the stylesheet work — selectors, classes,
-`@media`, `@keyframes`, `var()`, `calc()`, specificity — and mason plugs into it
-by registering its properties onto core's `Style` (`properties.ts`). So `.css` /
-`.scss` files genuinely cascade onto `<div>`/`<p>`/`<h1>`.
+NativeScript's CSS engine handles selectors, classes, `@media`, `@keyframes`,
+`var()` and specificity. Mason registers its properties on core's `Style`
+(`properties.ts`) so `.css` and `.scss` files cascade onto `<div>`, `<p>` and
+`<h1>`.
 
 **Reserved-but-unwritable keys are the recurring bug shape here.** A `StyleKeys`
 offset exists, the natives read it, and nothing in JS ever writes it — so the
@@ -981,9 +999,10 @@ inline flow, as on the web, so text wraps across element boundaries.
 ## SVG background images
 
 `url("data:image/svg+xml,...")` images (and local `.svg` files) are drawn by a small static-SVG
-reader, one per platform: `SvgParser.kt` / `SvgParser.swift` (pure parsing; `SvgParserTest.kt` /
-`SvgParserTests.swift` mirror each other, keep both in step) plus a renderer in each `Background`
-file. Glyph outlines for `<text>` come from `SvgText.kt` / `SvgText.swift` (Paint / CoreText).
+reader. `SvgParser.kt` and `SvgParser.swift` build the drawing operations using shared Rust
+parsers for CSS values and path data. `SvgParserInstrumentedTest.kt` and `SvgParserTests.swift`
+exercise the native adapters. Glyph outlines for `<text>` come from `SvgText.kt` / `SvgText.swift`
+(Paint / CoreText).
 Windows draws `url()` backgrounds with Direct2D's SVG renderer (see CSS masks (Windows));
 `Css::ApplyBackgroundImage` and WinUI's `SvgImageSource` are the fallback.
 
@@ -1040,7 +1059,7 @@ get the definition's inherited paint set explicitly (`CopyInheritedPaint`).
 (`Mask.swift`), rasterized into a `MasonMaskLayer` installed as `view.layer.mask`, so it
 masks the whole element (background, border, content, children).
 
-- **Layers** are parsed by the background parser and painted with the background painter
+- **Layers** are parsed in Rust and painted with the background painter
   (`Background.drawLayerContent`), so images, SVG data URLs, gradients, size, position,
   repeat and origin behave as for backgrounds. Bottom layer first; `mask-composite` maps
   to source-over / source-out / source-in / xor; `luminance` is luminance x alpha.
@@ -1054,11 +1073,10 @@ masks the whole element (background, border, content, children).
   `Scroll.layoutSubviews` keep the mask layer on the element box (`follow(viewBounds:)`).
 - **Shadows.** The outset `box-shadow` lives in the superview's layer, outside the mask, so
   a masked element hides it (`isMasked`).
-- **Gradients.** The shared gradient code draws `conic-gradient` (thin wedges) and
-  `repeating-*` (stops unrolled across the line), for backgrounds too. Length (`px`) stop
-  positions are not supported.
-- **`url()`** parsing is quote-aware (`findImageURL`) and the layer splitter skips quoted
-  text, so unencoded SVG data URLs containing `(`, `)` or `,` work.
+- **Gradients.** The shared gradient code draws conic and repeating gradients for
+  masks and backgrounds. Rust resolves length-based stops against the gradient's size.
+- **`url()`** parsing in Rust preserves quoted text, including unencoded SVG data URLs
+  containing `(`, `)` or `,`.
 - **Limits.** `mask-clip: no-clip` covers the box plus its children's frames (at most one
   box size past each edge). `url(#id)` references to SVG `<mask>` paint nothing. Hit
   testing ignores the mask but honours `clip-path`.
@@ -1090,9 +1108,9 @@ masks the whole element (background, border, content, children).
 ## CSS masks (Android)
 
 `NodeHelper.get/setMask{Image,Size,Position,Repeat,Origin,Clip,Mode,Composite}` write
-string properties on `Style`; pseudo values go through `Node.setPseudoString` under the
-`mask-*` names. `Mask.kt` turns the longhands into `MaskLayer`s, each holding a
-`BackgroundLayer`, so mask layers are painted by `drawBackground` like backgrounds.
+string properties on `Style`. Pseudo values go through `Node.setPseudoString` under the
+`mask-*` names. Rust parses the longhands and returns a snapshot that `Mask.kt` adapts
+into `MaskLayer`s. The `BackgroundLayer` in each mask layer is painted by `drawBackground`.
 
 - **Hook.** Every Mason view overrides `draw(canvas)` as `beginMask` → `super.draw` →
   `endMask` (one null check without a mask). `beginMask` `saveLayer`s the mask area;
@@ -1109,25 +1127,23 @@ string properties on `Style`; pseudo values go through `Node.setPseudoString` un
 - **Shadows.** The parent skips outset shadows of masked or clip-path'd children
   (`ViewUtils.drawChildrenOutsetShadows`); a masked element draws its own inside the mask
   layer when the mask reaches past the border box.
-- **Gradients.** `drawGradient` handles `conic-gradient` (`SweepGradient` rotated so 0deg
-  is up), `repeating-*` (`repeatGradientStops`) and length stop positions. The background
-  parser produces only linear/radial, so conic and repeating gradients reach masks only.
-- **`url()`** is quote- and escape-aware (`extractCssUrl`) and `splitMaskList` skips quoted
-  text; the background parser's `IMAGE_REGEX` stops at the first `)`.
+- **Gradients.** The shared Rust parser provides linear, radial, conic and repeating
+  gradients for backgrounds and masks. Android paints conic gradients with a
+  `SweepGradient` rotated so 0 degrees is up.
+- **`url()`** parsing in Rust handles quoted text and escapes in backgrounds and masks.
 - **Semantics.** `space`/`round` repeat as `repeat`. A `none` layer is transparent (it
   matters for `subtract`/`intersect`); all-`none` is no mask; an unsupported image
   invalidates the list. The mask applies before a view-level `filter` RenderEffect,
   the reverse of CSS order.
-- Tests: `MaskParsingTest` (JVM), `MaskInstrumentedTest` (pixels, software and HWUI).
+- Tests are in `MaskParsingInstrumentedTest` and `MaskInstrumentedTest`.
 
 ### clip-path, mask-border and border-image (Android)
 
 `NodeHelper.get/set{ClipPath,MaskBorderSource,…,MaskBorderMode}` write `style.clipPath` /
-`style.maskBorder*`; pseudo values arrive through `Node.setPseudoString`. `border-image` is
-one shorthand string, `Style.borderImage`, parsed natively on set. `HTMLParser` splits
-`mask-border` / `-webkit-mask-box-image` itself.
+`style.maskBorder*`. Pseudo values arrive through `Node.setPseudoString`. Rust parses
+`clip-path`, `border-image`, `mask-border` and the `-webkit-mask-box-image` alias.
 
-- **clip-path** (`ClipPath.kt`, pure Kotlin): lengths stay `CssLength` until draw time
+- **clip-path** (`ClipPath.kt`): lengths stay unresolved until draw time
   (`LengthContext.forStyle`). All basic shapes and boxes; `url()` and invalid values are
   `none`. A box alone is its rounded rect; `border-box` reuses
   `BorderRenderer.getOuterClipPath`. The path is cached per size, boxes, radii, font size
@@ -1150,17 +1166,14 @@ one shorthand string, `Style.borderImage`, parsed natively on set. `HTMLParser` 
 - **border-image:** `ViewUtils.render` asks `BorderImage.draw` first; a ready source
   paints the 9-slice (not clipped by border-radius; the outset draws past the box) and
   skips the border styles. `none`, invalid, loading or failed draws the normal border.
-- Tests: `ClipPathParsingTest`, `NineSliceTest` (JVM), `ClipPathInstrumentedTest` (pixels
-  and touch pass-through).
+- Tests are in `ClipPathInstrumentedTest` and `NineSliceInstrumentedTest`.
 
 ## CSS masks (Windows)
 
-Windows parses in TS, as for the rest of its styling: `mask.windows.ts` turns the `mask-*`,
-`clip-path` and `mask-border-*` longhands (gathered once per microtask in
-`Style.scheduleWindowsMask`) into a JSON spec for `Css.SetMask`, `border-image` into one for
-`Css.SetBorderImage`, and a `url()` background into one for `Css.SetBackgroundLayers`. Units,
-colours and gradients are resolved there; `Css.cpp` decodes images (SVG text for Direct2D's
-SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device pixels.
+`mask.windows.ts` packages raw `mask-*`, `clip-path` and `mask-border-*` values for
+`Css.SetMask` once per microtask. It packages `border-image` for `Css.SetBorderImage`.
+`Css.cpp` uses the Rust parser and decodes images through Direct2D's SVG renderer or
+WIC. `CssMask.h` lays out and paints in device pixels.
 
 - **Masks.** Layers composite bottom-up into an alpha surface with D2D composite modes
   (SOURCE_OVER / SOURCE_OUT / SOURCE_IN / XOR; `luminance` is `LuminanceToAlpha`), then the
@@ -1168,8 +1181,7 @@ SVG renderer, rasters through WIC). `CssMask.h` lays out and paints, in device p
   element through a `CompositionMaskBrush` on the sprite that carries `filter` (one sprite
   for both, the source visual hidden as for filters). A mask change repaints the surface in
   place; the sprite is rebuilt only when the mask comes or goes.
-- **Gradients:** linear and radial from the existing TS parsers; conic is parsed in
-  `mask.windows.ts` and drawn as one wedge per degree. `repeating-*` draw as non-repeating.
+- **Gradients** come from Rust. Windows draws conic gradients with wedges.
 - **clip-path:** every basic shape and box. `path()` is drawn by the SVG renderer, so for
   hit testing it counts as its whole box. `Events.cpp` sends a tap outside the shape (on
   the element or an ancestor) to whatever is under it, and `ElementFromPoint` skips it.

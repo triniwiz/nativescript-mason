@@ -42,7 +42,6 @@ import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
-import org.nativescript.mason.masonkit.enums.FontVariantNumeric
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
@@ -333,15 +332,22 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    if (StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC)) {
-      val features = FontVariantNumeric.toFontFeatureSettings(style.resolvedFontVariantNumeric)
-      paint.fontFeatureSettings = features.ifEmpty { null }
+    if (StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC) ||
+      StateKeys.hasFlag(low, high, StateKeys.FONT_FEATURE_SETTINGS)
+    ) {
+      paint.fontFeatureSettings = style.fontFeaturesForPaint.ifEmpty { null }
       dirty = true
     }
 
-    if (StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING)) {
+    val wordSpacingType = style.resolvedWordSpacingType.toInt()
+    if (StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) || (wordSpacingType == 1 && dirty)) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        paint.wordSpacing = style.resolvedWordSpacing
+        paint.wordSpacing = 0f
+        paint.wordSpacing = when (wordSpacingType) {
+          0 -> style.resolvedWordSpacing
+          1 -> paint.measureText(" ") * (style.resolvedWordSpacing / 100f)
+          else -> 0f
+        }
       }
       dirty = true
     }
@@ -458,6 +464,7 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedFontWeight.ordinal.toLong()
     h = h * 1000003 xor style.resolvedFontStyle.hashCode().toLong()
     h = h * 1000003 xor style.resolvedFontVariantNumeric.toLong()
+    h = h * 1000003 xor style.resolvedFontFeatures.hashCode().toLong()
     h = h * 1000003 xor style.resolvedTextWrap.ordinal.toLong()
     h = h * 1000003 xor style.resolvedWhiteSpace.ordinal.toLong()
     h = h * 1000003 xor style.resolvedTextTransform.ordinal.toLong()
@@ -478,7 +485,7 @@ class TextEngine(val container: TextContainer) {
     h = h * 1000003 xor style.resolvedTextIndent.toRawBits().toLong()
     h = h * 1000003 xor (if (style.resolvedTextIndentIsPercent) 1L else 0L)
     h = h * 1000003 xor style.resolvedLineClamp.toLong()
-    h = h * 1000003 xor style.textOverflow.ordinal.toLong()
+    h = h * 1000003 xor style.textOverflowKind.toLong()
     return h
   }
 
@@ -2939,57 +2946,17 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    // Flags that affect text measurement/layout (require full inline-segment recompute).
     @JvmStatic
-    internal fun hasTextLayoutFlags(low: Long, high: Long): Boolean {
-      return (
-        StateKeys.hasFlag(low, high, StateKeys.FONT_SIZE) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_WEIGHT) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_STYLE) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_FAMILY) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_VARIANT_NUMERIC) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_WRAP) ||
-          StateKeys.hasFlag(low, high, StateKeys.WHITE_SPACE) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_TRANSFORM) ||
-          StateKeys.hasFlag(low, high, StateKeys.LETTER_SPACING) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_JUSTIFY) ||
-          StateKeys.hasFlag(low, high, StateKeys.LINE_HEIGHT) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_ALIGN) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_OVERFLOW) ||
-          StateKeys.hasFlag(low, high, StateKeys.WORD_SPACING) ||
-          StateKeys.hasFlag(low, high, StateKeys.WRITING_MODE) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_ORIENTATION) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_COMBINE_UPRIGHT) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_SPACING_TRIM) ||
-          StateKeys.hasFlag(low, high, StateKeys.UNICODE_BIDI) ||
-          StateKeys.hasFlag(low, high, StateKeys.HYPHENS) ||
-          StateKeys.hasFlag(low, high, StateKeys.FONT_STRETCH) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_INDENT) ||
-          StateKeys.hasFlag(low, high, StateKeys.LINE_CLAMP) ||
-          StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_POSITION) ||
-          StateKeys.hasFlag(low, high, StateKeys.LIST_STYLE_TYPE)
-        )
-    }
-
-    // Flags that only affect visual appearance (color, decoration, shadow).
-    // These require span rebuilds but NOT a layout recompute.
-    @JvmStatic
-    internal fun hasTextVisualFlags(low: Long, high: Long): Boolean {
-      return (
-        StateKeys.hasFlag(low, high, StateKeys.FONT_COLOR) ||
-          StateKeys.hasFlag(low, high, StateKeys.DECORATION_LINE) ||
-          StateKeys.hasFlag(low, high, StateKeys.DECORATION_COLOR) ||
-          StateKeys.hasFlag(low, high, StateKeys.DECORATION_STYLE) ||
-          StateKeys.hasFlag(low, high, StateKeys.DECORATION_THICKNESS) ||
-          StateKeys.hasFlag(low, high, StateKeys.BACKGROUND_COLOR) ||
-          StateKeys.hasFlag(low, high, StateKeys.TEXT_SHADOWS)
-        )
-    }
+    internal fun hasTextLayoutFlags(low: Long, high: Long): Boolean =
+      StateKeys.hasFlag(low, high, StateKeys.TEXT_LAYOUT)
 
     @JvmStatic
-    internal fun hasAnyTextFlags(low: Long, high: Long): Boolean {
-      return hasTextLayoutFlags(low, high) || hasTextVisualFlags(low, high)
-    }
+    internal fun hasTextVisualFlags(low: Long, high: Long): Boolean =
+      StateKeys.hasFlag(low, high, StateKeys.TEXT_VISUAL)
+
+    @JvmStatic
+    internal fun hasAnyTextFlags(low: Long, high: Long): Boolean =
+      StateKeys.hasFlag(low, high, StateKeys.ALL_TEXT)
 
     private val pendingTextStyleFlush = HashSet<TextEngine>()
     private var textStyleFlushPosted = false

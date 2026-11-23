@@ -110,5 +110,14 @@ namespace NativeScript.Mason
         String GridRowEndCss{ get; };
         String GridTemplateRowsCss{ get; };
         String GridTemplateColumnsCss{ get; };
+
+        void SetGridCss(Int32 property, String value, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
+        Boolean ApplyLayoutLength(String property, String value, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
+        String LayoutLengthCss(String property);
+        Boolean ApplyLayoutLengthForState(UInt32 flags, String property, String value, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
+        String LayoutLengthCssForState(UInt32 flags, String property);
     }
 }

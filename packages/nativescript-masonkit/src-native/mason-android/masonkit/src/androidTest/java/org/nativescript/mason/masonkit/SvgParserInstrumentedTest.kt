@@ -5,7 +5,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.SvgPathCommand.Close
 import org.nativescript.mason.masonkit.SvgPathCommand.CubicTo
 import org.nativescript.mason.masonkit.SvgPathCommand.LineTo
@@ -14,7 +16,8 @@ import org.nativescript.mason.masonkit.SvgPathCommand.QuadTo
 import kotlin.math.sqrt
 
 /** Mirrors `SvgParserTests.swift`; keep the two in step. */
-class SvgParserTest {
+@RunWith(AndroidJUnit4::class)
+class SvgParserInstrumentedTest {
 
   private val eps = 1e-3f
 
@@ -362,9 +365,9 @@ class SvgParserTest {
   @Test
   fun strokeAttributes() {
     val d = doc(
-      """<svg viewBox="0 0 10 10"><path d="M0 0L5 5" fill="none" stroke="#123456" stroke-width="2.5"
-        stroke-opacity=".5" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"
-        stroke-dasharray="1 2 3" stroke-dashoffset="1"/></svg>"""
+      """<svg viewBox="0 0 10 10"><path d="M0 0L5 5" fill="none" stroke="#123456" stroke-width="15.625%"
+        stroke-opacity="50%" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"
+        stroke-dasharray="1,2+3" stroke-dashoffset="0.125ex"/></svg>"""
     )
     val s = d.shapes.single()
     assertFalse(s.hasFill)
@@ -414,7 +417,7 @@ class SvgParserTest {
   fun urlPaintUsesItsFallback() {
     val d = doc(
       """<svg viewBox="0 0 1 1"><defs><pattern id="p"/></defs>
-        <path fill="url(#p) blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>"""
+        <path fill="url('#p') blue" d="M0 0h1v1z"/><path fill="url(#p)" stroke="red" d="M0 0h1v1z"/></svg>"""
     )
     assertEquals(2, d.shapes.size)
     assertEquals(SvgPaint.Color(0xFF0000FF.toInt()), d.shapes[0].fill)
@@ -449,7 +452,7 @@ class SvgParserTest {
   @Test
   fun transforms() {
     val d = doc(
-      """<svg viewBox="0 0 10 10"><g transform="translate(2 3)"><rect width="1" height="1" transform="scale(2)"/></g>
+      """<svg viewBox="0 0 10 10"><g transform="translate(2+3)"><rect width="1" height="1" transform="scale(2)"/></g>
         <rect width="1" height="1" transform="rotate(90 5 5)"/></svg>"""
     )
     assertEquals(listOf(2f, 0f, 0f, 2f, 2f, 3f), d.shapes[0].transform.toList())
@@ -788,7 +791,7 @@ class SvgParserTest {
       """<svg viewBox="0 0 10 10"><style>
         /* comment {} */ @media print { rect { fill: black } }
         .a { fill: red } rect { fill: blue; stroke: green } #x { fill: #00ff00 } rect.b { stroke-width: 3 }
-        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .e { fill: white }
+        .c { fill: yellow !important } g rect { fill: black } circle.a { fill: black } .d, .\65 { fill: white }
         </style>
         <rect class="a" width="1" height="1"/>
         <rect width="1" height="1"/>
@@ -797,6 +800,7 @@ class SvgParserTest {
         <rect class="a" style="fill: white" width="1" height="1"/>
         <rect class="c" style="fill: white" width="1" height="1"/>
         <rect class="e" width="1" height="1"/>
+        <rect class="c" style="fill: red !/**/ important" width="1" height="1"/>
       </svg>"""
     )
     val s = d.shapes
@@ -810,6 +814,7 @@ class SvgParserTest {
     assertEquals(SvgPaint.Color(0xFFFFFFFF.toInt()), s[4].fill)
     assertEquals(SvgPaint.Color(0xFFFFFF00.toInt()), s[5].fill)
     assertEquals(SvgPaint.Color(0xFFFFFFFF.toInt()), s[6].fill)
+    assertEquals(SvgPaint.Color(0xFFFF0000.toInt()), s[7].fill)
   }
 
   @Test

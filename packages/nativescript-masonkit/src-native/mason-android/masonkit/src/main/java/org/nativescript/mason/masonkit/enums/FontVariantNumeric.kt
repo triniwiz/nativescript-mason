@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit.enums
 
+import org.nativescript.mason.masonkit.Mason
+
 /**
  * Bitmask for CSS font-variant-numeric values.
  * Multiple values can be combined (e.g. `tabular-nums` + `slashed-zero`).
@@ -47,22 +49,6 @@ object FontVariantNumeric {
     return parts.joinToString(" ")
   }
 
-  fun parse(css: String): Int {
-    val trimmed = css.trim().lowercase()
-    if (trimmed.isEmpty() || trimmed == "normal") return NORMAL
-    var result = 0
-    for (token in trimmed.split(" ")) {
-      when (token) {
-        "lining-nums"        -> result = result or LINING_NUMS
-        "oldstyle-nums"      -> result = result or OLDSTYLE_NUMS
-        "proportional-nums"  -> result = result or PROPORTIONAL_NUMS
-        "tabular-nums"       -> result = result or TABULAR_NUMS
-        "diagonal-fractions" -> result = result or DIAGONAL_FRACTIONS
-        "stacked-fractions"  -> result = result or STACKED_FRACTIONS
-        "ordinal"            -> result = result or ORDINAL
-        "slashed-zero"       -> result = result or SLASHED_ZERO
-      }
-    }
-    return result
-  }
+  fun parse(css: String): Int =
+    Mason.expandCssShorthand("font-variant-numeric", css)?.firstOrNull()?.toIntOrNull() ?: NORMAL
 }

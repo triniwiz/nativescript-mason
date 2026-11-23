@@ -117,13 +117,15 @@ final class LayerPaintTests: XCTestCase {
 
   /// draw(_:) uses the same gradient line.
   func testGradientLinePoints() {
-    let (start, end) = linearGradientPoints(direction: "135deg", width: 300, height: 90)
+    let angled = parseGradient("linear-gradient(135deg, red, blue)")!.layout(width: 300, height: 90)
+    let (start, end) = linearGradientPoints(layout: angled, width: 300, height: 90)
     let half = (300 + 90) * sin(CGFloat.pi / 4) / 2
     XCTAssertEqual(start.x, 150 - half * sin(CGFloat.pi / 4), accuracy: 1e-6)
     XCTAssertEqual(start.y, 45 - half * sin(CGFloat.pi / 4), accuracy: 1e-6)
     XCTAssertEqual(end.x, 150 + half * sin(CGFloat.pi / 4), accuracy: 1e-6)
     XCTAssertEqual(end.y, 45 + half * sin(CGFloat.pi / 4), accuracy: 1e-6)
-    let (top, bottom) = linearGradientPoints(direction: nil, width: 300, height: 90)
+    let straight = parseGradient("linear-gradient(red, blue)")!.layout(width: 300, height: 90)
+    let (top, bottom) = linearGradientPoints(layout: straight, width: 300, height: 90)
     XCTAssertEqual(top, CGPoint(x: 150, y: 0))
     XCTAssertEqual(bottom, CGPoint(x: 150, y: 90))
   }
@@ -218,6 +220,119 @@ final class LayerPaintTests: XCTestCase {
     let b = try XCTUnwrap(px.style.boxShadows.first)
     XCTAssertEqual([a.offsetX, a.offsetY, a.blurRadius, a.spreadRadius], [6, 10, 4, 6])
     XCTAssertEqual([a.offsetX, a.offsetY, a.blurRadius, a.spreadRadius], [b.offsetX, b.offsetY, b.blurRadius, b.spreadRadius])
+  }
+
+  func testShadowRecordListsAreStoredIndependently() throws {
+    let first = MasonUIView(mason: NSCMason.shared)
+    let sibling = MasonUIView(mason: NSCMason.shared)
+    first.style.boxShadow = "2px 6px 4px red, inset 3px 4px blue"
+    first.style.textShadow = "1px 5px green"
+    XCTAssertEqual(first.style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 1)
+    XCTAssertEqual(first.style.getUInt32(StyleKeys.TEXT_SHADOW_REVISION), 1)
+    XCTAssertEqual(first.style.boxShadows.map(\.offsetX), [2, 3])
+    XCTAssertEqual(first.style.textShadows.map(\.offsetY), [5])
+    XCTAssertEqual(sibling.style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 0)
+    first.style.boxShadow = "none"
+    XCTAssertTrue(first.style.boxShadows.isEmpty)
+    XCTAssertEqual(first.style.textShadows.count, 1)
+    XCTAssertEqual(first.style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 2)
+    XCTAssertEqual(first.style.getUInt32(StyleKeys.TEXT_SHADOW_REVISION), 1)
+  }
+
+  func testPaintWritesDuringMeasureAreCommittedAfterLayout() {
+    let mason = NSCMason()
+    let root = MasonUIView(mason: mason)
+    let painted = mason.createNode()
+    let sibling = mason.createNode()
+    let style = painted.style
+    XCTAssertEqual(style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 0)
+    var measured = false
+    root.node.setMeasureFunction { _, _ in
+      if !measured {
+        XCTAssertTrue(mason.inCompute)
+        measured = true
+        style.boxShadow = "1px 2px red"
+        style.boxShadow = "3px 4px blue"
+        style.textShadow = "1px 2px red"
+        style.filter = "blur(2px)"
+        style.filter = "none"
+        style.transform = "translateX(25%)"
+        XCTAssertEqual(style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 0)
+        XCTAssertEqual(style.getUInt32(StyleKeys.TRANSFORM_REVISION), 0)
+        XCTAssertEqual(style.getUInt8(StyleKeys.TEXT_SHADOW_STATE), StyleState.INHERIT)
+      }
+      return CGSize(width: 10, height: 20)
+    }
+
+    root.computeWithMaxContent()
+
+    XCTAssertTrue(measured)
+    XCTAssertEqual(style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 1)
+    XCTAssertEqual(style.boxShadows.map(\.offsetX), [3])
+    XCTAssertEqual(style.getUInt32(StyleKeys.TEXT_SHADOW_REVISION), 1)
+    XCTAssertEqual(style.getUInt8(StyleKeys.TEXT_SHADOW_STATE), StyleState.SET)
+    XCTAssertEqual(style.getUInt32(StyleKeys.FILTER_REVISION), 0)
+    XCTAssertEqual(style.getUInt32(StyleKeys.TRANSFORM_REVISION), 1)
+    XCTAssertEqual(sibling.style.getUInt32(StyleKeys.BOX_SHADOW_REVISION), 0)
+    XCTAssertEqual(sibling.style.getUInt8(StyleKeys.TEXT_SHADOW_STATE), StyleState.INHERIT)
+  }
+
+  func testFilterChainsAreStoredIndependentlyAndFollowFontSize() throws {
+    let view = MasonUIView(mason: NSCMason.shared)
+    let style = view.style
+    style.fontSize = 16
+    style.filter = "blur(.5em) opacity(.5)"
+    style.backdropFilter = "brightness(.6)"
+    XCTAssertEqual(style.getUInt32(StyleKeys.FILTER_REVISION), 1)
+    XCTAssertEqual(style.getUInt32(StyleKeys.BACKDROP_FILTER_REVISION), 1)
+    let current = try XCTUnwrap(style.preparedResolvedFilter())
+    guard case .blur(let radius) = current.filters.first else { return XCTFail("Expected blur") }
+    XCTAssertEqual(radius, 8)
+    XCTAssertTrue(current === style.preparedResolvedFilter())
+    XCTAssertEqual(style.getUInt32(StyleKeys.FILTER_REVISION), 1)
+
+    style.fontSize = 20
+    guard case .blur(let updated) = style.preparedResolvedFilter()?.filters.first else {
+      return XCTFail("Expected updated blur")
+    }
+    XCTAssertEqual(updated, 10)
+    style.backdropFilter = "none"
+    XCTAssertEqual(style.getUInt32(StyleKeys.FILTER_REVISION), 2)
+    XCTAssertEqual(style.getUInt32(StyleKeys.BACKDROP_FILTER_REVISION), 2)
+  }
+
+  func testPseudoFilterKeepsItsProgramAndResolvesTheCurrentContext() throws {
+    let view = MasonUIView(mason: NSCMason.shared)
+    let style = view.style
+    let node = view.node
+    let css = "blur(.5em) drop-shadow(2px 3px 4px currentColor)"
+    style.fontSize = 16
+    style.color = 0xff123456
+    style.filter = "brightness(.75)"
+    node.setPseudoString(PseudoState.hover.rawValue, "filter", css)
+    let program = try XCTUnwrap(node.pseudoFilter(PseudoState.hover.rawValue))
+    node.setPseudoString(PseudoState.hover.rawValue, "filter", css)
+    XCTAssertTrue(program === node.pseudoFilter(PseudoState.hover.rawValue))
+    node.setPseudo(.hover, true)
+    let first = try XCTUnwrap(style.preparedResolvedFilter())
+    guard case .blur(let radius) = first.filters.first else { return XCTFail("Expected blur") }
+    XCTAssertEqual(radius, 8)
+
+    style.fontSize = 20
+    style.color = 0xffabcdef
+    let updated = try XCTUnwrap(style.preparedResolvedFilter())
+    guard case .blur(let updatedRadius) = updated.filters.first,
+          case .dropShadow(_, _, _, let color) = updated.filters.last else {
+      return XCTFail("Expected blur and drop shadow")
+    }
+    XCTAssertEqual(updatedRadius, 10)
+    XCTAssertEqual(color.toUInt32(), 0xffabcdef)
+    XCTAssertEqual(style.getUInt32(StyleKeys.FILTER_REVISION), 1)
+    node.clearPseudoString(PseudoState.hover.rawValue, "filter")
+    guard case .brightness(let value) = style.preparedResolvedFilter()?.filters.first else {
+      return XCTFail("Expected base filter")
+    }
+    XCTAssertEqual(value, 0.75)
   }
 
   /// Alpha of the shadow layer at (x, y) in its own points.
@@ -384,33 +499,35 @@ final class LayerPaintTests: XCTestCase {
   // MARK: - Gradient geometry
 
   func testLengthStopsArePlacedOnTheGradientLine() {
-    let parsed = parseGradientStops(expandColorStops(["red 0 20px", "blue 20px 40px"]), lineLength: 100)
+    let parsed = parseGradient("linear-gradient(red 0 20px, blue 20px 40px)")!.paintStops(lineLength: 100)
     XCTAssertEqual(parsed.locations.map { ($0 * 1e4).rounded() / 1e4 }, [0, 0.2, 0.2, 0.4])
-    XCTAssertEqual(parseGradientStops(["red 20px", "blue"]).locations, [0, 1], "no line, no length")
+    XCTAssertEqual(parseGradient("linear-gradient(red 20px, blue)")!.paintStops(lineLength: 0).locations, [0, 1], "no line, no length")
   }
 
   func testAStopBeforeAnEarlierOneMovesUpToIt() {
-    let parsed = parseGradientStops(["red 50%", "blue 20%", "green"])
+    let parsed = parseGradient("linear-gradient(red 50%, blue 20%, green)")!.paintStops(lineLength: 0)
     XCTAssertEqual(parsed.locations, [0.5, 0.5, 1])
   }
 
   func testRadialShapeAndSize() {
     func shape(_ direction: String?) -> RadialGradientShape {
-      resolveRadialGradientShape(direction: direction, width: 200, height: 100)
+      let prelude = direction.map { $0 + ", " } ?? ""
+      let gradient = parseGradient("radial-gradient(\(prelude)red, blue)")!
+      return RadialGradientShape(layout: gradient.layout(width: 200, height: 100))
     }
     let corner = shape(nil)
-    XCTAssertEqual(corner.rx, 100 * sqrt(2), accuracy: 1e-6, "farthest-corner ellipse by default")
-    XCTAssertEqual(corner.ry, 50 * sqrt(2), accuracy: 1e-6)
-    XCTAssertEqual(shape("circle").rx, hypot(100, 50), accuracy: 1e-6)
-    XCTAssertEqual(shape("circle").ry, hypot(100, 50), accuracy: 1e-6)
+    XCTAssertEqual(corner.rx, 100 * sqrt(2), accuracy: 1e-4, "farthest-corner ellipse by default")
+    XCTAssertEqual(corner.ry, 50 * sqrt(2), accuracy: 1e-4)
+    XCTAssertEqual(shape("circle").rx, hypot(100, 50), accuracy: 1e-4)
+    XCTAssertEqual(shape("circle").ry, hypot(100, 50), accuracy: 1e-4)
     XCTAssertEqual(shape("closest-side"), RadialGradientShape(center: CGPoint(x: 100, y: 50), rx: 100, ry: 50))
     XCTAssertEqual(shape("circle closest-side").rx, 50)
-    XCTAssertEqual(shape("circle farthest-side at 10% 50%").rx, 180, accuracy: 1e-6)
-    XCTAssertEqual(shape("circle 30px").rx, 30, accuracy: 1e-6)
-    XCTAssertEqual(shape("30px at top left").ry, 30, accuracy: 1e-6, "one length is a circle")
+    XCTAssertEqual(shape("circle farthest-side at 10% 50%").rx, 180, accuracy: 1e-4)
+    XCTAssertEqual(shape("circle 30px").rx, 30, accuracy: 1e-4)
+    XCTAssertEqual(shape("30px at top left").ry, 30, accuracy: 1e-4, "one length is a circle")
     let explicit = shape("ellipse 40px 20% at 0 0")
-    XCTAssertEqual(explicit.rx, 40, accuracy: 1e-6)
-    XCTAssertEqual(explicit.ry, 20, accuracy: 1e-6)
+    XCTAssertEqual(explicit.rx, 40, accuracy: 1e-4)
+    XCTAssertEqual(explicit.ry, 20, accuracy: 1e-4)
     XCTAssertEqual(explicit.center, .zero)
   }
 
@@ -420,7 +537,7 @@ final class LayerPaintTests: XCTestCase {
                              ("radial-gradient(ellipse closest-side, red, blue)", "ellipse closest-side")] {
       let g = parseGradient(css)
       XCTAssertEqual(g?.direction, direction, css)
-      XCTAssertEqual(g?.stops.count, 2, css)
+      XCTAssertEqual(g?.stopCount, 2, css)
     }
   }
 

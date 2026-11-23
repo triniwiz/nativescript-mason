@@ -32,18 +32,19 @@ final class MasonTests: XCTestCase {
 
   func test_gradientStopWithTwoPositionsBecomesTwoStops() {
     let gradient = parseGradient("linear-gradient(to right, blue, rgb(0, 0, 255) 10% 30%, green 40%)")
-    XCTAssertEqual(gradient?.stops, ["blue", "rgb(0, 0, 255) 10%", "rgb(0, 0, 255) 30%", "green 40%"])
+    XCTAssertEqual(gradient?.resolvedStops().map(\.color), [0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff008000])
+    XCTAssertEqual(gradient?.resolvedStops().map(\.position), [0, 0.1, 0.3, 0.4])
   }
 
   func test_gradientInterpolationMethodIsSeparatedFromTheDirection() {
     let gradient = parseGradient("linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)")
     XCTAssertEqual(gradient?.direction, "to bottom right")
-    XCTAssertEqual(gradient?.stops, ["#6366f1 0%", "#d946ef 100%"])
+    XCTAssertEqual(gradient?.resolvedStops().map(\.color), [0xff6366f1, 0xffd946ef])
     XCTAssertEqual(gradient?.interpolation, ColorInterpolation(space: .oklab))
 
     let alone = parseGradient("linear-gradient(in oklab, red, blue)")
     XCTAssertNil(alone?.direction)
-    XCTAssertEqual(alone?.stops, ["red", "blue"])
+    XCTAssertEqual(alone?.resolvedStops().map(\.color), [0xffff0000, 0xff0000ff])
   }
 
   func test_gradientInterpolationExtractsHueMethodsAndUnknownSpaces() {
@@ -285,6 +286,31 @@ final class MasonTests: XCTestCase {
     waitForExpectations(timeout: 1)
   }
 
+  func test_transform_long_list_reprojects_the_stored_program() {
+    let view = MasonUIView(mason: mason)
+    let style = view.style
+    view.bounds.size = CGSize(width: 100, height: 40)
+    style.transform = "translateX(calc(25% - 2px)) translateX(1px) translateX(1px) translateX(1px) translateX(1px) translateX(1px) matrix(1,0,0,1,1,0)"
+    XCTAssertEqual(style.getUInt32(StyleKeys.TRANSFORM_REVISION), 1)
+    XCTAssertTrue(style.transformDependsOnOrigin)
+
+    let exp = expectation(description: "stored transform applied at both sizes")
+    DispatchQueue.main.async {
+      XCTAssertEqual(view.transform.tx, 29, accuracy: 0.01)
+      view.bounds.size.width = 200
+      style.applyTransformFromBuffer()
+      DispatchQueue.main.async {
+        XCTAssertEqual(view.transform.tx, 54, accuracy: 0.01)
+        XCTAssertEqual(style.getUInt32(StyleKeys.TRANSFORM_REVISION), 1)
+        style.transform = "none"
+        XCTAssertEqual(view.transform, .identity)
+        XCTAssertEqual(style.getUInt32(StyleKeys.TRANSFORM_REVISION), 2)
+        exp.fulfill()
+      }
+    }
+    waitForExpectations(timeout: 1)
+  }
+
   func test_updateDisplay() {
     let view = MasonUIView(mason: mason)
     view.inBatch = true
@@ -292,6 +318,53 @@ final class MasonTests: XCTestCase {
     view.inBatch = false
 
     XCTAssertEqual(view.display, .Flex)
+  }
+
+  func testDisplayAndTextOverflowReadFromTheStyleBuffer() {
+    let view = MasonUIView(mason: mason)
+    let other = MasonUIView(mason: mason)
+    for (display, base, mode) in [(Display.Inline, 3, 1), (.InlineBlock, 3, 2), (.InlineFlex, 1, 2), (.InlineGrid, 2, 2)] {
+      view.style.display = display
+      XCTAssertEqual(view.style.display, display)
+      XCTAssertEqual(view.style.getUInt8(StyleKeys.DISPLAY), UInt8(base))
+      XCTAssertEqual(view.style.getUInt8(StyleKeys.DISPLAY_MODE), UInt8(mode))
+    }
+    view.style.setUInt8(StyleKeys.VISIBILITY, 2)
+    XCTAssertEqual(view.style.display, .None)
+    XCTAssertTrue(view.style.hidesView)
+    XCTAssertFalse(other.style.hidesView)
+
+    view.style.textOverflow = .Custom("more")
+    XCTAssertEqual(view.style.textOverflow.description, "more")
+    view.style.setUInt8(StyleKeys.TEXT_OVERFLOW, 1)
+    XCTAssertEqual(view.style.textOverflow.description, "ellipsis")
+    XCTAssertEqual(other.style.textOverflow.description, "clip")
+  }
+
+  func testCustomTextOverflowUsesRustStorageAndClearsOnKeywordWrite() {
+    let mason = NSCMason()
+    let view = MasonUIView(mason: mason)
+    let other = MasonUIView(mason: mason)
+    view.style.textOverflow = .Custom("…\u{0}more")
+    other.style.textOverflow = .Ellipse("↪")
+    XCTAssertEqual(view.style.textOverflow.description, "…\u{0}more")
+    XCTAssertEqual(other.style.textOverflow.description, "ellipsis ↪")
+
+    mason.inCompute = true
+    view.style.textOverflow = .Custom("pending")
+    XCTAssertEqual(view.style.textOverflow.description, "…\u{0}more")
+    mason.endCompute()
+    XCTAssertEqual(view.style.textOverflow.description, "pending")
+    let key = view.style.values.bytes.load(fromByteOffset: StyleKeys.TEXT_OVERFLOW_TOKEN, as: UInt64.self)
+    XCTAssertNotEqual(key, 0)
+
+    view.style.setUInt8(StyleKeys.TEXT_OVERFLOW, 1)
+    view.style.setStateFromHalves(StateKeys.textOverflow.low, StateKeys.textOverflow.high)
+    XCTAssertEqual(view.style.textOverflow.description, "ellipsis")
+    let released = mason_css_text_overflow_token(key)
+    XCTAssertNil(released.owner)
+    if let owner = released.owner { mason_css_shorthand_release(owner) }
+    XCTAssertEqual(other.style.textOverflow.description, "ellipsis ↪")
   }
 
   func test_text_engine_min_content_width_uses_widest_unbreakable_fragment() {
@@ -882,6 +955,26 @@ final class ReapplyTests: XCTestCase {
     return (root, child)
   }
 
+  func testAspectRatioChangesInvalidateAnExistingLayout() {
+    let scale = NSCMason.scale
+    let root = MasonUIView(mason: mason)
+    root.style.display = .Flex
+    root.style.flexDirection = .Column
+    root.style.alignItems = .FlexStart
+    let child = MasonUIView(mason: mason)
+    child.style.width = .Points(80 * scale)
+    child.style.aspectRatio = 2
+    root.addView(child)
+
+    root.computeWithSize(200 * scale, 200 * scale)
+    XCTAssertEqual(child.frame.height, 40, accuracy: 0.01)
+    child.style.aspectRatio = 4
+    root.computeWithSize(200 * scale, 200 * scale)
+    XCTAssertEqual(child.frame.height, 20, accuracy: 0.01)
+    child.style.aspectRatio = nil
+    XCTAssertNil(child.style.aspectRatio)
+  }
+
   func test_overflowChangeWithoutResizeIsApplied() {
     let (root, child) = tree()
     XCTAssertFalse(child.clipsToBounds)
@@ -1093,13 +1186,28 @@ final class TextFeatureTests: XCTestCase {
     XCTAssertEqual(text.node.style.resolvedTextJustify, .Auto)
   }
 
-  func testFontFeatureSettingsParse() {
-    XCTAssertTrue(parseFontFeatureSettings("normal").isEmpty)
-    let parsed = parseFontFeatureSettings("\"liga\" 0, 'tnum', \"ss01\" on, \"kern\" off, \"cv01\" 3")
-    XCTAssertEqual(parsed.map { $0.tag }, ["liga", "tnum", "ss01", "kern", "cv01"])
-    XCTAssertEqual(parsed.map { $0.value }, [0, 1, 1, 0, 3])
-    XCTAssertTrue(parseFontFeatureSettings("\"toolong\"").isEmpty, "a tag is four characters")
-    XCTAssertTrue(parseFontFeatureSettings("\"liga\" -1").isEmpty)
+  func testFontFeatureSettingsReachCoreText() {
+    let text = NSCMason.shared.createTextView(type: .P)
+    text.engine.textContent = "text"
+    let run = text.node.children.first as? MasonTextNode
+    _ = run?.attributed()
+    XCTAssertEqual(run?.attributesStale, false)
+    let style = text.node.style
+    XCTAssertTrue(style.resolvedFontFeatures.isEmpty)
+    style.inBatch = true
+    style.fontFeatureSettings = "\"liga\" 0, 'tnum', \"ss01\" on, \"kern\" off, \"cv01\" 3"
+    style.inBatch = false
+    XCTAssertEqual(run?.attributesStale, true)
+    let features = style.resolvedFontFeatures
+    XCTAssertEqual(features.compactMap { $0[kCTFontOpenTypeFeatureTag] as? String }, ["liga", "tnum", "ss01", "kern", "cv01"])
+    XCTAssertEqual(features.compactMap { $0[kCTFontOpenTypeFeatureValue] as? UInt32 }, [0, 1, 1, 0, 3])
+    XCTAssertEqual(style.getUInt8(StyleKeys.FONT_FEATURES_REVISION), 1)
+    style.fontFeatureSettings = "'liga' -1"
+    XCTAssertEqual(style.resolvedFontFeatures.count, 5)
+    XCTAssertEqual(style.getUInt8(StyleKeys.FONT_FEATURES_REVISION), 1)
+    style.fontFeatureSettings = "NORMAL"
+    XCTAssertTrue(style.resolvedFontFeatures.isEmpty)
+    XCTAssertEqual(style.getUInt8(StyleKeys.FONT_FEATURES_REVISION), 2)
   }
 
   func testTabularNumbersChangeDigitWidths() {
@@ -1179,6 +1287,431 @@ final class TextFeatureTests: XCTestCase {
 }
 
 final class HTMLParserTests: XCTestCase {
+  func testSchemaKeywordsReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="display: INLINE-GRID; grid-auto-flow: dense  COLUMN;
+        align-items: flex-end; justify-self: invalid; text-wrap: pretty;
+        hyphens: auto; writing-mode: VERTICAL-RL; unicode-bidi: isolate;
+        text-orientation: sideways-right; text-combine-upright: digits 4;
+        text-spacing-trim: trim-both; line-clamp: 200; -webkit-line-clamp: 3;
+        line-clamp: 5px"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.display, .InlineGrid)
+    XCTAssertEqual(style.gridAutoFlow, .ColumnDense)
+    XCTAssertEqual(style.alignItems, .End)
+    XCTAssertEqual(style.textWrap, .Pretty)
+    XCTAssertEqual(style.resolvedHyphens, 2)
+    XCTAssertEqual(style.resolvedWritingMode, 1)
+    XCTAssertEqual(style.resolvedUnicodeBidi, 3)
+    XCTAssertEqual(style.resolvedTextOrientation, 2)
+    XCTAssertEqual(style.resolvedTextCombineUpright, 4)
+    XCTAssertEqual(style.resolvedTextSpacingTrim, 4)
+    XCTAssertEqual(style.resolvedLineClamp, 3)
+    XCTAssertNil(NSCMason.htmlKeyword("justify-self", "invalid"))
+  }
+
+  func testRustGeometryReachesNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="aspect-ratio: auto 3 / 2; transform-origin: calc(10px + 5px) 25%"></div>
+      """).first)
+    XCTAssertEqual(root.style.aspectRatio, 1.5)
+    XCTAssertEqual(root.style.transformOrigin.x, .Points(15 * NSCMason.scale))
+    XCTAssertEqual(root.style.transformOrigin.y, .Percent(0.25))
+  }
+
+  func testRustTypographyReachesNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="line-height: 150%; letter-spacing: 0.25em; font-size: 20px;
+        text-indent: 5% hanging; font-weight: BOLD; font-stretch: semi-condensed;
+        font-family: 'Missing, Font', monospace; font-family: url(bad); font-feature-settings: 'tnum' on"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.fontSize, 20)
+    XCTAssertEqual(style.fontWeight, "bold")
+    XCTAssertEqual(style.fontFamily, "monospace")
+    XCTAssertEqual(style.lineHeight, 30)
+    XCTAssertEqual(style.resolvedLineHeightType, 1)
+    XCTAssertEqual(style.letterSpacing, 5 * NSCMason.scale)
+    XCTAssertEqual(style.textIndent, .Percent(0.05))
+    XCTAssertEqual(style.resolvedFontStretch, 8750)
+    XCTAssertEqual(style.resolvedFontFeatures.first?[kCTFontOpenTypeFeatureTag] as? String, "tnum")
+  }
+
+  func testRustFontStyleAndWordSpacingReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="font-style: oblique -0.125turn; word-spacing: 25%;
+        font-variant-numeric: tabular-nums slashed-zero; vertical-align: -25%"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.fontStyle, .Oblique)
+    XCTAssertEqual(style.getInt32(StyleKeys.FONT_STYLE_SLANT), -45)
+    let spacing = try XCTUnwrap(style.resolvedWordSpacingValue)
+    XCTAssertTrue(spacing.isPercent)
+    XCTAssertEqual(spacing.value, 25)
+    XCTAssertEqual(style.fontVariantNumeric, [.tabularNums, .slashedZero])
+    XCTAssertTrue(style.verticalAlign.isPercent)
+    XCTAssertEqual(style.verticalAlign.offset, -0.25)
+    style.verticalAlign = .Top
+    XCTAssertEqual(style.verticalAlign.align, .Top)
+    style.verticalAlign = .percent(0.2)
+    XCTAssertTrue(style.verticalAlign.isPercent)
+    XCTAssertEqual(style.verticalAlign.offset, 0.2)
+    XCTAssertEqual(MasonVerticalAlignValue(style: style).offset, 0.2)
+    style.fontStyle = .Italic
+    XCTAssertEqual(style.fontStyle, .Italic)
+    XCTAssertEqual(style.getInt32(StyleKeys.FONT_STYLE_SLANT), 0)
+  }
+
+  func testRustInlineBatchPreservesDeclarationOrder() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="/* a:b;c */ display: grid; --ignored: url(data:image/svg+xml;x:y);
+        flex-flow: column wrap; flex-direction: row; display: flex; overflow: hidden scroll;
+        text-justify: INTER-WORD"></div>
+      """).first)
+    XCTAssertEqual(root.style.display, .Flex)
+    XCTAssertEqual(root.style.flexDirection, .Row)
+    XCTAssertEqual(root.style.flexWrap, .Wrap)
+    XCTAssertEqual(root.style.overflowX, .Hidden)
+    XCTAssertEqual(root.style.overflowY, .Scroll)
+    XCTAssertEqual(root.style.textJustify, .InterWord)
+  }
+
+  func testRustInlineBatchResolvesInheritedFontContextAndViewportOverrides() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let root = try XCTUnwrap(parser.parse("""
+      <div style="font-size: 20px"><div style="letter-spacing: .5em; padding-left: 2em;
+        font-size: calc(125% + 5px); line-height: 150%; width: 10vw; width: 30px"></div></div>
+      """).first)
+    let style = try XCTUnwrap(root.getChildren().first).style
+    XCTAssertEqual(style.fontSize, 30)
+    XCTAssertEqual(style.letterSpacing, 15 * NSCMason.scale)
+    XCTAssertEqual(style.padding.left, .Points(60 * NSCMason.scale))
+    XCTAssertEqual(style.lineHeight, 45)
+    style.height = .Points(40)
+    HTMLParser.refreshViewportStyles()
+    XCTAssertEqual(style.width, .Points(30 * NSCMason.scale))
+    XCTAssertEqual(style.height, .Points(40))
+  }
+
+  func testViewportReplayUpdatesInheritedFontChain() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let root = try XCTUnwrap(parser.parse("""
+      <div style="font-size: 5vw"><div style="font-size: calc(50% + 5px)"><div><div style="padding-left: 2em;
+         line-height: 150%; height: 30px"></div></div></div><div style="font-size: 12px; padding-left: 2em"></div></div>
+      """).first)
+    let relative = try XCTUnwrap(root.getChildren().first)
+    let container = try XCTUnwrap(relative.getChildren().first)
+    let leaf = try XCTUnwrap(container.getChildren().first).style
+    let fixed = try XCTUnwrap(root.getChildren().last).style
+    HTMLParser.refreshViewportStyles(viewport: CGSize(width: 400, height: 800))
+    XCTAssertEqual(relative.style.resolvedFontSize, 15)
+    XCTAssertEqual(leaf.padding.left, .Points(30 * NSCMason.scale))
+    leaf.height = .Points(70)
+    fixed.paddingLeft = .Points(90)
+
+    HTMLParser.refreshViewportStyles(viewport: CGSize(width: 800, height: 800))
+    XCTAssertEqual(relative.style.resolvedFontSize, 25)
+    XCTAssertEqual(leaf.padding.left, .Points(50 * NSCMason.scale))
+    XCTAssertEqual(leaf.lineHeight, 37.5)
+    XCTAssertEqual(leaf.height, .Points(70))
+    XCTAssertEqual(fixed.padding.left, .Points(90))
+  }
+
+  func testRustInlineBatchAppliesResolvedBordersAndFinalMaskValues() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let root = try XCTUnwrap(parser.parse("""
+      <div style="border: .25em solid red; border-radius: .5em / 20%;
+        mask: linear-gradient(currentColor, transparent) center / contain;
+        mask-repeat: no-repeat; mask-border: none; mask-border-width: 4px;
+        clip-path: inset(1px); color: #0080ff; font-size: 20px"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.mBorderRender.top.width, .Points(5 * NSCMason.scale))
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE), 10 * NSCMason.scale)
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE), 0.2)
+    XCTAssertEqual(style.maskRepeat, "no-repeat")
+    XCTAssertEqual(style.maskBorderWidth, "4px")
+    XCTAssertEqual(style.clipPath, "inset(1px)")
+    let gradient = try XCTUnwrap(style.mMaskStorage?.layers.first?.paint.gradient)
+    XCTAssertEqual(gradient.resolvedStops().first?.color, 0xff0080ff)
+  }
+
+  func testRustInlineBatchInstallsBackgroundOnce() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="background-repeat: round; color: red; background: url(a.svg) lime;
+        color: blue; background-size: 2em auto; background-image: linear-gradient(currentColor, white);
+        color: black; background-repeat: space; background-color: #123456; background: invalid;
+        font-size: 20px"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.getUInt32(StyleKeys.BACKGROUND_REVISION), 1)
+    let layer = try XCTUnwrap(style.mBackground.layers.first)
+    XCTAssertEqual(style.background, "url(a.svg) lime")
+    XCTAssertEqual(style.backgroundColor, 0xff123456)
+    XCTAssertEqual(style.backgroundRepeat, "space")
+    XCTAssertEqual(layer.size?.width?.points, 40)
+    XCTAssertEqual(layer.gradient?.resolvedStops().first?.color, 0xff0000ff)
+  }
+
+  func testRustInlineEffectBatchAppliesEachGroupOnce() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="box-shadow: 1px 2px blue; filter: blur(1px);
+        box-shadow: calc(.1em + 2px) 3px rgb(calc(200 + 55) 0 0); text-shadow: 1px 2px blue;
+        filter: blur(calc(1px + 1px)); backdrop-filter: brightness(calc(100% - 20%)); font-size: 20px"></div>
+      """).first)
+    let style = root.style
+    for key in [StyleKeys.BOX_SHADOW_REVISION, StyleKeys.TEXT_SHADOW_REVISION,
+                StyleKeys.FILTER_REVISION, StyleKeys.BACKDROP_FILTER_REVISION] {
+      XCTAssertEqual(style.getUInt32(key), 1)
+    }
+    let shadow = try XCTUnwrap(style.boxShadows.first)
+    XCTAssertEqual(shadow.offsetX, 4, accuracy: 0.001)
+    XCTAssertEqual(shadow.color, UIColor.colorFromARGB(0xffff0000))
+    XCTAssertEqual(style.filter, "blur(calc(1px + 1px))")
+    XCTAssertEqual(style.backdropFilter, "brightness(calc(100% - 20%))")
+  }
+
+  func testGeneratedAccessorsKeepTypedValuesAndIsolateWrites() throws {
+    let roots = HTMLParser(mason: NSCMason.shared).parse("<div></div><div></div>")
+    XCTAssertEqual(roots.count, 2)
+    let writer = try XCTUnwrap(roots.first).style
+    let sibling = try XCTUnwrap(roots.last).style
+    let original = sibling.margin.top
+    let originalColor = sibling.color
+    let originalBorder = sibling.borderWidth.bottom
+    let siblingDirty = sibling.isDirty
+    let siblingDirtyHigh = sibling.isDirtyHigh
+    XCTAssertEqual(sibling.marginCompat.intoMasonRect().top, original)
+    XCTAssertEqual(sibling.isDirty, siblingDirty)
+    XCTAssertEqual(sibling.isDirtyHigh, siblingDirtyHigh)
+    let siblingRightWidth = sibling.mBorderRight.width
+    let siblingRightStyle = sibling.mBorderRight.style
+    let siblingRightColor = sibling.mBorderRight.argb
+    writer.mBorderRight.width = .Points(4)
+    writer.mBorderRight.style = .dashed()
+    writer.mBorderRight.setColor(color: 0xff030609)
+    XCTAssertEqual(writer.borderWidth.right, .Points(4))
+    XCTAssertEqual(writer.mBorderRight.style, .dashed())
+    XCTAssertEqual(writer.mBorderRight.argb, 0xff030609)
+    XCTAssertEqual(sibling.mBorderRight.width, siblingRightWidth)
+    XCTAssertEqual(sibling.mBorderRight.style, siblingRightStyle)
+    XCTAssertEqual(sibling.mBorderRight.argb, siblingRightColor)
+    let siblingExponent = sibling.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT)
+    writer.inBatch = true
+    writer.cornerShape = "squircle notch"
+    writer.cornerShapeBottomRight = "bevel"
+    XCTAssertTrue(StateKeys(low: writer.isDirty, high: writer.isDirtyHigh).contains(.borderRadius))
+    writer.inBatch = false
+    XCTAssertEqual(writer.cornerShapeTopLeft, "squircle")
+    XCTAssertEqual(writer.cornerShapeBottomRight, "bevel")
+    XCTAssertEqual(writer.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT), -.infinity)
+    XCTAssertEqual(sibling.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT), siblingExponent)
+    writer.margin = MasonRect(.Percent(0.25), .Points(4), .Auto, .Points(8))
+    writer.flexGrow = 2
+    writer.decorationThickness = 3
+    writer.color = 0xff123456
+    writer.textWrap = .Balance
+    writer.topInset = .Points(12)
+    writer.size = MasonSize(.Points(80), .Percent(0.5))
+    writer.setMinSizeWidthHeight(16, 1)
+    writer.setMinSizeWidth(24, 1)
+    writer.setMinSizeHeight(200, 255)
+    writer.setRowGap(20, 0)
+    writer.setColumnGap(0.25, 1)
+    writer.paddingTop = .Points(6)
+    writer.setBorderWidth(9, 0)
+    writer.setBorderBottomWidth(0.25, 1)
+    writer.setBorderColor("#010203 #040506 #070809 #0a0b0c")
+    XCTAssertEqual(writer.margin.top, .Percent(0.25))
+    XCTAssertEqual(writer.margin.right, .Points(4))
+    XCTAssertEqual(writer.margin.bottom, .Auto)
+    XCTAssertEqual(writer.marginLeft, .Points(8))
+    XCTAssertEqual(writer.color, 0xff123456)
+    XCTAssertEqual(writer.textWrap, .Balance)
+    XCTAssertEqual(writer.topInset, .Points(12))
+    XCTAssertEqual(writer.width, .Points(80))
+    XCTAssertEqual(writer.height, .Percent(0.5))
+    XCTAssertEqual(writer.minSizeCompat.intoMasonSize().width, .Points(24))
+    XCTAssertEqual(writer.minSizeCompat.intoMasonSize().height, .Points(16))
+    XCTAssertEqual(writer.gap.width, .Points(20))
+    XCTAssertEqual(writer.gap.height, .Percent(0.25))
+    XCTAssertEqual(writer.borderWidth.top, .Points(9))
+    XCTAssertEqual(writer.borderWidth.left, .Points(9))
+    XCTAssertEqual(writer.mBorderRight.width, .Points(9))
+    XCTAssertEqual(writer.borderWidth.bottom, .Percent(0.25))
+    XCTAssertEqual(writer.paddingTop, .Points(6))
+    XCTAssertEqual(writer.mBorderBottom.argb, 0xff070809)
+    XCTAssertEqual(sibling.borderWidth.bottom, originalBorder)
+    XCTAssertEqual(CSSBorderRenderer.BorderStyle(name: "DASHED"), .dashed())
+    XCTAssertNil(CSSBorderRenderer.BorderStyle(name: "dashed invalid"))
+    XCTAssertEqual(sibling.color, originalColor)
+    XCTAssertEqual(writer.flexGrow, 2)
+    XCTAssertEqual(writer.decorationThickness, 3)
+    XCTAssertEqual(sibling.margin.top, original)
+    writer.inBatch = true
+    writer.gridArea = "1 / 2 / 3 / 4"
+    writer.gridRowStart = "5"
+    writer.gridColumn = "tracks"
+    writer.gridColumnEnd = "6"
+    writer.width = .Points(91)
+    writer.inBatch = false
+    XCTAssertEqual(writer.gridRowStart, "5")
+    XCTAssertEqual(writer.gridRowEnd, "3")
+    XCTAssertEqual(writer.gridColumnStart, "tracks")
+    XCTAssertEqual(writer.gridColumnEnd, "6")
+    XCTAssertEqual(writer.width, .Points(91))
+    writer.gridArea = ""
+    XCTAssertEqual(writer.gridColumnEnd, "auto")
+    writer.overflow = MasonPoint(.Hidden, .Scroll)
+    XCTAssertEqual(writer.overflow.x, .Hidden)
+    XCTAssertEqual(writer.overflow.y, .Scroll)
+
+    let grid = MasonUIView.createGridView(NSCMason.shared)
+    grid.setSize(500, 100)
+    grid.style.inBatch = true
+    grid.style.fontSize = 20
+    let template = "repeat(2, calc(1em + 2dppx))"
+    grid.style.gridTemplateColumns = template
+    grid.style.inBatch = false
+    grid.addView(MasonUIView(mason: NSCMason.shared))
+    let second = MasonUIView(mason: NSCMason.shared)
+    grid.addView(second)
+    grid.compute(-1, -1)
+    XCTAssertEqual(second.layout().x, 20 * NSCMason.scale + 2, accuracy: 0.5)
+    XCTAssertEqual(grid.style.gridTemplateColumns, template)
+  }
+
+  func testRustLengthsReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="padding: calc(1rem + 2px) 3dppx; margin: calc(100% - 25%);
+        border: calc(3px * 2) solid red; width: fit-content(calc(1rem + 2px));
+        height: fit-content(calc(50% - 25%)); flex-basis: MIN-CONTENT; max-height: auto"></div>
+      """).first)
+    let style = root.style
+    let scale = NSCMason.scale
+    XCTAssertEqual(style.padding.top, .Points((NSCMason.rootFontSize + 2) * scale))
+    XCTAssertEqual(style.padding.right, .Points(3))
+    XCTAssertEqual(style.margin.top, .Percent(0.75))
+    XCTAssertEqual(style.mBorderRender.top.width, .Points(6 * scale))
+    XCTAssertEqual(style.width, .FitContentPoints((NSCMason.rootFontSize + 2) * scale))
+    XCTAssertEqual(style.height, .FitContentPercent(0.25))
+    XCTAssertEqual(style.height.cssValue, "fit-content(25.0%)")
+    XCTAssertEqual(style.flexBasis, .MinContent)
+    XCTAssertEqual(style.maxHeight, .Auto)
+    XCTAssertEqual(parseLengthPercentageAuto("AUTO"), .Auto)
+    XCTAssertNil(parseLengthPercentage("calc(1px"))
+  }
+
+  func testRustColorsReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="color: color-mix(in srgb, red 25%, blue);
+        background-color: hsl(180 100% 50% / 50%); border: 2px solid #10203080"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.color, 0xff4000bf)
+    XCTAssertEqual(style.backgroundColor, 0x8000ffff)
+    XCTAssertEqual(style.mBorderRender.top.argb, 0x80102030)
+    XCTAssertEqual(parseSvgColor("rebeccapurple"), 0xff663399)
+    XCTAssertNil(parseColorArgb("red blue"))
+  }
+
+  func testRustTextDecorationsReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="text-decoration: underline overline rgba(0, 0, 255, 50%) 2px dashed;
+        text-decoration-line: line-through underline"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.decorationLine, .UnderlineLineThrough)
+    XCTAssertEqual(style.decorationStyle, .Dashed)
+    XCTAssertEqual(style.decorationColor, 0x800000ff)
+    XCTAssertEqual(style.decorationThickness, 2 * NSCMason.scale)
+    style.setTextDecoration("overline shiny")
+    XCTAssertEqual(style.decorationStyle, .Dashed)
+    XCTAssertEqual(style.decorationLine, .UnderlineLineThrough)
+    style.setTextDecoration("overline")
+    XCTAssertEqual(style.decorationLine, .Overline)
+    XCTAssertEqual(style.decorationStyle, .Solid)
+    XCTAssertEqual(style.decorationColor, Constants.UNSET_COLOR)
+    XCTAssertEqual(style.decorationThickness, 0)
+  }
+
+  func testRustCornerShapesReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="corner-shape: squircle superellipse( 1.5 ) notch;
+        corner-shape-bottom-left: square"></div>
+      """).first)
+    let style = root.style
+    XCTAssertEqual(style.cornerShapeTopLeft, "squircle")
+    XCTAssertEqual(style.cornerShapeTopRight, "superellipse(1.5)")
+    XCTAssertEqual(style.cornerShapeBottomRight, "notch")
+    XCTAssertEqual(style.cornerShapeBottomLeft, "square")
+    style.cornerShapeTopRight = "round bevel"
+    XCTAssertEqual(style.cornerShapeTopRight, "superellipse(1.5)")
+    style.cornerShape = ""
+    XCTAssertEqual(style.cornerShapeBottomRight, "round")
+  }
+
+  func testRustBorderAndListShorthandsReachNativeStyles() throws {
+    let root = try XCTUnwrap(HTMLParser(mason: NSCMason.shared).parse("""
+      <div style="border: 2px 4px solid red; border-left: 6px dashed blue;
+        border-radius: 9px / 3px; list-style: square inside"></div>
+      """).first)
+    let style = root.style
+    let scale = NSCMason.scale
+    XCTAssertEqual(style.mBorderRender.top.width, .Points(2 * scale))
+    XCTAssertEqual(style.mBorderRender.right.width, .Points(4 * scale))
+    XCTAssertEqual(style.mBorderRender.bottom.width, .Points(2 * scale))
+    XCTAssertEqual(style.mBorderRender.left.width, .Points(6 * scale))
+    XCTAssertEqual(style.mBorderRender.left.style, .dashed(dash: 6, gap: 6))
+    XCTAssertEqual(style.mBorderRender.left.argb, 0xff0000ff)
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE), 9 * scale)
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_Y_VALUE), 3 * scale)
+    XCTAssertEqual(style.listStyleType, .Square)
+    XCTAssertEqual(style.listStylePosition, .Inside)
+    style.border = "8px dotted solid"
+    XCTAssertEqual(style.mBorderRender.left.width, .Points(6 * scale))
+    style.fontSize = 20
+    style.borderRadius = "calc(100% / 2) 10dppx / 2 1em;"
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_X_VALUE), 0.5)
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_X_VALUE), 10)
+    XCTAssertEqual(style.getFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_Y_VALUE), 20 * scale)
+  }
+
+  func testRustLayoutShorthandsReachNativeStyles() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("""
+      <div style="flex-flow: column wrap; flex: 2 3 10px; gap: normal 8px;
+        padding: 1px 2px 3px; margin: 1px auto; inset: 4px auto;
+        overflow: hidden scroll; place-items: center end"></div>
+      """)
+    let node = try XCTUnwrap(roots.first)
+    let style = node.style
+    XCTAssertEqual(style.flexDirection, .Column)
+    XCTAssertEqual(style.flexWrap, .Wrap)
+    XCTAssertEqual(style.flexGrow, 2)
+    XCTAssertEqual(style.flexShrink, 3)
+    XCTAssertEqual(style.flexBasis, .Points(10 * NSCMason.scale))
+    XCTAssertEqual(style.gap.width, .Points(0))
+    XCTAssertEqual(style.gap.height, .Points(8 * NSCMason.scale))
+    XCTAssertEqual(style.padding.left, .Points(2 * NSCMason.scale))
+    XCTAssertEqual(style.padding.bottom, .Points(3 * NSCMason.scale))
+    XCTAssertEqual(style.margin.top, .Points(NSCMason.scale))
+    XCTAssertEqual(style.margin.right, .Auto)
+    XCTAssertEqual(style.inset.top, .Points(4 * NSCMason.scale))
+    XCTAssertEqual(style.inset.left, .Auto)
+    XCTAssertEqual(style.overflowX, .Hidden)
+    XCTAssertEqual(style.overflowY, .Scroll)
+    XCTAssertEqual(style.alignItems, .Center)
+    XCTAssertEqual(style.justifyItems, .End)
+    XCTAssertEqual(NSCMason.expandCssShorthand("grid-area", value: "hero / sidebar"), ["hero", "sidebar", "hero", "sidebar"])
+    XCTAssertNil(NSCMason.expandCssShorthand("padding", value: "1px bogus 2px"))
+    style.paddingCss = "1px bogus 2px"
+    XCTAssertEqual(style.padding.left, .Points(2 * NSCMason.scale))
+    let implicitFlex = try XCTUnwrap(parser.parse("<div style='flex: 2'></div>").first)
+    XCTAssertEqual(implicitFlex.style.flexBasis, .Points(0))
+  }
+
 
   private func texts(_ node: MasonNode) -> [String] {
     node.children.flatMap { child -> [String] in

@@ -71,6 +71,157 @@ impl MaskSpec {
     }
 }
 
+pub fn project_clip(
+    clip: &mason_core::style::css::clip_path::ClipPath,
+    context: mason_core::style::css::LengthContext,
+) -> Shape {
+    use mason_core::style::css::{ClipPathRecord as Record, SvgPathRecord as Command};
+    let records = clip.records(context);
+    let (header, body) = records.split_at(Record::STRIDE);
+    let b = header[Record::BOX] as u8;
+    let even_odd = header[Record::EVEN_ODD] != 0.;
+    let axis = |i: usize| Len {
+        pct: body
+            .get(i * 2)
+            .copied()
+            .filter(|n| n.is_finite())
+            .unwrap_or_default() as f32
+            * 100.,
+        px: body.get(i * 2 + 1).copied().unwrap_or_default() as f32,
+    };
+    let remainder = |a: Len, z: Len| Len {
+        px: -a.px - z.px,
+        pct: 100. - a.pct - z.pct,
+    };
+    match header[Record::KIND] as u8 {
+        1..=3 => {
+            let sides = match header[Record::KIND] as u8 {
+                2 => [
+                    axis(0),
+                    if body[2].is_nan() {
+                        Len::default()
+                    } else {
+                        remainder(axis(1), Len::default())
+                    },
+                    if body[4].is_nan() {
+                        Len::default()
+                    } else {
+                        remainder(axis(2), Len::default())
+                    },
+                    axis(3),
+                ],
+                3 => [
+                    axis(1),
+                    remainder(axis(0), axis(2)),
+                    remainder(axis(1), axis(3)),
+                    axis(0),
+                ],
+                _ => std::array::from_fn(axis),
+            };
+            Shape::Inset {
+                b,
+                sides,
+                radii: std::array::from_fn(|i| (axis(4 + i * 2), axis(5 + i * 2))),
+            }
+        }
+        4 | 5 => {
+            let mut radii = vec![(header[Record::RADIUS_X_KIND] as u8, axis(2))];
+            if header[Record::KIND] == 5. {
+                radii.push((header[Record::RADIUS_Y_KIND] as u8, axis(3)));
+            }
+            Shape::Ellipse {
+                b,
+                cx: axis(0),
+                cy: axis(1),
+                radii,
+            }
+        }
+        6 => Shape::Polygon {
+            b,
+            even_odd,
+            points: (0..body.len() / 4)
+                .map(|i| (axis(i * 2), axis(i * 2 + 1)))
+                .collect(),
+        },
+        7 => {
+            let mut commands = Vec::new();
+            for row in body.chunks_exact(Command::STRIDE) {
+                commands.push(row[Command::KIND] as f32);
+                let fields: &[usize] = match row[Command::KIND] as u8 {
+                    0 | 1 => &[Command::X, Command::Y],
+                    2 => &[
+                        Command::X1,
+                        Command::Y1,
+                        Command::X2,
+                        Command::Y2,
+                        Command::X,
+                        Command::Y,
+                    ],
+                    3 => &[Command::X1, Command::Y1, Command::X, Command::Y],
+                    _ => &[],
+                };
+                commands.extend(fields.iter().map(|&field| row[field] as f32));
+            }
+            Shape::Path {
+                b,
+                commands,
+                even_odd,
+            }
+        }
+        _ => Shape::Box(b),
+    }
+}
+
+pub fn project_nine_slice(
+    spec: &mason_core::style::css::nine_slice::NineSlice,
+    context: mason_core::style::css::LengthContext,
+    app_root: &str,
+) -> Option<NineSlice> {
+    use mason_core::style::css::{nine_slice::Repeat, NineSliceSideRecord as Side};
+    let image = Image::from_css(&spec.source.as_ref()?.1, context, app_root)?;
+    let repeat = |value| match value {
+        Repeat::Repeat => 0,
+        Repeat::Space => 2,
+        Repeat::Round => 3,
+        Repeat::Stretch => 4,
+    };
+    let slice = spec.slice.each_ref().map(|side| {
+        let r = side.record(context);
+        let percent = r[Side::KIND] == 1.;
+        (
+            r[Side::VALUE] as f32 * if percent { 100. } else { 1. },
+            percent,
+        )
+    });
+    let widths = std::array::from_fn(|i| {
+        if let Some(axis) = spec.width_offset(i) {
+            let (fraction, px) = axis.components(context);
+            return (1, px, fraction * 100.);
+        }
+        let r = spec.width[i].record(context);
+        let value = r[Side::VALUE] as f32;
+        match r[Side::KIND] as u8 {
+            0 => (0, value, 0.),
+            1 => (1, 0., value * 100.),
+            2 => (1, value, 0.),
+            _ => (2, 0., 0.),
+        }
+    });
+    let outset = spec.outset.each_ref().map(|side| {
+        let r = side.record(context);
+        (u8::from(r[Side::KIND] != 0.), r[Side::VALUE] as f32)
+    });
+    Some(NineSlice {
+        image,
+        slice,
+        fill: spec.fill,
+        widths,
+        outset,
+        repeat: (repeat(spec.repeat[0]), repeat(spec.repeat[1])),
+        luminance: spec.luminance,
+    })
+}
+
 fn f(v: &Value) -> f32 {
     v.as_f64().unwrap_or(0.0) as f32
 }
@@ -517,6 +668,11 @@ fn draw_image_cairo(el: &Element, cr: &cairo::Context, image: &Image, rect: &gra
     cr.rectangle(x, y, w, h);
     cr.clip();
     match image {
+        Image::Gradient(_, _) => {
+            if let Some(resolved) = image.resolve_gradient(w as f32, h as f32) {
+                draw_image_cairo(el, cr, &resolved, rect);
+            }
+        }
         Image::Url { src } => {
             if let Some(surface) = crate::image::texture_for(src, el.upcast_ref())
                 .as_ref()

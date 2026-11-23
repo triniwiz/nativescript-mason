@@ -1,8 +1,6 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <initializer_list>
-#include <utility>
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
@@ -45,30 +43,25 @@ namespace mason_leaf
 
     using StyleDirty = std::array<uint32_t, 4>;
 
-    constexpr StyleDirty StateFlags(std::initializer_list<std::pair<uint32_t, uint32_t>> ranges)
-    {
-        StyleDirty mask{};
-        for (auto [first, last] : ranges)
-        {
-            for (uint32_t n = first; n <= last; ++n) mask[n >> 5] |= 1u << (n & 31);
-        }
-        return mask;
-    }
+    inline constexpr auto kLayoutKeys = mason_state_groups::kWindowsLayout;
+    inline constexpr auto kTextKeys = mason_state_groups::kWindowsText;
+    inline constexpr auto kControlKeys = mason_state_groups::kWindowsControls;
 
-    // Inclusive StateKeys bit ranges, as Android's StateKeys.LAYOUT_MASK and TEXT_LAYOUT.
-    namespace st = mason_state_keys;
-    inline constexpr StyleDirty kLayoutKeys = StateFlags({ { st::kDisplay, st::kMaxContentHeight }, { st::kFloat, st::kClear }, { st::kListStylePosition, st::kInvalidateText }, { st::kTextAlign, st::kTextJustify }, { st::kFontSize, st::kTextOverflow }, { st::kWhiteSpace, st::kVerticalAlign }, { st::kFontFamily, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp }, { st::kTextOrientation, st::kTextOrientation }, { st::kVisibility, st::kVisibility } });
-    inline constexpr StyleDirty kTextKeys = StateFlags({ { st::kDirection, st::kDirection }, { st::kInvalidateText, st::kTextJustify }, { st::kFontSize, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch }, { st::kTextIndent, st::kLineClamp }, { st::kTextOrientation, st::kTextOrientation } });
-    inline constexpr StyleDirty kControlKeys = StateFlags({ { st::kInvalidateText, st::kFontVariantNumeric }, { st::kWritingMode, st::kHyphens }, { st::kWordSpacing, st::kFontStretch } });
-
-    inline bool AnyDirty(StyleDirty const& dirty, StyleDirty const& mask)
+    constexpr bool AnyDirty(StyleDirty const& dirty, StyleDirty const& mask)
     {
         return ((dirty[0] & mask[0]) | (dirty[1] & mask[1]) | (dirty[2] & mask[2]) | (dirty[3] & mask[3])) != 0;
     }
 
-    inline StyleDirty DirtyWords(int32_t w0, int32_t w1, int32_t w2, int32_t w3)
+    constexpr StyleDirty DirtyWords(int32_t w0, int32_t w1, int32_t w2, int32_t w3)
     {
         return { static_cast<uint32_t>(w0), static_cast<uint32_t>(w1), static_cast<uint32_t>(w2), static_cast<uint32_t>(w3) };
+    }
+
+    constexpr StyleDirty UpdatePaintStyle(bool& paintDirty, int32_t w0, int32_t w1, int32_t w2, int32_t w3)
+    {
+        const auto dirty = DirtyWords(w0, w1, w2, w3);
+        paintDirty = paintDirty || AnyDirty(dirty, mason_state_groups::kWindowsPaint);
+        return dirty;
     }
 
     // Why an element is hidden. Each reason collapses it on its own; it shows again once none is
@@ -165,15 +158,16 @@ namespace mason_leaf
         if (!element || !node) return;
         uint32_t size = 0;
         const uint8_t* data = winrt::get_self<winrt::NativeScript::Mason::implementation::Node>(node)->StyleData(size);
-        if (!data || size < 4) return;
+        constexpr auto offset = mason_style_keys::kDisplay;
+        if (!data || size < offset + sizeof(int32_t)) return;
         int32_t display = 0;
-        std::memcpy(&display, data, 4); // DISPLAY: 0 is none
+        std::memcpy(&display, data + offset, sizeof(display));
         SetHidden(LayoutChildOf(element), HiddenByDisplay, display == 0);
     }
 
     inline void StyleSynced(winrt::Microsoft::UI::Xaml::UIElement const& element, winrt::NativeScript::Mason::Node const& node, StyleDirty const& dirty)
     {
-        SyncDisplay(element, node);
+        if (AnyDirty(dirty, mason_state_groups::kWindowsDisplay)) SyncDisplay(element, node);
         if (AnyDirty(dirty, kLayoutKeys)) StyleChanged(element, node);
         else element.InvalidateArrange();
     }

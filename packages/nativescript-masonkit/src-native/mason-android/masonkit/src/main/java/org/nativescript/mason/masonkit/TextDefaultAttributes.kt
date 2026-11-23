@@ -66,6 +66,15 @@ class TextDefaultAttributes {
       resolvePending()
       field = value
     }
+  internal var fontFeatures: String? = null
+    get() {
+      resolvePending()
+      return field
+    }
+    set(value) {
+      resolvePending()
+      field = value
+    }
   var textWrap: Styles.TextWrap? = null
     get() {
       resolvePending()
@@ -228,6 +237,7 @@ class TextDefaultAttributes {
     val resolvedFont = style.resolvedFontFace
     fontFamily = resolvedFont.fontFamily
     font = resolvedFont
+    fontFeatures = style.fontFeaturesForPaint
     textWrap = (if (inherits(StyleKeys.TEXT_WRAP_STATE)) parent?.textWrap else null) ?: style.resolvedTextWrap
     whiteSpace = (if (inherits(StyleKeys.WHITE_SPACE_STATE)) parent?.whiteSpace else null) ?: style.resolvedWhiteSpace
     textTransform = (if (inherits(StyleKeys.TEXT_TRANSFORM_STATE)) parent?.textTransform else null) ?: style.resolvedTextTransform
@@ -267,6 +277,7 @@ class TextDefaultAttributes {
     fontStyle = attributes.fontStyle
     fontFamily = attributes.fontFamily
     font = attributes.font
+    fontFeatures = attributes.fontFeatures
     textWrap = attributes.textWrap
     whiteSpace = attributes.whiteSpace
     textTransform = attributes.textTransform

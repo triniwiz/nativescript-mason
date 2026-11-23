@@ -11,8 +11,6 @@ import UIKit
 import AppKit
 #endif
 
-private let SPLIT_REGEX = try! NSRegularExpression(pattern: "\\s+")
-
 struct TextShadow {
   let offsetX: CGFloat
   let offsetY: CGFloat
@@ -92,139 +90,78 @@ struct BoxShadow: Hashable {
   }
 }
 
+func withCssRecords<Result>(
+  _ value: String, kind: CssParseKind, style: MasonStyle? = nil,
+  _ decode: (UnsafeBufferPointer<Double>) -> Result
+) -> Result {
+  let viewport = NSCMason.viewportSize
+  let result = value.withCString {
+    mason_css_parse($0, kind.rawValue, 1, style?.fontSize ?? NSCMason.rootFontSize,
+                    NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height),
+                    style?.color ?? 0xff000000)
+  }
+  defer { mason_css_values_release(result) }
+  return decode(UnsafeBufferPointer(start: result.values, count: Int(result.len)))
+}
+
+func withStyleCssRecords<Result>(
+  _ style: MasonStyle, _ value: String, kind: StyleRecordKind,
+  _ decode: (UnsafeBufferPointer<Double>) -> Result
+) -> Result {
+  let viewport = NSCMason.viewportSize
+  return projectStyleCssRecords(style, kind: kind, store: true, project: { mason, node in
+    value.withCString {
+      mason_css_set_style_records(mason, node, kind.rawValue, $0, 1, style.fontSize, NSCMason.rootFontSize,
+                                  Float(viewport.width), Float(viewport.height), style.color)
+    }
+  }, decode: decode)
+}
+
+func projectStyleCssRecords<Result>(
+  _ style: MasonStyle, kind: StyleRecordKind, store: Bool,
+  project: (OpaquePointer?, OpaquePointer?) -> CMasonStyleRecords,
+  decode: (UnsafeBufferPointer<Double>) -> Result
+) -> Result {
+  let node = style.node
+  let attached = store && !node.isPlaceholder
+  let deferred = attached && node.mason.inCompute
+  if attached && !deferred {
+    style.prepareMut()
+  }
+  let records = project(attached && !deferred ? node.mason.nativePtr : nil, attached ? node.nativePtr : nil)
+  if deferred && (kind != .fontFeatures || records.values != nil) {
+    node.mason.deferStyleRecords(style, kind: kind)
+  }
+  defer { mason_css_style_records_release(records) }
+  return decode(UnsafeBufferPointer(start: records.values, count: Int(records.len)))
+}
+
 enum ShadowParser {
-
   static func parseTextShadow(style: MasonStyle, value: String) -> [TextShadow] {
-    return splitShadowLayers(value)
-      .compactMap { rawShadow in
-        let shadow = rawShadow.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let tokens = splitByWhitespace(shadow)
-
-        var offsetX: CGFloat?
-        var offsetY: CGFloat?
-        var blur: CGFloat = 0
-        var color: UIColor?
-        
-        for token in tokens {
-          if let length = parseLength(style, token, resolve: true) {
-            if offsetX == nil {
-              offsetX = CGFloat(length)
-            } else if offsetY == nil {
-              offsetY = CGFloat(length)
-            } else {
-              blur = max(0, CGFloat(length)) // blur must be ≥ 0
-            }
-            continue
-          }
-
-          if let parsedColor = parseColor(token) {
-            color = parsedColor
-          }
-        }
-
-        guard let x = offsetX, let y = offsetY else {
-          return nil
-        }
-        
-        return TextShadow(
-          offsetX: x,
-          offsetY: y,
-          blurRadius: blur * 0.1,
-          color: (color ?? .black).adjustedAlpha(1.15)
-        )
-
-      }
+    withStyleCssRecords(style, value, kind: .textShadow, readTextShadows)
   }
 
-  /// Parse CSS box-shadow value.
-  /// Syntax: [inset] <offset-x> <offset-y> [blur-radius] [spread-radius] <color>
-  /// Multiple shadows separated by commas are supported.
+  static func readTextShadows(_ records: UnsafeBufferPointer<Double>) -> [TextShadow] {
+    stride(from: 0, to: records.count, by: ShadowRecord.stride).map { index in
+      TextShadow(
+        offsetX: CGFloat(records[index + ShadowRecord.x]), offsetY: CGFloat(records[index + ShadowRecord.y]),
+        blurRadius: CGFloat(records[index + ShadowRecord.blur]) * 0.1,
+        color: UIColor.colorFromARGB(UInt32(records[index + ShadowRecord.color])).adjustedAlpha(1.15)
+      )
+    }
+  }
+
   static func parseBoxShadow(style: MasonStyle, value: String) -> [BoxShadow] {
-    return splitShadowLayers(value)
-      .compactMap { rawShadow in
-        let shadow = rawShadow.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tokens = splitByWhitespace(shadow)
-
-        var inset = false
-        var lengths: [CGFloat] = []
-        var color: UIColor?
-
-        for token in tokens {
-          // Check for inset keyword
-          if token.lowercased() == "inset" {
-            inset = true
-            continue
-          }
-
-          // Try length first
-          if let length = parseLength(style, token, resolve: true) {
-            lengths.append(CGFloat(length))
-            continue
-          }
-
-          // Try color
-          if let parsedColor = parseColor(token) {
-            color = parsedColor
-          }
-        }
-
-        // Must have at least two lengths (offset-x and offset-y)
-        guard lengths.count >= 2 else {
-          return nil
-        }
-
-        let offsetX = lengths[0]
-        let offsetY = lengths[1]
-        let blur = lengths.count >= 3 ? max(0, lengths[2]) : 0
-        let spread = lengths.count >= 4 ? lengths[3] : 0
-
-        return BoxShadow(
-          offsetX: offsetX,
-          offsetY: offsetY,
-          blurRadius: blur,
-          spreadRadius: spread,
-          color: color ?? .black,
-          inset: inset
-        )
-      }
+    withStyleCssRecords(style, value, kind: .boxShadow, readBoxShadows)
   }
 
-  // MARK: - Helpers
-
-  /// Tokenise keeping parenthesised groups (e.g. `rgba(0, 0, 0, 0.5)`) intact.
-  private static func splitByWhitespace(_ string: String) -> [String] {
-    var tokens: [String] = []
-    var current = ""
-    var depth = 0
-    for ch in string {
-      switch ch {
-      case "(": depth += 1; current.append(ch)
-      case ")": depth -= 1; current.append(ch)
-      case _ where ch.isWhitespace && depth == 0:
-        if !current.isEmpty { tokens.append(current); current = "" }
-      default: current.append(ch)
-      }
+  static func readBoxShadows(_ records: UnsafeBufferPointer<Double>) -> [BoxShadow] {
+    stride(from: 0, to: records.count, by: ShadowRecord.stride).map { index in
+      BoxShadow(
+        offsetX: CGFloat(records[index + ShadowRecord.x]), offsetY: CGFloat(records[index + ShadowRecord.y]),
+        blurRadius: CGFloat(records[index + ShadowRecord.blur]), spreadRadius: CGFloat(records[index + ShadowRecord.spread]),
+        color: UIColor.colorFromARGB(UInt32(records[index + ShadowRecord.color])), inset: records[index + ShadowRecord.inset] != 0
+      )
     }
-    if !current.isEmpty { tokens.append(current) }
-    return tokens
-  }
-
-  /// Split comma-separated shadow layers while respecting parenthesised groups.
-  private static func splitShadowLayers(_ value: String) -> [String] {
-    var layers: [String] = []
-    var current = ""
-    var depth = 0
-    for ch in value {
-      switch ch {
-      case "(": depth += 1; current.append(ch)
-      case ")": depth -= 1; current.append(ch)
-      case "," where depth == 0:
-        layers.append(current); current = ""
-      default: current.append(ch)
-      }
-    }
-    if !current.isEmpty { layers.append(current) }
-    return layers
   }
 }

@@ -119,15 +119,15 @@ namespace mason_filter
         return Make(kAffineTransform, { UInt(1), UInt(0), Floats({ 1.0f, 0.0f, 0.0f, 1.0f, x, y }), Float(1.0f) }, { input });
     }
 
-    inline std::vector<float> Numbers(std::wstring_view part)
+    inline std::vector<double> Numbers(std::wstring_view part)
     {
-        std::vector<float> out;
+        std::vector<double> out;
         std::wstring text(part);
         const wchar_t* cursor = text.c_str();
         while (*cursor)
         {
             wchar_t* end = nullptr;
-            const float v = std::wcstof(cursor, &end);
+            const double v = std::wcstod(cursor, &end);
             if (end == cursor) break;
             out.push_back(v);
             cursor = end;
@@ -177,7 +177,7 @@ namespace mason_filter
             }
             else if (part[0] == L'd' && n.size() == 4)
             {
-                const uint32_t argb = static_cast<uint32_t>(static_cast<double>(n[3]));
+                const uint32_t argb = static_cast<uint32_t>(n[3]);
                 const float a = ((argb >> 24) & 0xFF) / 255.0f, r = ((argb >> 16) & 0xFF) / 255.0f;
                 const float g = ((argb >> 8) & 0xFF) / 255.0f, b = (argb & 0xFF) / 255.0f;
                 std::array<float, 20> tint{ 0, 0, 0, 0, r, 0, 0, 0, 0, g, 0, 0, 0, 0, b, 0, 0, 0, a, 0 };

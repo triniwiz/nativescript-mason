@@ -1,3 +1,4 @@
+use crate::style::css::{length as css_length, LengthContext};
 use cssparser::{ParseError, Parser, ParserInput, Token};
 use std::collections::HashMap;
 use style_atoms::Atom;
@@ -11,7 +12,7 @@ use taffy::{
 
 fn parse_repeat_inner<'i, 't, S: CheapCloneStr>(
     parser: &mut Parser<'i, 't>,
-    device_scale: f32,
+    context: LengthContext,
 ) -> Result<GridTemplateRepetition<S>, ParseError<'i, ()>> {
     // Parse repetition count (number, string, or ident for auto-fit/auto-fill)
     let count = if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
@@ -68,7 +69,7 @@ fn parse_repeat_inner<'i, 't, S: CheapCloneStr>(
         }
 
         // Try to parse a track sizing function
-        if let Ok(track) = parser.try_parse(|p| parse_track_size(p, device_scale)) {
+        if let Ok(track) = parser.try_parse(|p| parse_track_size_with_context(p, context)) {
             tracks.push(track);
             // Add new empty vec for line names after this track
             line_names.push(vec![]);
@@ -94,177 +95,137 @@ pub fn parse_track_size<'i, 't>(
     parser: &mut Parser<'i, 't>,
     device_scale: f32,
 ) -> Result<TrackSizingFunction, ParseError<'i, ()>> {
-    // Skip any leading whitespace
-    parser.skip_whitespace();
+    parse_track_size_with_context(parser, LengthContext::for_scale(device_scale))
+}
 
-    // Try auto keyword
-    if parser
-        .try_parse(|p| p.expect_ident_matching("auto"))
-        .is_ok()
-    {
-        return Ok(MinMax::AUTO);
-    }
-
-    // Try minmax(...)
+fn parse_track_size_with_context<'i>(
+    parser: &mut Parser<'i, '_>,
+    context: LengthContext,
+) -> Result<TrackSizingFunction, ParseError<'i, ()>> {
     if parser
         .try_parse(|p| p.expect_function_matching("minmax"))
         .is_ok()
     {
         return parser.parse_nested_block(|parser| {
-            let min = parse_min_track_size(parser, device_scale)?;
+            let min = parse_min_track_size(parser, context)?;
             parser.expect_comma()?;
-            let max = parse_max_track_size(parser, device_scale)?;
+            let max = parse_max_track_size(parser, context)?;
             Ok(minmax(min, max))
         });
     }
-
-    // Try fit-content(...)
     if parser
         .try_parse(|p| p.expect_function_matching("fit-content"))
         .is_ok()
     {
-        let lp =
-            parser.parse_nested_block(|parser| parse_length_percentage(parser, device_scale))?;
-        return Ok(fit_content(lp));
+        return parser.parse_nested_block(|parser| {
+            let (percentage, value) = track_length(parser, context)?;
+            Ok(fit_content(if percentage {
+                LengthPercentage::percent(value)
+            } else {
+                LengthPercentage::length(value)
+            }))
+        });
     }
-
-    // Try min-content / max-content keywords
-    if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        return match ident.as_ref() {
+    if let Ok(keyword) = parser.try_parse(|p| p.expect_ident_cloned()) {
+        return match keyword.to_ascii_lowercase().as_str() {
+            "auto" => Ok(MinMax::AUTO),
             "min-content" => Ok(MinMax::MIN_CONTENT),
             "max-content" => Ok(MinMax::MAX_CONTENT),
             _ => Err(parser.new_custom_error(())),
         };
     }
+    if let Ok(value) = parser.try_parse(fraction) {
+        return Ok(fr(value));
+    }
+    let (percentage, value) = track_length(parser, context)?;
+    Ok(if percentage {
+        percent(value)
+    } else {
+        length(value)
+    })
+}
 
-    // Try dimensions (px, fr, dip, number) or percentage
-    // Use next() instead of next_including_whitespace() - it automatically skips whitespace
-    let token = parser.next()?;
-    match token {
-        Token::Dimension {
-            value, ref unit, ..
-        } => match &**unit {
-            // `px` is a CSS pixel — the same size as a dip — matching the web.
-            // `dppx` is the escape hatch for a literal device pixel.
-            "dppx" => Ok(length(*value)),
-            "px" | "dip" => Ok(length(*value * device_scale)),
-            "fr" => Ok(fr(*value)),
-            _ => Err(parser.new_custom_error(())),
-        },
-        Token::Number { value, .. } => Ok(length(*value * device_scale)),
-        Token::Percentage { unit_value, .. } => Ok(percent(*unit_value)),
+fn track_length<'i>(
+    parser: &mut Parser<'i, '_>,
+    context: LengthContext,
+) -> Result<(bool, f32), ParseError<'i, ()>> {
+    let [kind, value] = css_length::resolve_component(parser, context)?;
+    let amount = if kind == 0. {
+        value * f64::from(context.scale)
+    } else {
+        value
+    } as f32;
+    amount
+        .is_finite()
+        .then_some((kind == 2., amount))
+        .ok_or_else(|| parser.new_custom_error(()))
+}
+
+fn fraction<'i>(parser: &mut Parser<'i, '_>) -> Result<f32, ParseError<'i, ()>> {
+    match parser.next()? {
+        Token::Dimension { value, unit, .. }
+            if unit.eq_ignore_ascii_case("fr") && value.is_finite() =>
+        {
+            Ok(*value)
+        }
         _ => Err(parser.new_custom_error(())),
     }
 }
 
-// Helper to parse just length/percentage (for fit-content argument)
-fn parse_length_percentage<'i, 't>(
-    parser: &mut Parser<'i, 't>,
-    device_scale: f32,
-) -> Result<LengthPercentage, ParseError<'i, ()>> {
-    parser.skip_whitespace();
-    let token = parser.next()?;
-    match token {
-        Token::Dimension {
-            value, ref unit, ..
-        } => match &**unit {
-            "dppx" => Ok(LengthPercentage::length(*value)),
-            "px" | "dip" => Ok(LengthPercentage::length(*value * device_scale)),
-            _ => Err(parser.new_custom_error(())),
-        },
-        Token::Number { value, .. } => Ok(LengthPercentage::length(*value * device_scale)),
-        Token::Percentage { unit_value, .. } => Ok(LengthPercentage::percent(*unit_value)),
-        _ => Err(parser.new_custom_error(())),
-    }
-}
-
-// Helper to parse MinTrackSizingFunction (for minmax min value)
-fn parse_min_track_size<'i, 't>(
-    parser: &mut Parser<'i, 't>,
-    device_scale: f32,
+fn parse_min_track_size<'i>(
+    parser: &mut Parser<'i, '_>,
+    context: LengthContext,
 ) -> Result<MinTrackSizingFunction, ParseError<'i, ()>> {
-    parser.skip_whitespace();
-
-    // Try auto keyword
-    if parser
-        .try_parse(|p| p.expect_ident_matching("auto"))
-        .is_ok()
-    {
-        return Ok(MinTrackSizingFunction::AUTO);
-    }
-
-    // Try min-content / max-content keywords
-    if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        return match ident.as_ref() {
+    if let Ok(keyword) = parser.try_parse(|p| p.expect_ident_cloned()) {
+        return match keyword.to_ascii_lowercase().as_str() {
+            "auto" => Ok(MinTrackSizingFunction::AUTO),
             "min-content" => Ok(MinTrackSizingFunction::MIN_CONTENT),
             "max-content" => Ok(MinTrackSizingFunction::MAX_CONTENT),
             _ => Err(parser.new_custom_error(())),
         };
     }
-
-    // Try dimensions or percentage
-    let token = parser.next()?;
-    match token {
-        Token::Dimension {
-            value, ref unit, ..
-        } => match &**unit {
-            "dppx" => Ok(MinTrackSizingFunction::length(*value)),
-            "px" => Ok(MinTrackSizingFunction::length(*value * device_scale)),
-            "dip" => Ok(MinTrackSizingFunction::length(*value * device_scale)),
-            _ => Err(parser.new_custom_error(())),
-        },
-        Token::Number { value, .. } => Ok(MinTrackSizingFunction::length(*value * device_scale)),
-        Token::Percentage { unit_value, .. } => Ok(MinTrackSizingFunction::percent(*unit_value)),
-        _ => Err(parser.new_custom_error(())),
-    }
+    let (percentage, value) = track_length(parser, context)?;
+    Ok(if percentage {
+        MinTrackSizingFunction::percent(value)
+    } else {
+        MinTrackSizingFunction::length(value)
+    })
 }
 
-// Helper to parse MaxTrackSizingFunction (for minmax max value)
-fn parse_max_track_size<'i, 't>(
-    parser: &mut Parser<'i, 't>,
-    device_scale: f32,
+fn parse_max_track_size<'i>(
+    parser: &mut Parser<'i, '_>,
+    context: LengthContext,
 ) -> Result<MaxTrackSizingFunction, ParseError<'i, ()>> {
-    parser.skip_whitespace();
-
-    // Try auto keyword
-    if parser
-        .try_parse(|p| p.expect_ident_matching("auto"))
-        .is_ok()
-    {
-        return Ok(MaxTrackSizingFunction::AUTO);
-    }
-
-    // Try min-content / max-content keywords
-    if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        return match ident.as_ref() {
+    if let Ok(keyword) = parser.try_parse(|p| p.expect_ident_cloned()) {
+        return match keyword.to_ascii_lowercase().as_str() {
+            "auto" => Ok(MaxTrackSizingFunction::AUTO),
             "min-content" => Ok(MaxTrackSizingFunction::MIN_CONTENT),
             "max-content" => Ok(MaxTrackSizingFunction::MAX_CONTENT),
             _ => Err(parser.new_custom_error(())),
         };
     }
-
-    // Try dimensions, fr, or percentage
-    let token = parser.next()?;
-    match token {
-        Token::Dimension {
-            value, ref unit, ..
-        } => match &**unit {
-            "dppx" => Ok(MaxTrackSizingFunction::length(*value)),
-            "px" => Ok(MaxTrackSizingFunction::length(*value * device_scale)),
-            "dip" => Ok(MaxTrackSizingFunction::length(*value * device_scale)),
-            "fr" => Ok(MaxTrackSizingFunction::fr(*value)),
-            _ => Err(parser.new_custom_error(())),
-        },
-        Token::Number { value, .. } => Ok(MaxTrackSizingFunction::length(*value * device_scale)),
-        Token::Percentage { unit_value, .. } => Ok(MaxTrackSizingFunction::percent(*unit_value)),
-        _ => Err(parser.new_custom_error(())),
+    if let Ok(value) = parser.try_parse(fraction) {
+        return Ok(MaxTrackSizingFunction::fr(value));
     }
+    let (percentage, value) = track_length(parser, context)?;
+    Ok(if percentage {
+        MaxTrackSizingFunction::percent(value)
+    } else {
+        MaxTrackSizingFunction::length(value)
+    })
 }
 
 /// Parses a full grid-template string (rows or columns)
 pub fn parse_grid_template<S: CheapCloneStr>(
     input: &str,
     device_scale: f32,
+) -> Result<(Vec<GridTemplateComponent<S>>, Vec<Vec<S>>), ParseError<'_, ()>> {
+    parse_grid_template_with_context(input, LengthContext::for_scale(device_scale))
+}
+
+pub(crate) fn parse_grid_template_with_context<S: CheapCloneStr>(
+    input: &str,
+    context: LengthContext,
 ) -> Result<(Vec<GridTemplateComponent<S>>, Vec<Vec<S>>), ParseError<'_, ()>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
@@ -300,13 +261,13 @@ pub fn parse_grid_template<S: CheapCloneStr>(
             .try_parse(|p| p.expect_function_matching("repeat"))
             .is_ok()
         {
-            let repetition = parser.parse_nested_block(|p| parse_repeat_inner(p, device_scale))?;
+            let repetition = parser.parse_nested_block(|p| parse_repeat_inner(p, context))?;
             all_line_names.push(names);
             components.push(GridTemplateComponent::Repeat(repetition));
             continue;
         }
 
-        let track = parse_track_size(&mut parser, device_scale)?;
+        let track = parse_track_size_with_context(&mut parser, context)?;
         all_line_names.push(names);
         // A repeat of one keeps every component the same shape.
         components.push(GridTemplateComponent::Repeat(GridTemplateRepetition {
@@ -418,6 +379,13 @@ pub fn parse_grid_auto_tracks(
     input: &str,
     device_scale: f32,
 ) -> Result<Vec<TrackSizingFunction>, ParseError<'_, ()>> {
+    parse_grid_auto_tracks_with_context(input, LengthContext::for_scale(device_scale))
+}
+
+pub(crate) fn parse_grid_auto_tracks_with_context(
+    input: &str,
+    context: LengthContext,
+) -> Result<Vec<TrackSizingFunction>, ParseError<'_, ()>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
     let mut tracks = Vec::new();
@@ -427,7 +395,7 @@ pub fn parse_grid_auto_tracks(
         if parser.is_exhausted() {
             break;
         }
-        tracks.push(parse_track_size(&mut parser, device_scale)?);
+        tracks.push(parse_track_size_with_context(&mut parser, context)?);
         parser.skip_whitespace();
         let _ = parser.try_parse(|p| p.expect_comma());
     }
@@ -534,10 +502,45 @@ pub fn parse_grid_placement<S: CheapCloneStr>(
 
 /// The value an omitted end takes: a lone `<custom-ident>` start repeats, anything else is `auto`.
 fn omitted_end<S: CheapCloneStr>(start: &GridPlacement<S>) -> GridPlacement<S> {
-    match start {
-        GridPlacement::NamedLine(_, 0) => start.clone(),
-        _ => GridPlacement::Auto,
+    if copies_start(start) {
+        start.clone()
+    } else {
+        GridPlacement::Auto
     }
+}
+
+fn copies_start<S: CheapCloneStr>(start: &GridPlacement<S>) -> bool {
+    matches!(start, GridPlacement::NamedLine(_, 0))
+}
+
+/// Preserve each authored component for the longhand cascade and use the same
+/// omitted-end rules as the typed grid parser.
+pub(crate) fn expand_grid_placement(input: &str, count: usize) -> Option<Vec<String>> {
+    let mut input = ParserInput::new(input);
+    let mut parser = Parser::new(&mut input);
+    let mut parts = Vec::with_capacity(count);
+    loop {
+        parser.skip_whitespace();
+        let start = parser.position();
+        let placement = parse_grid_placement_with_parser::<Atom>(&mut parser).ok()?;
+        let text = parser.slice_from(start).trim_end();
+        if text.is_empty() {
+            return None;
+        }
+        parts.push((text, copies_start(&placement)));
+        if parser.is_exhausted() {
+            break;
+        }
+        if parts.len() == count || parser.expect_delim('/').is_err() {
+            return None;
+        }
+    }
+    while parts.len() < count {
+        let offset = if count == 4 { 2 } else { 1 };
+        let (text, copy) = parts[parts.len().saturating_sub(offset)];
+        parts.push(if copy { (text, true) } else { ("auto", false) });
+    }
+    Some(parts.into_iter().map(|(text, _)| text.to_owned()).collect())
 }
 
 /// Parse `grid-column` or `grid-row` shorthand

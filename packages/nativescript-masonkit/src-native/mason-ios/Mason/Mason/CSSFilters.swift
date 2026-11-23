@@ -14,6 +14,24 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import Metal
 
+/// Holds the typed CSS chain so color and length changes need only resolve it again.
+final class NativeFilterProgram {
+  let css: String
+  fileprivate let handle: OpaquePointer
+
+  convenience init?(_ css: String) {
+    guard !css.isEmpty, let handle = css.withCString({ mason_css_filter_parse($0) }) else { return nil }
+    self.init(css, handle: handle)
+  }
+
+  init(_ css: String, handle: OpaquePointer) {
+    self.css = css
+    self.handle = handle
+  }
+
+  deinit { mason_css_filter_release(handle) }
+}
+
 public class CSSFilters {
   /// The sublayer a backdrop-filter paints into, at the bottom of the view's layer.
   static let backdropLayerName = "_mason_backdrop_layer"
@@ -264,11 +282,17 @@ public class CSSFilters {
     }
 
     public func parse(css: String) {
-      let isEmpty = filters.count == 0
-      filters = CSSFilters.parse(css)
-      if(!isEmpty && filters.count == 0){
-        reset()
-      }
+      parse(css: css, style: nil)
+    }
+
+    func parse(css: String, style: MasonStyle?) {
+      replaceFilters(CSSFilters.parse(css, style: style))
+    }
+
+    func replaceFilters(_ next: [Filter]) {
+      let hadFilters = !filters.isEmpty
+      filters = next
+      if hadFilters && filters.isEmpty { reset() }
     }
 
     /// Removes the element output layer; the view keeps rendering unfiltered.
@@ -1024,176 +1048,45 @@ public class CSSFilters {
     return CIImage(image: image)
   }
 
-  private static func splitCssArgs(_ input: String) -> [String] {
-    var result: [String] = []
-    var current = ""
-    var depth = 0
-    
-    for ch in input {
-      if ch == "(" { depth += 1 }
-      if ch == ")" { depth -= 1 }
-      
-      if ch.isWhitespace && depth == 0 {
-        if !current.isEmpty {
-          result.append(current)
-          current = ""
-        }
-      } else {
-        current.append(ch)
+  static func parse(_ value: String, style: MasonStyle? = nil) -> [Filter] {
+    withCssRecords(value, kind: .filters, style: style, decode)
+  }
+
+  static func setStyleFilter(_ value: String, style: MasonStyle, backdrop: Bool = false) -> [Filter] {
+    withStyleCssRecords(style, value, kind: backdrop ? .backdropFilter : .filter, decode)
+  }
+
+  static func project(_ program: NativeFilterProgram?, style: MasonStyle, store: Bool) -> [Filter] {
+    let viewport = NSCMason.viewportSize
+    return projectStyleCssRecords(style, kind: .filter, store: store, project: { mason, node in
+      withExtendedLifetime(program) {
+        mason_css_filter_project(program?.handle, mason, node, false, 1, style.resolvedFontSize,
+                                 NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height), style.color)
+      }
+    }, decode: decode)
+  }
+
+  static func decode(_ records: UnsafeBufferPointer<Double>) -> [Filter] {
+    stride(from: 0, to: records.count, by: FilterRecord.stride).compactMap { index in
+      let amount = CGFloat(records[index + FilterRecord.amountOrX])
+      switch Int(records[index + FilterRecord.kind]) {
+      case FilterOperationCode.blur: return .blur(radius: amount)
+      case FilterOperationCode.brightness: return .brightness(value: amount)
+      case FilterOperationCode.contrast: return .contrast(value: amount)
+      case FilterOperationCode.saturate: return .saturate(value: amount)
+      case FilterOperationCode.hueRotate: return .hueRotate(degrees: amount)
+      case FilterOperationCode.invert: return .invert(amount: amount)
+      case FilterOperationCode.opacity: return .opacity(amount: amount)
+      case FilterOperationCode.sepia: return .sepia(amount: amount)
+      case FilterOperationCode.grayscale: return .grayscale(amount: amount)
+      case FilterOperationCode.dropShadow:
+        return .dropShadow(
+          offsetX: amount, offsetY: CGFloat(records[index + FilterRecord.y]),
+          blur: CGFloat(records[index + FilterRecord.blur]),
+          color: UIColor.colorFromARGB(UInt32(records[index + FilterRecord.color]))
+        )
+      default: return nil
       }
     }
-    
-    if !current.isEmpty {
-      result.append(current)
-    }
-    
-    return result
   }
-  
-  
-  
-  static func parse(_ value: String) -> [Filter] {
-    var filters: [Filter] = []
-    var i = value.startIndex
-    
-    func skipSpaces() {
-      while i < value.endIndex && value[i].isWhitespace {
-        i = value.index(after: i)
-      }
-    }
-    
-    while i < value.endIndex {
-      skipSpaces()
-      
-      let nameStart = i
-      while i < value.endIndex && (value[i].isLetter || value[i] == "-") {
-        i = value.index(after: i)
-      }
-      
-      guard nameStart < i else { break }
-      let name = value[nameStart..<i].lowercased()
-      
-      skipSpaces()
-      guard i < value.endIndex, value[i] == "(" else { break }
-      i = value.index(after: i)
-      
-      var depth = 1
-      let argsStart = i
-      
-      while i < value.endIndex && depth > 0 {
-        if value[i] == "(" { depth += 1 }
-        if value[i] == ")" { depth -= 1 }
-        i = value.index(after: i)
-      }
-      
-      let args = value[argsStart..<value.index(before: i)]
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-      
-      switch name {
-      case "blur":
-        filters.append(.blur(radius: parseCssFloat(String(args))))
-      case "brightness":
-        filters.append(.brightness(value: parseCssFloat(String(args), defaultValue: 1)))
-      case "contrast":
-        filters.append(.contrast(value: parseCssFloat(String(args), defaultValue: 1)))
-      case "saturate":
-        filters.append(.saturate(value: parseCssFloat(String(args), defaultValue: 1)))
-      case "hue-rotate":
-        filters.append(.hueRotate(degrees: parseCssAngle(String(args))))
-      case "invert":
-        filters.append(.invert(amount: parseCssFloat(String(args), defaultValue: 0)))
-      case "opacity":
-        filters.append(.opacity(amount: parseCssFloat(String(args), defaultValue: 1)))
-      case "sepia":
-        filters.append(.sepia(amount: parseCssFloat(String(args), defaultValue: 0)))
-      case "grayscale":
-        filters.append(.grayscale(amount: parseCssFloat(String(args), defaultValue: 0)))
-      case "drop-shadow":
-        if let shadow = parseDropShadow(String(args)) {
-          filters.append(shadow)
-        }
-      default:
-        break
-      }
-    }
-    
-    return filters
-  }
-  
-  
-  
-  // Parse a CSS float value like "5px" or "50%"
-  private static func parseCssFloat(_ value: String, defaultValue: CGFloat = 0) -> CGFloat {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if trimmed.hasSuffix("px") {
-      // A CSS px is a point.
-      return CGFloat(Double(trimmed.dropLast(2)) ?? Double(defaultValue))
-    } else if trimmed.hasSuffix("%") {
-      return CGFloat((Double(trimmed.dropLast()) ?? Double(defaultValue)) / 100.0)
-    } else {
-      return CGFloat(Double(trimmed) ?? Double(defaultValue))
-    }
-  }
-  
-  // Parse CSS angle: "30deg", "0.5turn", "1.57rad"
-  private static func parseCssAngle(_ value: String) -> CGFloat {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if trimmed.hasSuffix("deg") {
-      return CGFloat(Double(trimmed.dropLast(3)) ?? 0)
-    } else if trimmed.hasSuffix("grad") {
-      return CGFloat(Double(trimmed.dropLast(4)) ?? 0) * 0.9
-    } else if trimmed.hasSuffix("rad") {
-      return CGFloat(Double(trimmed.dropLast(3)) ?? 0) * 180 / .pi
-    } else if trimmed.hasSuffix("turn") {
-      return CGFloat(Double(trimmed.dropLast(4)) ?? 0) * 360
-    } else {
-      return CGFloat(Double(trimmed) ?? 0)
-    }
-  }
-  
-  // Parse drop-shadow: "5px 5px 10px #000"
-  private static func parseDropShadow(_ value: String) -> Filter? {
-    let parts = splitCssArgs(value.trimmingCharacters(in: .whitespacesAndNewlines))
-    guard parts.count >= 2 else { return nil }
-    
-    var offsetX: CGFloat = 0
-    var offsetY: CGFloat = 0
-    var blur: CGFloat = 0
-    var color: UIColor = .black
-    
-    var lengthValues: [CGFloat] = []
-    var colorParts: [String] = []
-    
-    for part in parts {
-      let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-      
-      let number = trimmed.hasSuffix("px") ? String(trimmed.dropLast(2)) : trimmed
-      if Double(number) != nil {
-        lengthValues.append(parseCssFloat(part))
-      } else {
-        colorParts.append(part)
-      }
-    }
-    
-    guard lengthValues.count >= 2 else { return nil }
-    
-    offsetX = lengthValues[0]
-    offsetY = lengthValues[1]
-    blur = lengthValues.count >= 3 ? max(0, lengthValues[2]) : 0   // CSS clamps blur to >= 0
-    
-    if !colorParts.isEmpty {
-      let colorString = colorParts.joined(separator: " ")
-      color = parseCssColor(colorString)
-    }
-    
-    return .dropShadow(offsetX: offsetX, offsetY: offsetY, blur: blur, color: color)
-  }
-  
-  // MARK: - Helpers
-  
-  static func parseCssColor(_ value: String) -> UIColor {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    return colorMap[trimmed] ?? UIColor(css: trimmed) ?? .black
-  }
-  
 }

@@ -1,0 +1,273 @@
+diff --git a/ui/core/properties/index.d.ts b/ui/core/properties/index.d.ts
+index bbd6557..3d32c5d 100644
+--- a/ui/core/properties/index.d.ts
++++ b/ui/core/properties/index.d.ts
+@@ -38,13 +38,13 @@ export declare function _isCssShorthand(cssName: string): boolean;
+ /**
+  * Expand a shorthand declaration into its longhand declarations, or `undefined`
+  * when the property is not a shorthand, the value still has to be evaluated per
+- * view (`var()`/`calc()`), or it does not parse.
++ * view, or it does not parse.
+  */
+-export declare function _expandCssShorthand(cssName: string, value: string): [string, any][] | undefined;
++export declare function _expandCssShorthand(cssName: string, value: string, preserveMath?: boolean, style?: Style): [string, any][] | undefined;
+ export declare function isCssVariable(property: string): boolean;
+ export declare function isCssCalcExpression(value: string): boolean;
+ export declare function isCssVariableExpression(value: string): boolean;
+-export declare function _evaluateCssVariableExpression(view: ViewBase, cssName: string, value: string): string;
++export declare function _evaluateCssVariableExpression(view: ViewBase, cssName: string, value: string, preserveMath?: boolean): string;
+ export declare function _evaluateCssCalcExpression(value: string): string;
+ export declare class Property<T extends ViewBase, U> implements TypedPropertyDescriptor<U>, Property<T, U> {
+     private registered;
+diff --git a/ui/core/properties/index.js b/ui/core/properties/index.js
+index c404d44..c057aab 100644
+--- a/ui/core/properties/index.js
++++ b/ui/core/properties/index.js
+@@ -6,7 +6,7 @@ import { calc } from '@csstools/css-calc';
+ // Backwards compatibility
+ export { unsetValue } from './property-shared';
+ const cssPropertyNames = [];
+-const cssShorthandConverters = new Map();
++const cssShorthands = new Map();
+ const cssShorthandLonghands = new Map();
+ // Bumped per shorthand registration, so rules parsed before it can still expand it.
+ let cssShorthandsVersion = 0;
+@@ -94,7 +94,7 @@ function getCssShorthandLonghands(cssName) {
+     if (known) {
+         return known;
+     }
+-    const converter = cssShorthandConverters.get(cssName);
++    const converter = cssShorthands.get(cssName)?.converter;
+     if (!converter) {
+         return undefined;
+     }
+@@ -137,23 +137,23 @@ export function _getCssShorthandsVersion() {
+ }
+ /** Whether `cssName` is a registered shorthand. */
+ export function _isCssShorthand(cssName) {
+-    return cssShorthandConverters.has(cssName);
++    return cssShorthands.has(cssName);
+ }
+ /**
+  * Expand a shorthand declaration into its longhand declarations, or `undefined`
+  * when the property is not a shorthand, the value still has to be evaluated per
+- * view (`var()`/`calc()`), or it does not parse.
++ * view, or it does not parse.
+  */
+-export function _expandCssShorthand(cssName, value) {
+-    const converter = cssShorthandConverters.get(cssName);
+-    if (!converter) {
++export function _expandCssShorthand(cssName, value, preserveMath = false, style) {
++    const shorthand = cssShorthands.get(cssName);
++    if (!shorthand || (shorthand.converterForStyle && !style)) {
+         return undefined;
+     }
+-    if (typeof value === 'string' && (isCssVariableExpression(value) || isCssCalcExpression(value))) {
++    if (typeof value === 'string' && (isCssVariableExpression(value) || (!preserveMath && isCssCalcExpression(value)))) {
+         return undefined;
+     }
+     try {
+-        const converted = converter(value);
++        const converted = (style && shorthand.converterForStyle?.(value, style)) ?? shorthand.converter(value);
+         const expanded = [];
+         for (let i = 0, length = converted.length; i < length; i++) {
+             expanded.push([converted[i][0].cssLocalName, converted[i][1]]);
+@@ -174,7 +174,7 @@ export function isCssCalcExpression(value) {
+ export function isCssVariableExpression(value) {
+     return value.includes('var(--');
+ }
+-export function _evaluateCssVariableExpression(view, cssName, value) {
++export function _evaluateCssVariableExpression(view, cssName, value, preserveMath = false) {
+     if (typeof value !== 'string') {
+         return value;
+     }
+@@ -199,12 +199,12 @@ export function _evaluateCssVariableExpression(view, cssName, value) {
+         const commaIdx = body.indexOf(',');
+         const cssVariableName = (commaIdx === -1 ? body : body.substring(0, commaIdx)).trim();
+         const fallback = commaIdx === -1 ? '' : body.substring(commaIdx + 1).trim();
+-        let cssVariableValue = view.style.getCssVariable(cssVariableName);
++        let cssVariableValue = view.style.getCssVariable(cssVariableName, preserveMath);
+         if (typeof cssVariableValue === 'string' && cssVariableValue.trim() === 'initial') {
+             cssVariableValue = null;
+         }
+         if (cssVariableValue === null && fallback) {
+-            cssVariableValue = _evaluateCssVariableExpression(view, cssName, fallback);
++            cssVariableValue = _evaluateCssVariableExpression(view, cssName, fallback, preserveMath);
+         }
+         if (!cssVariableValue || cssVariableValue === 'unset') {
+             cssVariableValue = UNRESOLVED_VAR;
+@@ -1189,7 +1189,8 @@ export class ShorthandProperty {
+         this.key = key;
+         this.cssName = `css:${options.cssName}`;
+         this.cssLocalName = `${options.cssName}`;
+-        cssShorthandConverters.set(options.cssName, options.converter);
++        cssShorthands.set(options.cssName, options);
++        cssShorthandLonghands.delete(options.cssName);
+         cssShorthandsVersion++;
+         const converter = options.converter;
+         function setLocalValue(value) {
+diff --git a/ui/core/properties/property-shared.d.ts b/ui/core/properties/property-shared.d.ts
+index aa6fb01..4ec48a1 100644
+--- a/ui/core/properties/property-shared.d.ts
++++ b/ui/core/properties/property-shared.d.ts
+@@ -1,3 +1,4 @@
++import type { Style } from '../../styling/style';
+ /**
+  * Value specifying that Property should be set to its initial value.
+  */
+@@ -20,6 +21,8 @@ export interface ShorthandPropertyOptions<P> {
+     readonly name: string;
+     readonly cssName: string;
+     readonly converter: (value: string | P) => [any, any][];
++    /** Defer stylesheet conversion until the target style is known. Return undefined to use converter. */
++    readonly converterForStyle?: (value: string, style: Style) => [any, any][] | undefined;
+     readonly getter: (this: any) => string | P;
+ }
+ export interface CssAnimationPropertyOptions<T, U> {
+diff --git a/ui/styling/style/index.d.ts b/ui/styling/style/index.d.ts
+index 6146930..db203c2 100644
+--- a/ui/styling/style/index.d.ts
++++ b/ui/styling/style/index.d.ts
+@@ -30,11 +30,13 @@ export declare class Style extends Observable {
+     private unscopedCssVariables;
+     private scopedCssVariables;
+     constructor(ownerView: ViewBase | WeakRef<ViewBase>);
+-    setScopedCssVariable(varName: string, value: string): void;
++    /** When true for a declaration, the property converter receives math after CSS variable substitution. */
++    preserveCssMath?: (property: string) => boolean;
++    setScopedCssVariable(varName: string, value: string, rawValue?: string | null): void;
+     setUnscopedCssVariable(varName: string, value: string): void;
+     removeScopedCssVariable(varName: string): void;
+     removeUnscopedCssVariable(varName: string): void;
+-    getCssVariable(varName: string): string | null;
++    getCssVariable(varName: string, preserveMath?: boolean): string | null;
+     resetScopedCssVariables(): void;
+     resetUnscopedCssVariables(): void;
+     toString(): string;
+diff --git a/ui/styling/style/index.js b/ui/styling/style/index.js
+index 96e1bdc..24219d6 100644
+--- a/ui/styling/style/index.js
++++ b/ui/styling/style/index.js
+@@ -13,19 +13,25 @@ export class Style extends Observable {
+             this.viewRef = new WeakRef(ownerView);
+         }
+     }
+-    setScopedCssVariable(varName, value) {
++    setScopedCssVariable(varName, value, rawValue = value) {
+         this.scopedCssVariables.set(varName, value);
++        if (rawValue !== value) {
++            (this.rawScopedCssVariables ??= new Map()).set(varName, rawValue);
++        } else {
++            this.rawScopedCssVariables?.delete(varName);
++        }
+     }
+     setUnscopedCssVariable(varName, value) {
+         this.unscopedCssVariables.set(varName, value);
+     }
+     removeScopedCssVariable(varName) {
+         this.scopedCssVariables.delete(varName);
++        this.rawScopedCssVariables?.delete(varName);
+     }
+     removeUnscopedCssVariable(varName) {
+         this.unscopedCssVariables.delete(varName);
+     }
+-    getCssVariable(varName) {
++    getCssVariable(varName, preserveMath = false) {
+         const view = this.view;
+         if (!view) {
+             return null;
+@@ -34,15 +40,19 @@ export class Style extends Observable {
+             return this.unscopedCssVariables.get(varName);
+         }
+         if (this.scopedCssVariables.has(varName)) {
++            if (preserveMath && this.rawScopedCssVariables?.has(varName)) {
++                return this.rawScopedCssVariables.get(varName);
++            }
+             return this.scopedCssVariables.get(varName);
+         }
+         if (!view.parent || !view.parent.style) {
+             return null;
+         }
+-        return view.parent.style.getCssVariable(varName);
++        return view.parent.style.getCssVariable(varName, preserveMath);
+     }
+     resetScopedCssVariables() {
+         this.scopedCssVariables.clear();
++        this.rawScopedCssVariables?.clear();
+     }
+     resetUnscopedCssVariables() {
+         this.unscopedCssVariables.clear();
+diff --git a/ui/styling/style-scope.js b/ui/styling/style-scope.js
+index 6122526..41e2a13 100644
+--- a/ui/styling/style-scope.js
++++ b/ui/styling/style-scope.js
+@@ -85,11 +85,12 @@ const pattern = /('|")(.*?)\1/;
+  * against the view; a value that does not survive evaluation leaves its longhands unset.
+  */
+ function resolvePendingSubstitution(view, pending) {
+-    const value = evaluateCssExpressions(view, pending.shorthand, pending.value);
++    const preserveMath = view.style.preserveCssMath?.(pending.shorthand) === true;
++    const value = evaluateCssExpressions(view, pending.shorthand, pending.value, preserveMath);
+     if (value === unsetValue) {
+         return CssState.emptyPropertyBag;
+     }
+-    const expanded = _expandCssShorthand(pending.shorthand, value);
++    const expanded = _expandCssShorthand(pending.shorthand, value, preserveMath, view.style);
+     if (!expanded) {
+         Trace.write(`Failed to expand shorthand [${pending.shorthand}] resolved to [${value}] for ${view}.`, Trace.categories.Style, Trace.messageType.warn);
+         return CssState.emptyPropertyBag;
+@@ -103,11 +104,14 @@ function resolvePendingSubstitution(view, pending) {
+ /**
+  * Evaluate css-variable and css-calc expressions
+  */
+-function evaluateCssExpressions(view, property, value) {
+-    const newValue = _evaluateCssVariableExpression(view, property, value);
++function evaluateCssExpressions(view, property, value, preserveMath = view.style.preserveCssMath?.(property) === true) {
++    const newValue = _evaluateCssVariableExpression(view, property, value, preserveMath);
+     if (newValue === 'unset') {
+         return unsetValue;
+     }
++    if (preserveMath) {
++        return newValue;
++    }
+     value = newValue;
+     try {
+         value = _evaluateCssCalcExpression(value);
+@@ -118,8 +122,8 @@ function evaluateCssExpressions(view, property, value) {
+     }
+     return value;
+ }
+-function evaluateCssVariable(view, name, value) {
+-    const evaluated = evaluateCssExpressions(view, name, value);
++function evaluateCssVariable(view, name, value, preserveMath) {
++    const evaluated = evaluateCssExpressions(view, name, value, preserveMath);
+     return evaluated === unsetValue ? null : evaluated;
+ }
+ function settleCssVariables(view, cssExpsProperties) {
+@@ -130,7 +134,10 @@ function settleCssVariables(view, cssExpsProperties) {
+                 names = [];
+             }
+             names.push(property);
+-            view.style.setScopedCssVariable(property, evaluateCssVariable(view, property, cssExpsProperties[property]));
++            const authored = cssExpsProperties[property];
++            const value = evaluateCssVariable(view, property, authored, false);
++            const rawValue = evaluateCssVariable(view, property, authored, true);
++            view.style.setScopedCssVariable(property, value, rawValue);
+         }
+     }
+     if (!names || names.length < 2 || !hasForwardCssVariableReference(names, cssExpsProperties)) {
+@@ -139,9 +146,11 @@ function settleCssVariables(view, cssExpsProperties) {
+     for (let pass = 1; pass < names.length; pass++) {
+         let changed = false;
+         for (const name of names) {
+-            const value = evaluateCssVariable(view, name, cssExpsProperties[name]);
+-            if (value !== view.style.getCssVariable(name)) {
+-                view.style.setScopedCssVariable(name, value);
++            const authored = cssExpsProperties[name];
++            const value = evaluateCssVariable(view, name, authored, false);
++            const rawValue = evaluateCssVariable(view, name, authored, true);
++            if (value !== view.style.getCssVariable(name) || rawValue !== view.style.getCssVariable(name, true)) {
++                view.style.setScopedCssVariable(name, value, rawValue);
+                 changed = true;
+             }
+         }

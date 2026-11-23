@@ -1,4 +1,8 @@
-use crate::style::utils::{set_style_data_i32, set_style_data_u32};
+use crate::style::css::{background::Layer, clip_path::ClipPath, mask::MaskLayer, transform::TransformProgram, StyleRecordKind};
+use crate::style::css::nine_slice::{Kind as NineSliceKind, NineSlice};
+use crate::style::css::layout_length::{self, LayoutLength, Stamp};
+use crate::style::css::text_overflow::{self, TextOverflow};
+use crate::style::utils::{get_style_data_f32, get_style_data_i32, get_style_data_i8, get_style_data_u8, set_style_data_i32, set_style_data_u32, set_style_data_u8};
 use crate::style::{DisplayMode, StyleKeys};
 use crate::utils::{display_mode_to_enum, display_to_enum};
 use crate::Style;
@@ -6,11 +10,12 @@ use crate::PREFLIGHT_ENABLED;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use taffy::Display;
 
-// always keep aligned 4
+// Keep slots aligned for typed reads.
 // <style-keys:size> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-pub const STYLE_BUFFER_SIZE: usize = 744;
+pub const STYLE_BUFFER_SIZE: usize = 792;
 // </style-keys:size>
 
 #[repr(u32)]
@@ -116,6 +121,47 @@ struct StyleBuffer {
     pub(crate) ref_count: u32,
     // Key this buffer was registered under in `hash_index`, if interned.
     interned_hash: Option<u64>,
+    css: Option<Arc<StyleRecords>>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct StyleRecords {
+    records: [Option<Arc<[f64]>>; StyleRecordKind::COUNT],
+    background: Option<Arc<[Layer]>>,
+    transform: Option<Arc<TransformProgram>>,
+    clip_path: Option<Arc<ClipPath>>,
+    mask: Option<Arc<[MaskLayer]>>,
+    nine_slice: [Option<Arc<NineSlice>>; 2],
+    text_overflow_token: Option<Arc<text_overflow::Token>>,
+    layout_lengths: Vec<LayoutLengthRecord>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct LayoutLengthRecord {
+    pub kind: StyleKeys,
+    pub offset: StyleKeys,
+    pub length: Arc<LayoutLength>,
+    pub pseudo_stamp: Option<Stamp>,
+}
+
+impl LayoutLengthRecord {
+    pub fn matches(&self, data: &[u8]) -> bool {
+        get_style_data_i8(data, self.kind) == layout_length::BUFFER_TYPE
+            && layout_length::handle_from_buffer(get_style_data_f32(data, self.offset)) == self.length.handle()
+    }
+}
+
+impl StyleRecords {
+    fn is_empty(&self) -> bool {
+        self.background.is_none()
+            && self.transform.is_none()
+            && self.clip_path.is_none()
+            && self.mask.is_none()
+            && self.nine_slice.iter().all(Option::is_none)
+            && self.text_overflow_token.is_none()
+            && self.layout_lengths.is_empty()
+            && self.records.iter().all(Option::is_none)
+    }
 }
 
 impl StyleBuffer {
@@ -124,6 +170,7 @@ impl StyleBuffer {
             ptr,
             ref_count: 0,
             interned_hash: None,
+            css: None,
         }
     }
 
@@ -407,6 +454,7 @@ impl StyleArena {
         set_style_data_u32(buf.mut_bytes(), StyleKeys::REF_COUNT, ref_count);
 
         if buf.ref_count == 0 {
+            buf.css = None;
             // Remove from hash index before the slot is reused. Uses the key it was
             // interned under: the bytes may have been mutated since.
             if let Some(hash) = buf.interned_hash.take() {
@@ -665,6 +713,7 @@ impl StyleArena {
 
         // COW: copy the current bytes (may include JS writes) straight into the new buffer.
         let new_handle = self.alloc_from(self.buffers[idx].ptr);
+        self.buffers[new_handle.index()].css = self.buffers[idx].css.clone();
 
         {
             let current = &mut self.buffers[idx];
@@ -680,6 +729,219 @@ impl StyleArena {
         }
 
         (new_handle, self.buffers[new_handle.index()].ptr)
+    }
+
+    pub(crate) fn css_records(&self, handle: StyleHandle, kind: StyleRecordKind) -> Option<&Arc<[f64]>> {
+        debug_assert!(self.is_current(handle));
+        let buffer = &self.buffers[handle.index()];
+        let revision = kind.revision_key();
+        let present = if kind.has_byte_revision() {
+            get_style_data_u8(buffer.bytes(), revision) != 0
+        } else {
+            get_style_data_i32(buffer.bytes(), revision) != 0
+        };
+        if !present {
+            return None;
+        }
+        buffer.css.as_ref()?.records[kind as usize].as_ref()
+    }
+
+    pub(crate) fn set_css_layout_length(
+        &mut self,
+        handle: StyleHandle,
+        record: LayoutLengthRecord,
+    ) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let records = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        if let Some(index) = records.layout_lengths.iter().position(|existing| existing.kind == record.kind) {
+            records.layout_lengths.remove(index);
+        }
+        records.layout_lengths.push(record);
+    }
+
+    pub(crate) fn css_layout_lengths(&self, handle: StyleHandle) -> &[LayoutLengthRecord] {
+        debug_assert!(self.is_current(handle));
+        self.buffers[handle.index()].css.as_ref().map_or(&[], |css| &css.layout_lengths)
+    }
+
+    pub(crate) fn prune_css_layout_lengths(&mut self, handle: StyleHandle) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        let Some(records) = buffer.css.as_mut() else { return };
+        if records.layout_lengths.is_empty() {
+            return;
+        }
+        // The allocation containing the style bytes is separate from the record owners.
+        let data = unsafe { std::slice::from_raw_parts(buffer.ptr, STYLE_BUFFER_SIZE) };
+        let is_current = |record: &LayoutLengthRecord| record.matches(data);
+        if !records.layout_lengths.iter().all(is_current) {
+            let records = Arc::make_mut(records);
+            records.layout_lengths.retain(is_current);
+            if records.is_empty() {
+                buffer.css = None;
+            }
+        }
+    }
+
+    pub(crate) fn set_css_records(
+        &mut self,
+        handle: StyleHandle,
+        kind: StyleRecordKind,
+        records: Arc<[f64]>,
+    ) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        debug_assert_eq!(records.len() % kind.stride(), 0);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.records[kind as usize] = (kind.stores_empty() || !records.is_empty()).then_some(records);
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = kind.revision_key();
+        if kind.has_byte_revision() {
+            let previous = get_style_data_u8(data, revision);
+            set_style_data_u8(data, revision, previous.wrapping_add(1).max(1));
+        } else {
+            let previous = get_style_data_i32(data, revision) as u32;
+            set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
+        }
+    }
+
+    pub(crate) fn css_background(&self, handle: StyleHandle) -> Option<&Arc<[Layer]>> {
+        debug_assert!(self.is_current(handle));
+        let buffer = &self.buffers[handle.index()];
+        if get_style_data_i32(buffer.bytes(), StyleKeys::BACKGROUND_REVISION) == 0 {
+            return None;
+        }
+        buffer.css.as_ref()?.background.as_ref()
+    }
+
+    pub(crate) fn set_css_background(&mut self, handle: StyleHandle, layers: Arc<[Layer]>) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.background = (!layers.is_empty()).then_some(layers);
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = StyleKeys::BACKGROUND_REVISION;
+        let previous = get_style_data_i32(data, revision) as u32;
+        set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
+    }
+
+    pub(crate) fn css_transform(&self, handle: StyleHandle) -> Option<&Arc<TransformProgram>> {
+        debug_assert!(self.is_current(handle));
+        self.buffers[handle.index()].css.as_ref()?.transform.as_ref()
+    }
+
+    pub(crate) fn set_css_transform(&mut self, handle: StyleHandle, transform: Option<Arc<TransformProgram>>) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.transform = transform;
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = StyleKeys::TRANSFORM_REVISION;
+        let previous = get_style_data_i32(data, revision) as u32;
+        set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
+    }
+
+    pub(crate) fn css_clip_path(&self, handle: StyleHandle) -> Option<&Arc<ClipPath>> {
+        debug_assert!(self.is_current(handle));
+        self.buffers[handle.index()].css.as_ref()?.clip_path.as_ref()
+    }
+
+    pub(crate) fn css_mask(&self, handle: StyleHandle) -> Option<&Arc<[MaskLayer]>> {
+        debug_assert!(self.is_current(handle));
+        self.buffers[handle.index()].css.as_ref()?.mask.as_ref()
+    }
+
+    pub(crate) fn css_nine_slice(&self, handle: StyleHandle, kind: NineSliceKind) -> Option<&Arc<NineSlice>> {
+        debug_assert!(self.is_current(handle));
+        self.buffers[handle.index()].css.as_ref()?.nine_slice[kind as usize].as_ref()
+    }
+
+    pub(crate) fn set_text_overflow(&mut self, handle: StyleHandle, overflow: TextOverflow) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let key = if let Some(value) = overflow.token {
+            let token = Arc::new(text_overflow::Token::new(value));
+            let key = token.key();
+            Arc::make_mut(buffer.css.get_or_insert_with(Default::default)).text_overflow_token = Some(token);
+            key
+        } else {
+            if let Some(css) = buffer.css.as_mut().filter(|css| css.text_overflow_token.is_some()) {
+                let css = Arc::make_mut(css);
+                css.text_overflow_token = None;
+                if css.is_empty() {
+                    buffer.css = None;
+                }
+            }
+            0
+        };
+        let data = buffer.mut_bytes();
+        let offset = StyleKeys::TEXT_OVERFLOW_TOKEN as usize;
+        data[offset..offset + 8].copy_from_slice(&key.to_ne_bytes());
+        set_style_data_u8(data, StyleKeys::TEXT_OVERFLOW, overflow.kind);
+        set_style_data_u8(data, StyleKeys::TEXT_OVERFLOW_STATE, 1);
+    }
+
+    pub(crate) fn set_css_nine_slice(&mut self, handle: StyleHandle, kind: NineSliceKind, value: Option<Arc<NineSlice>>) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.nine_slice[kind as usize] = value;
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = match kind {
+            NineSliceKind::BorderImage => StyleKeys::BORDER_IMAGE_REVISION,
+            NineSliceKind::MaskBorder => StyleKeys::MASK_BORDER_REVISION,
+        };
+        let previous = get_style_data_i32(data, revision) as u32;
+        set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
+    }
+
+    pub(crate) fn set_css_mask(&mut self, handle: StyleHandle, mask: Option<Arc<[MaskLayer]>>) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.mask = mask;
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = StyleKeys::MASK_REVISION;
+        let previous = get_style_data_i32(data, revision) as u32;
+        set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
+    }
+
+    pub(crate) fn set_css_clip_path(&mut self, handle: StyleHandle, clip: Option<Arc<ClipPath>>) {
+        debug_assert!(self.is_current(handle));
+        let buffer = &mut self.buffers[handle.index()];
+        debug_assert_eq!(buffer.ref_count, 1);
+        let css = Arc::make_mut(buffer.css.get_or_insert_with(Default::default));
+        css.clip_path = clip;
+        if css.is_empty() {
+            buffer.css = None;
+        }
+        let data = buffer.mut_bytes();
+        let revision = StyleKeys::CLIP_PATH_REVISION;
+        let previous = get_style_data_i32(data, revision) as u32;
+        set_style_data_u32(data, revision, previous.wrapping_add(1).max(1));
     }
 
     /// Get read-only pointer to buffer data
@@ -874,5 +1136,61 @@ mod tests {
         let mut arena = StyleArena::default();
         assert!(arena.chunk_ptr(0).is_some());
         assert!(arena.chunk_ptr(arena.chunk_count()).is_none());
+    }
+
+    #[test]
+    fn shadows_follow_copy_on_write_and_outlive_slot_reuse() {
+        use crate::style::css::StyleRecordKind::{BoxShadow as Box, TextShadow as Text};
+        let mut arena = StyleArena::default();
+        let original = arena.alloc(&[0; STYLE_BUFFER_SIZE]);
+        let records = vec![4., 2., 3., 1., 0xff112233u32 as f64, 0.];
+        arena.set_css_records(original, Box, records.clone().into());
+        arena.retain(original);
+
+        let (copy, _) = arena.prepare_mut(original);
+        let leased = arena.css_records(copy, Box).unwrap().clone();
+        assert!(Arc::ptr_eq(&leased, arena.css_records(original, Box).unwrap()));
+        arena.set_css_records(copy, Text, Arc::from([8., 1., 0., 0., 0., 0.]));
+        arena.set_css_records(copy, Box, Arc::from([]));
+        assert!(arena.css_records(copy, Box).is_none());
+        assert!(arena.css_records(original, Text).is_none());
+        assert_eq!(arena.css_records(original, Box).unwrap().as_ref(), records);
+        assert_eq!(super::super::utils::get_style_data_i32(arena.get(original), StyleKeys::BOX_SHADOW_REVISION), 1);
+        assert_eq!(super::super::utils::get_style_data_i32(arena.get(copy), StyleKeys::BOX_SHADOW_REVISION), 2);
+        assert_eq!(super::super::utils::get_style_data_i32(arena.get(copy), StyleKeys::TEXT_SHADOW_REVISION), 1);
+
+        arena.release(copy);
+        arena.release(original);
+        let reused = arena.alloc(&[0; STYLE_BUFFER_SIZE]);
+        assert_eq!(reused.index(), original.index());
+        assert!(arena.css_records(reused, Box).is_none());
+        assert_eq!(leased.as_ref(), records);
+    }
+
+    #[test]
+    fn overflow_tokens_follow_copy_on_write_and_release_on_reset() {
+        fn key(arena: &StyleArena, handle: StyleHandle) -> u64 {
+            let offset = StyleKeys::TEXT_OVERFLOW_TOKEN as usize;
+            u64::from_ne_bytes(arena.get(handle)[offset..offset + 8].try_into().unwrap())
+        }
+        let mut arena = StyleArena::default();
+        let original = arena.alloc(&[0; STYLE_BUFFER_SIZE]);
+        arena.set_text_overflow(original, TextOverflow::new(3, Some(Arc::from("…\0end"))).unwrap());
+        let original_key = key(&arena, original);
+        arena.retain(original);
+        let (copy, _) = arena.prepare_mut(original);
+        assert_eq!(key(&arena, copy), original_key);
+        let lease = text_overflow::lookup(original_key).unwrap();
+
+        arena.set_text_overflow(copy, TextOverflow::new(2, Some(Arc::from("other"))).unwrap());
+        let copy_key = key(&arena, copy);
+        assert_eq!(text_overflow::lookup(copy_key).as_deref(), Some("other"));
+        assert_eq!(text_overflow::lookup(original_key).as_deref(), Some("…\0end"));
+        arena.set_text_overflow(original, TextOverflow::new(1, None).unwrap());
+        assert_eq!(key(&arena, original), 0);
+        assert!(text_overflow::lookup(original_key).is_none());
+        assert_eq!(lease.as_ref(), "…\0end");
+        arena.release(copy);
+        assert!(text_overflow::lookup(copy_key).is_none());
     }
 }

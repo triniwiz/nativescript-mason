@@ -51,6 +51,143 @@ fn mason_ptr() -> *mut CMason {
     mason() as *mut mason_core::Mason as *mut CMason
 }
 
+/// CSS grammar shared with the other hosts. The string result follows this facade's
+/// usual lifetime and is copied by NativeScript before the next call.
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_expand(
+    name: *const c_char,
+    value: *const c_char,
+) -> *const c_char {
+    let fields = mason_core::style::css::shorthand::expand(&string(name), &string(value));
+    ret(serde_json::to_string(&fields).unwrap_or_default())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_parse(
+    value: *const c_char,
+    kind: u8,
+    scale: f32,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+) -> *const c_char {
+    let context = mason_core::style::css::LengthContext {
+        scale,
+        font_size: font,
+        root_font_size: root,
+        viewport_width: width,
+        viewport_height: height,
+    };
+    let fields = mason_core::style::css::parse_css_fields(&string(value), context, kind, 0);
+    ret(serde_json::to_string(&fields).unwrap_or_default())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_set_grid_css(
+    el: W,
+    property: u8,
+    value: *const c_char,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+) {
+    use mason_c::css::{mason_css_apply_grid, CMasonCssText};
+    let Some(el) = element(el) else { return };
+    let value = string(value).replace('\0', "\u{fffd}");
+    let fields = format!("{property}\0{value}");
+    mason_css_apply_grid(
+        mason_ptr(),
+        &node_ptr(el.node()),
+        CMasonCssText::from(fields.as_str()),
+        font,
+        root,
+        width,
+        height,
+    );
+    el.invalidate_layout();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_layout_length(
+    el: W,
+    property: *const c_char,
+    value: *const c_char,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+) -> bool {
+    let Some(el) = element(el) else { return false };
+    mason_c::css::mason_css_apply_layout_length(
+        mason_ptr(),
+        &node_ptr(el.node()),
+        property,
+        value,
+        font,
+        root,
+        width,
+        height,
+    )
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_layout_length_value(
+    el: W,
+    property: *const c_char,
+) -> *const c_char {
+    let Some(el) = element(el) else {
+        return ret(String::new());
+    };
+    let result =
+        mason_c::css::mason_css_copy_layout_length(mason_ptr(), &node_ptr(el.node()), property);
+    let value = string(result);
+    if !result.is_null() {
+        drop(CString::from_raw(result));
+    }
+    ret(value)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_transform(
+    el: W,
+    value: *const c_char,
+    box_width: f32,
+    box_height: f32,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+) {
+    let Some(view) = element(el) else { return };
+    let mut m = [0.; 6];
+    if mason_c::css::mason_css_transform_affine(
+        mason_ptr(),
+        &node_ptr(view.node()),
+        value,
+        box_width,
+        box_height,
+        font,
+        root,
+        width,
+        height,
+        m.as_mut_ptr(),
+    ) {
+        mason_gtk_css_apply_transform(
+            el,
+            m[0].into(),
+            m[1].into(),
+            m[2].into(),
+            m[3].into(),
+            m[4].into(),
+            m[5].into(),
+        );
+    } else {
+        mason_gtk_css_clear_transform(el);
+    }
+}
+
 /// Adopts GTK once the app (core) has initialized it.
 #[no_mangle]
 pub extern "C" fn mason_gtk_init() -> bool {
@@ -1066,6 +1203,59 @@ pub unsafe extern "C" fn mason_gtk_css_background_image(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_background(
+    el: W,
+    payload: *const c_char,
+    app_root: *const c_char,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+    current_color: u32,
+) -> f64 {
+    use mason_core::style::css::{
+        background::BackgroundTarget, CssBackgroundResultRecord as Result, LengthContext,
+    };
+    let Some(el) = element(el) else { return -2. };
+    let Ok(fields) = serde_json::from_str::<Vec<String>>(&string(payload)) else {
+        return -2.;
+    };
+    if fields.is_empty() || fields.iter().any(|field| field.contains('\0')) {
+        return -2.;
+    }
+    let context = LengthContext {
+        scale: 1.,
+        font_size: font,
+        root_font_size: root,
+        viewport_width: width,
+        viewport_height: height,
+    };
+    let app_root = string(app_root);
+    let mut state = el.css();
+    let Some(result) =
+        state
+            .background
+            .apply_batch(&fields.join("\0"), current_color, BackgroundTarget::Desktop)
+    else {
+        return -2.;
+    };
+    if result[Result::LAYERS_CHANGED] != 0 {
+        let layers = state.background.layers().clone();
+        state.layers = layers
+            .iter()
+            .map(|layer| css::Layer::from_css(layer, context, &app_root))
+            .collect();
+        state.brush = None;
+        drop(state);
+        if let Some(id) = el.node_id() {
+            mason().set_style_css_background(id, layers);
+        }
+        css_changed(&el, false);
+    }
+    result[Result::COLOR] as f64
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn mason_gtk_css_set_layers(el: W, spec: *const c_char) {
     let Some(el) = element(el) else { return };
     el.css().layers = css::parse_layers(&string(spec));
@@ -1088,6 +1278,197 @@ pub unsafe extern "C" fn mason_gtk_css_set_filter(el: W, spec: *const c_char, ba
         el.css().backdrop = filters;
     } else {
         el.css().filters = filters;
+    }
+    css_changed(&el, false);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_effects(
+    el: W,
+    payload: *const c_char,
+    font: f32,
+    root: f32,
+    width: f32,
+    height: f32,
+) -> *const c_char {
+    use mason_core::style::css::{
+        EffectBatch, FilterRecord, LengthContext, ShadowRecord as Shadow, StyleRecordKind as Kind,
+    };
+    let Some(el) = element(el) else {
+        return ret(String::new());
+    };
+    let Ok(fields) = serde_json::from_str::<Vec<String>>(&string(payload)) else {
+        return ret(String::new());
+    };
+    if fields.is_empty() || fields.iter().any(|field| field.contains('\0')) {
+        return ret(String::new());
+    }
+    let context = LengthContext {
+        scale: 1.,
+        font_size: font,
+        root_font_size: root,
+        viewport_width: width,
+        viewport_height: height,
+    };
+    let style = el.style();
+    let color = if style.u8(StyleKeys::FONT_COLOR_STATE) == 0 {
+        0xff00_0000
+    } else {
+        style.u32(StyleKeys::FONT_COLOR)
+    };
+    let Some(batch) = EffectBatch::parse(&fields.join("\0"), context, color) else {
+        return ret(String::new());
+    };
+    if let Some(id) = el.node_id() {
+        mason().set_style_css_effects(id, &batch);
+    }
+    let mut filters = [None, None];
+    for (kind, effect) in batch.iter() {
+        match kind {
+            Kind::BoxShadow | Kind::TextShadow => {
+                let shadows = effect
+                    .records
+                    .chunks_exact(Shadow::STRIDE)
+                    .map(|r| css::Shadow {
+                        inset: r[Shadow::INSET] != 0.,
+                        dx: r[Shadow::X] as f32,
+                        dy: r[Shadow::Y] as f32,
+                        blur: r[Shadow::BLUR] as f32,
+                        spread: r[Shadow::SPREAD] as f32,
+                        argb: r[Shadow::COLOR] as u32,
+                    })
+                    .collect();
+                if kind == Kind::BoxShadow {
+                    el.css().shadows = shadows;
+                } else {
+                    el.css().text_shadows = shadows;
+                }
+            }
+            Kind::Filter | Kind::BackdropFilter => {
+                let records = effect
+                    .records
+                    .chunks_exact(FilterRecord::STRIDE)
+                    .map(|r| {
+                        [
+                            r[FilterRecord::KIND],
+                            r[FilterRecord::AMOUNT_OR_X],
+                            r[FilterRecord::Y],
+                            r[FilterRecord::BLUR],
+                            r[FilterRecord::COLOR],
+                        ]
+                    })
+                    .collect::<Vec<_>>();
+                filters[usize::from(kind == Kind::BackdropFilter)] = Some(records);
+            }
+            _ => {}
+        }
+    }
+    css_changed(&el, false);
+    ret(serde_json::to_string(&filters).unwrap_or_default())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mason_gtk_css_apply_mask(el: W, which: i32, payload: *const c_char) {
+    use crate::mask::{project_clip, project_nine_slice, MaskLayer, MaskSpec};
+    use mason_core::style::css::{clip_path::ClipPath, mask, nine_slice, LengthContext};
+    use serde_json::Value;
+    use std::sync::Arc;
+    let Some(el) = element(el) else { return };
+    let payload = string(payload);
+    let spec = if payload.is_empty() {
+        Value::Null
+    } else {
+        let Ok(spec) = serde_json::from_str(&payload) else {
+            return;
+        };
+        spec
+    };
+    let units = |part: &Value| {
+        let values = &part["u"];
+        let at = |i: usize| values[i].as_f64().unwrap_or_default() as f32;
+        (
+            LengthContext {
+                scale: 1.,
+                font_size: at(0),
+                root_font_size: at(1),
+                viewport_width: at(2),
+                viewport_height: at(3),
+            },
+            values[4].as_u64().unwrap_or(0xff000000) as u32,
+        )
+    };
+    let nine = &spec["mb"];
+    let (context, color) = units(nine);
+    let kind = if which == 0 {
+        nine_slice::Kind::MaskBorder
+    } else {
+        nine_slice::Kind::BorderImage
+    };
+    let array = |part: &Value| -> Vec<String> {
+        part["css"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|entry| entry.as_str().unwrap_or_default().to_owned())
+            .collect()
+    };
+    let border = if let Some(css) = nine["css"].as_str() {
+        nine_slice::parse_shorthand(css, kind, color)
+    } else {
+        let fields = array(nine);
+        let values: [&str; nine_slice::LONGHAND_COUNT] =
+            std::array::from_fn(|i| fields.get(i).map(String::as_str).unwrap_or_default());
+        nine_slice::parse_longhands(values, kind, color, false)
+    }
+    .map(Arc::new);
+    let projected_border = border.as_ref().and_then(|spec| {
+        project_nine_slice(spec, context, nine["appRoot"].as_str().unwrap_or_default())
+    });
+    let id = el.node_id();
+    if let Some(id) = id {
+        mason().set_style_css_nine_slice(id, kind, border);
+    }
+    if which == 0 {
+        let layer = &spec["ml"];
+        let (context, color) = units(layer);
+        let fields = array(layer);
+        let values: [&str; mask::LONGHAND_COUNT] =
+            std::array::from_fn(|i| fields.get(i).map(String::as_str).unwrap_or_default());
+        let layers = mask::parse_layers(values, color, false).filter(|layers| !layers.is_empty());
+        let projected_layers = layers
+            .iter()
+            .flatten()
+            .map(|layer| {
+                let mut paint = css::Layer::from_css(
+                    &layer.paint,
+                    context,
+                    spec["ml"]["appRoot"].as_str().unwrap_or_default(),
+                );
+                paint.clip = layer.clip as u8;
+                MaskLayer {
+                    layer: paint,
+                    mode: layer.mode as u8,
+                    composite: layer.composite as u8,
+                }
+            })
+            .collect();
+        let clip = &spec["cp"];
+        let shape = clip["css"].as_str().and_then(ClipPath::parse);
+        let projected_clip = shape
+            .as_ref()
+            .map(|clip_shape| project_clip(clip_shape, units(clip).0));
+        if let Some(id) = id {
+            mason().set_style_css_mask(id, layers.map(Arc::from));
+            mason().set_style_css_clip_path(id, shape.map(Arc::new));
+        }
+        let mask = MaskSpec {
+            layers: projected_layers,
+            clip: projected_clip,
+            border: projected_border,
+        };
+        el.css().mask = (!mask.is_empty()).then_some(mask);
+    } else {
+        el.css().border_image = projected_border;
     }
     css_changed(&el, false);
 }

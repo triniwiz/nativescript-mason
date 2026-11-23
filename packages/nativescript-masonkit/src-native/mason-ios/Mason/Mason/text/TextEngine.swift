@@ -305,50 +305,9 @@ public class TextEngine: NSObject {
   func onStyleChange(low: UInt64, high: UInt64) {
     let state = StateKeys(low: low, high: high)
 
-    var layout = false
-
-    if state.contains(.fontSize) {
-      layout = true
-    }
-
-    // Layout-affecting flags: require invalidateInlineSegments (full recompute).
-    let textLayoutChanged = state.contains(.fontSize)
-      || state.contains(.fontWeight)
-      || state.contains(.fontStyle)
-      || state.contains(.fontFamily)
-      || state.contains(.fontVariantNumeric)
-      || state.contains(.textWrap)
-      || state.contains(.whiteSpace)
-      || state.contains(.textTransform)
-      || state.contains(.letterSpacing)
-      || state.contains(.textJustify)
-      || state.contains(.lineHeight)
-      || state.contains(.textAlign)
-      || state.contains(.textOverflow)
-      || state.contains(.verticalAlign)
-      || state.contains(.wordSpacing)
-      || state.contains(.writingMode)
-      || state.contains(.textOrientation)
-      || state.contains(.textCombineUpright)
-      || state.contains(.textSpacingTrim)
-      || state.contains(.unicodeBidi)
-      || state.contains(.hyphens)
-      || state.contains(.fontStretch)
-      || state.contains(.listStylePosition)
-      || state.contains(.listStyleType)
-      || state.contains(.textIndent)
-      || state.contains(.lineClamp)
-
-    // Visual-only flags: span rebuild + redraw, no layout recompute needed.
-    let textVisualChanged = !textLayoutChanged && (
-      state.contains(.color)
-      || state.contains(.decorationLine)
-      || state.contains(.decorationColor)
-      || state.contains(.decorationStyle)
-      || state.contains(.decorationThinkness)
-      || state.contains(.backgroundColor)
-      || state.contains(.textShadow)
-    )
+    let layout = state.contains(.fontSize)
+    let textLayoutChanged = state.contains(.textLayout)
+    let textVisualChanged = !textLayoutChanged && state.contains(.textVisual)
 
     if textLayoutChanged {
       updateStyleOnTextNodes()

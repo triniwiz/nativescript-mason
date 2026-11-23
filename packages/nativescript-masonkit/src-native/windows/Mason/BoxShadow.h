@@ -66,9 +66,27 @@ namespace mason_shadow
         return entry ? entry->version : 0;
     }
 
-    inline void Set(mux::UIElement const& element, std::wstring_view spec)
+    inline void Set(mux::UIElement const& element, std::vector<Shadow> shadows)
     {
         static uint64_t next = 1;
+        auto& registry = Registry();
+        if (shadows.empty())
+        {
+            if (auto* entry = Find(element)) entry->shadows.clear(), entry->version = next++;
+            return;
+        }
+        auto& entry = registry[KeyOf(element)];
+        entry.element = winrt::make_weak(element);
+        entry.shadows = std::move(shadows);
+        entry.version = next++;
+        if (registry.size() > 2048)
+        {
+            std::erase_if(registry, [](auto const& kv) { return !kv.second.element.get(); });
+        }
+    }
+
+    inline void Set(mux::UIElement const& element, std::wstring_view spec)
+    {
         std::vector<Shadow> shadows;
         size_t pos = 0;
         while (pos < spec.size())
@@ -85,20 +103,7 @@ namespace mason_shadow
             }
             pos = end + 1;
         }
-        auto& registry = Registry();
-        if (shadows.empty())
-        {
-            if (auto* entry = Find(element)) entry->shadows.clear(), entry->version = next++;
-            return;
-        }
-        auto& entry = registry[KeyOf(element)];
-        entry.element = winrt::make_weak(element);
-        entry.shadows = std::move(shadows);
-        entry.version = next++;
-        if (registry.size() > 2048)
-        {
-            std::erase_if(registry, [](auto const& kv) { return !kv.second.element.get(); });
-        }
+        Set(element, std::move(shadows));
     }
 
     inline constexpr GUID kGaussianBlur = { 0x1feb6d69, 0x2fe6, 0x4ac9, { 0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5 } };

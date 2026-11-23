@@ -102,7 +102,7 @@ class ViewUtils {
             android.graphics.RectF(0f, 0f, width, height)
           }
           if (layer.attachment == BackgroundAttachment.FIXED) Background.registerFixed(view)
-          drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor)
+          drawBackground(view.context, view, layer, canvas, paintRect, area, style.resolvedColor, style.resolvedFontSize)
         }
       }
     }
@@ -216,7 +216,7 @@ class ViewUtils {
       // records this draw without itself, then paints the shadows and the recording.
       val filterSource = view.getTag(R.id.tag_filter_source) as? Boolean ?: false
       if (!filterSource && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        resolveFilter(style)
+        style.updateResolvedFilter()
         val filter = style.mFilter
         if (filter != null && filter.hasDropShadow && !filter.canApplyFast()) {
           filter.renderFilters(view, canvas) {}
@@ -264,7 +264,7 @@ class ViewUtils {
               background.bgPaint.style = android.graphics.Paint.Style.FILL
               Background.fillBorderBox(canvas, style.mBorderRenderer, width, height, background.bgPaint)
             }
-            boxGradient?.let { Background.fillBoxGradient(canvas, it, style.mBorderRenderer, width, height) }
+            boxGradient?.let { Background.fillBoxGradient(canvas, it, style.mBorderRenderer, width, height, style.resolvedFontSize) }
           } else canvas.withSave {
             // Blend modes composite within the element's own background group.
             val blends = background.layers.any { it.blendMode != BackgroundBlendMode.NORMAL }
@@ -309,7 +309,7 @@ class ViewUtils {
       // children themselves so the shadows sit behind their content.
       beforeChildren?.invoke(canvas)
 
-      resolveFilter(style)
+      style.updateResolvedFilter()
       val activeFilter = if (filterSource) null else style.mFilter
       val useFastFilter = activeFilter?.canApplyFast() == true
 
@@ -376,19 +376,6 @@ class ViewUtils {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
           view.setRenderEffect(null)
-        }
-      }
-    }
-
-    // Parses the filter CSS (pseudo-aware) so :active/:hover strings apply only when the node's
-    // pseudo mask is active.
-    private fun resolveFilter(style: Style) {
-      val css = style.resolvedFilterString
-      if ((style.mFilter == null && css.isNotEmpty()) || (style.mFilter != null && style.mFilter?.css != css)) {
-        val hadFilters = style.mFilter?.filters?.isNotEmpty() ?: false
-        style.mFilter = CSSFilters.parse(css)
-        if (style.mFilter?.filters?.isNotEmpty() == true || (css.isEmpty() && hadFilters)) {
-          (style.node.view as? View)?.invalidate()
         }
       }
     }

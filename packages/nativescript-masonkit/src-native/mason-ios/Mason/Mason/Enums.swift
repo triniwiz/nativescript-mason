@@ -460,7 +460,7 @@ public enum MasonDimension: Codable, Equatable {
       case .Points(let points):
         return "\(points)px"
       case .Percent(let percent):
-        return "\(percent)%"
+        return "\(percent * 100)%"
       case .Auto:
         return "auto"
       case .MinContent:
@@ -472,7 +472,7 @@ public enum MasonDimension: Codable, Equatable {
       case .FitContentPoints(let points):
         return "fit-content(\(points)px)"
       case .FitContentPercent(let percent):
-        return "fit-content(\(percent)%)"
+        return "fit-content(\(percent * 100)%)"
       case .Stretch:
         return "stretch"
       case .Content:
@@ -2091,20 +2091,9 @@ public enum DecorationLine: Int, RawRepresentable {
 
   /// Keywords in any order; nil when a token is not a line keyword.
   static func parse(_ css: String) -> DecorationLine? {
-    var mask: Int8 = 0
-    var seen = false
-    for token in css.lowercased().split(whereSeparator: { $0.isWhitespace }) {
-      switch token {
-      case "none": seen = true
-      case "underline": mask |= underlineBit; seen = true
-      case "overline": mask |= overlineBit; seen = true
-      case "line-through": mask |= lineThroughBit; seen = true
-      case "spelling-error": return .SpellingError
-      case "grammar-error": return .GrammarError
-      default: return nil
-      }
-    }
-    return seen ? DecorationLine(rawValue: mask) : nil
+    guard let field = NSCMason.expandCssShorthand("text-decoration-line", value: css)?.first,
+          let rawValue = Int8(field) else { return nil }
+    return DecorationLine(rawValue: rawValue)
   }
 
   var cssValue: String {
@@ -2630,14 +2619,9 @@ public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
   }
   
   static func parse(_ css: String) -> DecorationStyle? {
-    switch css.trimmingCharacters(in: .whitespaces).lowercased() {
-    case "solid": return .Solid
-    case "double": return .Double
-    case "dotted": return .Dotted
-    case "dashed": return .Dashed
-    case "wavy": return .Wavy
-    default: return nil
-    }
+    guard let field = NSCMason.expandCssShorthand("text-decoration-style", value: css)?.first,
+          let rawValue = Int8(field) else { return nil }
+    return DecorationStyle(rawValue: rawValue)
   }
 
   var cssValue: String {
@@ -2882,7 +2866,7 @@ public class MasonVerticalAlignValue: NSObject {
   }
   
   public static func percent(_ value: Float) -> MasonVerticalAlignValue {
-    return MasonVerticalAlignValue(align: .Percent, offset: value)
+    return MasonVerticalAlignValue(align: .Percent, isPercent: true, offset: value)
   }
   
   public static let Sub = MasonVerticalAlignValue(align: .Sub)
@@ -2906,32 +2890,37 @@ public class MasonVerticalAlignValue: NSObject {
     offset = value
   }
   
-  public init(style: MasonStyle) {
-    isPercent = style.getUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1
-    offset = style.getFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET)
+  public convenience init(style: MasonStyle) {
+    let value = style.verticalAlign
+    self.init(align: value.align, isPercent: value.isPercent, offset: value.offset)
+  }
+
+  internal init(storedOffset: Float, isPercent: Bool, kind: UInt8) {
+    self.isPercent = isPercent
+    offset = storedOffset
     
     if(isPercent){
       align = VerticalAlign.Percent
-    }else if (offset > 0){
+    }else if (offset != 0){
       align = VerticalAlign.Length
     }else {
-      switch style.getUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET) {
+      switch kind {
       case 0:
         align = .Baseline
       case 1:
-        align = .Sub
-      case 2:
-        align = .Super
-      case 3:
         align = .Top
-      case 4:
+      case 2:
         align = .TextTop
-      case 5:
+      case 3:
         align = .Middle
-      case 6:
+      case 4:
         align = .Bottom
-      case 7:
+      case 5:
         align = .TextBottom
+      case 6:
+        align = .Sub
+      case 7:
+        align = .Super
       default:
         // todo invalid
         align = VerticalAlign.Baseline
@@ -3316,22 +3305,7 @@ public struct FontVariantNumeric: OptionSet, CustomStringConvertible {
   public var description: String { cssValue }
 
   public static func parse(_ css: String) -> FontVariantNumeric {
-    let trimmed = css.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if trimmed.isEmpty || trimmed == "normal" { return .normal }
-    var result = FontVariantNumeric()
-    for token in trimmed.split(separator: " ") {
-      switch token {
-      case "lining-nums":        result.insert(.liningNums)
-      case "oldstyle-nums":      result.insert(.oldstyleNums)
-      case "proportional-nums":  result.insert(.proportionalNums)
-      case "tabular-nums":       result.insert(.tabularNums)
-      case "diagonal-fractions": result.insert(.diagonalFractions)
-      case "stacked-fractions":  result.insert(.stackedFractions)
-      case "ordinal":            result.insert(.ordinal)
-      case "slashed-zero":       result.insert(.slashedZero)
-      default: break
-      }
-    }
-    return result
+    let field = NSCMason.expandCssShorthand("font-variant-numeric", value: css)?.first
+    return FontVariantNumeric(rawValue: field.flatMap { UInt8($0) } ?? 0)
   }
 }

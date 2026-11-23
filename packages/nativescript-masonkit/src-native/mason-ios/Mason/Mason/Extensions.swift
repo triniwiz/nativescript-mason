@@ -608,8 +608,10 @@ func setInnerHTML<T: MasonElement>(_ element: T,_ value: String) {
     let node = NSCMason.shared.nodeForView(view)
     node.style.setStateFromHalves(low, high)
     // Foreign views do not have a MasonElement requestLayout path to clear cached geometry.
-    node.markDirty()
-    (node.getRoot() ?? view).setNeedsLayout()
+    if StateKeys(low: low, high: high).requiresLayout {
+      node.markDirty()
+      (node.getRoot() ?? view).setNeedsLayout()
+    }
   }
   
   @objc public func mason_addView(_ view: UIView){

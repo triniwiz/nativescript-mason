@@ -1,13 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseSchema } from '../scripts/style-keys/generate.mjs';
+import { styleUnderTest } from './mason-test-kit/style-under-test';
+import { styleKey } from './mason-test-kit/style-keys';
 
-// The `Position` values are a wire format: they cross the JNI and FFI boundaries
-// as a single byte written into the style buffer at `StyleKeys.POSITION`. Every
-// language keeps its own hand-written copy of the mapping, so a copy that drifts
-// does not fail to build: it silently renders the wrong position, and a stale
-// prebuilt AAR/xcframework makes it look like a layout bug. This pins them
-// together. Rust is the reference because it is what taffy actually reads.
+// Position is one signed byte in the style buffer. The CSS keyword schema,
+// public typed enums, and Rust layout decoder must agree on its meaning.
 
 const root = resolve(__dirname, '../..');
 const pkg = 'packages/nativescript-masonkit';
@@ -91,28 +90,20 @@ describe('the Position enum', () => {
     expect(declared).toEqual(REFERENCE);
   });
 
-  it("maps every value in style.ts's getter and setter", () => {
-    const source = read(`${pkg}/style.ts`);
-
-    const getter = /get position\(\) \{([\s\S]*?)\n  \}/.exec(source);
-    if (!getter) throw new Error('no position getter in style.ts');
-    const read_ = [...getter[1].matchAll(/case (\d+):\s*\n\s*return '([a-z]+)'/g)].map((m) => [m[2], Number(m[1])] as [string, number]);
-    expect(read_).toEqual(CSS_NAMES.map((name, index) => [name, index]));
-
-    const setter = /set position\(value: ([\s\S]*?)\n  \}/.exec(source);
-    if (!setter) throw new Error('no position setter in style.ts');
-    const written = [...setter[1].matchAll(/case '([a-z]+)':\s*\n\s*position = (\d+)/g)].map((m) => [m[1], Number(m[2])] as [string, number]);
-    expect(written).toEqual(CSS_NAMES.map((name, index) => [name, index]));
+  it('writes and reads every keyword through the TypeScript style API', () => {
+    const t = styleUnderTest();
+    for (const [name, index] of REFERENCE) {
+      const keyword = name.toLowerCase() as typeof t.style.position;
+      t.style.position = keyword;
+      expect(t.getInt8(styleKey('POSITION')), keyword).toBe(index);
+      expect(t.style.position).toBe(keyword);
+    }
   });
 
-  it('accepts every CSS keyword in both HTML parsers', () => {
-    const kotlin = /"position" -> when \(value\) \{([\s\S]*?)\n      \}/.exec(read(`${pkg}/src-native/mason-android/masonkit/src/main/java/org/nativescript/mason/masonkit/HTMLParser.kt`));
-    if (!kotlin) throw new Error('no position case in HTMLParser.kt');
-    expect([...kotlin[1].matchAll(/"([a-z]+)" -> style\.position = Position\.([A-Za-z]+)/g)].map((m) => [m[1], m[2]])).toEqual(NAMES.map((name) => [name.toLowerCase(), name]));
-
-    const swift = /case "position":\s*\n\s*switch value \{([\s\S]*?)\n      \}/.exec(read(`${pkg}/src-native/mason-ios/Mason/Mason/HTMLParser.swift`));
-    if (!swift) throw new Error('no position case in HTMLParser.swift');
-    expect([...swift[1].matchAll(/case "([a-z]+)": style\.position = \.([A-Za-z]+)/g)].map((m) => [m[1], m[2]])).toEqual(NAMES.map((name) => [name.toLowerCase(), name]));
+  it('uses the Rust position codes in the shared keyword schema', () => {
+    const { keywords } = parseSchema(read('tools/scripts/style-keys/style-keys.schema'));
+    const entry = keywords.find((entry) => entry.properties.includes('position'));
+    expect([...entry.values.entries()]).toEqual(CSS_NAMES.map((name, index) => [name, { code: index, html: index }]));
   });
 
   it('defaults to static, as on the web', () => {

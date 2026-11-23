@@ -1,12 +1,22 @@
 use android_logger::Config;
 use itertools::izip;
-use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject, JString};
-use jni::sys::{jfloat, jfloatArray, jint, jlong};
+use jni::objects::{GlobalRef, JByteArray, JClass, JFieldID, JMethodID, JObject, JString};
+use jni::sys::{jbyte, jbyteArray, jfloat, jfloatArray, jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
 #[cfg(target_os = "android")]
 use mason_core::{JVMCache, JVM, JVM_CACHE};
+use mason_core::style::css::gradient::{parse_gradient, Gradient, GradientKind};
+use mason_core::style::css::clip_path::ClipPath;
+use mason_core::style::css::mask::{parse_layers as parse_mask_layers, MaskLayer, LONGHAND_COUNT};
+use mason_core::style::css::nine_slice::{self, Kind as NineSliceKind, NineSlice};
+use mason_core::style::css::svg_path::parse_svg_path;
+use mason_core::style::css::transform::TransformProgram;
+use mason_core::style::css::background::{
+    parse_layer_properties, Axis, BackgroundProgram, Image, Layer, LayerProperty,
+};
+use std::sync::Arc;
 use mason_core::{Mason, NodeRef};
 use once_cell::sync::OnceCell;
 use std::ffi::c_void;
@@ -832,4 +842,1125 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeUaDefaul
         }
         None => env.new_float_array(0_i32).unwrap().into_raw(),
     }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeParseCss<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    value: JString<'a>,
+    kind: jint,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    current_color: jint,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::LengthContext;
+
+    let Some(value) = crate::style::get_string_lossy(&mut env, &value) else {
+        return jni::objects::JDoubleArray::default();
+    };
+    let context = LengthContext {
+        scale,
+        font_size,
+        root_font_size,
+        viewport_width,
+        viewport_height,
+    };
+    let values = u8::try_from(kind)
+        .ok()
+        .and_then(|kind| mason_core::style::css::parse_css_fields(&value, context, kind, current_color as u32))
+        .unwrap_or_default();
+    let Ok(len) = i32::try_from(values.len()) else {
+        return jni::objects::JDoubleArray::default();
+    };
+    let Ok(array) = env.new_double_array(len) else {
+        return jni::objects::JDoubleArray::default();
+    };
+    if env.set_double_array_region(&array, 0, &values).is_err() {
+        return jni::objects::JDoubleArray::default();
+    }
+    array
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetStyleCssRecords<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    mason: jlong,
+    node: jlong,
+    kind: jint,
+    value: JString<'a>,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    current_color: jint,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::{LengthContext, StyleRecordKind};
+    let (Some(kind), Some(value)) = (
+        u8::try_from(kind).ok().and_then(StyleRecordKind::from_index),
+        crate::style::get_string_lossy(&mut env, &value),
+    ) else { return Default::default(); };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let Some(parsed) = kind.parse(&value, context, current_color as u32) else {
+        return Default::default();
+    };
+    let mut records: std::sync::Arc<[f64]> = parsed.into();
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            let Some(stored) = mason.set_style_css_records(node.id(), kind, records) else {
+                return Default::default();
+            };
+            records = stored;
+        } else {
+            node.defer_style_css_records(kind, std::sync::Arc::clone(&records));
+        }
+    }
+    if records.is_empty() && !kind.stores_empty() {
+        return Default::default();
+    }
+    let result = (|| {
+        let len = i32::try_from(records.len()).ok()?;
+        let output = env.new_double_array(len).ok()?;
+        env.set_double_array_region(&output, 0, &records).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeApplyEffectBatch<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    mason: jlong,
+    node: jlong,
+    input: jni::objects::JByteArray<'a>,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    current_color: jint,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::{CssEffectResultRecord as Result, EffectBatch, LengthContext, StyleRecordKind};
+    let result = (|| {
+        let bytes = env.convert_byte_array(input).ok()?;
+        let input = std::str::from_utf8(&bytes).ok()?;
+        let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+        let batch = EffectBatch::parse(input, context, current_color as u32)?;
+        let output = env.new_object_array((StyleRecordKind::COUNT * Result::STRIDE) as i32,
+            "java/lang/Object", JObject::null()).ok()?;
+        for (kind, effect) in batch.iter() {
+            let base = kind as usize * Result::STRIDE;
+            let css = env.new_string(&effect.value).ok()?;
+            let records = env.new_double_array(i32::try_from(effect.records.len()).ok()?).ok()?;
+            env.set_double_array_region(&records, 0, &effect.records).ok()?;
+            env.set_object_array_element(&output, (base + Result::VALUE) as i32, css).ok()?;
+            env.set_object_array_element(&output, (base + Result::RECORDS) as i32, records).ok()?;
+        }
+        if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+            if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+                mason.set_style_css_effects(node.id(), &batch);
+            } else {
+                node.defer_style_css_effects(&batch);
+            }
+        }
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeFlushStyleCssRecords(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+) {
+    if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+        mason.flush_style_css_records();
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTransformParse(
+    mut env: JNIEnv,
+    _: JClass,
+    value: JString,
+) -> jlong {
+    crate::style::get_string_lossy(&mut env, &value)
+        .and_then(|value| TransformProgram::parse(&value))
+        .map_or(0, |program| Box::into_raw(Box::new(Arc::new(program))) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClipPathParse(
+    mut env: JNIEnv, _: JClass, value: JString,
+) -> jlong {
+    crate::style::get_string_lossy(&mut env, &value).and_then(|value| ClipPath::parse(&value))
+        .map_or(0, |clip| Box::into_raw(Box::new(Arc::new(clip))) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClipPathRelease(
+    _: JNIEnv, _: JClass, handle: jlong,
+) {
+    if handle != 0 { unsafe { drop(Box::from_raw(handle as *mut Arc<ClipPath>)) } }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClipPathInstall(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, mason: jlong, node: jlong,
+) {
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        let clip = unsafe { (handle as *const Arc<ClipPath>).as_ref() }.cloned();
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            mason.set_style_css_clip_path(node.id(), clip);
+        } else {
+            node.defer_style_css_clip_path(clip);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSvgPathRecords<'a>(
+    mut env: JNIEnv<'a>, _: JClass<'a>, input: JString<'a>,
+) -> jni::objects::JDoubleArray<'a> {
+    let Some(input) = crate::style::get_string_lossy(&mut env, &input) else {
+        return Default::default();
+    };
+    let records = parse_svg_path(&input);
+    let result = (|| {
+        let output = env.new_double_array(i32::try_from(records.len()).ok()?).ok()?;
+        env.set_double_array_region(&output, 0, &records).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClipPathRecords<'a>(
+    env: JNIEnv<'a>, _: JClass<'a>, _owner: JObject<'a>, handle: jlong, scale: jfloat,
+    font_size: jfloat, root_font_size: jfloat, viewport_width: jfloat, viewport_height: jfloat,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::LengthContext;
+    let clip = unsafe { &*(handle as *const Arc<ClipPath>) };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let values = clip.records(context);
+    let result = (|| {
+        let output = env.new_double_array(i32::try_from(values.len()).ok()?).ok()?;
+        env.set_double_array_region(&output, 0, &values).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClipPathOffset(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, index: jint,
+) -> jlong {
+    let clip = unsafe { &*(handle as *const Arc<ClipPath>) };
+    paint_offset_address(clip.offset(index as usize))
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTransformIsEmpty(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) -> jni::sys::jboolean {
+    u8::from(unsafe { &*(handle as *const Arc<TransformProgram>) }.is_empty())
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTransformRelease(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Arc<TransformProgram>)) }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTransformInstall(
+    _: JNIEnv,
+    _: JClass,
+    _owner: JObject,
+    handle: jlong,
+    mason: jlong,
+    node: jlong,
+) {
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        let transform = unsafe { (handle as *const Arc<TransformProgram>).as_ref() }.cloned();
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            mason.set_style_css_transform(node.id(), transform);
+        } else {
+            node.defer_style_css_transform(transform);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTransformAffine<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    width: jfloat,
+    height: jfloat,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) -> jni::objects::JFloatArray<'a> {
+    use mason_core::style::css::LengthContext;
+    let transform = unsafe { &*(handle as *const Arc<TransformProgram>) };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let values = transform.affine(context, width, height);
+    if values.iter().any(|value| !value.is_finite()) {
+        return Default::default();
+    }
+    let result = (|| {
+        let array = env.new_float_array(values.len() as i32)?;
+        env.set_float_array_region(&array, 0, &values)?;
+        Ok::<_, jni::errors::Error>(array)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeFilterParse(
+    mut env: JNIEnv,
+    _: JClass,
+    value: JString,
+) -> jlong {
+    use mason_core::style::css::FilterProgram;
+    crate::style::get_string_lossy(&mut env, &value).map_or(0, |css| {
+        Box::into_raw(Box::new(FilterProgram::parse(&css))) as jlong
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeFilterRelease(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) {
+    use mason_core::style::css::FilterProgram;
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut FilterProgram)); }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeFilterProject<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    current_color: jint,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::{FilterProgram, LengthContext};
+
+    let Some(filter) = (unsafe { (handle as *const FilterProgram).as_ref() }) else {
+        return Default::default();
+    };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let records = filter.records(context, current_color as u32);
+    let result = (|| {
+        let len = i32::try_from(records.len()).ok()?;
+        let output = env.new_double_array(len).ok()?;
+        env.set_double_array_region(&output, 0, &records).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundLonghandParse(
+    mut env: JNIEnv,
+    _: JClass,
+    property: JString,
+    value: JString,
+    allow_invalid_entries: jni::sys::jboolean,
+) -> jlong {
+    let (Some(property), Some(value)) = (
+        crate::style::get_string_lossy(&mut env, &property),
+        crate::style::get_string_lossy(&mut env, &value),
+    ) else {
+        return 0;
+    };
+    parse_layer_properties(&property, &value, allow_invalid_entries != 0)
+        .map_or(0, |values| Box::into_raw(Box::new(values)) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundLonghandRelease(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Vec<LayerProperty>)) };
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundLonghandRecords<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    scale: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::LengthContext;
+
+    let properties = unsafe { &*(handle as *const Vec<LayerProperty>) };
+    let context = LengthContext {
+        scale, font_size: root_font_size, root_font_size, viewport_width, viewport_height,
+    };
+    let records: Vec<_> = properties.iter().flat_map(|value| value.record(context)).collect();
+    let result = (|| {
+        let output = env.new_double_array(records.len() as i32)?;
+        env.set_double_array_region(&output, 0, &records)?;
+        Ok::<_, jni::errors::Error>(output)
+    })();
+    result.unwrap_or_default()
+}
+
+fn paint_offset_address(axis: Option<&Axis>) -> jlong {
+    axis.filter(|axis| axis.has_math())
+        .map_or(0, |axis| std::ptr::from_ref(axis) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundLonghandOffset(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, index: jint,
+) -> jlong {
+    let properties = unsafe { &*(handle as *const Vec<LayerProperty>) };
+    paint_offset_address(properties.first().and_then(|value| value.offset(index as usize)))
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePaintOffsetRetain(
+    _: JNIEnv, _: JClass, _owner: JObject, address: jlong,
+) -> jlong {
+    let axis = unsafe { &*(address as *const Axis) };
+    Box::into_raw(Box::new(axis.clone())) as jlong
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePaintOffsetRelease(
+    _: JNIEnv, _: JClass, handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Axis)); }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePaintOffsetResolve(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, basis: jfloat, scale: jfloat,
+    font_size: jfloat, root_font_size: jfloat, viewport_width: jfloat, viewport_height: jfloat,
+) -> jfloat {
+    let axis = unsafe { &*(handle as *const Axis) };
+    let context = mason_core::style::css::LengthContext {
+        scale, font_size, root_font_size, viewport_width, viewport_height,
+    };
+    axis.resolve(basis, context)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePaintOffsetText<'a>(
+    env: JNIEnv<'a>, _: JClass<'a>, _owner: JObject<'a>, handle: jlong, horizontal: jni::sys::jboolean,
+) -> JString<'a> {
+    let axis = unsafe { &*(handle as *const Axis) };
+    axis.math_text(horizontal != 0).and_then(|text| env.new_string(text).ok()).unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundCreate(
+    _: JNIEnv,
+    _: JClass,
+) -> jlong {
+    Box::into_raw(Box::new(BackgroundProgram::default())) as jlong
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundParse(
+    mut env: JNIEnv,
+    _: JClass,
+    value: JString,
+    current_color: jint,
+) -> jlong {
+    crate::style::get_string_lossy(&mut env, &value)
+        .and_then(|value| BackgroundProgram::parse(&value, current_color as u32))
+        .map_or(0, |program| Box::into_raw(Box::new(program)) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundRelease(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut BackgroundProgram)) }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundInstall(
+    _: JNIEnv,
+    _: JClass,
+    _owner: JObject,
+    handle: jlong,
+    mason: jlong,
+    node: jlong,
+) {
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        let background = unsafe { (handle as *const BackgroundProgram).as_ref() };
+        let layers = background.map_or_else(|| Arc::from([]), |value| Arc::clone(value.layers()));
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            mason.set_style_css_background(node.id(), layers);
+        } else {
+            node.defer_style_css_background(layers);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundReplace(
+    mut env: JNIEnv,
+    _: JClass,
+    _owner: JObject,
+    handle: jlong,
+    value: JString,
+    current_color: jint,
+) -> jlong {
+    let Some(value) = crate::style::get_string_lossy(&mut env, &value) else {
+        return -2;
+    };
+    let background = unsafe { &mut *(handle as *mut BackgroundProgram) };
+    background.replace_mobile(&value, current_color as u32)
+        .map_or(-2, |color| color.map_or(-1, i64::from))
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundSetLonghand(
+    mut env: JNIEnv,
+    _: JClass,
+    _owner: JObject,
+    handle: jlong,
+    property: JString,
+    value: JString,
+) -> jint {
+    let (Some(property), Some(value)) = (
+        crate::style::get_string_lossy(&mut env, &property),
+        crate::style::get_string_lossy(&mut env, &value),
+    ) else {
+        return -1;
+    };
+    let background = unsafe { &mut *(handle as *mut BackgroundProgram) };
+    background.set_mobile_longhand(&property, &value).map_or(-1, i32::from)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundApply<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    input: jni::objects::JByteArray<'a>,
+    current_color: jint,
+) -> jni::objects::JLongArray<'a> {
+    use mason_core::style::css::CssBackgroundResultRecord as Result;
+    let result = (|| {
+        let bytes = env.convert_byte_array(input).ok()?;
+        let input = std::str::from_utf8(&bytes).ok()?;
+        let output = env.new_long_array(Result::STRIDE as i32).ok()?;
+        let background = unsafe { &mut *(handle as *mut BackgroundProgram) };
+        let fields = background.apply_mobile_batch(input, current_color as u32)?;
+        env.set_long_array_region(&output, 0, &fields).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBackgroundRead<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    reused_layers: jint,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::LengthContext;
+
+    let background = unsafe { &*(handle as *const BackgroundProgram) };
+    let context = LengthContext {
+        scale,
+        font_size,
+        root_font_size,
+        viewport_width,
+        viewport_height,
+    };
+    let layers = PaintSnapshot::Background(Arc::clone(background.layers()));
+    read_paint_snapshot(env, layers, context, reused_layers.max(0) as usize)
+}
+
+// A projection can outlive the program that produced it. Keep the immutable
+// layer array alive while Kotlin holds any of its gradient or math addresses.
+enum PaintSnapshot {
+    Background(Arc<[Layer]>),
+    Mask(Arc<[MaskLayer]>),
+}
+
+fn read_paint_snapshot<'env>(
+    mut env: JNIEnv<'env>,
+    snapshot: PaintSnapshot,
+    context: mason_core::style::css::LengthContext,
+    reused_layers: usize,
+) -> jni::objects::JObjectArray<'env> {
+    use mason_core::style::css::AndroidPaintReadRecord;
+    let result = (|| {
+        let (output, needs_snapshot) = match &snapshot {
+            PaintSnapshot::Background(layers) => paint_records(
+                &mut env, layers.iter().map(|layer| (layer, [])), context, reused_layers,
+            )?,
+            PaintSnapshot::Mask(layers) => paint_records(
+                &mut env, layers.iter().map(|layer| (&layer.paint, layer.record())), context, 0,
+            )?,
+        };
+        if needs_snapshot {
+            let snapshot = Box::new(snapshot);
+            let address = std::ptr::from_ref(snapshot.as_ref()) as jlong;
+            let owner = env.new_object("java/lang/Long", "(J)V", &[jni::objects::JValue::Long(address)])?;
+            env.set_object_array_element(&output, AndroidPaintReadRecord::SNAPSHOT as i32, owner)?;
+            let _ = Box::into_raw(snapshot);
+        }
+        Ok::<_, jni::errors::Error>(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePaintSnapshotRelease(
+    _: JNIEnv, _: JClass, handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut PaintSnapshot)) }
+    }
+}
+
+fn paint_records<'env, 'layer, const EXTRA: usize>(
+    env: &mut JNIEnv<'env>,
+    layers: impl ExactSizeIterator<Item = (&'layer Layer, [f64; EXTRA])>,
+    context: mason_core::style::css::LengthContext,
+    reused_layers: usize,
+) -> jni::errors::Result<(jni::objects::JObjectArray<'env>, bool)> {
+    use mason_core::style::css::{AndroidGradientInfoRecord, AndroidPaintReadRecord as Read, BackgroundRecord};
+    let count = layers.len();
+    let images = env.new_object_array(count as i32, "java/lang/String", JObject::null())?;
+    let mut values = Vec::with_capacity(count * (BackgroundRecord::STRIDE + EXTRA));
+    let mut offsets = Vec::new();
+    let mut gradients = Vec::new();
+    let mut gradient_info = None;
+    for (index, (layer, extra)) in layers.enumerate() {
+        if index >= reused_layers {
+            match &layer.image {
+                Some(Image::Url(url)) => {
+                    let image = env.auto_local(env.new_string(url.as_ref())?);
+                    env.set_object_array_element(&images, index as i32, &image)?;
+                }
+                Some(Image::Gradient(Some(gradient))) => {
+                    if gradient_info.is_none() {
+                        gradient_info = Some(env.new_object_array(
+                            (count * AndroidGradientInfoRecord::STRIDE) as i32,
+                            "java/lang/String",
+                            JObject::null(),
+                        )?);
+                    }
+                    write_gradient_info(env, gradient_info.as_ref().unwrap(), index, gradient)?;
+                    gradients.resize(index, 0);
+                    gradients.push(std::ptr::from_ref(gradient) as jlong);
+                }
+                _ => {}
+            }
+        }
+        values.extend(layer.record(context));
+        values.extend(extra);
+        let row = layer.offsets().map(paint_offset_address);
+        if !offsets.is_empty() || row.iter().any(|address| *address != 0) {
+            offsets.resize(index * row.len(), 0);
+            offsets.extend(row);
+        }
+    }
+    let records = env.new_double_array(values.len() as i32)?;
+    env.set_double_array_region(&records, 0, &values)?;
+    let output = env.new_object_array(Read::STRIDE as i32, "java/lang/Object", JObject::null())?;
+    env.set_object_array_element(&output, Read::VALUES as i32, records)?;
+    env.set_object_array_element(&output, Read::IMAGES as i32, images)?;
+    if !offsets.is_empty() {
+        let addresses = env.new_long_array(offsets.len() as i32)?;
+        env.set_long_array_region(&addresses, 0, &offsets)?;
+        env.set_object_array_element(&output, Read::OFFSETS as i32, addresses)?;
+    }
+    if let Some(info) = gradient_info {
+        let addresses = env.new_long_array(gradients.len() as i32)?;
+        env.set_long_array_region(&addresses, 0, &gradients)?;
+        env.set_object_array_element(&output, Read::GRADIENTS as i32, addresses)?;
+        env.set_object_array_element(&output, Read::GRADIENT_INFO as i32, info)?;
+    }
+    Ok((output, !offsets.is_empty() || !gradients.is_empty()))
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeMaskParse(
+    mut env: JNIEnv,
+    _: JClass,
+    input: jni::objects::JObjectArray,
+    current_color: jint,
+) -> jlong {
+    let result = (|| {
+        if env.get_array_length(&input).ok()? as usize != LONGHAND_COUNT {
+            return None;
+        }
+        let mut values: [String; LONGHAND_COUNT] = Default::default();
+        for (index, value) in values.iter_mut().enumerate() {
+            let item = JString::from(env.get_object_array_element(&input, index as i32).ok()?);
+            *value = crate::style::get_string_lossy(&mut env, &item)?;
+        }
+        let layers = parse_mask_layers(values.each_ref().map(String::as_str), current_color as u32, true)?;
+        Some(Box::into_raw(Box::new(Arc::<[MaskLayer]>::from(layers))) as jlong)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeMaskRead<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::LengthContext;
+    let mask = unsafe { &*(handle as *const Arc<[MaskLayer]>) };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    read_paint_snapshot(env, PaintSnapshot::Mask(Arc::clone(mask)), context, 0)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeMaskInstall(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, mason: jlong, node: jlong,
+) {
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        let mask = unsafe { (handle as *const Arc<[MaskLayer]>).as_ref() }.cloned();
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            mason.set_style_css_mask(node.id(), mask);
+        } else {
+            node.defer_style_css_mask(mask);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeMaskRelease(
+    _: JNIEnv, _: JClass, handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Arc<[MaskLayer]>)) }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeBorderImageParse(
+    mut env: JNIEnv, _: JClass, input: JString, color: jint,
+) -> jlong {
+    crate::style::get_string_lossy(&mut env, &input)
+        .and_then(|value| nine_slice::parse_shorthand(&value, NineSliceKind::BorderImage, color as u32))
+        .filter(|value| value.source.is_some())
+        .map_or(0, |value| Box::into_raw(Box::new(Arc::new(value))) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeMaskBorderParse(
+    mut env: JNIEnv, _: JClass, input: jni::objects::JObjectArray, color: jint,
+) -> jlong {
+    let parsed = (|| {
+        if env.get_array_length(&input).ok()? as usize != nine_slice::LONGHAND_COUNT {
+            return None;
+        }
+        let mut values: [String; nine_slice::LONGHAND_COUNT] = Default::default();
+        for (index, value) in values.iter_mut().enumerate() {
+            let item = JString::from(env.get_object_array_element(&input, index as i32).ok()?);
+            *value = crate::style::get_string_lossy(&mut env, &item)?;
+        }
+        nine_slice::parse_longhands(values.each_ref().map(String::as_str), NineSliceKind::MaskBorder, color as u32, true)
+    })();
+    parsed.filter(|value| value.source.is_some())
+        .map_or(0, |value| Box::into_raw(Box::new(Arc::new(value))) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeSetTextOverflow(
+    env: JNIEnv<'_>, _: JClass<'_>, mason: jlong, node: jlong, kind: jbyte, token: JByteArray<'_>,
+) {
+    use mason_core::style::css::text_overflow::TextOverflow;
+    let Some(node) = (unsafe { (node as *const mason_core::NodeRef).as_ref() }) else { return; };
+    let token = read_text_overflow_token(&env, token);
+    let Some(overflow) = TextOverflow::new(kind as u8, token) else { return; };
+    if let Some(mason) = unsafe { (mason as *mut mason_core::Mason).as_mut() } {
+        mason.set_style_text_overflow(node.id(), overflow);
+    } else {
+        node.defer_style_text_overflow(overflow);
+    }
+}
+
+fn read_text_overflow_token(env: &JNIEnv<'_>, token: JByteArray<'_>) -> Option<Arc<str>> {
+    if token.is_null() {
+        return None;
+    }
+    let bytes = env.convert_byte_array(token).ok()?;
+    Some(Arc::from(std::str::from_utf8(&bytes).ok()?))
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeTextOverflowTokenBytes(
+    env: JNIEnv<'_>, _: JClass<'_>, key: jlong,
+) -> jbyteArray {
+    mason_core::style::css::text_overflow::lookup(key as u64)
+        .and_then(|token| env.byte_array_from_slice(token.as_bytes()).ok())
+        .map_or(std::ptr::null_mut(), JByteArray::into_raw)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeDetachedTextOverflowToken(
+    env: JNIEnv<'_>, _: JClass<'_>, token: JByteArray<'_>,
+) -> jlong {
+    read_text_overflow_token(&env, token).map_or(0, |token| {
+        mason_core::style::css::text_overflow::new_detached(token) as jlong
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeReleaseDetachedTextOverflowToken(
+    _env: JNIEnv<'_>, _: JClass<'_>, key: jlong,
+) {
+    mason_core::style::css::text_overflow::release_detached(key as u64);
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_expandCssShorthand<'a>(
+    mut env: JNIEnv<'a>, _: JClass<'a>, name: JString<'a>, input: JString<'a>,
+) -> jni::objects::JObjectArray<'a> {
+    let output = (|| {
+        let name = crate::style::get_string_lossy(&mut env, &name)?;
+        let value = crate::style::get_string_lossy(&mut env, &input)?;
+        let values = mason_core::style::css::shorthand::expand(&name, &value)?;
+        css_string_array(&mut env, values)
+    })();
+    output.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeCompileInlineCss<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    input: JString<'a>,
+    scale: jfloat,
+    font_size: jfloat,
+    parent_font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    viewport_refresh: jni::sys::jboolean,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::{compile_inline_style, LengthContext};
+    let Some(input) = crate::style::get_string_lossy(&mut env, &input) else { return Default::default() };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let values = compile_inline_style(&input, context, parent_font_size, viewport_refresh != 0);
+    css_string_array(&mut env, values).unwrap_or_default()
+}
+
+fn css_string_array<'a>(env: &mut JNIEnv<'a>, values: Vec<String>) -> Option<jni::objects::JObjectArray<'a>> {
+    let len = i32::try_from(values.len()).ok()?;
+    let output = env.new_object_array(len, "java/lang/String", JObject::null()).ok()?;
+    for (index, value) in values.iter().enumerate() {
+        let value = env.new_string(value).ok()?;
+        env.set_object_array_element(&output, index as i32, &value).ok()?;
+        env.delete_local_ref(value).ok()?;
+    }
+    Some(output)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeCompileInlineCssReplay<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    input: JString<'a>,
+    scale: jfloat,
+    font_size: jfloat,
+    parent_font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+    previous_font_size: jfloat,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::{compile_inline_style_replay, LengthContext};
+    let Some(input) = crate::style::get_string_lossy(&mut env, &input) else { return Default::default() };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let values = compile_inline_style_replay(&input, context, parent_font_size,
+        previous_font_size.is_finite().then_some(previous_font_size));
+    css_string_array(&mut env, values).unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceValues<'a>(
+    env: JNIEnv<'a>, _: JClass<'a>, _owner: JObject<'a>, handle: jlong, scale: jfloat,
+    font_size: jfloat, root_font_size: jfloat, viewport_width: jfloat, viewport_height: jfloat,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::LengthContext;
+    let spec = unsafe { &*(handle as *const Arc<NineSlice>) };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let records = spec.records(context);
+    let output = (|| {
+        let output = env.new_double_array(records.len() as i32).ok()?;
+        env.set_double_array_region(&output, 0, &records).ok()?;
+        Some(output)
+    })();
+    output.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceMathWidths<'a>(
+    env: JNIEnv<'a>, _: JClass<'a>, _owner: JObject<'a>, handle: jlong,
+    width: jfloat, height: jfloat, scale: jfloat, font_size: jfloat, root_font_size: jfloat,
+    viewport_width: jfloat, viewport_height: jfloat,
+) -> jni::objects::JFloatArray<'a> {
+    use mason_core::style::css::LengthContext;
+    let spec = unsafe { &*(handle as *const Arc<NineSlice>) };
+    let context = LengthContext { scale, font_size, root_font_size, viewport_width, viewport_height };
+    let sides = [height, width, height, width];
+    let values: [f32; 4] = std::array::from_fn(|index|
+        spec.width_offset(index).map_or(f32::NAN, |axis| axis.resolve(sides[index], context))
+    );
+    let result = (|| {
+        let output = env.new_float_array(values.len() as i32).ok()?;
+        env.set_float_array_region(&output, 0, &values).ok()?;
+        Some(output)
+    })();
+    result.unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceSource<'a>(
+    env: JNIEnv<'a>, _: JClass<'a>, _owner: JObject<'a>, handle: jlong, url_only: jni::sys::jboolean,
+) -> JString<'a> {
+    let spec = unsafe { &*(handle as *const Arc<NineSlice>) };
+    let value = match spec.source.as_ref() {
+        Some((css, _)) if url_only == 0 => css.as_str(),
+        Some((_, Image::Url(url))) => url.as_ref(),
+        _ => return JString::default(),
+    };
+    env.new_string(value).unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceGradient(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong,
+) -> jlong {
+    let spec = unsafe { &*(handle as *const Arc<NineSlice>) };
+    match spec.source.as_ref() {
+        Some((_, Image::Gradient(Some(gradient)))) => Box::into_raw(Box::new(Arc::clone(gradient))) as jlong,
+        _ => 0,
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceInstall(
+    _: JNIEnv, _: JClass, _owner: JObject, handle: jlong, mason: jlong, node: jlong, mask: jni::sys::jboolean,
+) {
+    if let Some(node) = unsafe { (node as *const NodeRef).as_ref() } {
+        let spec = unsafe { (handle as *const Arc<NineSlice>).as_ref() }.cloned();
+        let kind = if mask != 0 { NineSliceKind::MaskBorder } else { NineSliceKind::BorderImage };
+        if let Some(mason) = unsafe { (mason as *mut Mason).as_mut() } {
+            mason.set_style_css_nine_slice(node.id(), kind, spec);
+        } else {
+            node.defer_style_css_nine_slice(kind, spec);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeNineSliceRelease(
+    _: JNIEnv, _: JClass, handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Arc<NineSlice>)) }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGradientParse(
+    mut env: JNIEnv,
+    _: JClass,
+    value: JString,
+    color: jint,
+) -> jlong {
+    crate::style::get_string_lossy(&mut env, &value)
+        .and_then(|value| parse_gradient(&value, color as u32))
+        .map_or(0, |gradient| Box::into_raw(Box::new(Arc::new(gradient))) as jlong)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGradientRelease(
+    _: JNIEnv,
+    _: JClass,
+    handle: jlong,
+) {
+    if handle != 0 {
+        unsafe { drop(Box::from_raw(handle as *mut Arc<Gradient>)) }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGradientInfo<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    handle: jlong,
+) -> jni::objects::JObjectArray<'a> {
+    use mason_core::style::css::AndroidGradientInfoRecord;
+    let gradient = unsafe { &*(handle as *const Arc<Gradient>) };
+    let result = (|| {
+        let output = env.new_object_array(
+            AndroidGradientInfoRecord::STRIDE as i32, "java/lang/String", JObject::null(),
+        )?;
+        write_gradient_info(&mut env, &output, 0, gradient)?;
+        Ok::<_, jni::errors::Error>(output)
+    })();
+    result.unwrap_or_default()
+}
+
+fn write_gradient_info<'a>(
+    env: &mut JNIEnv<'a>,
+    output: &jni::objects::JObjectArray<'a>,
+    row: usize,
+    gradient: &Gradient,
+) -> jni::errors::Result<()> {
+    use mason_core::style::css::AndroidGradientInfoRecord as Info;
+    let (space, hue) = gradient.interpolation.as_ref().map_or(("", ""), |method| {
+        (method.space.as_str(), method.hue.as_deref().unwrap_or(""))
+    });
+    let count = gradient.stops.len().to_string();
+    let mut info = [""; Info::STRIDE];
+    info[Info::KIND] = match gradient.kind {
+        GradientKind::Linear => "linear",
+        GradientKind::Radial => "radial",
+        GradientKind::Conic => "conic",
+    };
+    info[Info::REPEATING] = if gradient.repeating { "1" } else { "0" };
+    info[Info::STOP_COUNT] = &count;
+    info[Info::DIRECTION] = &gradient.direction;
+    info[Info::SPACE] = space;
+    info[Info::HUE] = hue;
+    let start = row * Info::STRIDE;
+    for (index, value) in info.into_iter().enumerate() {
+        let value = env.auto_local(env.new_string(value)?);
+        env.set_object_array_element(output, (start + index) as i32, &value)?;
+    }
+    Ok(())
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGradientStopTexts<'a>(
+    mut env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+) -> jni::objects::JObjectArray<'a> {
+    let gradient = unsafe { &*(handle as *const Arc<Gradient>) };
+    (0..gradient.stops.len())
+        .map(|index| gradient.stop_text(index))
+        .collect::<Option<Vec<_>>>()
+        .and_then(|stops| css_string_array(&mut env, stops))
+        .unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeGradientPaint<'a>(
+    env: JNIEnv<'a>,
+    _: JClass<'a>,
+    _owner: JObject<'a>,
+    handle: jlong,
+    width: jfloat,
+    height: jfloat,
+    scale: jfloat,
+    font_size: jfloat,
+    root_font_size: jfloat,
+    viewport_width: jfloat,
+    viewport_height: jfloat,
+) -> jni::objects::JDoubleArray<'a> {
+    use mason_core::style::css::LengthContext;
+
+    let gradient = unsafe { &*(handle as *const Arc<Gradient>) };
+    let context = LengthContext {
+        scale,
+        font_size,
+        root_font_size,
+        viewport_width,
+        viewport_height,
+    };
+    let layout = gradient.layout(width, height, context);
+    let (endpoints, radii, line_length) = match gradient.kind {
+        GradientKind::Linear => {
+            let (endpoints, length) = layout.linear_line(width, height);
+            (endpoints, [0., 0.], length)
+        }
+        GradientKind::Radial => {
+            let [x, y] = layout.center;
+            // A pixel floor avoids invalid shader radii on tiny tiles.
+            let radii = layout.radii.map(|radius| radius.max(1.));
+            ([x, y, 0., 0.], radii, radii[0])
+        }
+        GradientKind::Conic => {
+            let [x, y] = layout.center;
+            ([x, y, 0., 0.], [0., 0.], 0.)
+        }
+    };
+    let mut values = Vec::with_capacity(7 + gradient.stops.len() * 2);
+    values.extend(endpoints.into_iter().chain(radii).chain([layout.angle]).map(f64::from));
+    values.extend(gradient.resolve_stops(line_length, context).into_iter()
+        .flat_map(|(color, position)| [f64::from(color), f64::from(position)]));
+    let result = (|| {
+        let output = env.new_double_array(values.len() as i32)?;
+        env.set_double_array_region(&output, 0, &values)?;
+        Ok::<_, jni::errors::Error>(output)
+    })();
+    result.unwrap_or_default()
 }

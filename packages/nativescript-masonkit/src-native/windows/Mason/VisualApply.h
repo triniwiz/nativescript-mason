@@ -22,6 +22,7 @@
 #include "RootScale.h"
 #include "VisualState.h"
 #include "Node.h"
+#include "StyleKeys.h"
 
 namespace mason_events
 {
@@ -36,28 +37,7 @@ namespace mason_visual
     namespace muxm = winrt::Microsoft::UI::Xaml::Media;
     namespace mucomp = winrt::Microsoft::UI::Composition;
 
-    enum : uint32_t
-    {
-        OVERFLOW_X = 5,                         // i8 (0=visible,1=hidden,2=scroll,3=clip,4=auto)
-        OVERFLOW_Y = 6,                         // i8
-        BORDER_LEFT_VALUE = 77,                 // f32 width px
-        BORDER_RIGHT_VALUE = 81,                // f32
-        BORDER_TOP_VALUE = 85,                  // f32
-        BORDER_BOTTOM_VALUE = 89,               // f32
-        BORDER_LEFT_STYLE = 198,                // i8 (0=none,1=hidden,2=dotted,3=dashed,4=solid,...)
-        BORDER_RIGHT_STYLE = 199,               // i8
-        BORDER_TOP_STYLE = 200,                 // i8
-        BORDER_BOTTOM_STYLE = 201,              // i8
-        BORDER_LEFT_COLOR = 202,                // u32 ARGB
-        BORDER_RIGHT_COLOR = 206,               // u32 ARGB
-        BORDER_TOP_COLOR = 210,                 // u32 ARGB
-        BORDER_BOTTOM_COLOR = 214,              // u32 ARGB
-        FONT_COLOR = 324,                       // u32 ARGB
-        FONT_SIZE = 329,                        // i32 px
-        BACKGROUND_COLOR = 348,                 // u32 ARGB
-        BORDER_RADIUS_TOP_LEFT_X_TYPE = 218,    // i8 (0=length, 1=percent as a 0-1 fraction)
-        BORDER_RADIUS_TOP_LEFT_X_VALUE = 226,   // f32
-    };
+    namespace keys = mason_style_keys;
 
     inline bool SubtreeOverflows(nsm::Layout const& lay, float offX, float offY, float w, float h, bool vx, bool vy)
     {
@@ -374,7 +354,6 @@ namespace mason_visual
     // sets one, else black.
     inline uint32_t CurrentColor(mux::UIElement const& element)
     {
-        constexpr uint32_t FONT_COLOR = 324, FONT_COLOR_STATE = 328;
         mux::DependencyObject node = element;
         for (int depth = 0; node && depth < 128; ++depth)
         {
@@ -384,10 +363,10 @@ namespace mason_visual
                 {
                     uint32_t size = 0;
                     const uint8_t* d = StyleBytes(n, size);
-                    if (d && FONT_COLOR_STATE < size && d[FONT_COLOR_STATE] != 0)
+                    if (d && keys::kFontColorState < size && d[keys::kFontColorState] != 0)
                     {
                         uint32_t v = 0;
-                        std::memcpy(&v, d + FONT_COLOR, 4);
+                        std::memcpy(&v, d + keys::kFontColor, 4);
                         return v;
                     }
                 }
@@ -410,13 +389,13 @@ namespace mason_visual
     inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
     {
         if (!element || !node) return;
-        // Reading the style buffer costs a dozen WinRT calls, and only SyncStyle, a resize, a scale
-        // change or another writer of the brush or clip can change what Apply installs.
+        // An SVG can inherit its paint color from an ancestor without a local style write.
         const uint64_t shadowVersion = mason_shadow::Version(element);
         const uint64_t filterVersion = mason_filter::Version(element);
+        const uint32_t inheritedColor = state.usesCurrentColor ? CurrentColor(element) : 0;
         if (state.valid && !state.styleDirty && !state.subtreeDependent && state.width == width
             && state.height == height && state.scaleEpoch == g_scaleEpoch && state.shadowVersion == shadowVersion
-            && state.filterVersion == filterVersion)
+            && state.filterVersion == filterVersion && state.inputs.back() == inheritedColor)
         {
             auto panel = element.try_as<muxc::Panel>();
             if ((!panel || panel.Background() == state.background) && (!state.visual || state.visual.Clip() == state.clip)) return;
@@ -441,17 +420,17 @@ namespace mason_visual
 
         const mason_shape::Radii radii = mason_shape::Read(data, size, width, height);
         const bool rounded = radii.Any();
-        const uint32_t bg = readU32(BACKGROUND_COLOR);
-        const int8_t ovX = readI8(OVERFLOW_X);
-        const int8_t ovY = readI8(OVERFLOW_Y);
+        const uint32_t bg = readU32(keys::kBackgroundColor);
+        const int8_t ovX = readI8(keys::kOverflowX);
+        const int8_t ovY = readI8(keys::kOverflowY);
         const bool visibleX = (ovX == 0);
         const bool visibleY = (ovY == 0);
-        const float bLW = readF32(BORDER_LEFT_VALUE), bRW = readF32(BORDER_RIGHT_VALUE);
-        const float bTW = readF32(BORDER_TOP_VALUE), bBW = readF32(BORDER_BOTTOM_VALUE);
-        const uint32_t bLC = readU32(BORDER_LEFT_COLOR), bRC = readU32(BORDER_RIGHT_COLOR);
-        const uint32_t bTC = readU32(BORDER_TOP_COLOR), bBC = readU32(BORDER_BOTTOM_COLOR);
-        const int8_t bLS = readI8(BORDER_LEFT_STYLE), bRS = readI8(BORDER_RIGHT_STYLE);
-        const int8_t bTS = readI8(BORDER_TOP_STYLE), bBS = readI8(BORDER_BOTTOM_STYLE);
+        const float bLW = readF32(keys::kBorderLeftValue), bRW = readF32(keys::kBorderRightValue);
+        const float bTW = readF32(keys::kBorderTopValue), bBW = readF32(keys::kBorderBottomValue);
+        const uint32_t bLC = readU32(keys::kBorderLeftColor), bRC = readU32(keys::kBorderRightColor);
+        const uint32_t bTC = readU32(keys::kBorderTopColor), bBC = readU32(keys::kBorderBottomColor);
+        const int8_t bLS = readI8(keys::kBorderLeftStyle), bRS = readI8(keys::kBorderRightStyle);
+        const int8_t bTS = readI8(keys::kBorderTopStyle), bBS = readI8(keys::kBorderBottomStyle);
 
         auto panel = element.try_as<muxc::Panel>();
         if (panel && !state.watchingBackground)
@@ -478,8 +457,7 @@ namespace mason_visual
         const bool hasBackground = panel && (gradient || imageBackground || AlphaOf(bg) > 0);
         // Masked backgrounds are already rounded; anything else rounds with a clip.
         const bool needsClip = hasBackground && rounded && sized && !roundGradient && !roundSolid && !imageBackground;
-        int32_t zIndex = 0;
-        if (size >= 314) std::memcpy(&zIndex, data + 310, 4);
+        const auto zIndex = static_cast<int32_t>(readU32(keys::kZIndex));
         mux::FrameworkElement fe{ nullptr };
         bool scrolled = false;
         if (zIndex != state.zIndex || (sized && (!visibleX || !visibleY)))
@@ -513,8 +491,9 @@ namespace mason_visual
 
         // Masks are drawn in device pixels, so a monitor move must redraw them.
         const float scale = RasterScale(element);
-        // An SVG drawn with currentColor repaints when the colour changes (a theme switch).
-        const uint32_t textColor = mason_cssmask::UsesCurrentColor(element) ? CurrentColor(element) : 0;
+        const bool usesCurrentColor = mason_cssmask::UsesCurrentColor(element);
+        const uint32_t textColor = usesCurrentColor
+            ? (state.usesCurrentColor ? inheritedColor : CurrentColor(element)) : 0;
         const std::array<uint32_t, AppliedState::kInputs> inputs{
             bg, RadiiBits(radii), Bits(width), Bits(height), Bits(scale),
             static_cast<uint32_t>(static_cast<uint8_t>(ovX)) | (static_cast<uint32_t>(static_cast<uint8_t>(ovY)) << 8)
@@ -532,6 +511,7 @@ namespace mason_visual
             state.height = height;
             state.scaleEpoch = g_scaleEpoch;
             state.styleDirty = false;
+            state.usesCurrentColor = usesCurrentColor;
             state.subtreeDependent = (visibleX || visibleY) && needsClip && !overflowClip;
         };
         if (state.valid && state.inputs == inputs && state.shadowVersion == shadowVersion && state.filterVersion == filterVersion

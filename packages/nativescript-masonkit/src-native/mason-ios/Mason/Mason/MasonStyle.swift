@@ -12,6 +12,7 @@ import UIKit
 import AppKit
 #endif
 import QuartzCore
+import CoreText
 import FontManager
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
@@ -38,9 +39,394 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 }
 
 
+// <style-keys:records> generated from tools/scripts/style-keys/style-keys.schema
+enum StyleRecordKind: UInt8 {
+  case boxShadow = 0
+  case textShadow = 1
+  case filter = 2
+  case backdropFilter = 3
+  case fontFeatures = 4
+}
+
+enum ShadowRecord {
+  static let stride = 6
+  static let x = 0
+  static let y = 1
+  static let blur = 2
+  static let spread = 3
+  static let color = 4
+  static let inset = 5
+}
+
+enum FilterRecord {
+  static let stride = 5
+  static let kind = 0
+  static let amountOrX = 1
+  static let y = 2
+  static let blur = 3
+  static let color = 4
+}
+
+enum FontFeatureRecord {
+  static let stride = 2
+  static let tag = 0
+  static let value = 1
+}
+
+enum BackgroundRecord {
+  static let stride = 17
+  static let imageKind = 0
+  static let color = 1
+  static let repeatX = 2
+  static let repeatY = 3
+  static let origin = 4
+  static let clip = 5
+  static let attachment = 6
+  static let sizeKind = 7
+  static let positionXFraction = 8
+  static let positionXPixels = 9
+  static let positionYFraction = 10
+  static let positionYPixels = 11
+  static let widthFraction = 12
+  static let widthPixels = 13
+  static let heightFraction = 14
+  static let heightPixels = 15
+  static let blend = 16
+}
+
+enum BackgroundOffsetsRecord {
+  static let stride = 4
+  static let positionX = 0
+  static let positionY = 1
+  static let width = 2
+  static let height = 3
+}
+
+enum BackgroundInputRecord {
+  static let stride = 8
+  static let color = 0
+  static let image = 1
+  static let `repeat` = 2
+  static let position = 3
+  static let size = 4
+  static let clip = 5
+  static let origin = 6
+  static let attachment = 7
+}
+
+enum BorderComponentsRecord {
+  static let stride = 6
+  static let top = 0
+  static let right = 1
+  static let bottom = 2
+  static let left = 3
+  static let style = 4
+  static let color = 5
+}
+
+enum BorderSideComponentsRecord {
+  static let stride = 3
+  static let width = 0
+  static let style = 1
+  static let color = 2
+}
+
+enum BorderRadiiRecord {
+  static let stride = 8
+  static let horizontalTopLeft = 0
+  static let horizontalTopRight = 1
+  static let horizontalBottomRight = 2
+  static let horizontalBottomLeft = 3
+  static let verticalTopLeft = 4
+  static let verticalTopRight = 5
+  static let verticalBottomRight = 6
+  static let verticalBottomLeft = 7
+}
+
+enum ClipPathRecord {
+  static let stride = 7
+  static let kind = 0
+  static let box = 1
+  static let evenOdd = 2
+  static let radiusXKind = 3
+  static let radiusYKind = 4
+  static let hasPosition = 5
+  static let hasMath = 6
+}
+
+enum SvgPathRecord {
+  static let stride = 8
+  static let kind = 0
+  static let vertexEnd = 1
+  static let x1 = 2
+  static let y1 = 3
+  static let x2 = 4
+  static let y2 = 5
+  static let x = 6
+  static let y = 7
+}
+
+enum MaskLayerRecord {
+  static let stride = 3
+  static let clip = 0
+  static let mode = 1
+  static let composite = 2
+}
+
+enum MaskInputRecord {
+  static let stride = 8
+  static let image = 0
+  static let size = 1
+  static let position = 2
+  static let `repeat` = 3
+  static let origin = 4
+  static let clip = 5
+  static let mode = 6
+  static let composite = 7
+}
+
+enum NineSliceInputRecord {
+  static let stride = 6
+  static let source = 0
+  static let slice = 1
+  static let width = 2
+  static let outset = 3
+  static let `repeat` = 4
+  static let mode = 5
+}
+
+enum NineSliceRecord {
+  static let stride = 4
+  static let fill = 0
+  static let repeatX = 1
+  static let repeatY = 2
+  static let luminance = 3
+}
+
+enum NineSliceSideRecord {
+  static let stride = 3
+  static let kind = 0
+  static let value = 1
+  static let hasMath = 2
+}
+
+enum TextDecorationRecord {
+  static let stride = 4
+  static let line = 0
+  static let style = 1
+  static let color = 2
+  static let thickness = 3
+}
+
+enum CssLengthResultRecord {
+  static let stride = 2
+  static let kind = 0
+  static let value = 1
+}
+
+enum CssPositionResultRecord {
+  static let stride = 4
+  static let xType = 0
+  static let xValue = 1
+  static let yType = 2
+  static let yValue = 3
+}
+
+enum CssDeclarationHeaderRecord {
+  static let stride = 3
+  static let name = 0
+  static let value = 1
+  static let fieldCount = 2
+}
+
+enum CssInlineReplayRecord {
+  static let stride = 3
+  static let viewportDependent = 0
+  static let fontDependent = 1
+  static let fontSize = 2
+}
+
+enum CssBackgroundWriteRecord {
+  static let stride = 3
+  static let property = 0
+  static let value = 1
+  static let currentColor = 2
+}
+
+enum CssBackgroundResultRecord {
+  static let stride = 8
+  static let layersChanged = 0
+  static let imagesReplaced = 1
+  static let imageDeclaration = 2
+  static let shorthandValue = 3
+  static let color = 4
+  static let colorFromShorthand = 5
+  static let lastImageFromShorthand = 6
+  static let shorthandReset = 7
+}
+
+enum CssEffectWriteRecord {
+  static let stride = 3
+  static let property = 0
+  static let value = 1
+  static let currentColor = 2
+}
+
+enum CssEffectResultRecord {
+  static let stride = 2
+  static let value = 0
+  static let records = 1
+}
+
+enum CssMaskWriteRecord {
+  static let stride = 2
+  static let slot = 0
+  static let value = 1
+}
+
+enum CssBorderResultRecord {
+  static let stride = 10
+  static let topKind = 0
+  static let topValue = 1
+  static let rightKind = 2
+  static let rightValue = 3
+  static let bottomKind = 4
+  static let bottomValue = 5
+  static let leftKind = 6
+  static let leftValue = 7
+  static let style = 8
+  static let color = 9
+}
+
+enum CssBorderSideResultRecord {
+  static let stride = 4
+  static let kind = 0
+  static let value = 1
+  static let style = 2
+  static let color = 3
+}
+
+enum GradientInterpolationRecord {
+  static let stride = 3
+  static let direction = 0
+  static let space = 1
+  static let hue = 2
+}
+
+enum SvgFontPrefixRecord {
+  static let stride = 3
+  static let italic = 0
+  static let weight = 1
+  static let size = 2
+}
+
+enum SvgCssDeclarationRecord {
+  static let stride = 3
+  static let name = 0
+  static let value = 1
+  static let important = 2
+}
+
+enum SvgCssSelectorRecord {
+  static let stride = 3
+  static let type = 0
+  static let idCount = 1
+  static let classCount = 2
+}
+
+enum SvgCssRuleRecord {
+  static let stride = 2
+  static let selectorCount = 0
+  static let declarationCount = 1
+}
+
+enum SvgPaintRecord {
+  static let stride = 2
+  static let kind = 0
+  static let value = 1
+}
+
+enum CssAnimationLayerRecord {
+  static let stride = 1
+  static let componentCount = 0
+}
+
+enum CssAnimationComponentRecord {
+  static let stride = 3
+  static let kind = 0
+  static let value = 1
+  static let unit = 2
+}
+
+enum SvgLengthComponentsRecord {
+  static let stride = 2
+  static let length = 0
+  static let percent = 1
+}
+
+enum SvgAffineRecord {
+  static let stride = 6
+  static let a = 0
+  static let b = 1
+  static let c = 2
+  static let d = 3
+  static let x = 4
+  static let y = 5
+}
+
+enum SvgAspectRatioRecord {
+  static let stride = 4
+  static let alignX = 0
+  static let alignY = 1
+  static let uniform = 2
+  static let slice = 3
+}
+
+enum FilterOperationCode {
+  static let blur = 0
+  static let brightness = 1
+  static let contrast = 2
+  static let saturate = 3
+  static let hueRotate = 4
+  static let invert = 5
+  static let opacity = 6
+  static let sepia = 7
+  static let grayscale = 8
+  static let dropShadow = 9
+}
+
+enum CssParseKind: UInt8 {
+  case shadows = 0
+  case filters = 1
+  case length = 2
+  case fontSize = 3
+  case clampLength = 4
+  case transformOrigin = 5
+  case objectPosition = 6
+  case lineHeight = 7
+  case letterSpacing = 8
+  case textIndent = 9
+  case wordSpacing = 10
+  case verticalAlign = 11
+  case dimension = 12
+  case lengthAuto = 13
+  case borderRadius = 14
+  case borderCornerRadius = 15
+  case svgNumberList = 16
+  case svgTransform = 17
+  case svgLength = 18
+  case svgLengthList = 19
+  case svgOpacity = 20
+  case svgAngle = 21
+  case svgAspectRatio = 22
+  case svgNumber = 23
+  case svgDashArray = 24
+}
+// </style-keys:records>
+
 public struct StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-  public static let STYLE_BUFFER_SIZE = 744
+  public static let STYLE_BUFFER_SIZE = 792
 
   public static let DISPLAY = 0
   public static let POSITION = 1
@@ -187,8 +573,8 @@ public struct StyleKeys {
   public static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // f32 (293-296)
   public static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // f32 (297-300)
   public static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
-  public static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // f32 (302-305)
-  public static let FIRST_BASELINE_OFFSET = 306 // f32 (306-309)
+  public static let VERTICAL_ALIGN_ENUM_OFFSET = 302
+  public static let FIRST_BASELINE_OFFSET = 306 // f32 (306-309), preserves the three reserved bytes after vertical-align
   public static let Z_INDEX = 310 // i32 (310-313)
   public static let ITEM_IS_LIST = 314
   public static let ITEM_IS_LIST_ITEM = 315
@@ -342,6 +728,18 @@ public struct StyleKeys {
   public static let TEXT_SPACING_TRIM = 740 // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   public static let TEXT_SPACING_TRIM_STATE = 741
   public static let VISIBILITY = 742 // 0 visible, 1 hidden, 2 collapse
+  public static let FONT_FEATURES_REVISION = 743 // Rust-owned OpenType feature settings change counter
+  public static let BOX_SHADOW_REVISION = 744 // u32 (744-747), Rust-owned box shadow records change counter
+  public static let TEXT_SHADOW_REVISION = 748 // u32 (748-751), Rust-owned text shadow records change counter
+  public static let FILTER_REVISION = 752 // u32 (752-755), Rust-owned filter records change counter
+  public static let BACKDROP_FILTER_REVISION = 756 // u32 (756-759), Rust-owned backdrop-filter records change counter
+  public static let BACKGROUND_REVISION = 760 // u32 (760-763), Rust-owned background layers change counter
+  public static let TRANSFORM_REVISION = 764 // u32 (764-767), Rust-owned CSS transform list change counter
+  public static let CLIP_PATH_REVISION = 768 // u32 (768-771), Rust-owned CSS clip-path change counter
+  public static let MASK_REVISION = 772 // u32 (772-775), Rust-owned mask layer list change counter
+  public static let BORDER_IMAGE_REVISION = 776 // u32 (776-779), Rust-owned border-image change counter
+  public static let MASK_BORDER_REVISION = 780 // u32 (780-783), Rust-owned mask-border change counter
+  public static let TEXT_OVERFLOW_TOKEN = 784 // i64 (784-791), Rust-owned text-overflow string handle
   // </style-keys:offsets>
   public static let TRANSFORM_OP_SIZE = 12
   public static let MAX_INLINE_TRANSFORM_OPS = 6
@@ -394,6 +792,11 @@ public struct StateKeys: Equatable {
   
   public func union(_ other: StateKeys) -> StateKeys {
     return StateKeys(low: self.low | other.low, high: self.high | other.high)
+  }
+
+  // Unknown dirty bits still take the layout path.
+  internal var requiresLayout: Bool {
+    (low & ~Self.paintOnly.low) != 0 || (high & ~Self.paintOnly.high) != 0
   }
   
   public static let none = StateKeys(low: 0, high: 0)
@@ -484,7 +887,17 @@ public struct StateKeys: Equatable {
   public static let textCombineUpright = StateKeys(83)
   public static let textSpacingTrim = StateKeys(84)
   public static let visibility = StateKeys(85)
+  public static let fontFeatureSettings = StateKeys(86)
   // </style-keys:state>
+
+  // <style-keys:state-groups> generated from tools/scripts/style-keys/style-keys.schema
+  static let textLayout = StateKeys(low: 0xbf63800000000000, high: 0x00000000005deee7)
+  static let textVisual = StateKeys(low: 0x409c000000000000, high: 0x0000000000000018)
+  static let allText = StateKeys(low: 0xffff800000000000, high: 0x00000000005deeff)
+  static let borderPaint = StateKeys(low: 0x0000070000010000, high: 0x0000000000000000)
+  static let objectPaint = StateKeys(low: 0x0000200000000000, high: 0x0000000000000100)
+  static let paintOnly = StateKeys(low: 0x409c670000000000, high: 0x0000000000021118)
+  // </style-keys:state-groups>
 
   /// Union of all text-relevant keys that may differ in a pseudo buffer.
   public static let pseudoText = StateKeys(
@@ -514,6 +927,7 @@ public struct StateKeys: Equatable {
       | fontStyle.high
       | fontFamily.high
       | fontVariantNumeric.high
+      | fontFeatureSettings.high
       | textWrap.high
       | whiteSpace.high
       | textTransform.high
@@ -544,36 +958,6 @@ internal struct StyleState {
 }
 
 
-internal struct GridState {
-  var gridArea: String? = nil
-  var gridTemplateAreas: String? = nil
-  var gridAutoRows: String? = nil
-  var gridAutoColumns: String? = nil
-  var gridRow: String? = nil
-  var gridRowStart: String? = nil
-  var gridRowEnd: String? = nil
-  var gridColumn: String? = nil
-  var gridColumnStart: String? = nil
-  var gridColumnEnd: String? = nil
-  var gridTemplateRows: String? = nil
-  var gridTemplateColumns: String? = nil
-  
-  mutating func clear() {
-    gridArea = nil
-    gridTemplateAreas = nil
-    gridAutoRows = nil
-    gridAutoColumns = nil
-    gridRow = nil
-    gridRowStart = nil
-    gridRowEnd = nil
-    gridColumn = nil
-    gridColumnStart = nil
-    gridColumnEnd = nil
-    gridTemplateRows = nil
-    gridTemplateColumns = nil
-  }
-}
-
 struct FontMetrics {
   /// Distance from baseline to top of tallest glyph (positive value)
   let ascent: Float
@@ -590,8 +974,1927 @@ struct FontMetrics {
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
-  fileprivate static let visibilityCollapse: UInt8 = 2
-  private static let transformFnRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "(\\w+)\\(([^)]*)\\)", options: [])
+  // <style-keys:writes> generated from tools/scripts/style-keys/style-keys.schema
+  private func writeAlignContent(_ alignContent: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.ALIGN_CONTENT, alignContent)
+    setOrAppendState(StateKeys.alignContent)
+  }
+
+  private func writeAlignItems(_ alignItems: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.ALIGN_ITEMS, alignItems)
+    setOrAppendState(StateKeys.alignItems)
+  }
+
+  private func writeAlignSelf(_ alignSelf: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.ALIGN_SELF, alignSelf)
+    setOrAppendState(StateKeys.alignSelf)
+  }
+
+  private func writeAspectRatio(_ aspectRatio: Float) {
+    prepareMut()
+    setFloat(StyleKeys.ASPECT_RATIO, aspectRatio)
+    setOrAppendState(StateKeys.aspectRatio)
+  }
+
+  private func writeBackgroundColor(_ backgroundColor: UInt32, _ backgroundColorState: UInt8, _ backgroundColorType: UInt8) {
+    prepareMut()
+    setUInt32(StyleKeys.BACKGROUND_COLOR, backgroundColor)
+    setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, backgroundColorState)
+    setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, backgroundColorType)
+    let state = StateKeys.backgroundColor
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeBorderBottomWidth(_ borderBottomType: UInt8, _ borderBottomValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.BORDER_BOTTOM_TYPE, borderBottomType)
+    setFloat(StyleKeys.BORDER_BOTTOM_VALUE, borderBottomValue)
+    setOrAppendState(StateKeys.border)
+  }
+
+  private func writeBorderLeftWidth(_ borderLeftType: UInt8, _ borderLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.BORDER_LEFT_TYPE, borderLeftType)
+    setFloat(StyleKeys.BORDER_LEFT_VALUE, borderLeftValue)
+    setOrAppendState(StateKeys.border)
+  }
+
+  private func writeBorderRightWidth(_ borderRightType: UInt8, _ borderRightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.BORDER_RIGHT_TYPE, borderRightType)
+    setFloat(StyleKeys.BORDER_RIGHT_VALUE, borderRightValue)
+    setOrAppendState(StateKeys.border)
+  }
+
+  private func writeBorderTopWidth(_ borderTopType: UInt8, _ borderTopValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.BORDER_TOP_TYPE, borderTopType)
+    setFloat(StyleKeys.BORDER_TOP_VALUE, borderTopValue)
+    setOrAppendState(StateKeys.border)
+  }
+
+  private func writeBorderColors(_ borderTopColor: UInt32, _ borderRightColor: UInt32, _ borderBottomColor: UInt32, _ borderLeftColor: UInt32) {
+    prepareMut()
+    setUInt32(StyleKeys.BORDER_TOP_COLOR, borderTopColor)
+    setUInt32(StyleKeys.BORDER_RIGHT_COLOR, borderRightColor)
+    setUInt32(StyleKeys.BORDER_BOTTOM_COLOR, borderBottomColor)
+    setUInt32(StyleKeys.BORDER_LEFT_COLOR, borderLeftColor)
+    setOrAppendState(StateKeys.borderColor)
+  }
+
+  private func writeBorderWidth(_ borderTopType: UInt8, _ borderTopValue: Float, _ borderRightType: UInt8, _ borderRightValue: Float, _ borderBottomType: UInt8, _ borderBottomValue: Float, _ borderLeftType: UInt8, _ borderLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.BORDER_TOP_TYPE, borderTopType)
+    setFloat(StyleKeys.BORDER_TOP_VALUE, borderTopValue)
+    setUInt8(StyleKeys.BORDER_RIGHT_TYPE, borderRightType)
+    setFloat(StyleKeys.BORDER_RIGHT_VALUE, borderRightValue)
+    setUInt8(StyleKeys.BORDER_BOTTOM_TYPE, borderBottomType)
+    setFloat(StyleKeys.BORDER_BOTTOM_VALUE, borderBottomValue)
+    setUInt8(StyleKeys.BORDER_LEFT_TYPE, borderLeftType)
+    setFloat(StyleKeys.BORDER_LEFT_VALUE, borderLeftValue)
+    setOrAppendState(StateKeys.border)
+  }
+
+  private func writeCornerShapeTopLeft(_ borderRadiusTopLeftExponent: Float) {
+    prepareMut()
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent)
+    mBorderRender.cssRadius.topLeft.exponent = CGFloat(borderRadiusTopLeftExponent)
+    mBorderRender.invalidateCache()
+    setOrAppendState(StateKeys.borderRadius)
+  }
+
+  private func writeCornerShapeTopRight(_ borderRadiusTopRightExponent: Float) {
+    prepareMut()
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent)
+    mBorderRender.cssRadius.topRight.exponent = CGFloat(borderRadiusTopRightExponent)
+    mBorderRender.invalidateCache()
+    setOrAppendState(StateKeys.borderRadius)
+  }
+
+  private func writeCornerShapeBottomRight(_ borderRadiusBottomRightExponent: Float) {
+    prepareMut()
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent)
+    mBorderRender.cssRadius.bottomRight.exponent = CGFloat(borderRadiusBottomRightExponent)
+    mBorderRender.invalidateCache()
+    setOrAppendState(StateKeys.borderRadius)
+  }
+
+  private func writeCornerShapeBottomLeft(_ borderRadiusBottomLeftExponent: Float) {
+    prepareMut()
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent)
+    mBorderRender.cssRadius.bottomLeft.exponent = CGFloat(borderRadiusBottomLeftExponent)
+    mBorderRender.invalidateCache()
+    setOrAppendState(StateKeys.borderRadius)
+  }
+
+  private func writeCornerShape(_ borderRadiusTopLeftExponent: Float, _ borderRadiusTopRightExponent: Float, _ borderRadiusBottomRightExponent: Float, _ borderRadiusBottomLeftExponent: Float) {
+    prepareMut()
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent)
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent)
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent)
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent)
+    mBorderRender.cssRadius.topLeft.exponent = CGFloat(borderRadiusTopLeftExponent)
+    mBorderRender.cssRadius.topRight.exponent = CGFloat(borderRadiusTopRightExponent)
+    mBorderRender.cssRadius.bottomRight.exponent = CGFloat(borderRadiusBottomRightExponent)
+    mBorderRender.cssRadius.bottomLeft.exponent = CGFloat(borderRadiusBottomLeftExponent)
+    mBorderRender.invalidateCache()
+    setOrAppendState(StateKeys.borderRadius)
+  }
+
+  private func writeBoxSizing(_ boxSizing: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.BOX_SIZING, boxSizing)
+    setOrAppendState(StateKeys.boxSizing)
+  }
+
+  private func writeClear(_ clear: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.CLEAR, clear)
+    setOrAppendState(StateKeys.clear)
+  }
+
+  private func writeDecorationLine(_ decorationLine: UInt8, _ decorationLineState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.DECORATION_LINE, decorationLine)
+    setUInt8(StyleKeys.DECORATION_LINE_STATE, decorationLineState)
+    let state = StateKeys.decorationLine
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeDecorationStyle(_ decorationStyle: UInt8, _ decorationStyleState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.DECORATION_STYLE, decorationStyle)
+    setUInt8(StyleKeys.DECORATION_STYLE_STATE, decorationStyleState)
+    let state = StateKeys.decorationStyle
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeDecorationColor(_ decorationColor: UInt32, _ decorationColorState: UInt8) {
+    prepareMut()
+    setUInt32(StyleKeys.DECORATION_COLOR, decorationColor)
+    setUInt8(StyleKeys.DECORATION_COLOR_STATE, decorationColorState)
+    let state = StateKeys.decorationColor
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeDecorationThickness(_ decorationThickness: Float, _ decorationThicknessState: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.DECORATION_THICKNESS, decorationThickness)
+    setUInt8(StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState)
+    let state = StateKeys.decorationThinkness
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeDirection(_ direction: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.DIRECTION, direction)
+    setOrAppendState(StateKeys.direction)
+  }
+
+  private func writeDisplay(_ display: UInt8, _ displayMode: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.DISPLAY, display)
+    setUInt8(StyleKeys.DISPLAY_MODE, displayMode)
+    setOrAppendState(StateKeys.display.union(StateKeys.displayMode))
+  }
+
+  private func writeFlexBasisType(_ flexBasisType: UInt8, _ flexBasisValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.FLEX_BASIS_TYPE, flexBasisType)
+    setFloat(StyleKeys.FLEX_BASIS_VALUE, flexBasisValue)
+    setOrAppendState(StateKeys.flexBasis)
+  }
+
+  private func writeFlexDirection(_ flexDirection: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.FLEX_DIRECTION, flexDirection)
+    setOrAppendState(StateKeys.flexDirection)
+  }
+
+  private func writeFlexGrow(_ flexGrow: Float) {
+    prepareMut()
+    setFloat(StyleKeys.FLEX_GROW, flexGrow)
+    setOrAppendState(StateKeys.flexGrow)
+  }
+
+  private func writeFlexShrink(_ flexShrink: Float) {
+    prepareMut()
+    setFloat(StyleKeys.FLEX_SHRINK, flexShrink)
+    setOrAppendState(StateKeys.flexShrink)
+  }
+
+  private func writeFlexWrap(_ flexWrap: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.FLEX_WRAP, flexWrap)
+    setOrAppendState(StateKeys.flexWrap)
+  }
+
+  private func writeTextDecoration(_ decorationLine: UInt8, _ decorationStyle: UInt8, _ decorationColor: UInt32, _ decorationThickness: Float, _ decorationLineState: UInt8, _ decorationStyleState: UInt8, _ decorationColorState: UInt8, _ decorationThicknessState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.DECORATION_LINE, decorationLine)
+    setUInt8(StyleKeys.DECORATION_STYLE, decorationStyle)
+    setUInt32(StyleKeys.DECORATION_COLOR, decorationColor)
+    setFloat(StyleKeys.DECORATION_THICKNESS, decorationThickness)
+    setUInt8(StyleKeys.DECORATION_LINE_STATE, decorationLineState)
+    setUInt8(StyleKeys.DECORATION_STYLE_STATE, decorationStyleState)
+    setUInt8(StyleKeys.DECORATION_COLOR_STATE, decorationColorState)
+    setUInt8(StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState)
+    let state = StateKeys.decorationLine.union(StateKeys.decorationStyle).union(StateKeys.decorationColor).union(StateKeys.decorationThinkness)
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFloat(_ float: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.FLOAT, float)
+    setOrAppendState(StateKeys.float)
+  }
+
+  private func writeFontColor(_ fontColor: UInt32, _ fontColorState: UInt8) {
+    prepareMut()
+    setUInt32(StyleKeys.FONT_COLOR, fontColor)
+    setUInt8(StyleKeys.FONT_COLOR_STATE, fontColorState)
+    let state = StateKeys.color
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFontSize(_ fontSize: Float, _ fontSizeState: UInt8, _ fontSizeType: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.FONT_SIZE, fontSize)
+    setUInt8(StyleKeys.FONT_SIZE_STATE, fontSizeState)
+    setUInt8(StyleKeys.FONT_SIZE_TYPE, fontSizeType)
+    let state = StateKeys.fontSize
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFontStretch(_ fontStretch: Int32, _ fontStretchState: UInt8) {
+    prepareMut()
+    setInt32(StyleKeys.FONT_STRETCH, fontStretch)
+    setUInt8(StyleKeys.FONT_STRETCH_STATE, fontStretchState)
+    let state = StateKeys.fontStretch
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFontStyle(_ fontStyleType: UInt8, _ fontStyleState: UInt8, _ fontStyleSlant: Int32) {
+    prepareMut()
+    setUInt8(StyleKeys.FONT_STYLE_TYPE, fontStyleType)
+    setUInt8(StyleKeys.FONT_STYLE_STATE, fontStyleState)
+    setInt32(StyleKeys.FONT_STYLE_SLANT, fontStyleSlant)
+    let state = StateKeys.fontStyle
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFontVariantNumeric(_ fontVariantNumeric: UInt8, _ fontVariantNumericState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.FONT_VARIANT_NUMERIC, fontVariantNumeric)
+    setUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE, fontVariantNumericState)
+    let state = StateKeys.fontVariantNumeric
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeFontWeight(_ fontWeight: Int32, _ fontWeightState: UInt8) {
+    prepareMut()
+    setInt32(StyleKeys.FONT_WEIGHT, fontWeight)
+    setUInt8(StyleKeys.FONT_WEIGHT_STATE, fontWeightState)
+    let state = StateKeys.fontWeight
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeColumnGap(_ gapColumnType: UInt8, _ gapColumnValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.GAP_COLUMN_TYPE, gapColumnType)
+    setFloat(StyleKeys.GAP_COLUMN_VALUE, gapColumnValue)
+    setOrAppendState(StateKeys.gap)
+  }
+
+  private func writeGap(_ gapRowType: UInt8, _ gapRowValue: Float, _ gapColumnType: UInt8, _ gapColumnValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.GAP_ROW_TYPE, gapRowType)
+    setFloat(StyleKeys.GAP_ROW_VALUE, gapRowValue)
+    setUInt8(StyleKeys.GAP_COLUMN_TYPE, gapColumnType)
+    setFloat(StyleKeys.GAP_COLUMN_VALUE, gapColumnValue)
+    setOrAppendState(StateKeys.gap)
+  }
+
+  private func writeRowGap(_ gapRowType: UInt8, _ gapRowValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.GAP_ROW_TYPE, gapRowType)
+    setFloat(StyleKeys.GAP_ROW_VALUE, gapRowValue)
+    setOrAppendState(StateKeys.gap)
+  }
+
+  private func writeGridAutoFlow(_ gridAutoFlow: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.GRID_AUTO_FLOW, gridAutoFlow)
+    setOrAppendState(StateKeys.gridAutoFlow)
+  }
+
+  private func writeHeight(_ heightType: UInt8, _ heightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.HEIGHT_TYPE, heightType)
+    setFloat(StyleKeys.HEIGHT_VALUE, heightValue)
+    setOrAppendState(StateKeys.size)
+  }
+
+  private func writeHyphens(_ hyphens: UInt8, _ hyphensState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.HYPHENS, hyphens)
+    setUInt8(StyleKeys.HYPHENS_STATE, hyphensState)
+    let state = StateKeys.hyphens
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeInsetBottomType(_ insetBottomType: UInt8, _ insetBottomValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.INSET_BOTTOM_TYPE, insetBottomType)
+    setFloat(StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue)
+    setOrAppendState(StateKeys.inset)
+  }
+
+  private func writeInsetLeftType(_ insetLeftType: UInt8, _ insetLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.INSET_LEFT_TYPE, insetLeftType)
+    setFloat(StyleKeys.INSET_LEFT_VALUE, insetLeftValue)
+    setOrAppendState(StateKeys.inset)
+  }
+
+  private func writeInsetRightType(_ insetRightType: UInt8, _ insetRightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.INSET_RIGHT_TYPE, insetRightType)
+    setFloat(StyleKeys.INSET_RIGHT_VALUE, insetRightValue)
+    setOrAppendState(StateKeys.inset)
+  }
+
+  private func writeInsetTopType(_ insetTopType: UInt8, _ insetTopValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.INSET_TOP_TYPE, insetTopType)
+    setFloat(StyleKeys.INSET_TOP_VALUE, insetTopValue)
+    setOrAppendState(StateKeys.inset)
+  }
+
+  private func writeJustifyContent(_ justifyContent: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.JUSTIFY_CONTENT, justifyContent)
+    setOrAppendState(StateKeys.justifyContent)
+  }
+
+  private func writeJustifyItems(_ justifyItems: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.JUSTIFY_ITEMS, justifyItems)
+    setOrAppendState(StateKeys.justifyItems)
+  }
+
+  private func writeJustifySelf(_ justifySelf: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.JUSTIFY_SELF, justifySelf)
+    setOrAppendState(StateKeys.justifySelf)
+  }
+
+  private func writeLetterSpacing(_ letterSpacing: Float, _ letterSpacingState: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.LETTER_SPACING, letterSpacing)
+    setUInt8(StyleKeys.LETTER_SPACING_STATE, letterSpacingState)
+    let state = StateKeys.letterSpacing
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeLineHeight(_ lineHeight: Float, _ lineHeightState: UInt8, _ lineHeightType: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.LINE_HEIGHT, lineHeight)
+    setUInt8(StyleKeys.LINE_HEIGHT_STATE, lineHeightState)
+    setUInt8(StyleKeys.LINE_HEIGHT_TYPE, lineHeightType)
+    let state = StateKeys.lineHeight
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeLineHeightState(_ lineHeightState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.LINE_HEIGHT_STATE, lineHeightState)
+    let state = StateKeys.lineHeight
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeListStylePosition(_ listStylePosition: UInt8, _ listStylePositionState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.LIST_STYLE_POSITION, listStylePosition)
+    setUInt8(StyleKeys.LIST_STYLE_POSITION_STATE, listStylePositionState)
+    setOrAppendState(StateKeys.listStylePosition)
+  }
+
+  private func writeListStyleType(_ listStyleType: UInt8, _ listStyleTypeState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.LIST_STYLE_TYPE, listStyleType)
+    setUInt8(StyleKeys.LIST_STYLE_TYPE_STATE, listStyleTypeState)
+    setOrAppendState(StateKeys.listStyleType)
+  }
+
+  private func writeMarginBottomType(_ marginBottomType: UInt8, _ marginBottomValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType)
+    setFloat(StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue)
+    setOrAppendState(StateKeys.margin)
+  }
+
+  private func writeMarginLeftType(_ marginLeftType: UInt8, _ marginLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MARGIN_LEFT_TYPE, marginLeftType)
+    setFloat(StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue)
+    setOrAppendState(StateKeys.margin)
+  }
+
+  private func writeMarginRightType(_ marginRightType: UInt8, _ marginRightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MARGIN_RIGHT_TYPE, marginRightType)
+    setFloat(StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue)
+    setOrAppendState(StateKeys.margin)
+  }
+
+  private func writeMarginTopType(_ marginTopType: UInt8, _ marginTopValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MARGIN_TOP_TYPE, marginTopType)
+    setFloat(StyleKeys.MARGIN_TOP_VALUE, marginTopValue)
+    setOrAppendState(StateKeys.margin)
+  }
+
+  private func writeMaxHeight(_ maxHeightType: UInt8, _ maxHeightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MAX_HEIGHT_TYPE, maxHeightType)
+    setFloat(StyleKeys.MAX_HEIGHT_VALUE, maxHeightValue)
+    setOrAppendState(StateKeys.maxSize)
+  }
+
+  private func writeMaxSize(_ maxWidthType: UInt8, _ maxWidthValue: Float, _ maxHeightType: UInt8, _ maxHeightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MAX_WIDTH_TYPE, maxWidthType)
+    setFloat(StyleKeys.MAX_WIDTH_VALUE, maxWidthValue)
+    setUInt8(StyleKeys.MAX_HEIGHT_TYPE, maxHeightType)
+    setFloat(StyleKeys.MAX_HEIGHT_VALUE, maxHeightValue)
+    setOrAppendState(StateKeys.maxSize)
+  }
+
+  private func writeMaxWidth(_ maxWidthType: UInt8, _ maxWidthValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MAX_WIDTH_TYPE, maxWidthType)
+    setFloat(StyleKeys.MAX_WIDTH_VALUE, maxWidthValue)
+    setOrAppendState(StateKeys.maxSize)
+  }
+
+  private func writeMinHeight(_ minHeightType: UInt8, _ minHeightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MIN_HEIGHT_TYPE, minHeightType)
+    setFloat(StyleKeys.MIN_HEIGHT_VALUE, minHeightValue)
+    setOrAppendState(StateKeys.minSize)
+  }
+
+  private func writeMinSize(_ minWidthType: UInt8, _ minWidthValue: Float, _ minHeightType: UInt8, _ minHeightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MIN_WIDTH_TYPE, minWidthType)
+    setFloat(StyleKeys.MIN_WIDTH_VALUE, minWidthValue)
+    setUInt8(StyleKeys.MIN_HEIGHT_TYPE, minHeightType)
+    setFloat(StyleKeys.MIN_HEIGHT_VALUE, minHeightValue)
+    setOrAppendState(StateKeys.minSize)
+  }
+
+  private func writeMinWidth(_ minWidthType: UInt8, _ minWidthValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MIN_WIDTH_TYPE, minWidthType)
+    setFloat(StyleKeys.MIN_WIDTH_VALUE, minWidthValue)
+    setOrAppendState(StateKeys.minSize)
+  }
+
+  private func writeObjectFit(_ objectFit: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.OBJECT_FIT, objectFit)
+    setOrAppendState(StateKeys.objectFit)
+  }
+
+  private func writeOverflowX(_ overflowX: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.OVERFLOW_X, overflowX)
+    setOrAppendState(StateKeys.overflowX)
+  }
+
+  private func writeOverflow(_ overflowX: UInt8, _ overflowY: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.OVERFLOW_X, overflowX)
+    setUInt8(StyleKeys.OVERFLOW_Y, overflowY)
+    setOrAppendState(StateKeys.overflowX.union(StateKeys.overflowY))
+  }
+
+  private func writeOverflowY(_ overflowY: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.OVERFLOW_Y, overflowY)
+    setOrAppendState(StateKeys.overflowY)
+  }
+
+  private func writePaddingBottomType(_ paddingBottomType: UInt8, _ paddingBottomValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType)
+    setFloat(StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue)
+    setOrAppendState(StateKeys.padding)
+  }
+
+  private func writePaddingLeftType(_ paddingLeftType: UInt8, _ paddingLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.PADDING_LEFT_TYPE, paddingLeftType)
+    setFloat(StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue)
+    setOrAppendState(StateKeys.padding)
+  }
+
+  private func writePaddingRightType(_ paddingRightType: UInt8, _ paddingRightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.PADDING_RIGHT_TYPE, paddingRightType)
+    setFloat(StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue)
+    setOrAppendState(StateKeys.padding)
+  }
+
+  private func writePaddingTopType(_ paddingTopType: UInt8, _ paddingTopValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.PADDING_TOP_TYPE, paddingTopType)
+    setFloat(StyleKeys.PADDING_TOP_VALUE, paddingTopValue)
+    setOrAppendState(StateKeys.padding)
+  }
+
+  private func writePosition(_ position: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.POSITION, position)
+    setOrAppendState(StateKeys.position)
+  }
+
+  private func writeScrollbarWidth(_ scrollbarWidth: Float) {
+    prepareMut()
+    setFloat(StyleKeys.SCROLLBAR_WIDTH, scrollbarWidth)
+    setOrAppendState(StateKeys.scrollbarWidth)
+  }
+
+  private func writeSize(_ widthType: UInt8, _ widthValue: Float, _ heightType: UInt8, _ heightValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.WIDTH_TYPE, widthType)
+    setFloat(StyleKeys.WIDTH_VALUE, widthValue)
+    setUInt8(StyleKeys.HEIGHT_TYPE, heightType)
+    setFloat(StyleKeys.HEIGHT_VALUE, heightValue)
+    setOrAppendState(StateKeys.size)
+  }
+
+  private func writeTextAlign(_ textAlign: UInt8, _ textAlignState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_ALIGN, textAlign)
+    setUInt8(StyleKeys.TEXT_ALIGN_STATE, textAlignState)
+    setOrAppendState(StateKeys.textAlign)
+  }
+
+  private func writeTextAlignAsAlign(_ textAlign: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_ALIGN, textAlign)
+    setOrAppendState(StateKeys.align)
+  }
+
+  private func writeTextCombineUpright(_ textCombineUpright: UInt8, _ textCombineUprightState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT, textCombineUpright)
+    setUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, textCombineUprightState)
+    let state = StateKeys.textCombineUpright
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextIndent(_ textIndent: Float, _ textIndentType: UInt8, _ textIndentState: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.TEXT_INDENT, textIndent)
+    setUInt8(StyleKeys.TEXT_INDENT_TYPE, textIndentType)
+    setUInt8(StyleKeys.TEXT_INDENT_STATE, textIndentState)
+    let state = StateKeys.textIndent
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextJustify(_ textJustify: UInt8, _ textJustifyState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_JUSTIFY, textJustify)
+    setUInt8(StyleKeys.TEXT_JUSTIFY_STATE, textJustifyState)
+    let state = StateKeys.textJustify
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextOrientation(_ textOrientation: UInt8, _ textOrientationState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_ORIENTATION, textOrientation)
+    setUInt8(StyleKeys.TEXT_ORIENTATION_STATE, textOrientationState)
+    let state = StateKeys.textOrientation
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextSpacingTrim(_ textSpacingTrim: UInt8, _ textSpacingTrimState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_SPACING_TRIM, textSpacingTrim)
+    setUInt8(StyleKeys.TEXT_SPACING_TRIM_STATE, textSpacingTrimState)
+    let state = StateKeys.textSpacingTrim
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextTransform(_ textTransform: UInt8, _ textTransformState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_TRANSFORM, textTransform)
+    setUInt8(StyleKeys.TEXT_TRANSFORM_STATE, textTransformState)
+    let state = StateKeys.textTransform
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTextWrap(_ textWrap: UInt8, _ textWrapState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TEXT_WRAP, textWrap)
+    setUInt8(StyleKeys.TEXT_WRAP_STATE, textWrapState)
+    let state = StateKeys.textWrap
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeTransformOrigin(_ transformOriginXType: UInt8, _ transformOriginYType: UInt8, _ transformOriginXValue: Float, _ transformOriginYValue: Float, _ transformOriginState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, transformOriginXType)
+    setUInt8(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, transformOriginYType)
+    setFloat(StyleKeys.TRANSFORM_ORIGIN_X_VALUE, transformOriginXValue)
+    setFloat(StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, transformOriginYValue)
+    setUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE, transformOriginState)
+    if inBatch {
+      setOrAppendState(StateKeys.transformOrigin)
+    } else if transformDependsOnOrigin {
+      applyTransformFromBuffer()
+    }
+  }
+
+  private func writeUnicodeBidi(_ unicodeBidi: UInt8, _ unicodeBidiState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.UNICODE_BIDI, unicodeBidi)
+    setUInt8(StyleKeys.UNICODE_BIDI_STATE, unicodeBidiState)
+    let state = StateKeys.unicodeBidi
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeVerticalAlign(_ verticalAlignOffsetOffset: Float, _ verticalAlignIsPercentOffset: UInt8, _ verticalAlignEnumOffset: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, verticalAlignOffsetOffset)
+    setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, verticalAlignIsPercentOffset)
+    setUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, verticalAlignEnumOffset)
+    let state = StateKeys.verticalAlign
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeWhiteSpace(_ whiteSpace: UInt8, _ whiteSpaceState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.WHITE_SPACE, whiteSpace)
+    setUInt8(StyleKeys.WHITE_SPACE_STATE, whiteSpaceState)
+    let state = StateKeys.whiteSpace
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeWidth(_ widthType: UInt8, _ widthValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.WIDTH_TYPE, widthType)
+    setFloat(StyleKeys.WIDTH_VALUE, widthValue)
+    setOrAppendState(StateKeys.size)
+  }
+
+  private func writeWritingMode(_ writingMode: UInt8, _ writingModeState: UInt8) {
+    prepareMut()
+    setUInt8(StyleKeys.WRITING_MODE, writingMode)
+    setUInt8(StyleKeys.WRITING_MODE_STATE, writingModeState)
+    let state = StateKeys.writingMode
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeWordSpacing(_ wordSpacing: Float, _ wordSpacingType: UInt8, _ wordSpacingState: UInt8) {
+    prepareMut()
+    setFloat(StyleKeys.WORD_SPACING, wordSpacing)
+    setUInt8(StyleKeys.WORD_SPACING_TYPE, wordSpacingType)
+    setUInt8(StyleKeys.WORD_SPACING_STATE, wordSpacingState)
+    let state = StateKeys.wordSpacing
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeZIndex(_ zIndex: Int32) {
+    prepareMut()
+    setInt32(StyleKeys.Z_INDEX, zIndex)
+    setOrAppendState(StateKeys.zIndex)
+  }
+
+  private func writeLineClampText(_ lineClamp: Int32, _ lineClampState: UInt8) {
+    prepareMut()
+    setInt32(StyleKeys.LINE_CLAMP, lineClamp)
+    setUInt8(StyleKeys.LINE_CLAMP_STATE, lineClampState)
+    let state = StateKeys.lineClamp
+    if (inBatch) {
+      setOrAppendState(state)
+    } else {
+      notifyTextStyleChanged(state)
+    }
+  }
+
+  private func writeInset(_ insetTopType: UInt8, _ insetTopValue: Float, _ insetRightType: UInt8, _ insetRightValue: Float, _ insetBottomType: UInt8, _ insetBottomValue: Float, _ insetLeftType: UInt8, _ insetLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.INSET_TOP_TYPE, insetTopType)
+    setFloat(StyleKeys.INSET_TOP_VALUE, insetTopValue)
+    setUInt8(StyleKeys.INSET_RIGHT_TYPE, insetRightType)
+    setFloat(StyleKeys.INSET_RIGHT_VALUE, insetRightValue)
+    setUInt8(StyleKeys.INSET_BOTTOM_TYPE, insetBottomType)
+    setFloat(StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue)
+    setUInt8(StyleKeys.INSET_LEFT_TYPE, insetLeftType)
+    setFloat(StyleKeys.INSET_LEFT_VALUE, insetLeftValue)
+    setOrAppendState(StateKeys.inset)
+  }
+
+  private func writeMargin(_ marginTopType: UInt8, _ marginTopValue: Float, _ marginRightType: UInt8, _ marginRightValue: Float, _ marginBottomType: UInt8, _ marginBottomValue: Float, _ marginLeftType: UInt8, _ marginLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.MARGIN_TOP_TYPE, marginTopType)
+    setFloat(StyleKeys.MARGIN_TOP_VALUE, marginTopValue)
+    setUInt8(StyleKeys.MARGIN_RIGHT_TYPE, marginRightType)
+    setFloat(StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue)
+    setUInt8(StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType)
+    setFloat(StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue)
+    setUInt8(StyleKeys.MARGIN_LEFT_TYPE, marginLeftType)
+    setFloat(StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue)
+    setOrAppendState(StateKeys.margin)
+  }
+
+  private func writePadding(_ paddingTopType: UInt8, _ paddingTopValue: Float, _ paddingRightType: UInt8, _ paddingRightValue: Float, _ paddingBottomType: UInt8, _ paddingBottomValue: Float, _ paddingLeftType: UInt8, _ paddingLeftValue: Float) {
+    prepareMut()
+    setUInt8(StyleKeys.PADDING_TOP_TYPE, paddingTopType)
+    setFloat(StyleKeys.PADDING_TOP_VALUE, paddingTopValue)
+    setUInt8(StyleKeys.PADDING_RIGHT_TYPE, paddingRightType)
+    setFloat(StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue)
+    setUInt8(StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType)
+    setFloat(StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue)
+    setUInt8(StyleKeys.PADDING_LEFT_TYPE, paddingLeftType)
+    setFloat(StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue)
+    setOrAppendState(StateKeys.padding)
+  }
+  // </style-keys:writes>
+
+  // <style-keys:accessors> generated from tools/scripts/style-keys/style-keys.schema
+  public var display: Display {
+    get {
+      if visibilityCode == 2 { return .None }
+      switch (getInt8(StyleKeys.DISPLAY), getInt8(StyleKeys.DISPLAY_MODE)) {
+      case (let base, 0): return Display(rawValue: base)!
+      case (_, 1): return .Inline
+      case (3, 2): return .InlineBlock
+      case (1, 2): return .InlineFlex
+      case (2, 2): return .InlineGrid
+      default: preconditionFailure("Invalid display encoding")
+      }
+    }
+    set {
+      switch newValue {
+      case .None: writeDisplay(0, 0)
+      case .Flex: writeDisplay(1, 0)
+      case .Grid: writeDisplay(2, 0)
+      case .Block: writeDisplay(3, 0)
+      case .Inline: writeDisplay(3, 1)
+      case .InlineBlock: writeDisplay(3, 2)
+      case .InlineFlex: writeDisplay(1, 2)
+      case .InlineGrid: writeDisplay(2, 2)
+      }
+      updateDisplayVisibility(newValue)
+    }
+  }
+
+  public var textOverflow: TextOverflow {
+    get { decodeTextOverflow(getInt8(StyleKeys.TEXT_OVERFLOW)) }
+    set {
+      applyTextOverflow(newValue)
+    }
+  }
+
+  /// Transform origin in device pixels or a fraction of the box size.
+  public var transformOrigin: (x: MasonLengthPercentage, y: MasonLengthPercentage) {
+    get {
+      guard hasTransformOrigin else { return (.Percent(0.5), .Percent(0.5)) }
+      func side(_ type: Int, _ value: Int) -> MasonLengthPercentage {
+        let amount = getFloat(value)
+        return getUInt8(type) == 1 ? .Percent(amount / 100) : .Points(amount)
+      }
+      return (side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE), side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE))
+    }
+    set {
+      func side(_ value: MasonLengthPercentage) -> (UInt8, Float) {
+        switch value {
+        case .Points(let value): return (0, value)
+        case .Percent(let value): return (1, value * 100)
+        case .Zero: return (0, 0)
+        }
+      }
+      let (xType, x) = side(newValue.x)
+      let (yType, y) = side(newValue.y)
+      writeTransformOrigin(xType, yType, x, y, StyleState.SET)
+    }
+  }
+
+  internal var hasTransformOrigin: Bool { getUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE) != 0 }
+
+  /// Applies the shorthand as one style write.
+  public func setTextDecoration(_ css: String) {
+    guard let fields = NSCMason.expandCssShorthand("text-decoration", value: css),
+          fields.count == TextDecorationRecord.stride,
+          let thickness = resolveDecorationThickness(fields[TextDecorationRecord.thickness]) else { return }
+    setParsedTextDecoration(fields, thickness: thickness)
+  }
+
+  internal func setParsedTextDecoration(_ fields: [String], thickness: Float) {
+    guard fields.count == TextDecorationRecord.stride,
+          let line = UInt8(fields[TextDecorationRecord.line]),
+          let style = UInt8(fields[TextDecorationRecord.style]),
+          let color = UInt32(fields[TextDecorationRecord.color]) else { return }
+    writeTextDecoration(line, style, color, thickness, StyleState.SET, StyleState.SET, StyleState.SET, StyleState.SET)
+  }
+
+  public var textDecorationLine: String {
+    get { decorationLine.cssValue }
+    set { if let value = DecorationLine.parse(newValue) { decorationLine = value } }
+  }
+
+  public var textDecorationStyle: String {
+    get { decorationStyle.cssValue }
+    set { if let value = DecorationStyle.parse(newValue) { decorationStyle = value } }
+  }
+
+  public var textDecorationColor: String {
+    get {
+      let color = decorationColor
+      return color == Constants.UNSET_COLOR ? "currentcolor" : color.rgbaToHexCSS()
+    }
+    set { setDecorationColor(css: newValue) }
+  }
+
+  /// Text indent as a length or a percentage of the line width.
+  public var textIndent: MasonLengthPercentage {
+    get {
+      let amount = getFloat(StyleKeys.TEXT_INDENT)
+      return getUInt8(StyleKeys.TEXT_INDENT_TYPE) == 1 ? .Percent(amount / 100) : .Points(amount)
+    }
+    set {
+      switch newValue {
+      case .Points(let value): writeTextIndent(value, 0, StyleState.SET)
+      case .Percent(let value): writeTextIndent(value * 100, 1, StyleState.SET)
+      case .Zero: writeTextIndent(0, 0, StyleState.SET)
+      }
+    }
+  }
+
+  public var verticalAlign: MasonVerticalAlignValue {
+    get { MasonVerticalAlignValue(storedOffset: getFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET), isPercent: getUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1, kind: getUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET)) }
+    set { writeVerticalAlign(newValue.offset, newValue.isPercent ? 1 : 0, UInt8(newValue.align.rawValue)) }
+  }
+
+  public var fontVariantNumeric: FontVariantNumeric {
+    get { FontVariantNumeric(rawValue: getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)) }
+    set {
+      if newValue != fontVariantNumeric || getUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE) != StyleState.SET {
+        writeFontVariantNumeric(newValue.rawValue, StyleState.SET)
+      }
+    }
+  }
+
+  public var fontStyle: FontStyle {
+    get { FontStyle(rawValue: getInt8(StyleKeys.FONT_STYLE_TYPE)) ?? FontStyle(fontStyle: font.fontDescriptors.style) }
+    set { setFontStyle(newValue, 0) }
+  }
+
+  public var fontWeight: String {
+    get { weightName }
+    set {
+      guard let fields = NSCMason.expandCssShorthand("font-weight", value: newValue) else { return }
+      setParsedFontWeight(fields)
+    }
+  }
+
+  internal var visibilityCode: UInt8 { getUInt8(StyleKeys.VISIBILITY) }
+
+  internal var hyphens: UInt8 {
+    get { getUInt8(StyleKeys.HYPHENS) }
+    set {
+      writeHyphens(newValue, StyleState.SET)
+    }
+  }
+
+  internal var writingMode: UInt8 {
+    get { getUInt8(StyleKeys.WRITING_MODE) }
+    set {
+      writeWritingMode(newValue, StyleState.SET)
+    }
+  }
+
+  internal var unicodeBidi: UInt8 {
+    get { getUInt8(StyleKeys.UNICODE_BIDI) }
+    set {
+      writeUnicodeBidi(newValue, StyleState.SET)
+    }
+  }
+
+  internal var textOrientation: UInt8 {
+    get { getUInt8(StyleKeys.TEXT_ORIENTATION) }
+    set {
+      writeTextOrientation(newValue, StyleState.SET)
+    }
+  }
+
+  internal var textCombineUpright: UInt8 {
+    get { getUInt8(StyleKeys.TEXT_COMBINE_UPRIGHT) }
+    set {
+      writeTextCombineUpright(newValue, StyleState.SET)
+    }
+  }
+
+  internal var textSpacingTrim: UInt8 {
+    get { getUInt8(StyleKeys.TEXT_SPACING_TRIM) }
+    set {
+      writeTextSpacingTrim(newValue, StyleState.SET)
+    }
+  }
+
+  public var align: Align {
+    get { Align(rawValue: getInt8(StyleKeys.TEXT_ALIGN))! }
+    set {
+      writeTextAlignAsAlign(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var alignContent: AlignContent {
+    get { AlignContent(rawValue: getInt8(StyleKeys.ALIGN_CONTENT))! }
+    set {
+      writeAlignContent(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var alignItems: AlignItems {
+    get { AlignItems(rawValue: getInt8(StyleKeys.ALIGN_ITEMS))! }
+    set {
+      writeAlignItems(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var alignSelf: AlignSelf {
+    get { AlignSelf(rawValue: getInt8(StyleKeys.ALIGN_SELF))! }
+    set {
+      writeAlignSelf(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var aspectRatio: Float? {
+    get {
+      let value = getFloat(StyleKeys.ASPECT_RATIO)
+      return value.isNaN ? nil : value
+    }
+    set {
+      writeAspectRatio(newValue ?? .nan)
+    }
+  }
+
+  public var backgroundColor: UInt32 {
+    get { getUInt32(StyleKeys.BACKGROUND_COLOR) }
+    set {
+      writeBackgroundColor(newValue, StyleState.SET, 0)
+    }
+  }
+
+  public func setBorderColor(_ css: String) {
+    guard let fields = NSCMason.expandCssShorthand("border-color-values", value: css) else { return }
+    let sides = fields.compactMap { UInt32($0) }
+    guard sides.count == 4 else { return }
+    writeBorderColors(sides[0], sides[1], sides[2], sides[3])
+  }
+
+  public var borderWidth: MasonRect<MasonLengthPercentage> {
+    get {
+      return MasonRect(
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.BORDER_TOP_VALUE), getInt8(StyleKeys.BORDER_TOP_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.BORDER_RIGHT_VALUE), getInt8(StyleKeys.BORDER_RIGHT_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.BORDER_BOTTOM_VALUE), getInt8(StyleKeys.BORDER_BOTTOM_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.BORDER_LEFT_VALUE), getInt8(StyleKeys.BORDER_LEFT_TYPE))!
+      )
+    }
+    set {
+      writeBorderWidth(
+        UInt8(bitPattern: newValue.top.type),
+        newValue.top.value,
+        UInt8(bitPattern: newValue.right.type),
+        newValue.right.value,
+        UInt8(bitPattern: newValue.bottom.type),
+        newValue.bottom.value,
+        UInt8(bitPattern: newValue.left.type),
+        newValue.left.value
+      )
+    }
+  }
+
+  public var cornerShapeTopLeft: String {
+    get { CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.cssRadius.topLeft.exponent)) }
+    set {
+      guard let exponent = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      writeCornerShapeTopLeft(exponent)
+    }
+  }
+
+  public var cornerShapeTopRight: String {
+    get { CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.cssRadius.topRight.exponent)) }
+    set {
+      guard let exponent = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      writeCornerShapeTopRight(exponent)
+    }
+  }
+
+  public var cornerShapeBottomRight: String {
+    get { CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.cssRadius.bottomRight.exponent)) }
+    set {
+      guard let exponent = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      writeCornerShapeBottomRight(exponent)
+    }
+  }
+
+  public var cornerShapeBottomLeft: String {
+    get { CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.cssRadius.bottomLeft.exponent)) }
+    set {
+      guard let exponent = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
+      writeCornerShapeBottomLeft(exponent)
+    }
+  }
+
+  private var authoredCornerShape = ""
+  public var cornerShape: String {
+    get { authoredCornerShape }
+    set {
+      authoredCornerShape = newValue
+      guard let fields = NSCMason.expandCssShorthand("corner-shape", value: newValue), fields.count == 4,
+            let topLeft = Float(fields[0]),
+            let topRight = Float(fields[1]),
+            let bottomRight = Float(fields[2]),
+            let bottomLeft = Float(fields[3]) else { return }
+      writeCornerShape(topLeft, topRight, bottomRight, bottomLeft)
+    }
+  }
+
+  public var color: UInt32 {
+    get { getUInt32(StyleKeys.FONT_COLOR) }
+    set {
+      writeFontColor(newValue, StyleState.SET)
+    }
+  }
+
+  public var boxSizing: BoxSizing {
+    get { BoxSizing(rawValue: getInt8(StyleKeys.BOX_SIZING))! }
+    set {
+      writeBoxSizing(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var clear: Clear {
+    get { Clear(rawValue: getInt8(StyleKeys.CLEAR))! }
+    set {
+      writeClear(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var decorationColor: UInt32 {
+    get { getUInt32(StyleKeys.DECORATION_COLOR) }
+    set {
+      writeDecorationColor(newValue, StyleState.SET)
+    }
+  }
+
+  public var decorationLine: DecorationLine {
+    get { DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE)) ?? .None }
+    set {
+      writeDecorationLine(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var decorationStyle: DecorationStyle {
+    get { DecorationStyle(rawValue: getInt8(StyleKeys.DECORATION_STYLE)) ?? .Solid }
+    set {
+      writeDecorationStyle(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  /// Device px. Zero uses the font's underline thickness.
+  public var decorationThickness: Float {
+    get { getFloat(StyleKeys.DECORATION_THICKNESS) }
+    set {
+      writeDecorationThickness(newValue, StyleState.SET)
+    }
+  }
+
+  public var direction: Direction {
+    get { Direction(rawValue: getInt8(StyleKeys.DIRECTION))! }
+    set {
+      writeDirection(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var flexBasis: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.FLEX_BASIS_VALUE), getInt8(StyleKeys.FLEX_BASIS_TYPE)) ?? .Auto }
+    set {
+      writeFlexBasisType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var flexDirection: FlexDirection {
+    get { FlexDirection(rawValue: getInt8(StyleKeys.FLEX_DIRECTION))! }
+    set {
+      writeFlexDirection(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var flexGrow: Float {
+    get { getFloat(StyleKeys.FLEX_GROW) }
+    set {
+      writeFlexGrow(newValue)
+    }
+  }
+
+  public var flexShrink: Float {
+    get { getFloat(StyleKeys.FLEX_SHRINK) }
+    set {
+      writeFlexShrink(newValue)
+    }
+  }
+
+  public var flexWrap: FlexWrap {
+    get { FlexWrap(rawValue: getInt8(StyleKeys.FLEX_WRAP))! }
+    set {
+      writeFlexWrap(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var float: MasonFloat {
+    get { MasonFloat(rawValue: getInt8(StyleKeys.FLOAT))! }
+    set {
+      writeFloat(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var fontSize: Float {
+    get { getFloat(StyleKeys.FONT_SIZE) }
+    set {
+      writeFontSize(newValue, StyleState.SET, 0)
+      syncFontMetrics()
+    }
+  }
+
+  public var gap: MasonSize<MasonLengthPercentage> {
+    get {
+      return MasonSize(
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.GAP_ROW_VALUE), getInt8(StyleKeys.GAP_ROW_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.GAP_COLUMN_VALUE), getInt8(StyleKeys.GAP_COLUMN_TYPE))!
+      )
+    }
+    set {
+      writeGap(
+        UInt8(bitPattern: newValue.width.type),
+        newValue.width.value,
+        UInt8(bitPattern: newValue.height.type),
+        newValue.height.value
+      )
+    }
+  }
+
+  public var gridAutoFlow: GridAutoFlow {
+    get { GridAutoFlow(rawValue: getInt8(StyleKeys.GRID_AUTO_FLOW))! }
+    set {
+      writeGridAutoFlow(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var height: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.HEIGHT_VALUE), getInt8(StyleKeys.HEIGHT_TYPE))! }
+    set {
+      writeHeight(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var inset: MasonRect<MasonLengthPercentageAuto> {
+    get {
+      return MasonRect(
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_TOP_VALUE), getInt8(StyleKeys.INSET_TOP_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_RIGHT_VALUE), getInt8(StyleKeys.INSET_RIGHT_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_BOTTOM_VALUE), getInt8(StyleKeys.INSET_BOTTOM_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_LEFT_VALUE), getInt8(StyleKeys.INSET_LEFT_TYPE))!
+      )
+    }
+    set {
+      writeInset(
+        UInt8(bitPattern: newValue.top.type),
+        newValue.top.value,
+        UInt8(bitPattern: newValue.right.type),
+        newValue.right.value,
+        UInt8(bitPattern: newValue.bottom.type),
+        newValue.bottom.value,
+        UInt8(bitPattern: newValue.left.type),
+        newValue.left.value
+      )
+    }
+  }
+
+  public var bottomInset: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_BOTTOM_VALUE), getInt8(StyleKeys.INSET_BOTTOM_TYPE))! }
+    set {
+      writeInsetBottomType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var leftInset: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_LEFT_VALUE), getInt8(StyleKeys.INSET_LEFT_TYPE))! }
+    set {
+      writeInsetLeftType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var rightInset: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_RIGHT_VALUE), getInt8(StyleKeys.INSET_RIGHT_TYPE))! }
+    set {
+      writeInsetRightType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var topInset: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.INSET_TOP_VALUE), getInt8(StyleKeys.INSET_TOP_TYPE))! }
+    set {
+      writeInsetTopType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var justifyContent: JustifyContent {
+    get { JustifyContent(rawValue: getInt8(StyleKeys.JUSTIFY_CONTENT))! }
+    set {
+      writeJustifyContent(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var justifyItems: JustifyItems {
+    get { JustifyItems(rawValue: getInt8(StyleKeys.JUSTIFY_ITEMS))! }
+    set {
+      writeJustifyItems(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var justifySelf: JustifySelf {
+    get { JustifySelf(rawValue: getInt8(StyleKeys.JUSTIFY_SELF))! }
+    set {
+      writeJustifySelf(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var letterSpacing: Float {
+    get { getFloat(StyleKeys.LETTER_SPACING) }
+    set {
+      writeLetterSpacing(newValue, StyleState.SET)
+    }
+  }
+
+  public var lineHeight: Float {
+    get { getFloat(StyleKeys.LINE_HEIGHT) }
+    set {
+      writeLineHeight(newValue, StyleState.SET, 0)
+    }
+  }
+
+  public var lineClamp: Int32 {
+    get { getInt32(StyleKeys.LINE_CLAMP) }
+    set {
+      writeLineClampText(max(0, newValue), StyleState.SET)
+    }
+  }
+
+  public var listStylePosition: ListStylePosition {
+    get { ListStylePosition(rawValue: getInt8(StyleKeys.LIST_STYLE_POSITION))! }
+    set {
+      writeListStylePosition(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var listStyleType: ListStyleType {
+    get { ListStyleType(rawValue: getInt8(StyleKeys.LIST_STYLE_TYPE))! }
+    set {
+      writeListStyleType(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+      // A summary can build its marker before the list style is applied.
+      if node.detailsRole == MasonDetails.summary { MasonDetails.refreshMarker(node) }
+    }
+  }
+
+  public var margin: MasonRect<MasonLengthPercentageAuto> {
+    get {
+      return MasonRect(
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_TOP_VALUE), getInt8(StyleKeys.MARGIN_TOP_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_RIGHT_VALUE), getInt8(StyleKeys.MARGIN_RIGHT_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_BOTTOM_VALUE), getInt8(StyleKeys.MARGIN_BOTTOM_TYPE))!,
+        MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_LEFT_VALUE), getInt8(StyleKeys.MARGIN_LEFT_TYPE))!
+      )
+    }
+    set {
+      writeMargin(
+        UInt8(bitPattern: newValue.top.type),
+        newValue.top.value,
+        UInt8(bitPattern: newValue.right.type),
+        newValue.right.value,
+        UInt8(bitPattern: newValue.bottom.type),
+        newValue.bottom.value,
+        UInt8(bitPattern: newValue.left.type),
+        newValue.left.value
+      )
+    }
+  }
+
+  public var marginBottom: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_BOTTOM_VALUE), getInt8(StyleKeys.MARGIN_BOTTOM_TYPE))! }
+    set {
+      writeMarginBottomType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var marginLeft: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_LEFT_VALUE), getInt8(StyleKeys.MARGIN_LEFT_TYPE))! }
+    set {
+      writeMarginLeftType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var marginRight: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_RIGHT_VALUE), getInt8(StyleKeys.MARGIN_RIGHT_TYPE))! }
+    set {
+      writeMarginRightType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var marginTop: MasonLengthPercentageAuto {
+    get { MasonLengthPercentageAuto.fromValueType(getFloat(StyleKeys.MARGIN_TOP_VALUE), getInt8(StyleKeys.MARGIN_TOP_TYPE))! }
+    set {
+      writeMarginTopType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var maxHeight: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.MAX_HEIGHT_VALUE), getInt8(StyleKeys.MAX_HEIGHT_TYPE))! }
+    set {
+      writeMaxHeight(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var maxSize: MasonSize<MasonDimension> {
+    get {
+      return MasonSize(
+        MasonDimension.fromValueType(getFloat(StyleKeys.MAX_WIDTH_VALUE), getInt8(StyleKeys.MAX_WIDTH_TYPE))!,
+        MasonDimension.fromValueType(getFloat(StyleKeys.MAX_HEIGHT_VALUE), getInt8(StyleKeys.MAX_HEIGHT_TYPE))!
+      )
+    }
+    set {
+      writeMaxSize(
+        UInt8(bitPattern: newValue.width.type),
+        newValue.width.value,
+        UInt8(bitPattern: newValue.height.type),
+        newValue.height.value
+      )
+    }
+  }
+
+  public var maxWidth: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.MAX_WIDTH_VALUE), getInt8(StyleKeys.MAX_WIDTH_TYPE))! }
+    set {
+      writeMaxWidth(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var minHeight: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.MIN_HEIGHT_VALUE), getInt8(StyleKeys.MIN_HEIGHT_TYPE))! }
+    set {
+      writeMinHeight(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var minSize: MasonSize<MasonDimension> {
+    get {
+      return MasonSize(
+        MasonDimension.fromValueType(getFloat(StyleKeys.MIN_WIDTH_VALUE), getInt8(StyleKeys.MIN_WIDTH_TYPE))!,
+        MasonDimension.fromValueType(getFloat(StyleKeys.MIN_HEIGHT_VALUE), getInt8(StyleKeys.MIN_HEIGHT_TYPE))!
+      )
+    }
+    set {
+      writeMinSize(
+        UInt8(bitPattern: newValue.width.type),
+        newValue.width.value,
+        UInt8(bitPattern: newValue.height.type),
+        newValue.height.value
+      )
+    }
+  }
+
+  public var minWidth: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.MIN_WIDTH_VALUE), getInt8(StyleKeys.MIN_WIDTH_TYPE))! }
+    set {
+      writeMinWidth(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var objectFit: ObjectFit {
+    get { ObjectFit(rawValue: getInt8(StyleKeys.OBJECT_FIT))! }
+    set {
+      writeObjectFit(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var overflowX: Overflow {
+    get { Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))! }
+    set {
+      writeOverflowX(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var overflowY: Overflow {
+    get { Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))! }
+    set {
+      writeOverflowY(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var overflow: MasonPoint<Overflow> {
+    get {
+      return MasonPoint(
+        Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!,
+        Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!
+      )
+    }
+    set {
+      writeOverflow(UInt8(bitPattern: newValue.x.rawValue), UInt8(bitPattern: newValue.y.rawValue))
+    }
+  }
+
+  public var padding: MasonRect<MasonLengthPercentage> {
+    get {
+      return MasonRect(
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_TOP_VALUE), getInt8(StyleKeys.PADDING_TOP_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_RIGHT_VALUE), getInt8(StyleKeys.PADDING_RIGHT_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_BOTTOM_VALUE), getInt8(StyleKeys.PADDING_BOTTOM_TYPE))!,
+        MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_LEFT_VALUE), getInt8(StyleKeys.PADDING_LEFT_TYPE))!
+      )
+    }
+    set {
+      writePadding(
+        UInt8(bitPattern: newValue.top.type),
+        newValue.top.value,
+        UInt8(bitPattern: newValue.right.type),
+        newValue.right.value,
+        UInt8(bitPattern: newValue.bottom.type),
+        newValue.bottom.value,
+        UInt8(bitPattern: newValue.left.type),
+        newValue.left.value
+      )
+    }
+  }
+
+  public var paddingBottom: MasonLengthPercentage {
+    get { MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_BOTTOM_VALUE), getInt8(StyleKeys.PADDING_BOTTOM_TYPE))! }
+    set {
+      writePaddingBottomType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var paddingLeft: MasonLengthPercentage {
+    get { MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_LEFT_VALUE), getInt8(StyleKeys.PADDING_LEFT_TYPE))! }
+    set {
+      writePaddingLeftType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var paddingRight: MasonLengthPercentage {
+    get { MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_RIGHT_VALUE), getInt8(StyleKeys.PADDING_RIGHT_TYPE))! }
+    set {
+      writePaddingRightType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var paddingTop: MasonLengthPercentage {
+    get { MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_TOP_VALUE), getInt8(StyleKeys.PADDING_TOP_TYPE))! }
+    set {
+      writePaddingTopType(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var position: Position {
+    get { Position(rawValue: getInt8(StyleKeys.POSITION))! }
+    set {
+      writePosition(UInt8(bitPattern: newValue.rawValue))
+    }
+  }
+
+  public var scrollBarWidth: MasonDimension {
+    get { MasonDimension.Points(getFloat(StyleKeys.SCROLLBAR_WIDTH)) }
+    set {
+      writeScrollbarWidth(newValue.value)
+    }
+  }
+
+  public var size: MasonSize<MasonDimension> {
+    get {
+      return MasonSize(
+        MasonDimension.fromValueType(getFloat(StyleKeys.WIDTH_VALUE), getInt8(StyleKeys.WIDTH_TYPE))!,
+        MasonDimension.fromValueType(getFloat(StyleKeys.HEIGHT_VALUE), getInt8(StyleKeys.HEIGHT_TYPE))!
+      )
+    }
+    set {
+      writeSize(
+        UInt8(bitPattern: newValue.width.type),
+        newValue.width.value,
+        UInt8(bitPattern: newValue.height.type),
+        newValue.height.value
+      )
+    }
+  }
+
+  public var textAlign: TextAlign {
+    get { TextAlign(rawValue: getInt8(StyleKeys.TEXT_ALIGN))! }
+    set {
+      writeTextAlign(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var textJustify: TextJustify {
+    get { TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto }
+    set {
+      guard newValue != textJustify else { return }
+      writeTextJustify(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var textTransform: TextTransform {
+    get { TextTransform(rawValue: getInt8(StyleKeys.TEXT_TRANSFORM))! }
+    set {
+      writeTextTransform(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var textWrap: TextWrap {
+    get { TextWrap(rawValue: getInt8(StyleKeys.TEXT_WRAP))! }
+    set {
+      writeTextWrap(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var whiteSpace: WhiteSpace {
+    get { WhiteSpace(rawValue: getInt8(StyleKeys.WHITE_SPACE))! }
+    set {
+      writeWhiteSpace(UInt8(bitPattern: newValue.rawValue), StyleState.SET)
+    }
+  }
+
+  public var width: MasonDimension {
+    get { MasonDimension.fromValueType(getFloat(StyleKeys.WIDTH_VALUE), getInt8(StyleKeys.WIDTH_TYPE))! }
+    set {
+      writeWidth(UInt8(bitPattern: newValue.type), newValue.value)
+    }
+  }
+
+  public var zIndex: Int32 {
+    get { getInt32(StyleKeys.Z_INDEX) }
+    set {
+      writeZIndex(newValue)
+    }
+  }
+  // </style-keys:accessors>
+
+  // <style-keys:native-methods> generated from tools/scripts/style-keys/style-keys.schema
+  public var borderWidthCompat: MasonLengthPercentageRectCompat {
+    get { MasonLengthPercentageRectCompat(borderWidth) }
+    set { borderWidth = newValue.intoMasonRect() }
+  }
+
+  public var gapCompat: MasonLengthPercentageSizeCompat {
+    get { MasonLengthPercentageSizeCompat(gap) }
+    set { gap = newValue.intoMasonSize() }
+  }
+
+  public var sizeCompatHeight: MasonDimensionCompat {
+    get { MasonDimensionCompat(value: height) }
+    set { height = newValue.dimension }
+  }
+
+  public var insetCompat: MasonLengthPercentageAutoRectCompat {
+    get { MasonLengthPercentageAutoRectCompat(inset) }
+    set { inset = newValue.intoMasonRect() }
+  }
+
+  public var marginCompat: MasonLengthPercentageAutoRectCompat {
+    get { MasonLengthPercentageAutoRectCompat(margin) }
+    set { margin = newValue.intoMasonRect() }
+  }
+
+  public var maxSizeCompat: MasonDimensionSizeCompat {
+    get { MasonDimensionSizeCompat(maxSize) }
+    set { maxSize = newValue.intoMasonSize() }
+  }
+
+  public var minSizeCompat: MasonDimensionSizeCompat {
+    get { MasonDimensionSizeCompat(minSize) }
+    set { minSize = newValue.intoMasonSize() }
+  }
+
+  public var overflowCompat: MasonOverflowPointCompat {
+    get { MasonOverflowPointCompat(overflowX, overflowY) }
+    set { overflow = MasonPoint(newValue.x, newValue.y) }
+  }
+
+  public var paddingCompat: MasonLengthPercentageRectCompat {
+    get { MasonLengthPercentageRectCompat(padding) }
+    set { padding = newValue.intoMasonRect() }
+  }
+
+  public var sizeCompat: MasonDimensionSizeCompat {
+    get { MasonDimensionSizeCompat(size) }
+    set { size = newValue.intoMasonSize() }
+  }
+
+  public var sizeCompatWidth: MasonDimensionCompat {
+    get { MasonDimensionCompat(value: width) }
+    set { width = newValue.dimension }
+  }
+
+  public func setInsetLeft(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    leftInset = length
+  }
+
+  public func setInsetRight(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    rightInset = length
+  }
+
+  public func setInsetTop(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    topInset = length
+  }
+
+  public func setInsetBottom(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    bottomInset = length
+  }
+
+  public func setInsetWithValueType(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    inset = MasonRect(uniform: length)
+  }
+
+  public func setMarginLeft(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    marginLeft = length
+  }
+
+  public func setMarginRight(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    marginRight = length
+  }
+
+  public func setMarginTop(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    marginTop = length
+  }
+
+  public func setMarginBottom(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    marginBottom = length
+  }
+
+  public func setMarginWithValueType(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentageAuto(value, type) else { return }
+    margin = MasonRect(uniform: length)
+  }
+
+  public func setPaddingLeft(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    paddingLeft = length
+  }
+
+  public func setPaddingRight(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    paddingRight = length
+  }
+
+  public func setPaddingTop(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    paddingTop = length
+  }
+
+  public func setPaddingBottom(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    paddingBottom = length
+  }
+
+  public func setPaddingWithValueType(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    padding = MasonRect(uniform: length)
+  }
+
+  public func setBorderLeftWidth(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeBorderLeftWidth(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setBorderRightWidth(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeBorderRightWidth(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setBorderTopWidth(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeBorderTopWidth(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setBorderBottomWidth(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeBorderBottomWidth(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setBorderWidth(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    borderWidth = MasonRect(uniform: length)
+  }
+
+  public func setFlexBasis(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    flexBasis = length
+  }
+
+  public func setMinSizeWidth(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    minSize = MasonSize(length, minSize.height)
+  }
+
+  public func setMinSizeHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    minSize = MasonSize(minSize.width, length)
+  }
+
+  public func setMinSizeWidthHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    minSize = MasonSize(length, length)
+  }
+
+  public func setSizeWidth(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    width = length
+  }
+
+  public func setSizeHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    height = length
+  }
+
+  public func setSizeWidthHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    size = MasonSize(length, length)
+  }
+
+  public func setMaxSizeWidth(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    maxSize = MasonSize(length, maxSize.height)
+  }
+
+  public func setMaxSizeHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    maxSize = MasonSize(maxSize.width, length)
+  }
+
+  public func setMaxSizeWidthHeight(_ value: Float, _ type: Int) {
+    guard let length = getDimension(value, type) else { return }
+    maxSize = MasonSize(length, length)
+  }
+
+  public func setGapRow(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeRowGap(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setGapColumn(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeColumnGap(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setRowGap(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeRowGap(UInt8(bitPattern: length.type), length.value)
+  }
+
+  public func setColumnGap(_ value: Float, _ type: Int) {
+    guard let length = getLengthPercentage(value, type) else { return }
+    writeColumnGap(UInt8(bitPattern: length.type), length.value)
+  }
+  // </style-keys:native-methods>
 
   public internal(set) var font: NSCFontFace!
   private var _cachedResolvedFont: NSCFontFace? = nil
@@ -600,7 +2903,7 @@ public class MasonStyle: NSObject {
     get {
       return FontMetrics(ascent:  getFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET), descent:  getFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET), x_height: getFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET), leading: getFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET), cap_height: getFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET))
     }
-    
+
     set {
       prepareMut()
       setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, newValue.ascent)
@@ -610,7 +2913,7 @@ public class MasonStyle: NSObject {
       setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, newValue.cap_height)
     }
   }
-  
+
   /// Update font metrics on a Mason node when font changes.
   /// When called during a Rust measure callback (inMeasure == true),
   /// the write is deferred to avoid deadlocking the rwlock.
@@ -621,7 +2924,7 @@ public class MasonStyle: NSObject {
     }
     syncFontMetricsNow()
   }
-  
+
   /// Writes the current font's metrics into the style buffer.
   ///
   /// Returns whether any of them actually changed, so a deferred flush knows
@@ -659,7 +2962,7 @@ public class MasonStyle: NSObject {
     write(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
     return changed
   }
-  
+
   /// Flush deferred font metrics sync after measure callback returns.
   /// Returns true if the flush actually changed the metrics (caller should
   /// mark the node dirty). A pending flush that resolves to the same numbers
@@ -669,19 +2972,18 @@ public class MasonStyle: NSObject {
     pendingMetricsSync = false
     return syncFontMetricsNow()
   }
-  
-  
-  private var gridState = GridState()
-  
+
+
+
   // Weight tracking
   internal var weight = UIFont.Weight.regular
   private var weightName = "normal"
-  
-  
+
+
   // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
   internal var inMeasure = false
   internal var pendingMetricsSync = false
-  
+
   internal var isDirty: UInt64 = 0
   // high 64-bit half for expanded 128-bit state keys
   internal var isDirtyHigh: UInt64 = 0
@@ -695,47 +2997,37 @@ public class MasonStyle: NSObject {
   internal static var resolveEpoch: UInt64 = 1
   internal var resolvedMemo = ResolvedMemo()
 
-  internal var isSlowDirty = false {
-    didSet {
-      if (!inBatch) {
-        if(!pendingInvalidation.contains(.invalidating)){
-          pendingInvalidation = pendingInvalidation.union(.pending)
-        }
-        updateNativeStyle()
-      }
-    }
-  }
   unowned(unsafe) let node: MasonNode
   var inBatch = false {
     didSet {
       if (!inBatch) {
-        if((isDirty != 0 || isDirtyHigh != 0) && !pendingInvalidation.contains(.invalidating)){
+        if((!gridWrites.isEmpty || isDirty != 0 || isDirtyHigh != 0) && !pendingInvalidation.contains(.invalidating)){
           pendingInvalidation = pendingInvalidation.union(.pending)
         }
         updateNativeStyle()
       }
     }
   }
-  
+
   internal var isValueInitialized: Bool  = false
-  
+
   private weak var styleChangeListener: StyleChangeListener? = nil
-  
+
   internal func setStyleChangeListener(listener: StyleChangeListener?) {
     styleChangeListener = listener
   }
-  
-  
+
+
   internal func notifyTextStyleChanged(_ low: UInt64, _ high: UInt64) {
     styleVersion &+= 1
     styleChangeListener?.onStyleChange(low, high)
   }
-  
+
   internal func notifyTextStyleChanged(_ state: StateKeys) {
     styleVersion &+= 1
     styleChangeListener?.onStyleChange(state.low, state.high)
   }
-  
+
   public func prepareMut() {
     // Every native style write passes here: the next layout pass re-applies this view.
     node.appliedStyleVersion = .max
@@ -743,7 +3035,7 @@ public class MasonStyle: NSObject {
     if (node.isPlaceholder) {
       return
     }
-    
+
     if cachedBytes != nil && getInt32(StyleKeys.REF_COUNT) == 1 {
       isValueInitialized = true
       if writableValue == nil { writableValue = readableValue }
@@ -768,64 +3060,64 @@ public class MasonStyle: NSObject {
     if slot < 0 { slot = mason_style_prepare_slot(node.mason.nativePtr, node.nativePtr) }
     return slot
   }
-  
+
   private lazy var placeHolderValue: NSMutableData = {
     // Rust's STYLE_BUFFER_SIZE: every StyleKeys offset must be readable.
     let buffer = NSMutableData(length: StyleKeys.STYLE_BUFFER_SIZE)
-    
-    
+
+
     setFloat(StyleKeys.ASPECT_RATIO, Float.nan, buffer: buffer)
     // default shrink to 1
     setFloat(StyleKeys.FLEX_SHRINK, 1, buffer: buffer)
-    
+
     setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1, buffer: buffer)
     setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1, buffer: buffer)
     setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1, buffer: buffer)
     setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1, buffer: buffer)
-    
-    
+
+
     // Default font metrics
-    
+
     setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14, buffer: buffer)
     setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4, buffer: buffer)
     setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7, buffer: buffer)
     setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0, buffer: buffer)
     setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10, buffer: buffer)
-    
+
     setFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.nan, buffer: buffer)
-    
-    
-    
-    
+
+
+
+
     setInt8(StyleKeys.OBJECT_FIT, ObjectFit.Fill.rawValue, buffer: buffer)
     setInt8(StyleKeys.DISPLAY, Display.Block.rawValue, buffer: buffer)
-    
+
     // default Normal -> -1
     setInt8(StyleKeys.ALIGN_ITEMS, -1, buffer: buffer)
     setInt8(StyleKeys.ALIGN_SELF, -1, buffer: buffer)
     setInt8(StyleKeys.ALIGN_CONTENT, -1, buffer: buffer)
-    
+
     setInt8(StyleKeys.JUSTIFY_ITEMS, -1, buffer: buffer)
     setInt8(StyleKeys.JUSTIFY_SELF, -1, buffer: buffer)
     setInt8(StyleKeys.JUSTIFY_CONTENT, -1, buffer: buffer)
-    
+
     setInt8(StyleKeys.MARGIN_LEFT_TYPE, 1, buffer: buffer)
     setInt8(StyleKeys.MARGIN_TOP_TYPE, 1, buffer: buffer)
     setInt8(StyleKeys.MARGIN_RIGHT_TYPE, 1, buffer: buffer)
     setInt8(StyleKeys.MARGIN_BOTTOM_TYPE, 1, buffer: buffer)
-    
+
     setInt32(StyleKeys.REF_COUNT, 1)
-    
-    
+
+
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
-    
+
     isValueInitialized = true
     return buffer
   }()
-  
+
   private var writableValue: NSMutableData? = nil { didSet { refreshBytes() } }
   private var readableValue: NSMutableData? = nil { didSet { refreshBytes() } }
   private var cachedBytes: UnsafeRawPointer? = nil
@@ -838,51 +3130,51 @@ public class MasonStyle: NSObject {
     if let bytes = cachedBytes { return bytes }
     return values.bytes
   }
-  
-  
+
+
   public var values: NSMutableData {
     get {
       if(node.isPlaceholder){
         return placeHolderValue
       }
-      
+
       let value = writableValue ?? readableValue
-      
+
       guard let value = value else {
-        
+
         var length = 0
         guard let bytes = mason_style_get_style_data(node.mason.nativePtr, node.nativePtr, &length), length > 0 else {
           fatalError("Could not allocate style buffer")
         }
-        
+
         isValueInitialized = true
-        
+
         readableValue = MasonSlotData(UnsafeMutableRawPointer(mutating: bytes), length, owner: node.mason)
-        
+
         return readableValue!
-        
+
       }
       return value
     }
   }
-  
+
   public init(node: MasonNode) {
     self.node = node
     super.init()
     font =  NSCFontFace(family: "sans-serif")
     mBackground = Background(style: self)
   }
-  
+
   internal func invalidateStyle(_ state: Int64) {
     if state == 0 {
       return
     }
-    
+
     if (isDirty > 0) {
       (node.view as? MasonElement)?.invalidateLayout()
     }
   }
-  
+
   internal func setOrAppendState(_ value: StateKeys) {
     clearLogicalSides(value)
     setStateFromHalves(value.low, value.high)
@@ -953,6 +3245,10 @@ public class MasonStyle: NSObject {
 
   // Helpers to set full 128-bit masks (low/high halves)
   internal func setStateFromHalves(_ low: UInt64, _ high: UInt64) {
+    let changed = StateKeys(low: low, high: high)
+    if changed.contains(.textOverflow), getUInt8(StyleKeys.TEXT_OVERFLOW) < 2, textOverflowTokenKey != 0 {
+      _ = installTextOverflow(getUInt8(StyleKeys.TEXT_OVERFLOW), token: nil)
+    }
     if isDirty == 0 && isDirtyHigh == 0 {
       isDirty = low
       isDirtyHigh = high
@@ -966,62 +3262,49 @@ public class MasonStyle: NSObject {
       }
       updateNativeStyle()
     }
-    let changed = StateKeys(low: low, high: high)
     if changed.contains(StateKeys.display.union(.displayMode).union(.position).union(.float).union(.visibility)) {
       node.onFlowTypeChanged()
     }
   }
-  
-  
+
+
   private struct InvalidationState {
       let rawValue: UInt64
-     
+
      init(rawValue: UInt64) {
        self.rawValue = rawValue
      }
-     
+
      init() {
        self.rawValue = 0
      }
-    
+
     static let none = InvalidationState()
     static let pending = InvalidationState(rawValue: 1 << 0)
     static let invalidating = InvalidationState(rawValue: 1 << 1)
-    
+
     func contains(_ other: InvalidationState) -> Bool{
       return (self.rawValue & other.rawValue) != 0
     }
-    
+
     func union(_ other: InvalidationState) -> InvalidationState {
       return InvalidationState(rawValue: self.rawValue | other.rawValue)
     }
   }
-  
+
   private var pendingInvalidation: InvalidationState = .none
-  
-  // All text-relevant keys that TextEngine.onStyleChange checks.
-  private static let textStateMask: StateKeys = [
-    StateKeys.color, .fontSize, .fontWeight, .fontStyle, .fontFamily,
-    .textTransform, .textWrap, .whiteSpace, .textOverflow,
-    .backgroundColor, .decorationColor, .decorationLine, .decorationStyle,
-    .letterSpacing, .lineHeight, .textAlign, .textJustify,
-    .verticalAlign, .textShadow, .fontVariantNumeric,
-    .hyphens, .wordSpacing, .writingMode, .textOrientation, .textCombineUpright, .textSpacingTrim, .unicodeBidi, .fontStretch,
-    .decorationThinkness, .listStylePosition, .listStyleType,
-    .textIndent, .lineClamp
-  ].reduce(StateKeys.none) { $0.union($1) }
 
   private func updateTextStyle() {
     if (node.nativePtr == nil) {
       return
     }
-    
+
     let lowDirty = isDirty
     let highDirty = isDirtyHigh
     if (lowDirty > 0 || highDirty > 0) {
       // Forward the intersection of dirty flags and text keys so the
       // engine takes the correct layout vs visual-only branch.
-      let mask = MasonStyle.textStateMask
+      let mask = StateKeys.allText
       let state = StateKeys(low: lowDirty & mask.low, high: highDirty & mask.high)
 
       if (state != .none) {
@@ -1031,169 +3314,68 @@ public class MasonStyle: NSObject {
     }
   }
 
-  // Transform (buffer-backed)
+  // CSS transform programs share their parsed list with the Rust style arena.
+  private final class NativeTransformProgram {
+    let handle: OpaquePointer
+    let usesBoxSize: Bool
 
-  private struct TransformOp {
-    let type: UInt8
-    let a: Float
-    let b: Float
-    var percent: UInt8 = 0
-  }
-
-  private func writeTransformToBuffer(_ input: String) {
-    var ops = parseTransformOps(input)
-    prepareMut()
-
-    if ops.isEmpty {
-      setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
-      setUInt8(StyleKeys.TRANSFORM_FLAGS, 0)
-      return
+    init?(_ value: String) {
+      guard let handle = value.withCString({ mason_css_transform_parse($0) }) else { return nil }
+      self.handle = handle
+      usesBoxSize = mason_css_transform_uses_box_size(handle)
     }
 
-    // Sentinel check: matrix/matrix3d already written by parser
-    if ops.count == 1 && ops[0].type == 255 { return }
+    deinit { mason_css_transform_release(handle) }
 
-    // Percentages need the box size, so a long list keeps only its first inline ops.
-    if ops.count > StyleKeys.MAX_INLINE_TRANSFORM_OPS && !ops.contains(where: { $0.percent != 0 }) {
-      flattenOpsToMatrix(ops)
-      return
-    }
-    ops = Array(ops.prefix(StyleKeys.MAX_INLINE_TRANSFORM_OPS))
-
-    // Write inline ops
-    let hasPercent = ops.contains { $0.percent != 0 }
-    setUInt8(StyleKeys.TRANSFORM_COUNT, UInt8(ops.count))
-    setUInt8(StyleKeys.TRANSFORM_FLAGS, hasPercent ? StyleKeys.TRANSFORM_FLAG_HAS_PERCENT : 0)
-    for i in 0..<ops.count {
-      let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-      setUInt8(base, ops[i].type)
-      setUInt8(base + 1, ops[i].percent)
-      setUInt8(base + 2, 0)
-      setUInt8(base + 3, 0)
-      setFloat(base + 4, ops[i].a)
-      setFloat(base + 8, ops[i].b)
-    }
-    // Zero remaining slots
-    for i in ops.count..<StyleKeys.MAX_INLINE_TRANSFORM_OPS {
-      let base = StyleKeys.TRANSFORM_OP_0 + i * StyleKeys.TRANSFORM_OP_SIZE
-      setUInt8(base, 0)
-      setUInt8(base + 1, 0)
-      setUInt8(base + 2, 0)
-      setUInt8(base + 3, 0)
-      setFloat(base + 4, 0)
-      setFloat(base + 8, 0)
-    }
-  }
-
-  private func parseTransformOps(_ input: String) -> [TransformOp] {
-    if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
-    var ops: [TransformOp] = []
-    let fnRegex = MasonStyle.transformFnRegex
-    let ns = input as NSString
-    guard let matches = fnRegex?.matches(in: input, options: [], range: NSRange(location: 0, length: ns.length)) else { return [] }
-    for m in matches {
-      guard m.numberOfRanges >= 3 else { continue }
-      let name = ns.substring(with: m.range(at: 1)).lowercased()
-      let rawArgs = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
-      let args = rawArgs.replacingOccurrences(of: ",", with: " ").split(separator: " ").map { String($0) }
-      switch name {
-      case "translate", "translate3d":
-        let x = parseTransformLength(args, 0), y = parseTransformLength(args, 1)
-        ops.append(TransformOp(type: TransformOpType.translate.rawValue, a: x.value, b: y.value,
-                               percent: (x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0) | (y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0)))
-      case "translatex":
-        let x = parseTransformLength(args, 0)
-        ops.append(TransformOp(type: TransformOpType.translateX.rawValue, a: x.value, b: 0, percent: x.percent ? StyleKeys.TRANSFORM_OP_A_PERCENT : 0))
-      case "translatey":
-        let y = parseTransformLength(args, 0)
-        ops.append(TransformOp(type: TransformOpType.translateY.rawValue, a: 0, b: y.value, percent: y.percent ? StyleKeys.TRANSFORM_OP_B_PERCENT : 0))
-      case "scale":
-        let sx = parseTransformNumber(args, 0, 1.0)
-        let sy = parseTransformNumber(args, 1, Double(sx))
-        ops.append(TransformOp(type: TransformOpType.scale.rawValue, a: sx, b: sy))
-      case "scalex":
-        ops.append(TransformOp(type: TransformOpType.scaleX.rawValue, a: parseTransformNumber(args, 0, 1.0), b: 1))
-      case "scaley":
-        ops.append(TransformOp(type: TransformOpType.scaleY.rawValue, a: 1, b: parseTransformNumber(args, 0, 1.0)))
-      case "rotate":
-        ops.append(TransformOp(type: TransformOpType.rotate.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
-      case "skewx":
-        ops.append(TransformOp(type: TransformOpType.skewX.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
-      case "skewy":
-        ops.append(TransformOp(type: TransformOpType.skewY.rawValue, a: parseTransformAngleDeg(args.first ?? "0"), b: 0))
-      case "matrix":
-        let nums = args.compactMap { Float($0.replacingOccurrences(of: "px", with: "")) }
-        if nums.count >= 6 {
-          writeMatrixToBuffer(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5])
-          return [TransformOp(type: 255, a: 0, b: 0)] // sentinel
-        }
-      case "matrix3d":
-        let nums = args.compactMap { Float($0.replacingOccurrences(of: "px", with: "")) }
-        if nums.count >= 16 {
-          writeMatrix3dToBuffer(nums)
-          return [TransformOp(type: 255, a: 0, b: 0)] // sentinel
-        }
-      default: break
+    func matrix(for size: CGSize, style: MasonStyle) -> CATransform3D {
+      let viewport = NSCMason.viewportSize
+      return withUnsafeTemporaryAllocation(of: Float.self, capacity: 16) { values in
+        guard mason_css_transform_matrix(handle, Float(size.width), Float(size.height), style.fontSize,
+                                         NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height),
+                                         values.baseAddress) else { return CATransform3DIdentity }
+        return CATransform3D(
+          m11: CGFloat(values[0]), m12: CGFloat(values[1]), m13: CGFloat(values[2]), m14: CGFloat(values[3]),
+          m21: CGFloat(values[4]), m22: CGFloat(values[5]), m23: CGFloat(values[6]), m24: CGFloat(values[7]),
+          m31: CGFloat(values[8]), m32: CGFloat(values[9]), m33: CGFloat(values[10]), m34: CGFloat(values[11]),
+          m41: CGFloat(values[12]), m42: CGFloat(values[13]), m43: CGFloat(values[14]), m44: CGFloat(values[15])
+        )
       }
     }
-    return ops
   }
 
-  private func writeMatrixToBuffer(_ a: Float, _ b: Float, _ c: Float, _ d: Float, _ tx: Float, _ ty: Float) {
-    prepareMut()
-    setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
-    setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX)
-    let base = StyleKeys.TRANSFORM_MATRIX
-    // Column 0: [a, b, 0, 0]
-    setFloat(base, a); setFloat(base + 4, b); setFloat(base + 8, 0); setFloat(base + 12, 0)
-    // Column 1: [c, d, 0, 0]
-    setFloat(base + 16, c); setFloat(base + 20, d); setFloat(base + 24, 0); setFloat(base + 28, 0)
-    // Column 2: [0, 0, 1, 0]
-    setFloat(base + 32, 0); setFloat(base + 36, 0); setFloat(base + 40, 1); setFloat(base + 44, 0)
-    // Column 3: [tx, ty, 0, 1]
-    setFloat(base + 48, tx); setFloat(base + 52, ty); setFloat(base + 56, 0); setFloat(base + 60, 1)
-  }
+  private var transformProgram: NativeTransformProgram?
 
-  private func writeMatrix3dToBuffer(_ nums: [Float]) {
-    prepareMut()
-    setUInt8(StyleKeys.TRANSFORM_COUNT, 0)
-    setUInt8(StyleKeys.TRANSFORM_FLAGS, StyleKeys.TRANSFORM_FLAG_HAS_MATRIX | StyleKeys.TRANSFORM_FLAG_IS_3D)
-    let base = StyleKeys.TRANSFORM_MATRIX
-    for i in 0..<16 { setFloat(base + i * 4, nums[i]) }
-  }
-
-  private func flattenOpsToMatrix(_ ops: [TransformOp]) {
-    var a: Float = 1; var b: Float = 0; var c: Float = 0; var d: Float = 1; var tx: Float = 0; var ty: Float = 0
-    for op in ops {
-      switch TransformOpType(rawValue: op.type) ?? .none {
-      case .translate: tx += a * op.a + c * op.b; ty += b * op.a + d * op.b
-      case .translateX: tx += a * op.a; ty += b * op.a
-      case .translateY: tx += c * op.b; ty += d * op.b
-      case .scale: a *= op.a; b *= op.a; c *= op.b; d *= op.b
-      case .scaleX: a *= op.a; b *= op.a
-      case .scaleY: c *= op.b; d *= op.b
-      case .rotate:
-        let rad = op.a * .pi / 180.0
-        let cosV = cos(rad); let sinV = sin(rad)
-        let na = a * cosV + c * sinV; let nb = b * cosV + d * sinV
-        let nc = a * (-sinV) + c * cosV; let nd = b * (-sinV) + d * cosV
-        a = na; b = nb; c = nc; d = nd
-      case .skewX:
-        let t = tan(op.a * .pi / 180.0)
-        let nc = a * t + c; let nd = b * t + d
-        c = nc; d = nd
-      case .skewY:
-        let t = tan(op.a * .pi / 180.0)
-        let na = a + c * t; let nb = b + d * t
-        a = na; b = nb
-      case .none: break
-      }
-    }
-    writeMatrixToBuffer(a, b, c, d, tx, ty)
+  private func installTransform(_ value: String) {
+    let program = NativeTransformProgram(value)
+    transformProgram = program
+    guard !node.isPlaceholder else { return }
+    let mason = node.mason
+    if mason.inCompute { mason.deferStyleRecords(self) }
+    else { prepareMut() }
+    mason_css_transform_install(mason.inCompute ? nil : mason.nativePtr, node.nativePtr, program?.handle)
   }
 
   internal func applyTransformFromBuffer() {
     guard let view = node.view else { return }
+    if let program = transformProgram {
+      DispatchQueue.main.async { [weak self, weak view] in
+        guard let self, let view, self.transformProgram === program else { return }
+        let size = view.bounds.size
+        let matrix = program.matrix(for: size, style: self)
+        let turn = self.node.inlineTurn
+        if CATransform3DIsAffine(matrix) {
+          view.layer.transform = CATransform3DIdentity
+          let affine = self.aboutTransformOrigin(CATransform3DGetAffineTransform(matrix), size)
+          view.transform = affine.rotated(by: turn)
+        } else {
+          view.transform = .identity
+          let about = self.layerTransformAboutOrigin(matrix, size)
+          view.layer.transform = turn == 0 ? about : CATransform3DConcat(CATransform3DMakeRotation(turn, 0, 0, 1), about)
+        }
+        self.updateShadowLayer(for: view.bounds)
+      }
+      return
+    }
     let count = Int(getUInt8(StyleKeys.TRANSFORM_COUNT))
     let flags = getUInt8(StyleKeys.TRANSFORM_FLAGS)
 
@@ -1316,34 +3498,12 @@ public class MasonStyle: NSObject {
     return CATransform3DConcat(CATransform3DConcat(CATransform3DMakeTranslation(-d.x, -d.y, 0), t), CATransform3DMakeTranslation(d.x, d.y, 0))
   }
 
-  /// A translate length in CSS px, or a percentage of the border box (`percent`).
-  private func parseTransformLength(_ args: [String], _ index: Int) -> (value: Float, percent: Bool) {
-    guard index < args.count else { return (0, false) }
-    let s = args[index].trimmingCharacters(in: .whitespaces)
-    if s.hasSuffix("px") { return (Float(s.dropLast(2)) ?? 0, false) }
-    if s.hasSuffix("%") { return (Float(s.dropLast(1)) ?? 0, true) }
-    return (Float(s) ?? 0, false)
-  }
 
-  private func parseTransformAngleDeg(_ s: String) -> Float {
-    let v = s.trimmingCharacters(in: .whitespaces)
-    if v.hasSuffix("deg") { return Float(v.dropLast(3)) ?? 0 }
-    if v.hasSuffix("rad") { return (Float(v.dropLast(3)) ?? 0) * 180.0 / .pi }
-    return Float(v) ?? 0
-  }
 
-  private func parseTransformNumber(_ args: [String], _ index: Int, _ defaultValue: Double) -> Float {
-    guard index < args.count else { return Float(defaultValue) }
-    let s = args[index].trimmingCharacters(in: .whitespaces)
-    let cleaned = s.replacingOccurrences(of: "px", with: "").replacingOccurrences(of: "%", with: "")
-    return Float(cleaned) ?? Float(defaultValue)
-  }
-  
-  
   internal func getUInt8(_ index: Int) -> UInt8 {
     return readBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
   }
-  
+
   internal func setUInt8(_ index: Int, _ value: UInt8, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
@@ -1351,12 +3511,12 @@ public class MasonStyle: NSObject {
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
   }
-  
-  
+
+
   internal func getInt8(_ index: Int) -> Int8 {
     return readBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee
   }
-  
+
   internal func setInt8(_ index: Int, _ value: Int8, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee = value
@@ -1364,21 +3524,21 @@ public class MasonStyle: NSObject {
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee = value
   }
-  
-  
+
+
   internal func getInt16(_ index: Int) -> Int16 {
     return readBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
   }
-  
+
   private func setInt16(_ index: Int, _ value: Int16) {
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee = value
   }
-  
-  
+
+
   internal func getUInt32(_ index: Int) -> UInt32 {
     return readBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
   }
-  
+
   internal func setUInt32(_ index: Int, _ value: UInt32, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
@@ -1386,11 +3546,11 @@ public class MasonStyle: NSObject {
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
   }
-  
+
   internal func getInt32(_ index: Int) -> Int32 {
     return readBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
-  
+
   internal func setInt32(_ index: Int, _ value: Int32, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
@@ -1398,11 +3558,11 @@ public class MasonStyle: NSObject {
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
-  
+
   internal func getFloat(_ index: Int) -> Float {
     return readBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
-  
+
   internal func setFloat(_ index: Int, _ value: Float, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
@@ -1410,210 +3570,104 @@ public class MasonStyle: NSObject {
     }
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
-  
-  private func updateIntField(offset: Int, value: Int8, state: StateKeys){
-    prepareMut()
-    setInt8(offset, value)
-    setOrAppendState(state)
-  }
-  
+
   private func updateFloatField(offset: Int, value: Float, state: StateKeys){
     prepareMut()
     setFloat(offset, value)
     setOrAppendState(state)
   }
-  
-  
+
+
   static func getUInt8(_ index: Int, _ buffer: NSData) -> UInt8 {
     return buffer.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
   }
-  
+
   static func setUInt8(_ index: Int, _ value: UInt8, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
   }
-  
+
   static func getInt8(_ index: Int, _ buffer: NSData) -> Int8 {
     buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee
   }
-  
+
   static func setInt8(_ index: Int, _ value: Int8, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee = value
   }
-  
-  
+
+
   static func getInt16(_ index: Int, _ buffer: NSData) -> Int16 {
     buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
   }
-  
+
   static func setInt16(_ index: Int, _ value: Int16, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee = value
   }
-  
+
   static func getUInt32(_ index: Int, _ buffer: NSData) -> UInt32 {
     buffer.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
   }
-  
+
   static func setUInt32(_ index: Int, _ value: UInt32, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
   }
-  
+
   static func getInt32(_ index: Int, _ buffer: NSData) -> Int32 {
     buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
-  
+
   static func setInt32(_ index: Int, _ value: Int32, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
-  
+
   static func getFloat(_ index: Int, _ buffer: NSData) -> Float {
     buffer.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
-  
+
   static func setFloat(_ index: Int, _ value: Float, _ buffer: NSMutableData) {
     buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
-  
-  
+
+
   // Mark: - resetAllBorders
-  
+
   internal func resetAllBorders(){
     mBorderRender.resetAllBorders()
   }
-  
-  
-  public var listStylePosition: ListStylePosition {
-    get {
-      return ListStylePosition(rawValue: getInt8(StyleKeys.LIST_STYLE_POSITION))!
-    }
-    set {
-      prepareMut()
-      setUInt8(StyleKeys.LIST_STYLE_POSITION, UInt8(newValue.rawValue))
-      setUInt8(StyleKeys.LIST_STYLE_POSITION_STATE, StyleState.SET)
-      setOrAppendState(.listStylePosition)
-    }
-  }
-  
-  
-  public var listStyleType: ListStyleType {
-    get {
-      return ListStyleType(rawValue: getInt8(StyleKeys.LIST_STYLE_TYPE))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.LIST_STYLE_TYPE, newValue.rawValue)
-      setInt8(StyleKeys.LIST_STYLE_TYPE_STATE, Int8(StyleState.SET))
-      setOrAppendState(.listStyleType)
-      // A summary's marker is text in its first child, built before this rule may have arrived.
-      if node.detailsRole == MasonDetails.summary { MasonDetails.refreshMarker(node) }
-    }
-  }
-  
-  
-  // MARK: - zIndex
-  
-  public var zIndex: Int32 {
-    get {
-      return getInt32(StyleKeys.Z_INDEX)
-    }
-    set {
-      prepareMut()
-      setInt32(StyleKeys.Z_INDEX, newValue)
-      setOrAppendState(.zIndex)
-    }
-  }
-  
-  
-  // MARK: - VerticalAlign
-  public var verticalAlign: MasonVerticalAlignValue {
-    get {
-      return MasonVerticalAlignValue(style: self)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, newValue.offset)
-      setUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, UInt8(newValue.align.rawValue))
-      
-      if(newValue.isPercent){
-        setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
-      }else {
-        setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
-      }
 
-      
-      if(inBatch){
-        setOrAppendState(StateKeys.verticalAlign)
-      }else {
-        notifyTextStyleChanged(StateKeys.verticalAlign)
-      }
-    }
+
+
+
+
+
+  // MARK: - zIndex
+
+
+
+  internal func setResolvedVerticalAlign(_ kind: Int, _ amount: Float) {
+    writeVerticalAlign(kind == 3 ? 0 : amount, kind == 2 ? 1 : 0, kind == 3 ? UInt8(amount) : 0)
   }
-  
-  
+
+
   // MARK: - ObjectFit
-  public var objectFit: ObjectFit {
-    get {
-      return ObjectFit(rawValue: getInt8(StyleKeys.OBJECT_FIT))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.OBJECT_FIT, newValue.rawValue)
-      setOrAppendState(.objectFit)
-    }
-  }
-  
-  
+
+
   // MARK: - Float
-  public var float: MasonFloat {
-    get {
-      return MasonFloat(rawValue: getInt8(StyleKeys.FLOAT))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.FLOAT, newValue.rawValue)
-      setOrAppendState(.float)
-    }
-  }
-  
-  
-  public var clear: Clear {
-    get {
-      return Clear(rawValue: getInt8(StyleKeys.CLEAR))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.CLEAR, newValue.rawValue)
-      setOrAppendState(.clear)
-    }
-  }
-  
-  
+
+
+
+
   // MARK: - Text Style Properties
-  public var color: UInt32 {
-    get {
-      return getUInt32(StyleKeys.FONT_COLOR)
-    }
-    set {
-      prepareMut()
-      setUInt32(StyleKeys.FONT_COLOR, newValue)
-      setUInt8(StyleKeys.FONT_COLOR_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.color)
-      }else {
-        notifyTextStyleChanged(StateKeys.color)
-      }
-    }
-  }
-  
+
   public func setColor(ui color: UIColor) {
     self.color = color.toUInt32()
   }
-  
+
   public func setColor(css color: String) {
-    guard let color = UIColor(css: color) else {return}
-    self.color = color.toUInt32()
+    guard let color = parseColorArgb(color) else { return }
+    self.color = color
   }
-  
-  
+
+
   // Created on first parse: views without a filter shouldn't pay for one.
   private var mFilterStorage: CSSFilters.CSSFilter?
   var mFilter: CSSFilters.CSSFilter {
@@ -1622,63 +3676,116 @@ public class MasonStyle: NSObject {
     mFilterStorage = filter
     return filter
   }
-  
-  public var filter: String = "" {
-    didSet {
-      // Whether inline text is merged into its parent's depends on the filter.
-      if filter.isEmpty != oldValue.isEmpty, let parent = node.parent?.view as? MasonText {
-        parent.requestLayout()
-      }
-      if filter.isEmpty {
-        if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
-        return
-      }
-      
-      mFilter.parse(css: filter)
-      
-      if(!mFilter.filters.isEmpty){
-        if let view = node.view {
-          mFilter.apply(to: view)
-        }
-      }
+
+  private struct FilterContext: Equatable {
+    let fontSize: Float
+    let rootFontSize: Float
+    let viewport: CGSize
+    let color: UInt32
+  }
+
+  private var filterContext: FilterContext {
+    FilterContext(fontSize: resolvedFontSize, rootFontSize: NSCMason.rootFontSize,
+                  viewport: NSCMason.viewportSize, color: color)
+  }
+  private var baseFilterProgram: NativeFilterProgram?
+  private var baseFilterContext: FilterContext?
+  private var baseFilter: [CSSFilters.Filter] = []
+  private var activeFilterProgram: NativeFilterProgram?
+  private var activeFilterContext: FilterContext?
+
+  private var filterCss = ""
+  public var filter: String {
+    get { filterCss }
+    set {
+      let program = newValue == filterCss ? baseFilterProgram : NativeFilterProgram(newValue)
+      let filters = CSSFilters.project(program, style: self, store: true)
+      applyAuthoredFilter(newValue, program: program, filters: filters, context: filterContext)
     }
   }
 
-  /// Resolve filter string with pseudo-aware cascade. Returns the active pseudo's filter string
-  /// according to PSEUDO_CSS_ORDER, or the base `filter` if none set.
-  internal var resolvedFilterString: String {
-    // read once - pseudoMask is a fresh FFI round-trip on every access
+  private func applyAuthoredFilter(_ value: String, program: NativeFilterProgram?,
+                                   filters: [CSSFilters.Filter], context: FilterContext) {
+    // Whether inline text is merged into its parent's depends on the filter.
+    if value.isEmpty != filterCss.isEmpty, let parent = node.parent?.view as? MasonText {
+      parent.requestLayout()
+    }
+    filterCss = value
+    baseFilterProgram = program
+    baseFilterContext = context
+    baseFilter = filters
+    installFilter(filters, program: program, context: context)
+    if !filters.isEmpty, let view = node.view { mFilter.apply(to: view) }
+  }
+
+  private func installFilter(_ filters: [CSSFilters.Filter], program: NativeFilterProgram?, context: FilterContext) {
+    activeFilterProgram = program
+    activeFilterContext = context
+    if filters.isEmpty { mFilterStorage?.replaceFilters([]) }
+    else { mFilter.replaceFilters(filters) }
+  }
+
+  private var resolvedPseudoFilter: NativeFilterProgram? {
     let mask = node.pseudoMask
-    // Check pseudo string storage on node (Swift-side) using cascade order
     for state in PSEUDO_CSS_ORDER.reversed() {
-      let isActive = state == .default ? (mask == 0) : (mask & state.rawValue) != 0
-      if isActive {
-        if let s = node.getPseudoString(state.rawValue,"filter"), !s.isEmpty {
-          return s
+      let isActive = state == .default ? mask == 0 : (mask & state.rawValue) != 0
+      if isActive, let program = node.pseudoFilter(state.rawValue) { return program }
+    }
+    return nil
+  }
+
+  internal var resolvedFilterString: String { resolvedPseudoFilter?.css ?? filter }
+
+  internal func preparedResolvedFilter() -> CSSFilters.CSSFilter? {
+    let pseudo = resolvedPseudoFilter
+    guard let program = pseudo ?? baseFilterProgram else {
+      if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
+      activeFilterProgram = nil
+      return nil
+    }
+    let context = filterContext
+    if activeFilterProgram !== program || activeFilterContext != context {
+      if pseudo == nil {
+        if baseFilterContext != context {
+          baseFilter = CSSFilters.project(program, style: self, store: true)
+          baseFilterContext = context
         }
+        installFilter(baseFilter, program: program, context: context)
+      } else {
+        installFilter(CSSFilters.project(program, style: self, store: false), program: program, context: context)
       }
     }
+    guard let filter = mFilterStorage, !filter.filters.isEmpty else { return nil }
     return filter
   }
 
-  /// Apply the resolved CSS filter to the given context/view.
-  /// Call at the END of an element's draw(_:) so the filter covers
-  /// background, text, and border uniformly (matching CSS semantics).
+  /// Apply at the end of draw() so background, text, and border are filtered together.
   internal func applyResolvedFilter(in context: CGContext, rect: CGRect, view: UIView? = nil) {
-    let css = resolvedFilterString
-    if css.isEmpty {
-      if let current = mFilterStorage, !current.filters.isEmpty { current.reset() }
-      return
-    }
-    mFilter.parse(css: css)
-    guard !mFilter.filters.isEmpty else { return }
-
-    if let view = view {
-      mFilter.apply(to: view)
-    }
+    if let filter = preparedResolvedFilter(), let view { filter.apply(to: view) }
   }
 
   internal var mBackground: Background!
+  public func applyBackgroundBatch(_ payload: String) {
+    guard let fields = cssBatchFields(payload, stride: CssBackgroundWriteRecord.stride) else { return }
+    mBackground.applyCompiled(fields, initialColor: color, fontSize: resolvedFontSize)
+  }
+
+  public func applyEffectBatch(_ payload: String) {
+    guard let fields = cssBatchFields(payload, stride: CssEffectWriteRecord.stride) else { return }
+    applyCompiledEffects(fields, initialColor: color, fontSize: resolvedFontSize)
+  }
+
+  public func applyMaskBatch(_ payload: String) {
+    guard let fields = cssBatchFields(payload, stride: CssMaskWriteRecord.stride) else { return }
+    applyCompiledMask(fields)
+  }
+
+  private func cssBatchFields(_ payload: String, stride: Int) -> [String]? {
+    guard let fields = (try? JSONSerialization.jsonObject(with: Data(payload.utf8))) as? [String],
+          !fields.isEmpty, fields.count.isMultiple(of: stride) else { return nil }
+    return fields
+  }
+
   public var background: String  {
     set {
       mBackground.parseBackground(newValue)
@@ -1687,8 +3794,8 @@ public class MasonStyle: NSObject {
       return mBackground.css
     }
   }
-  
-  
+
+
   public var backgroundImage: String {
     set {
       mBackground.applyBackgroundProperty(name: "background-image", value: newValue)
@@ -1700,15 +3807,15 @@ public class MasonStyle: NSObject {
       let img = mBackground.layers.map { layer in
         layer.image ?? ""
       }.joined(separator: ",")
-      
+
       if(!img.isEmpty){
         return img + ";"
       }
-      
+
       return ""
     }
   }
-  
+
   public var backgroundRepeat: String {
     set {
       mBackground.applyBackgroundProperty(name: "background-repeat", value: newValue)
@@ -1806,161 +3913,46 @@ public class MasonStyle: NSObject {
   }
 
 
-  public var backgroundColor: UInt32 {
-    get {
-      return getUInt32(StyleKeys.BACKGROUND_COLOR)
-    }
-    set {
-      prepareMut()
-      setUInt32(StyleKeys.BACKGROUND_COLOR, newValue)
-      setUInt8(StyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      setUInt8(StyleKeys.BACKGROUND_COLOR_TYPE, 0)
-      // change view as well ??
-      // node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
- 
-      if(inBatch){
-        setOrAppendState(StateKeys.backgroundColor)
-      }else {
-        notifyTextStyleChanged(StateKeys.backgroundColor)
-      }
-    }
-  }
-  
   public func getBackgroundColor() -> String {
     if(getUInt8(StyleKeys.BACKGROUND_COLOR_STATE) != StyleState.SET){
       return ""
     }
     return backgroundColor.rgbaToHexCSS()
   }
-  
+
   public func setBackgroundColor(string color: String) {
     guard let color = parseColor(color) else {return}
     mBackground.color = color
   }
-  
+
   public func setBackgroundColor(ui color: UIColor) {
     backgroundColor = color.toUInt32()
   }
-  
-  
-  public func setLineHeight(_ value: Float, _ isRelative: Bool){
-    prepareMut()
-    setFloat(StyleKeys.LINE_HEIGHT, value)
-    setUInt8(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
-    if(!isRelative){
-      setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 1)
-    }else {
-      setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 0)
-    }
-    
-    if(inBatch){
-      setOrAppendState(StateKeys.lineHeight)
-    }else {
-      notifyTextStyleChanged(StateKeys.lineHeight)
-    }
-  }
-  
-  
-  public var lineHeight: Float {
-    get {
-      return getFloat(StyleKeys.LINE_HEIGHT)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.LINE_HEIGHT, newValue)
-      setUInt8(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
-      setUInt8(StyleKeys.LINE_HEIGHT_TYPE, 0)
 
-      if(inBatch){
-        setOrAppendState(StateKeys.lineHeight)
-      }else {
-        notifyTextStyleChanged(StateKeys.lineHeight)
-      }
-    }
+
+  public func setLineHeight(_ value: Float, _ isRelative: Bool) {
+    writeLineHeight(value, StyleState.SET, isRelative ? 0 : 1)
   }
-  
-  public var letterSpacing: Float {
-    get {
-      return getFloat(StyleKeys.LETTER_SPACING)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.LETTER_SPACING, newValue)
-      setUInt8(StyleKeys.LETTER_SPACING_STATE, StyleState.SET)
-      
-      if(inBatch){
-        setOrAppendState(StateKeys.letterSpacing)
-      }else {
-        notifyTextStyleChanged(StateKeys.letterSpacing)
-      }
+
+  internal func setResolvedFontSize(_ amount: Float, isPercent: Bool) {
+    writeFontSize(isPercent ? amount * 100 : amount, StyleState.SET, isPercent ? 1 : 0)
+    syncFontMetrics()
+  }
+
+  internal func setParsedFontStretch(_ code: Int32) {
+    writeFontStretch(code, StyleState.SET)
+  }
+
+  internal func setResolvedLineHeight(_ amount: Float, kind: Int) {
+    if kind == 3 {
+      writeLineHeightState(StyleState.INHERIT)
+    } else {
+      setLineHeight(amount, kind == 0)
     }
   }
 
-  /// text-indent: `.Points` in device px, `.Percent` as a fraction of the line's width.
-  public var textIndent: MasonLengthPercentage {
-    get {
-      let value = getFloat(StyleKeys.TEXT_INDENT)
-      return getUInt8(StyleKeys.TEXT_INDENT_TYPE) == 1 ? .Percent(value / 100) : .Points(value)
-    }
-    set {
-      prepareMut()
-      switch newValue {
-      case .Points(let value):
-        setFloat(StyleKeys.TEXT_INDENT, value)
-        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 0)
-      case .Percent(let value):
-        setFloat(StyleKeys.TEXT_INDENT, value * 100)
-        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 1)
-      case .Zero:
-        setFloat(StyleKeys.TEXT_INDENT, 0)
-        setUInt8(StyleKeys.TEXT_INDENT_TYPE, 0)
-      }
-      setUInt8(StyleKeys.TEXT_INDENT_STATE, StyleState.SET)
-
-      if(inBatch){
-        setOrAppendState(StateKeys.textIndent)
-      }else {
-        notifyTextStyleChanged(StateKeys.textIndent)
-      }
-    }
-  }
-
-  /// line-clamp: the most lines a text shows, 0 for none.
-  public var lineClamp: Int32 {
-    get {
-      return getInt32(StyleKeys.LINE_CLAMP)
-    }
-    set {
-      prepareMut()
-      setInt32(StyleKeys.LINE_CLAMP, max(0, newValue))
-      setUInt8(StyleKeys.LINE_CLAMP_STATE, StyleState.SET)
-
-      if(inBatch){
-        setOrAppendState(StateKeys.lineClamp)
-      }else {
-        notifyTextStyleChanged(StateKeys.lineClamp)
-      }
-    }
-  }
-
-  public var fontVariantNumeric: FontVariantNumeric {
-    get {
-      return FontVariantNumeric(rawValue: getUInt8(StyleKeys.FONT_VARIANT_NUMERIC))
-    }
-    set {
-      prepareMut()
-      let old = getUInt8(StyleKeys.FONT_VARIANT_NUMERIC)
-      if newValue.rawValue != old {
-        setUInt8(StyleKeys.FONT_VARIANT_NUMERIC, newValue.rawValue)
-        setUInt8(StyleKeys.FONT_VARIANT_NUMERIC_STATE, StyleState.SET)
-    
-        if(inBatch){
-          setOrAppendState(StateKeys.fontVariantNumeric)
-        }else {
-          notifyTextStyleChanged(StateKeys.fontVariantNumeric)
-        }
-      }
-    }
+  internal func setResolvedWordSpacing(_ amount: Float, kind: UInt8) {
+    writeWordSpacing(amount, kind, StyleState.SET)
   }
 
   public var fontVariantNumericString: String {
@@ -1968,353 +3960,65 @@ public class MasonStyle: NSObject {
     set { fontVariantNumeric = FontVariantNumeric.parse(newValue) }
   }
 
-  public var decorationColor: UInt32 {
-    get {
-      return getUInt32(StyleKeys.DECORATION_COLOR)
-    }
-    set {
-      prepareMut()
-      setUInt32(StyleKeys.DECORATION_COLOR, newValue)
-      setUInt8(StyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
-      
-      if(inBatch){
-        setOrAppendState(StateKeys.decorationColor)
-      }else {
-        notifyTextStyleChanged(StateKeys.decorationColor)
-      }
-    }
-  }
-  
+
   public func setDecorationColor(ui color: UIColor) {
     decorationColor = color.toUInt32()
   }
-  
+
   public func setDecorationColor(css color: String) {
-    guard let color = parseColor(color) else {return}
-    decorationColor = color.toUInt32()
-  }
-  
-  
-  
-  public var decorationLine: DecorationLine {
-    get {
-      return DecorationLine(rawValue: getInt8(StyleKeys.DECORATION_LINE)) ?? .None
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.DECORATION_LINE, newValue.rawValue)
-      setUInt8(StyleKeys.DECORATION_LINE_STATE, StyleState.SET)
-      
-      if(inBatch){
-        setOrAppendState(StateKeys.decorationLine)
-      }else {
-        notifyTextStyleChanged(StateKeys.decorationLine)
-      }
-    }
+    guard let field = NSCMason.expandCssShorthand("text-decoration-color", value: color)?.first,
+          let argb = UInt32(field) else { return }
+    decorationColor = argb
   }
 
-  public var decorationStyle: DecorationStyle {
-    get {
-      return DecorationStyle(rawValue: getInt8(StyleKeys.DECORATION_STYLE)) ?? .Solid
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.DECORATION_STYLE, newValue.rawValue)
-      setUInt8(StyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.decorationStyle)
-      }else {
-        notifyTextStyleChanged(StateKeys.decorationStyle)
-      }
-    }
-  }
 
-  /// Device px; 0 is `auto` (the font's underline thickness).
-  public var decorationThickness: Float {
-    get {
-      return getFloat(StyleKeys.DECORATION_THICKNESS)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.DECORATION_THICKNESS, newValue)
-      setUInt8(StyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.decorationThinkness)
-      }else {
-        notifyTextStyleChanged(StateKeys.decorationThinkness)
-      }
-    }
-  }
 
-  public var textDecorationLine: String {
-    get { decorationLine.cssValue }
-    set {
-      if let line = DecorationLine.parse(newValue) { decorationLine = line }
-    }
-  }
 
-  public var textDecorationStyle: String {
-    get { decorationStyle.cssValue }
-    set {
-      if let style = DecorationStyle.parse(newValue) { decorationStyle = style }
-    }
-  }
-
-  public var textDecorationColor: String {
-    get {
-      let c = decorationColor
-      return c == Constants.UNSET_COLOR ? "currentcolor" : c.rgbaToHexCSS()
-    }
-    set {
-      if newValue.trimmingCharacters(in: .whitespaces).lowercased() == "currentcolor" {
-        decorationColor = Constants.UNSET_COLOR
-      } else {
-        setDecorationColor(css: newValue)
-      }
-    }
-  }
-
-  /// `text-decoration` shorthand: line keywords, a style, a color and a
-  /// thickness in any order. Omitted longhands reset, as on the web.
-  public func setTextDecoration(_ css: String) {
-    var mask: Int8 = 0
-    var single: DecorationLine? = nil
-    var lineStyle = DecorationStyle.Solid
-    var color = Constants.UNSET_COLOR
-    var thickness: Float = 0
-    for raw in splitTopLevelWhitespace(css.trimmingCharacters(in: .whitespaces)) {
-      let token = raw.lowercased()
-      switch token {
-      case "", "none": break
-      case "underline": mask |= DecorationLine.underlineBit
-      case "overline": mask |= DecorationLine.overlineBit
-      case "line-through": mask |= DecorationLine.lineThroughBit
-      case "spelling-error": single = .SpellingError
-      case "grammar-error": single = .GrammarError
-      case "auto", "from-font": thickness = 0
-      case "currentcolor": color = Constants.UNSET_COLOR
-      default:
-        if let parsedStyle = DecorationStyle.parse(token) {
-          lineStyle = parsedStyle
-        } else if let parsedColor = parseColor(raw) {
-          color = parsedColor.toUInt32()
-        } else if let parsedLength = parseLength(self, token) {
-          thickness = parsedLength
-        } else {
-          return
-        }
-      }
-    }
-    decorationLine = single ?? DecorationLine(rawValue: mask) ?? .None
-    decorationStyle = lineStyle
-    decorationColor = color
-    decorationThickness = thickness
-  }
-
-  public func setBorderColor(_ css: String) {
-    var colors: [UIColor] = []
-    for token in splitTopLevelWhitespace(css) {
-      guard let color = UIColor(css: token) else { return }
-      colors.append(color)
-    }
-    let sides: [UIColor]
-    switch colors.count {
-    case 1: sides = [colors[0], colors[0], colors[0], colors[0]]
-    case 2: sides = [colors[0], colors[1], colors[0], colors[1]]
-    case 3: sides = [colors[0], colors[1], colors[2], colors[1]]
-    case 4: sides = colors
-    default: return
-    }
-    mBorderTop.color = sides[0]
-    mBorderRight.color = sides[1]
-    mBorderBottom.color = sides[2]
-    mBorderLeft.color = sides[3]
-    setOrAppendState(.borderColor)
-    // setNeedsDisplay() alone doesn't refresh MasonUIView's cached hasBorder
-    // flag; longhand border-width/border-style declarations never trigger
-    // that refresh otherwise, so call it directly here.
-    (node.view as? MasonUIView)?.invalidateDrawFlags()
+  private func resolveDecorationThickness(_ length: String) -> Float? {
+    length.isEmpty ? 0 : parseLength(self, length.lowercased())
   }
 
   public func applyListStyleType(_ css: String) {
-    let v = css.trimmingCharacters(in: .whitespaces).lowercased()
-    let type: ListStyleType
-    switch v {
-    case "none": type = .None
-    case "disc": type = .Disc
-    case "circle": type = .Circle
-    case "square": type = .Square
-    case "decimal": type = .Decimal
-    default: return
-    }
-    listStyleType = type
+    guard let code = NSCMason.htmlKeyword("list-style-type", css),
+          let value = ListStyleType(rawValue: code) else { return }
+    listStyleType = value
   }
 
   public func applyListStylePosition(_ css: String) {
-    let v = css.trimmingCharacters(in: .whitespaces).lowercased()
-    let pos: ListStylePosition
-    switch v {
-    case "inside": pos = .Inside
-    case "outside": pos = .Outside
-    default: return
-    }
-    listStylePosition = pos
+    guard let code = NSCMason.htmlKeyword("list-style-position", css),
+          let value = ListStylePosition(rawValue: code) else { return }
+    listStylePosition = value
   }
 
-  public var fontSize: Float {
-    get {
-      return getFloat(StyleKeys.FONT_SIZE)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.FONT_SIZE, newValue)
-      setUInt8(StyleKeys.FONT_SIZE_TYPE, 0)
-      setUInt8(StyleKeys.FONT_SIZE_STATE, StyleState.SET)
+  public func setFontStyle(_ style: FontStyle, _ slant: Int32) {
+    let angle = style == .Oblique ? slant : 0
+    guard style != fontStyle || angle != getInt32(StyleKeys.FONT_STYLE_SLANT)
+          || getUInt8(StyleKeys.FONT_STYLE_STATE) != StyleState.SET else { return }
+    font.style = fontDescriptorStyle(style, angle)
+    invalidateResolvedFontCache()
+    writeFontStyle(UInt8(bitPattern: style.rawValue), StyleState.SET, angle)
+    syncFontMetrics()
+  }
 
-      if(inBatch){
-        setOrAppendState(StateKeys.fontSize)
-      }else {
-        notifyTextStyleChanged(StateKeys.fontSize)
-      }
+  internal func setParsedFontStyle(_ fields: [String]) {
+    guard fields.count == 2, let code = Int8(fields[0]), let style = FontStyle(rawValue: code),
+          let slant = Int32(fields[1]) else { return }
+    setFontStyle(style, slant)
+  }
 
-      syncFontMetrics()
+  private func fontDescriptorStyle(_ style: FontStyle, _ slant: Int32) -> NSCFontStyle {
+    switch style {
+    case .Normal: return .normal()
+    case .Italic: return .italic()
+    case .Oblique: return .oblique(withAngle: Int(slant))
     }
   }
-  
-  public func setFontStyle(_ style: FontStyle, _ slant: Int32){
-    prepareMut()
-    // slant ignored unless it's oblique
-    
-    let previous = fontStyle
-    if(previous != style){
-      
-      setInt8(StyleKeys.FONT_STYLE_TYPE, style.rawValue)
-      setUInt8(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
-      
-      switch style {
-      case .Normal:
-        font.style = .normal()
-        setInt32(StyleKeys.FONT_STYLE_SLANT, 0)
-        break
-      case .Italic:
-        font.style = .italic()
-        setInt32(StyleKeys.FONT_STYLE_SLANT, 0)
-        break
-      case .Oblique:
-        font.style = .oblique(withAngle: 0)
-        setInt32(StyleKeys.FONT_STYLE_SLANT, slant)
-        break
-      }
-      
-      if(inBatch){
-        setOrAppendState(StateKeys.fontStyle)
-      }else {
-        notifyTextStyleChanged(StateKeys.fontStyle)
-      }
-    
-    }
-  }
-  
-  public var textJustify: TextJustify {
-    get {
-      return TextJustify(rawValue: getInt8(StyleKeys.TEXT_JUSTIFY)) ?? .Auto
-    }
-    set {
-      prepareMut()
-      let previous = textJustify
-      if(previous != newValue){
-        
-        setInt8(StyleKeys.TEXT_JUSTIFY, newValue.rawValue)
-        setUInt8(StyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
-        
-        if(inBatch){
-          setOrAppendState(StateKeys.textJustify)
-        }else {
-          notifyTextStyleChanged(StateKeys.textJustify)
-        }
-        
-      }
-    }
-  }
-  
+
+
   internal var internalFontStyle: NSCFontStyle {
-    let type = getInt8(StyleKeys.FONT_STYLE_TYPE)
-    switch(type){
-    case 0:
-      return .normal()
-    case 1:
-      return .italic()
-    case 2:
-      let slant = getInt32(StyleKeys.FONT_STYLE_SLANT)
-      if(slant > 0){
-        return .oblique(withAngle: Int(slant))
-      }else {
-        return .oblique(withAngle: 0)
-      }
-    default:
-      // todo handle invalid cases
-      return font.fontDescriptors.style
-    }
+    fontDescriptorStyle(fontStyle, getInt32(StyleKeys.FONT_STYLE_SLANT))
   }
-  
-  
-  public var fontStyle: FontStyle {
-    get {
-      switch(getInt8(StyleKeys.FONT_STYLE_TYPE)){
-      case 0:
-        return .Normal
-      case 1:
-        return .Italic
-      case 2:
-        return .Oblique
-      default:
-        break
-      }
-      
-      // Invalid font style
-      switch(font.fontDescriptors.style.type){
-      case .normal:
-        return .Normal
-      case .italic:
-        return .Italic
-      case .oblique:
-        return .Oblique
-      @unknown default:
-        return .Normal
-      }
-      
-    }
-    set {
-      prepareMut()
-      let previous = fontStyle
-      if(previous != newValue){
-        setInt8(StyleKeys.FONT_STYLE_TYPE, newValue.rawValue)
-        setUInt8(StyleKeys.FONT_STYLE_STATE, StyleState.SET)
-        // reset to slant 0
-        setInt32(StyleKeys.FONT_STYLE_SLANT, 0)
-        
-        switch newValue {
-        case .Normal:
-          font.style = .normal()
-          break
-        case .Italic:
-          font.style = .italic()
-          break
-        case .Oblique:
-          font.style = .oblique(withAngle: 0)
-          break
-        }
-        invalidateResolvedFontCache()
-        if(inBatch){
-          setOrAppendState(StateKeys.fontStyle)
-        }else {
-          notifyTextStyleChanged(StateKeys.fontStyle)
-        }
-        syncFontMetrics()
-      }
-    }
-  }
-  
+
   internal func toFontWeight(weight: Int) -> (String, UIFont.Weight, NSCFontWeight) {
     if weight >= 100 && weight <= 1000 {
       switch weight {
@@ -2342,64 +4046,7 @@ public class MasonStyle: NSObject {
     }
     return ("thin", .thin, .thin)
   }
-  
-  internal func setFontWeight(_ weight: Int,_ name: String?){
-    prepareMut()
-    var newWeight: NSCFontWeight? = nil
-    if weight >= 100 && weight <= 1000 {
-      var newWeightName: String? = name
-      switch weight {
-      case 100..<200:
-        self.weight = .thin
-        newWeight = .thin
-        newWeightName = "100"
-      case 200..<300:
-        self.weight = .ultraLight
-        newWeight = .extraLight
-        newWeightName = "200"
-      case 300..<400:
-        self.weight = .light
-        newWeight = .light
-        newWeightName = "300"
-      case 400..<500:
-        self.weight = .regular
-        newWeight = .normal
-        newWeightName = "400"
-      case 500..<600:
-        self.weight = .medium
-        newWeight = .medium
-        newWeightName = "500"
-      case 600..<700:
-        self.weight = .semibold
-        newWeight = .semiBold
-        newWeightName = "600"
-      case 700..<800:
-        self.weight = .bold
-        newWeight = .bold
-        newWeightName = "700"
-      case 800..<900:
-        self.weight = .heavy
-        font.weight = .extraBold
-        newWeightName = "800"
-      case 900..<1000:
-        self.weight = .black
-        font.weight = .black
-        newWeightName = "900"
-      default:
-        break
-      }
-      if let name = newWeightName {
-        weightName = name
-      }
-      
-      if let newWeight = newWeight {
-        node.style.setInt32(StyleKeys.FONT_WEIGHT, Int32(newWeight.rawValue) )
-        setUInt8(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
-        font.weight = newWeight
-      }
-    }
-  }
-  
+
   public var fontFamily: String {
     get {
       return font.family
@@ -2414,14 +4061,14 @@ public class MasonStyle: NSObject {
         font.weight = oldFont.weight
         font.style = oldFont.style
         font.fontDescriptors.display = oldFont.fontDescriptors.display
-        
+
         font.loadSync(nil)
-        
+
         syncFontMetrics()
-        
+
         setUInt8(StyleKeys.FONT_FAMILY_STATE, StyleState.SET)
         invalidateResolvedFontCache()
-        
+
         if(inBatch){
           setOrAppendState(StateKeys.fontFamily)
         }else {
@@ -2430,105 +4077,102 @@ public class MasonStyle: NSObject {
       }
     }
   }
-  
-  public var fontWeight: String {
-    get {
-      return weightName
-    }
-    set {
-      prepareMut()
-      let previous = weightName
-      switch newValue {
-      case "thin":
-        weight = .thin
-        weightName = "thin"
-        font.weight = .thin
-      case "ultralight":
-        weight = .ultraLight
-        weightName = "ultralight"
-        font.weight = .extraLight
-      case "light":
-        weight = .light
-        weightName = "light"
-        font.weight = .light
-      case "normal":
-        weight = .regular
-        weightName = "normal"
-        font.weight = .normal
-      case "medium":
-        weight = .medium
-        weightName = "medium"
-        font.weight = .medium
-      case "semibold":
-        weight = .semibold
-        weightName = "semibold"
-        font.weight = .semiBold
-      case "bold":
-        weight = .bold
-        weightName = "bold"
-        font.weight = .bold
-      case "heavy":
-        weight = .heavy
-        weightName = "heavy"
-        font.weight = .extraBold
-      case "black":
-        weight = .black
-        weightName = "black"
-        font.weight = .black
-      default:
-        if let weight = Int(newValue, radix: 10) {
-          setFontWeight(weight, nil)
-        }
-      }
-      if previous != weightName {
-        setInt32(StyleKeys.FONT_WEIGHT, Int32(font.weight.rawValue))
-        setUInt8(StyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
-        invalidateResolvedFontCache()
-        if(inBatch){
-          setOrAppendState(StateKeys.fontWeight)
-        }else {
-          notifyTextStyleChanged(StateKeys.fontWeight)
-        }
-        syncFontMetrics()
-      }
-    }
-  }
-  
-  
-  
-  // Text overflow
-  // The kind lives in the buffer, where TS writes it; only a custom token is kept here.
-  private var textOverflowToken: String? = nil
 
-  public var textOverflow: TextOverflow {
-    get {
-      switch getUInt8(StyleKeys.TEXT_OVERFLOW) {
-      case 1: return .Ellipse(nil)
-      case 2: return .Ellipse(textOverflowToken)
-      case 3: return .Custom(textOverflowToken ?? "")
-      default: return .Clip
-      }
+  internal func setParsedFontFamilies(_ families: [String]) {
+    guard let first = families.first else { return }
+    let selected = families.first { family in
+      let name = family.lowercased()
+      return Self.genericFamilies.contains(name)
+        || ["ui-rounded", "emoji", "math"].contains(name)
+        || UIFont.familyNames.contains { $0.caseInsensitiveCompare(family) == .orderedSame }
     }
-    set {
-      switch newValue {
-      case .Ellipse(let token): textOverflowToken = token
-      case .Custom(let token): textOverflowToken = token
-      case .Clip: textOverflowToken = nil
-      }
-      prepareMut()
-      setUInt8(StyleKeys.TEXT_OVERFLOW, UInt8(newValue.rawValue))
-      setUInt8(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
-      // Text overflow only affects rendering, not measurement
-      if(inBatch){
-        setOrAppendState(StateKeys.textOverflow)
-      }else {
-        notifyTextStyleChanged(StateKeys.textOverflow)
-      }
+    fontFamily = selected ?? first
+  }
+
+  internal func setParsedFontWeight(_ fields: [String]) {
+    guard fields.count == 2, let cssWeight = Int(fields[0]) else { return }
+    let (_, platformWeight, faceWeight) = toFontWeight(weight: min(max(cssWeight, 100), 999))
+    let stored = Int32(faceWeight.rawValue)
+    let name = fields[1].isEmpty ? String(stored) : fields[1]
+    guard name != weightName || stored != getInt32(StyleKeys.FONT_WEIGHT)
+          || getUInt8(StyleKeys.FONT_WEIGHT_STATE) != StyleState.SET else { return }
+    weight = platformWeight
+    weightName = name
+    font.weight = faceWeight
+    invalidateResolvedFontCache()
+    writeFontWeight(stored, StyleState.SET)
+    syncFontMetrics()
+  }
+
+  private var detachedTextOverflowTokenKey: UInt64 = 0
+
+  deinit {
+    if detachedTextOverflowTokenKey != 0 {
+      mason_css_text_overflow_release_detached(detachedTextOverflowTokenKey)
     }
   }
-  
+
+  private var textOverflowTokenKey: UInt64 {
+    readBytes.load(fromByteOffset: StyleKeys.TEXT_OVERFLOW_TOKEN, as: UInt64.self)
+  }
+
+  private func readTextOverflowToken() -> String? {
+    let fields = mason_css_text_overflow_token(textOverflowTokenKey)
+    guard let owner = fields.owner else { return nil }
+    defer { mason_css_shorthand_release(owner) }
+    guard let text = fields.data?.pointee else { return nil }
+    return String(decoding: UnsafeBufferPointer(start: text.bytes, count: Int(text.len)), as: UTF8.self)
+  }
+
+  private func decodeTextOverflow(_ kind: Int8) -> TextOverflow {
+    switch kind {
+    case 1: return .Ellipse(nil)
+    case 2: return .Ellipse(readTextOverflowToken())
+    case 3: return .Custom(readTextOverflowToken() ?? "")
+    default: return .Clip
+    }
+  }
+
+  private func applyTextOverflow(_ flow: TextOverflow) {
+    let token: String? = switch flow {
+    case .Ellipse(let token): token
+    case .Custom(let token): token
+    case .Clip: nil
+    }
+    guard installTextOverflow(UInt8(flow.rawValue), token: token) else { return }
+    if inBatch { setOrAppendState(.textOverflow) }
+    else { notifyTextStyleChanged(.textOverflow) }
+  }
+
+  private func installTextOverflow(_ kind: UInt8, token: String?) -> Bool {
+    if node.isPlaceholder {
+      if detachedTextOverflowTokenKey != 0 { mason_css_text_overflow_release_detached(detachedTextOverflowTokenKey) }
+      if var text = token {
+        detachedTextOverflowTokenKey = text.withUTF8 { bytes in
+          mason_css_text_overflow_detached(CMasonCssText(bytes: bytes.baseAddress, len: UInt(bytes.count)))
+        }
+      } else {
+        detachedTextOverflowTokenKey = 0
+      }
+      values.mutableBytes.storeBytes(of: detachedTextOverflowTokenKey, toByteOffset: StyleKeys.TEXT_OVERFLOW_TOKEN, as: UInt64.self)
+      setUInt8(StyleKeys.TEXT_OVERFLOW, kind)
+      setUInt8(StyleKeys.TEXT_OVERFLOW_STATE, StyleState.SET)
+      return true
+    }
+    let mason = node.mason
+    let deferred = mason.inCompute
+    if !deferred { prepareMut() }
+    var text = token ?? ""
+    text.withUTF8 { bytes in
+      mason_css_text_overflow_set(deferred ? nil : mason.nativePtr, node.nativePtr, kind,
+        CMasonCssText(bytes: bytes.baseAddress, len: UInt(bytes.count)))
+    }
+    if deferred { mason.deferStyleRecords(self, textChanges: .textOverflow) }
+    return !deferred
+  }
+
   public func setTextOverflow(_ flow: TextOverflow, _ value: String){}
-  
+
   public var textOverflowCompat: TextOverflowCompat {
     get {
       return TextOverflowCompat(flow: textOverflow)
@@ -2537,745 +4181,32 @@ public class MasonStyle: NSObject {
       textOverflow = newValue.flow
     }
   }
-  
-  public var textTransform: TextTransform {
-    get {
-      return TextTransform(rawValue: getInt8(StyleKeys.TEXT_TRANSFORM))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.TEXT_TRANSFORM, newValue.rawValue)
-      setUInt8(StyleKeys.TEXT_TRANSFORM_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.textTransform)
-      }else {
-        notifyTextStyleChanged(StateKeys.textTransform)
-      }
-    }
-  }
-  
-  public var whiteSpace: WhiteSpace {
-    get {
-      return WhiteSpace(rawValue: getInt8(StyleKeys.WHITE_SPACE))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.WHITE_SPACE, newValue.rawValue)
-      setUInt8(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.whiteSpace)
-      }else {
-        notifyTextStyleChanged(StateKeys.whiteSpace)
-      }
-    }
-  }
-  
-  public var textWrap: TextWrap {
-    get {
-      return TextWrap(rawValue: getInt8(StyleKeys.TEXT_WRAP))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.TEXT_WRAP, newValue.rawValue)
-      setUInt8(StyleKeys.TEXT_WRAP_STATE, StyleState.SET)
-      if(inBatch){
-        setOrAppendState(StateKeys.textWrap)
-      }else {
-        notifyTextStyleChanged(StateKeys.textWrap)
-      }
-    }
-  }
-  
-  
-  public var display: Display {
-    get {
-      if getUInt8(StyleKeys.VISIBILITY) == MasonStyle.visibilityCollapse { return .None }
-      let mode = DisplayMode(rawValue: getInt8(StyleKeys.DISPLAY_MODE))!
-      switch mode {
-      case .None:
-        return Display(rawValue: getInt8(StyleKeys.DISPLAY))!
-      case .Inline:
-        return .Inline
-      case .Box:
-        switch Display(rawValue: getInt8(StyleKeys.DISPLAY))! {
-        case .Flex:
-          return .InlineFlex
-        case .Grid:
-          return .InlineGrid
-        case .Block:
-          return .InlineBlock
-        default:
-          fatalError("Display cannot be anything other than 0,1,2 when mode is set")
-        }
-      }
-    }
-    set {
-      var displayMode = DisplayMode.None
-      var value: Int8
-      switch (newValue){
-      case .None, .Flex, .Grid , .Block:
-        value = newValue.rawValue
-      case .Inline:
-        displayMode = .Inline
-        value = Display.Block.rawValue
-      case .InlineBlock:
-        displayMode = .Box
-        value = Display.Block.rawValue
-      case .InlineFlex:
-        displayMode = .Box
-        value = Display.Flex.rawValue
-      case .InlineGrid:
-        displayMode = .Box
-        value = Display.Grid.rawValue
-      }
-      prepareMut()
-      setInt8(StyleKeys.DISPLAY, value)
-      setInt8(StyleKeys.DISPLAY_MODE, displayMode.rawValue)
-      setOrAppendState(StateKeys.display.union(StateKeys.displayMode))
 
-      // `display: none` gives the subtree a zero-sized layout, but a
-      // zero-sized UIView still draws unclipped. Take it out of the render
-      // tree to match.
-      node.view?.isHidden = newValue == .None || hidesView || MasonDetails.isHidden(node)
-    }
+  private func updateDisplayVisibility(_ value: Display) {
+    // A zero-sized UIView can still draw unclipped.
+    node.view?.isHidden = value == .None || hidesView || MasonDetails.isHidden(node)
   }
 
   /// `visibility: hidden` or `collapse`: the view isn't drawn, though a hidden one keeps its box.
   internal var hidesView: Bool {
-    return getUInt8(StyleKeys.VISIBILITY) != 0
+    return visibilityCode != 0
   }
-  
-  public var position: Position {
-    get {
-      return Position(rawValue: getInt8(StyleKeys.POSITION))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.POSITION, newValue.rawValue)
-      
-      setOrAppendState(StateKeys.position)
-    }
-  }
-  public var direction: Direction{
-    get {
-      return Direction(rawValue: getInt8(StyleKeys.DIRECTION))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.DIRECTION, newValue.rawValue)
-      
-      setOrAppendState(StateKeys.direction)
-      
-    }
-  }
-  
-  public var flexDirection: FlexDirection {
-    get {
-      return FlexDirection(rawValue: getInt8(StyleKeys.FLEX_DIRECTION))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.FLEX_DIRECTION, newValue.rawValue)
-      
-      setOrAppendState(StateKeys.flexDirection)
-    }
-  }
-  
-  
-  public var flexWrap: FlexWrap{
-    get {
-      return FlexWrap(rawValue: getInt8(StyleKeys.FLEX_WRAP))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.FLEX_WRAP, newValue.rawValue)
-      setOrAppendState(.flexWrap)
-    }
-  }
-  
-  public var overflowCompat: MasonOverflowPointCompat {
-    get {
-      return MasonOverflowPointCompat(Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!)
-    }
-    set {
-      prepareMut()
-      updateIntField(offset: StyleKeys.OVERFLOW_X, value:  newValue.x.rawValue, state: .overflowX)
-      updateIntField(offset: StyleKeys.OVERFLOW_Y, value:  newValue.y.rawValue, state: .overflowY)
-    }
-  }
-  
-  public var overflow: MasonPoint<Overflow> {
-    get {
-      return MasonPoint(Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!)
-    }
-    set {
-      prepareMut()
-      updateIntField(offset: StyleKeys.OVERFLOW_X, value:  newValue.x.rawValue, state: .overflowX)
-      updateIntField(offset: StyleKeys.OVERFLOW_Y, value:  newValue.y.rawValue, state: .overflowY)
-    }
-  }
-  
-  public var overflowX: Overflow{
-    get {
-      return Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.OVERFLOW_X, newValue.rawValue)
-      setOrAppendState(.overflowX)
-    }
-  }
-  
-  public var overflowY: Overflow{
-    get {
-      return Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.OVERFLOW_Y, newValue.rawValue)
-      setOrAppendState(.overflowY)
-    }
-  }
-  
-  public var alignItems: AlignItems {
-    get {
-      return AlignItems(rawValue: getInt8(StyleKeys.ALIGN_ITEMS))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.ALIGN_ITEMS, newValue.rawValue)
-      setOrAppendState(.alignItems)
-    }
-  }
-  
-  public var alignSelf: AlignSelf  {
-    get {
-      return AlignSelf(rawValue: getInt8(StyleKeys.ALIGN_SELF))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.ALIGN_SELF, newValue.rawValue)
-      setOrAppendState(.alignSelf)
-    }
-  }
-  
-  public var alignContent: AlignContent {
-    get {
-      return AlignContent(rawValue: getInt8(StyleKeys.ALIGN_CONTENT))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.ALIGN_CONTENT, newValue.rawValue)
-      setOrAppendState(.alignContent)
-    }
-  }
-  
-  public var justifyItems: JustifyItems {
-    get {
-      return JustifyItems(rawValue: getInt8(StyleKeys.JUSTIFY_ITEMS))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.JUSTIFY_ITEMS, newValue.rawValue)
-      setOrAppendState(.justifyItems)
-    }
-  }
-  
-  public var justifySelf:  JustifySelf {
-    get {
-      return JustifySelf(rawValue: getInt8(StyleKeys.JUSTIFY_SELF))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.JUSTIFY_SELF, newValue.rawValue)
-      setOrAppendState(.justifySelf)
-    }
-  }
-  
-  public var justifyContent: JustifyContent {
-    get {
-      return JustifyContent(rawValue: getInt8(StyleKeys.JUSTIFY_CONTENT))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.JUSTIFY_CONTENT, newValue.rawValue)
-      setOrAppendState(.justifyContent)
-    }
-  }
-  
-  public var inset: MasonRect<MasonLengthPercentageAuto>{
-    get{
-      var type = getInt8(StyleKeys.INSET_LEFT_TYPE)
-      var value = getFloat(StyleKeys.INSET_LEFT_VALUE)
-      
-      let left = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.INSET_RIGHT_TYPE)
-      value = getFloat(StyleKeys.INSET_RIGHT_VALUE)
-      
-      let right = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.INSET_TOP_TYPE)
-      value = getFloat(StyleKeys.INSET_TOP_VALUE)
-      
-      let top = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.INSET_BOTTOM_TYPE)
-      value = getFloat(StyleKeys.INSET_BOTTOM_VALUE)
-      
-      let bottom = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      
-      return MasonRect(top, right, bottom, left)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.INSET_LEFT_TYPE, newValue.left.type)
-      setFloat(StyleKeys.INSET_LEFT_VALUE, newValue.left.value)
-      
-      setInt8(StyleKeys.INSET_RIGHT_TYPE, newValue.right.type)
-      setFloat(StyleKeys.INSET_RIGHT_VALUE, newValue.right.value)
-      
-      setInt8(StyleKeys.INSET_TOP_TYPE, newValue.top.type)
-      setFloat(StyleKeys.INSET_TOP_VALUE, newValue.top.value)
-      
-      setInt8(StyleKeys.INSET_BOTTOM_TYPE, newValue.bottom.type)
-      setFloat(StyleKeys.INSET_BOTTOM_VALUE, newValue.bottom.value)
-      
-      setOrAppendState(.inset)
-    }
-  }
-  
-  
-  public var insetCompat: MasonLengthPercentageAutoRectCompat {
-    get {
-      guard let inset = inset.compatLengthAuto else {
-        let compat = MasonLengthPercentageAutoRectCompat(inset)
-        inset.compatLengthAuto = compat
-        return compat
-      }
-      
-      return inset
-    }
-    set {
-      inset = newValue.intoMasonRect()
-    }
-  }
-  
-  
-  public func setInsetLeft(_ value: Float, _ type: Int) {
-    guard let left = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.INSET_LEFT_TYPE, left.type)
-    setFloat(StyleKeys.INSET_LEFT_VALUE, left.value)
-    
-    
-    setOrAppendState(.inset)
-  }
-  
-  public var leftInset: MasonLengthPercentageAuto {
-    get {
-      return inset.left
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.INSET_LEFT_TYPE, newValue.type)
-      setFloat(StyleKeys.INSET_LEFT_VALUE, newValue.value)
-      
-      setOrAppendState(.inset)
-    }
-  }
-  
-  public func setInsetRight(_ value: Float, _ type: Int) {
-    guard let right = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.INSET_RIGHT_TYPE, right.type)
-    setFloat(StyleKeys.INSET_RIGHT_VALUE, right.value)
-    
-    setOrAppendState(.inset)
-  }
-  
-  public var rightInset: MasonLengthPercentageAuto {
-    get {
-      return inset.right
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.INSET_RIGHT_TYPE, newValue.type)
-      setFloat(StyleKeys.INSET_RIGHT_VALUE, newValue.value)
-      
-      setOrAppendState(.inset)
-    }
-  }
-  
-  public func setInsetTop(_ value: Float, _ type: Int) {
-    guard let top = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.INSET_TOP_TYPE, top.type)
-    setFloat(StyleKeys.INSET_TOP_VALUE, top.value)
-    
-    setOrAppendState(.inset)
-  }
-  
-  public var topInset: MasonLengthPercentageAuto {
-    get {
-      return inset.top
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.INSET_TOP_TYPE, newValue.type)
-      setFloat(StyleKeys.INSET_TOP_VALUE, newValue.value)
-      
-      setOrAppendState(.inset)
-    }
-  }
-  
-  public func setInsetBottom(_ value: Float, _ type: Int) {
-    guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.INSET_BOTTOM_TYPE, bottom.type)
-    setFloat(StyleKeys.INSET_BOTTOM_VALUE, bottom.value)
-    
-    setOrAppendState(.inset)
-  }
-  
-  public var bottomInset: MasonLengthPercentageAuto {
-    get {
-      return inset.bottom
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.INSET_BOTTOM_TYPE, newValue.type)
-      setFloat(StyleKeys.INSET_BOTTOM_VALUE, newValue.value)
-      
-      setOrAppendState(.inset)
-    }
-  }
-  
-  public func setInsetWithValueType(_ value: Float, _ type: Int) {
-    guard let inset = getLengthPercentageAuto(value, type) else {return}
-    self.inset = MasonRect(uniform: inset)
-  }
-  
-  
-  public var margin: MasonRect<MasonLengthPercentageAuto> {
-    get{
-      var type = getInt8(StyleKeys.MARGIN_LEFT_TYPE)
-      var value = getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-      
-      let left = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      
-      type = getInt8(StyleKeys.MARGIN_RIGHT_TYPE)
-      value =  getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-      
-      let right = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      
-      type = getInt8(StyleKeys.MARGIN_TOP_TYPE)
-      value =  getFloat(StyleKeys.MARGIN_TOP_VALUE)
-      
-      let top = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.MARGIN_BOTTOM_TYPE)
-      value =  getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
-      
-      let bottom = MasonLengthPercentageAuto.fromValueType(value, type)!
-      
-      return MasonRect(top, right, bottom, left)
-    }
-    set {
-      prepareMut()
-      setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.left.type)
-      setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.left.value)
-      
-      setInt8(Int(StyleKeys.MARGIN_RIGHT_TYPE), newValue.right.type)
-      setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), newValue.right.value)
-      
-      setInt8(Int(StyleKeys.MARGIN_TOP_TYPE), newValue.top.type)
-      setFloat(Int(StyleKeys.MARGIN_TOP_VALUE), newValue.top.value)
-      
-      setInt8(Int(StyleKeys.MARGIN_BOTTOM_TYPE), newValue.bottom.type)
-      setFloat(Int(StyleKeys.MARGIN_BOTTOM_VALUE), newValue.bottom.value)
-      
-      setOrAppendState(.margin)
-    }
-  }
-  
-  
-  public var marginLeft: MasonLengthPercentageAuto {
-    get{
-      let type = getInt8(StyleKeys.MARGIN_LEFT_TYPE)
-      let value = getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-      
-      return MasonLengthPercentageAuto.fromValueType(value, type)!
-    }
-    set {
-      prepareMut()
-      setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.type)
-      setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.value)
-      setOrAppendState(.margin)
-    }
-  }
-  
-  public var marginTop: MasonLengthPercentageAuto {
-    get{
-      let type = getInt8(StyleKeys.MARGIN_TOP_TYPE)
-      let value = getFloat(StyleKeys.MARGIN_TOP_VALUE)
-      
-      return MasonLengthPercentageAuto.fromValueType(value, type)!
-    }
-    set {
-      prepareMut()
-      setInt8(Int(StyleKeys.MARGIN_TOP_TYPE), newValue.type)
-      setFloat(Int(StyleKeys.MARGIN_TOP_VALUE), newValue.value)
-      setOrAppendState(.margin)
-    }
-  }
-  
-  public var marginRight: MasonLengthPercentageAuto {
-    get{
-      let type = getInt8(StyleKeys.MARGIN_RIGHT_TYPE)
-      let value = getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-      
-      return MasonLengthPercentageAuto.fromValueType(value, type)!
-    }
-    set {
-      prepareMut()
-      setInt8(Int(StyleKeys.MARGIN_RIGHT_TYPE), newValue.type)
-      setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), newValue.value)
-      setOrAppendState(.margin)
-    }
-  }
-  
-  public var marginBottom: MasonLengthPercentageAuto {
-    get{
-      let type = getInt8(StyleKeys.MARGIN_BOTTOM_TYPE)
-      let value = getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
-      
-      return MasonLengthPercentageAuto.fromValueType(value, type)!
-    }
-    set {
-      prepareMut()
-      setInt8(Int(StyleKeys.MARGIN_BOTTOM_TYPE), newValue.type)
-      setFloat(Int(StyleKeys.MARGIN_BOTTOM_VALUE), newValue.value)
-      setOrAppendState(.margin)
-    }
-  }
-  
-  
-  public var marginCompat: MasonLengthPercentageAutoRectCompat {
-    get {
-      guard let margin = margin.compatLengthAuto else {
-        let compat = MasonLengthPercentageAutoRectCompat(margin)
-        margin.compatLengthAuto = compat
-        return compat
-      }
-      
-      return margin
-    }
-    
-    set {
-      margin = newValue.intoMasonRect()
-    }
-  }
-  
-  public func setMarginLeft(_ value: Float, _ type: Int) {
-    guard let left = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), left.type)
-    setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), left.value)
-    
-    setOrAppendState(.margin)
-  }
-  
-  public func setMarginRight(_ value: Float, _ type: Int) {
-    guard let right = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(Int(StyleKeys.MARGIN_RIGHT_TYPE), right.type)
-    setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), right.value)
-    
-    setOrAppendState(.margin)
-  }
-  
-  public func setMarginTop(_ value: Float, _ type: Int) {
-    guard let top = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.MARGIN_TOP_TYPE, top.type)
-    setFloat(StyleKeys.MARGIN_TOP_VALUE, top.value)
-    
-    setOrAppendState(.margin)
-  }
-  
-  public func setMarginBottom(_ value: Float, _ type: Int) {
-    guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.MARGIN_BOTTOM_TYPE, bottom.type)
-    setFloat(StyleKeys.MARGIN_BOTTOM_VALUE, bottom.value)
-    
-    setOrAppendState(.margin)
-  }
-  
-  public func setMarginWithValueType(_ value: Float, _ type: Int) {
-    guard let margin = getLengthPercentageAuto(value, type) else {return}
-    
-    self.margin = MasonRect(margin, margin, margin, margin)
-  }
-  
-  
-  public var padding: MasonRect<MasonLengthPercentage> {
-    get{
-      var type = getInt8(StyleKeys.PADDING_LEFT_TYPE)
-      var value = getFloat(StyleKeys.PADDING_LEFT_VALUE)
-      
-      let left = MasonLengthPercentage.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.PADDING_RIGHT_TYPE)
-      value = getFloat(StyleKeys.PADDING_RIGHT_VALUE)
-      
-      let right = MasonLengthPercentage.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.PADDING_TOP_TYPE)
-      value = getFloat(StyleKeys.PADDING_TOP_VALUE)
-      
-      let top = MasonLengthPercentage.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.PADDING_BOTTOM_TYPE)
-      value = getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
-      
-      let bottom = MasonLengthPercentage.fromValueType(value, type)!
-      
-      
-      return MasonRect(top, right, bottom, left)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.PADDING_LEFT_TYPE, newValue.left.type)
-      setFloat(StyleKeys.PADDING_LEFT_VALUE, newValue.left.value)
-      
-      setInt8(StyleKeys.PADDING_RIGHT_TYPE, newValue.right.type)
-      setFloat(StyleKeys.PADDING_RIGHT_VALUE, newValue.right.value)
-      
-      setInt8(StyleKeys.PADDING_TOP_TYPE, newValue.top.type)
-      setFloat(StyleKeys.PADDING_TOP_VALUE, newValue.top.value)
-      
-      setInt8(StyleKeys.PADDING_BOTTOM_TYPE, newValue.bottom.type)
-      setFloat(StyleKeys.PADDING_BOTTOM_VALUE, newValue.bottom.value)
-      
-      setOrAppendState(.padding)
-    }
-  }
-  
-  
-  public var paddingCompat: MasonLengthPercentageRectCompat {
-    get {
-      guard let padding = padding.compatLength else {
-        let compat = MasonLengthPercentageRectCompat(padding)
-        padding.compatLength = compat
-        return compat
-      }
-      
-      return padding
-    }
-    
-    set {
-      padding = newValue.intoMasonRect()
-    }
-  }
-  
-  
-  public var paddingLeft: MasonLengthPercentage {
-    get {
-      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_LEFT_VALUE), getInt8(StyleKeys.PADDING_LEFT_TYPE))!
-    }
-    set {
-      setPaddingLeft(newValue.value, Int(newValue.type))
-    }
-  }
-  
-  public var paddingTop: MasonLengthPercentage {
-    get {
-      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_TOP_VALUE), getInt8(StyleKeys.PADDING_TOP_TYPE))!
-    }
-    set {
-      setPaddingTop(newValue.value, Int(newValue.type))
-    }
-  }
-  
-  public var paddingRight: MasonLengthPercentage {
-    get {
-      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_RIGHT_VALUE), getInt8(StyleKeys.PADDING_RIGHT_TYPE))!
-    }
-    set {
-      setPaddingRight(newValue.value, Int(newValue.type))
-    }
-  }
-  
-  public var paddingBottom: MasonLengthPercentage {
-    get {
-      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_BOTTOM_VALUE), getInt8(StyleKeys.PADDING_BOTTOM_TYPE))!
-    }
-    set {
-      setPaddingBottom(newValue.value, Int(newValue.type))
-    }
-  }
-  
-  public func setPaddingLeft(_ value: Float, _ type: Int) {
-    guard let left = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.PADDING_LEFT_TYPE, left.type)
-    setFloat(StyleKeys.PADDING_LEFT_VALUE, left.value)
-    
-    setOrAppendState(.padding)
-  }
-  
-  public func setPaddingRight(_ value: Float, _ type: Int) {
-    guard let right = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.PADDING_RIGHT_TYPE, right.type)
-    setFloat(StyleKeys.PADDING_RIGHT_VALUE, right.value)
-    
-    setOrAppendState(.padding)
-  }
-  
-  public func setPaddingTop(_ value: Float, _ type: Int) {
-    guard let top = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.PADDING_TOP_TYPE, top.type)
-    setFloat(StyleKeys.PADDING_TOP_VALUE, top.value)
-    
-    setOrAppendState(.padding)
-  }
-  
-  public func setPaddingBottom(_ value: Float, _ type: Int) {
-    guard let bottom = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.PADDING_BOTTOM_TYPE, bottom.type)
-    setFloat(StyleKeys.PADDING_BOTTOM_VALUE, bottom.value)
-    
-    setOrAppendState(.padding)
-  }
-  
-  public func setPaddingWithValueType(_ value: Float, _ type: Int) {
-    guard let padding = getLengthPercentage(value, type) else {return}
-    
-    self.padding = MasonRect(padding, padding, padding, padding)
-  }
-  
+
   internal var textShadows: [TextShadow] = []
-  public var textShadow: String = "" {
-    didSet {
+  private var textShadowCss = ""
+  public var textShadow: String {
+    get { textShadowCss }
+    set { applyTextShadow(newValue, shadows: ShadowParser.parseTextShadow(style: self, value: newValue)) }
+  }
+
+  private func applyTextShadow(_ value: String, shadows: [TextShadow]) {
+    textShadowCss = value
+    textShadows = shadows
+    if node.isPlaceholder {
       prepareMut()
-      textShadows = ShadowParser.parseTextShadow(style: self, value: textShadow)
-      
-      if(textShadows.isEmpty){
-        setUInt8(StyleKeys.TEXT_SHADOW_STATE, StyleState.INHERIT)
-      }else {
-        setUInt8(StyleKeys.TEXT_SHADOW_STATE, StyleState.SET)
-      }
-      
-      notifyTextStyleChanged(StateKeys.textShadow)
+      setUInt8(StyleKeys.TEXT_SHADOW_STATE, shadows.isEmpty ? StyleState.INHERIT : StyleState.SET)
     }
+    if node.isPlaceholder || !node.mason.inCompute { notifyTextStyleChanged(StateKeys.textShadow) }
   }
 
   internal var boxShadows: [BoxShadow] = []
@@ -3301,19 +4232,23 @@ public class MasonStyle: NSObject {
     if shadowLayerAdded && !mShadowLayer.isHidden { mShadowLayer.updateMode(viewLayer: viewLayer) }
   }
   
-  public var boxShadow: String = "" {
-    didSet {
-      boxShadows = ShadowParser.parseBoxShadow(style: self, value: boxShadow)
-      if let view = node.view {
-        syncShadowLayer(view, viewBounds: view.bounds)
+  private var boxShadowCss = ""
+  public var boxShadow: String {
+    get { boxShadowCss }
+    set { applyBoxShadow(newValue, shadows: ShadowParser.parseBoxShadow(style: self, value: newValue)) }
+  }
 
-        // Invalidate draw flags so _cachedHasBoxShadow is recalculated
-        // before the next draw() pass — prevents stale early-out.
-        if let masonView = view as? MasonUIView {
-          masonView.invalidateDrawFlags()
-        } else {
-          view.setNeedsDisplay()
-        }
+  private func applyBoxShadow(_ value: String, shadows: [BoxShadow]) {
+    boxShadowCss = value
+    boxShadows = shadows
+    if let view = node.view {
+      syncShadowLayer(view, viewBounds: view.bounds)
+
+      // Invalidate draw flags so _cachedHasBoxShadow is recalculated before the next draw.
+      if let masonView = view as? MasonUIView {
+        masonView.invalidateDrawFlags()
+      } else {
+        view.setNeedsDisplay()
       }
     }
   }
@@ -3348,7 +4283,7 @@ public class MasonStyle: NSObject {
 
     mShadowLayer.updateBounds(viewBounds: viewBounds, viewLayer: view.backingLayer)
   }
-  
+
   /// Detach the outset-shadow layer (it lives in the superview's layer, so
   /// removing the child alone leaves a ghost shadow). Call on view removal.
   internal func removeShadowLayer() {
@@ -3373,103 +4308,26 @@ public class MasonStyle: NSObject {
     syncShadowLayer(view, viewBounds: bounds)
     mFilterStorage?.syncOutputGeometry()
   }
-  
+
   internal lazy var mBorderRender: CSSBorderRenderer  = {
     CSSBorderRenderer(style: self)
   }()
-  
-  
-  public var borderRadius: String = "" {
-    didSet {
-      CSSBorderRenderer.parseBorderRadius(self, borderRadius)
-      // Ensure draw flags are refreshed so border-radius-dependent
-      // rendering (background clip, overflow mask) picks up the change
-      // even when the view's size hasn't changed.
+
+
+  private var authoredBorderRadius = ""
+  public var borderRadius: String {
+    get { authoredBorderRadius }
+    set {
+      authoredBorderRadius = newValue
+      CSSBorderRenderer.parseBorderRadius(self, newValue)
       (node.view as? MasonUIView)?.invalidateDrawFlags()
     }
   }
-  
-  public var cornerShape: String {
-    get {
-      return _cornerShape
-    }
-    set {
-      _cornerShape = newValue
-      CSSBorderRenderer.parseCornerShape(self, newValue)
-    }
-  }
-  private var _cornerShape: String = ""
 
-  public var cornerShapeTopLeft: String {
-    get {
-      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.topLeft.exponent))
-    }
-    set {
-      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
-      prepareMut()
-      setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, exp)
-      mBorderRender.radius.topLeft.exponent = CGFloat(exp)
-      mBorderRender.invalidateCache()
-      if !inBatch {
-        isDirty |= StateKeys.border.low
-        isDirtyHigh |= StateKeys.border.high
-        updateNativeStyle()
-      }
-    }
-  }
-
-  public var cornerShapeTopRight: String {
-    get {
-      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.topRight.exponent))
-    }
-    set {
-      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
-      prepareMut()
-      setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, exp)
-      mBorderRender.radius.topRight.exponent = CGFloat(exp)
-      mBorderRender.invalidateCache()
-      if !inBatch {
-        isDirty |= StateKeys.border.low
-        isDirtyHigh |= StateKeys.border.high
-        updateNativeStyle()
-      }
-    }
-  }
-
-  public var cornerShapeBottomRight: String {
-    get {
-      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.bottomRight.exponent))
-    }
-    set {
-      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
-      prepareMut()
-      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, exp)
-      mBorderRender.radius.bottomRight.exponent = CGFloat(exp)
-      mBorderRender.invalidateCache()
-      if !inBatch {
-        isDirty |= StateKeys.border.low
-        isDirtyHigh |= StateKeys.border.high
-        updateNativeStyle()
-      }
-    }
-  }
-
-  public var cornerShapeBottomLeft: String {
-    get {
-      return CSSBorderRenderer.exponentToCornerShapeToken(Float(mBorderRender.radius.bottomLeft.exponent))
-    }
-    set {
-      guard let exp = CSSBorderRenderer.parseCornerShapeToken(newValue) else { return }
-      prepareMut()
-      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, exp)
-      mBorderRender.radius.bottomLeft.exponent = CGFloat(exp)
-      mBorderRender.invalidateCache()
-      if !inBatch {
-        isDirty |= StateKeys.border.low
-        isDirtyHigh |= StateKeys.border.high
-        updateNativeStyle()
-      }
-    }
+  internal func setCompiledBorderRadius(_ css: String, radii: [MasonLengthPercentage]) {
+    authoredBorderRadius = css
+    CSSBorderRenderer.applyResolvedBorderRadius(self, radii)
+    (node.view as? MasonUIView)?.invalidateDrawFlags()
   }
 
   public var border: String {
@@ -3539,7 +4397,7 @@ public class MasonStyle: NSObject {
   internal var mBorderTop: CSSBorderRenderer.BorderSide {
     return mBorderRender.top
   }
-  
+
   internal var mBorderRight: CSSBorderRenderer.BorderSide {
     return mBorderRender.right
   }
@@ -3548,696 +4406,156 @@ public class MasonStyle: NSObject {
     return mBorderRender.bottom
   }
   
-  
-  public var borderWidth: MasonRect<MasonLengthPercentage> {
-    get {
-      return MasonRect(mBorderRender.top.width, mBorderRender.right.width, mBorderRender.bottom.width, mBorderRender.left.width)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.BORDER_LEFT_TYPE, newValue.left.type)
-      setFloat(StyleKeys.BORDER_LEFT_VALUE, newValue.left.value)
-      
-      setInt8(StyleKeys.BORDER_RIGHT_TYPE, newValue.right.type)
-      setFloat(StyleKeys.BORDER_RIGHT_VALUE, newValue.right.value)
-      
-      setInt8(StyleKeys.BORDER_TOP_TYPE, newValue.top.type)
-      setFloat(StyleKeys.BORDER_TOP_VALUE, newValue.top.value)
-      
-      setInt8(StyleKeys.BORDER_BOTTOM_TYPE, newValue.bottom.type)
-      setFloat(StyleKeys.BORDER_BOTTOM_VALUE, newValue.bottom.value)
-      
-      setOrAppendState(.border)
-    }
-  }
-  
-  public var borderWidthCompat: MasonLengthPercentageRectCompat {
-    get {
-      guard let borderWidth = borderWidth.compatLength else {
-        let compat = MasonLengthPercentageRectCompat(borderWidth)
-        borderWidth.compatLength = compat
-        return compat
-      }
-      
-      return borderWidth
-    }
-    
-    set {
-      borderWidth = newValue.intoMasonRect()
-    }
-  }
-  
-  public func setBorderLeftWidth(_ value: Float, _ type: Int) {
-    guard let left = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.BORDER_LEFT_TYPE, left.type)
-    setFloat(StyleKeys.BORDER_LEFT_VALUE,  left.value)
-    
-    setOrAppendState(.border)
-  }
-  
-  public func setBorderRightWidth(_ value: Float, _ type: Int) {
-    guard let right = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.BORDER_RIGHT_TYPE, right.type)
-    setFloat(StyleKeys.BORDER_RIGHT_VALUE, right.value)
-    
-    setOrAppendState(.border)
-  }
-  
-  public func setBorderTopWidth(_ value: Float, _ type: Int) {
-    guard let top = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.BORDER_TOP_TYPE, top.type)
-    setFloat(StyleKeys.BORDER_TOP_VALUE, top.value)
-    
-    setOrAppendState(.border)
-  }
-  
-  public func setBorderBottomWidth(_ value: Float, _ type: Int) {
-    guard let bottom = getLengthPercentage(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.BORDER_TOP_TYPE, bottom.type)
-    setFloat(StyleKeys.BORDER_TOP_VALUE, bottom.value)
-    
-    setOrAppendState(.border)
-  }
-  
-  public func setBorderWidth(_ value: Float, _ type: Int) {
-    guard let padding = getLengthPercentage(value, type) else {return}
-    
-    self.padding = MasonRect(padding, padding, padding, padding)
-  }
-  
-  
-  public var flexGrow: Float {
-    get {
-      return getFloat(StyleKeys.FLEX_GROW)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.FLEX_GROW, newValue)
-      setOrAppendState(.flexGrow)
-    }
-  }
-  
-  public var flexShrink: Float {
-    get {
-      return getFloat(StyleKeys.FLEX_SHRINK)
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.FLEX_SHRINK, newValue)
-      setOrAppendState(.flexShrink)
-    }
-  }
-  
-  public var flexBasis: MasonDimension {
-    get {
-      let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      return MasonDimension.fromValueType(value, getInt8(StyleKeys.FLEX_BASIS_TYPE)) ?? MasonDimension.Auto
-      
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.FLEX_BASIS_TYPE, newValue.type)
-      setFloat(StyleKeys.FLEX_BASIS_VALUE, newValue.value)
-      
-      setOrAppendState(.flexBasis)
-    }
-  }
-  
-  public func setFlexBasis(_ value: Float,_ type: Int) {
-    if let basis = MasonDimension.fromValueType(value, type) {
-      flexBasis = basis
-    }
-  }
-  
-  public var scrollBarWidth: MasonDimension {
-    get {
-      return MasonDimension.Points(getFloat(StyleKeys.SCROLLBAR_WIDTH))
-    }
-    set {
-      prepareMut()
-      setFloat(StyleKeys.SCROLLBAR_WIDTH, newValue.value)
-      setOrAppendState(.scrollbarWidth)
-    }
-  }
-  
+
+
+
+
+
+
+
+
+
   public func setScrollBarWidth(_ value: Float) {
     scrollBarWidth = MasonDimension.Points(value);
   }
-  
-  public var align: Align {
-    get {
-      return Align(rawValue: getInt8(StyleKeys.TEXT_ALIGN))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.TEXT_ALIGN, newValue.rawValue)
-      setOrAppendState(StateKeys.align)
-    }
-  }
-  
-  public var textAlign: TextAlign {
-    get {
-      return TextAlign(rawValue: getInt8(StyleKeys.TEXT_ALIGN))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.TEXT_ALIGN, newValue.rawValue)
-      setUInt8(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
-      setOrAppendState(StateKeys.textAlign)
-    }
-  }
-  
-  public var boxSizing: BoxSizing {
-    get {
-      return BoxSizing(rawValue: getInt8(StyleKeys.BOX_SIZING))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.BOX_SIZING, newValue.rawValue)
-      setOrAppendState(.boxSizing)
-    }
-  }
-  
-  
-  public var minSize: MasonSize<MasonDimension>{
-    get{
-      var type = getInt8(StyleKeys.MIN_WIDTH_TYPE)
-      
-      var value = getFloat(StyleKeys.MIN_WIDTH_VALUE)
-      
-      let width = MasonDimension.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.MIN_HEIGHT_TYPE)
-      value = getFloat(StyleKeys.MIN_HEIGHT_VALUE)
-      
-      let height = MasonDimension.fromValueType(value, type)!
-      
-      return MasonSize(width, height)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MIN_WIDTH_TYPE, newValue.width.type)
-      setFloat(StyleKeys.MIN_WIDTH_VALUE, newValue.width.value)
-      
-      setInt8(StyleKeys.MIN_HEIGHT_TYPE, newValue.height.type)
-      setFloat(StyleKeys.MIN_HEIGHT_VALUE, newValue.height.value)
-      
-      setOrAppendState(.minSize)
-    }
-  }
-  
-  
-  public var minSizeCompat: MasonDimensionSizeCompat {
-    get {
-      guard let minSize = minSize.compatDimension else {
-        let compat = MasonDimensionSizeCompat(minSize)
-        minSize.compatDimension = compat
-        return compat
-      }
-      
-      return minSize
-    }
-    
-    set {
-      minSize = newValue.intoMasonSize()
-    }
-  }
-  
-  public var minWidth: MasonDimension {
-    get {
-      return minSize.width
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MIN_WIDTH_TYPE, newValue.type)
-      setFloat(StyleKeys.MIN_WIDTH_VALUE, newValue.value)
-  
-      setOrAppendState(StateKeys.minSize)
-    }
-  }
-  
-  public var minHeight: MasonDimension {
-    get {
-      return minSize.height
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MIN_HEIGHT_TYPE, newValue.type)
-      setFloat(StyleKeys.MIN_HEIGHT_VALUE, newValue.value)
-  
-      setOrAppendState(StateKeys.minSize)
-    }
-  }
-  
-  
-  public func setMinSizeWidth(_ value: Float, _ type: Int) {
-    guard let width = getDimension(value, type) else {return}
-    
-    minSize = MasonSize(width, minSize.height)
-  }
-  
-  public func setMinSizeHeight(_ value: Float, _ type: Int) {
-    guard let height = getDimension(value, type) else {return}
-    minSize = MasonSize(minSize.width, height)
-  }
-  
-  public func setMinSizeWidthHeight(_ value: Float, _ type: Int) {
-    guard let wh = getDimension(value, type) else {return}
-    minSize = MasonSize(wh, wh)
-  }
-  
-  public var size: MasonSize<MasonDimension>{
-    get{
-      
-      var type = getInt8(StyleKeys.WIDTH_TYPE)
-      
-      var value = getFloat(StyleKeys.WIDTH_VALUE)
-      
-      let width = MasonDimension.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.HEIGHT_TYPE)
-      
-      value = getFloat(StyleKeys.HEIGHT_VALUE)
-      
-      let height = MasonDimension.fromValueType(value, type)!
-      
-      
-      return MasonSize(width, height)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.WIDTH_TYPE, newValue.width.type)
-      setFloat(StyleKeys.WIDTH_VALUE, newValue.width.value)
-      
-      setInt8(StyleKeys.HEIGHT_TYPE, newValue.height.type)
-      setFloat(StyleKeys.HEIGHT_VALUE, newValue.height.value)
-      
-      setOrAppendState(StateKeys.size)
-    }
-  }
-  
-  public var sizeCompat: MasonDimensionSizeCompat {
-    get {
-      guard let size = size.compatDimension else {
-        let compat = MasonDimensionSizeCompat(size)
-        size.compatDimension = compat
-        return compat
-      }
-      
-      return size
-    }
-    
-    set {
-      size = newValue.intoMasonSize()
-    }
-  }
-  
-  public var sizeCompatWidth: MasonDimensionCompat {
-    get {
-      return MasonDimensionCompat(value: size.width)
-    }
-    
-    set {
-      prepareMut()
-      setInt8(StyleKeys.WIDTH_TYPE, newValue.dimension.type)
-      setFloat(StyleKeys.WIDTH_VALUE, newValue.dimension.value)
-      
-      setOrAppendState(StateKeys.size)
-    }
-  }
-  
-  public var sizeCompatHeight: MasonDimensionCompat {
-    get {
-      return MasonDimensionCompat(value: size.height)
-    }
-    
-    set {
-      prepareMut()
-      setInt8(StyleKeys.HEIGHT_TYPE, newValue.dimension.type)
-      setFloat(StyleKeys.HEIGHT_VALUE, newValue.dimension.value)
-      setOrAppendState(StateKeys.size)
-    }
-  }
-  
-  public func setSizeWidth(_ value: Float, _ type: Int) {
-    guard let width = getDimension(value, type) else {return}
-    prepareMut()
-    
-    setInt8(StyleKeys.WIDTH_TYPE, width.type)
-    setFloat(StyleKeys.WIDTH_VALUE, width.value)
-    
-    setOrAppendState(StateKeys.size)
-  }
-  
-  public func setSizeHeight(_ value: Float, _ type: Int) {
-    guard let height = getDimension(value, type) else {return}
-    prepareMut()
-    setInt8(StyleKeys.HEIGHT_TYPE, height.type)
-    setFloat(StyleKeys.HEIGHT_VALUE, height.value)
-    
-    setOrAppendState(StateKeys.size)
-  }
-  
+
   public func setSizeWidth(_ width: MasonDimension) {
-    prepareMut()
-    setInt8(StyleKeys.WIDTH_TYPE, width.type)
-    setFloat(StyleKeys.WIDTH_VALUE, width.value)
-    
-    setOrAppendState(StateKeys.size)
+    self.width = width
   }
-  
-  
+
   public func setSizeHeight(_ height: MasonDimension) {
-    prepareMut()
-    setInt8(StyleKeys.HEIGHT_TYPE, height.type)
-    setFloat(StyleKeys.HEIGHT_VALUE, height.value)
-    
-    setOrAppendState(StateKeys.size)
+    self.height = height
   }
-  
-  public func setSizeWidthHeight(_ value: Float, _ type: Int) {
-    guard let wh = getDimension(value, type) else {return}
-    size = MasonSize(wh, wh)
-  }
-  
+
   public func setSizePoints(_ width: Float, _ height: Float) {
-    prepareMut()
-    setInt8(StyleKeys.WIDTH_TYPE, MasonDimension.Kind.Points.rawValue)
-    setFloat(StyleKeys.WIDTH_VALUE, width)
-    
-    setInt8(StyleKeys.HEIGHT_TYPE, MasonDimension.Kind.Points.rawValue)
-    setFloat(StyleKeys.HEIGHT_VALUE, height)
-    
-    setOrAppendState(StateKeys.size)
+    size = MasonSize(.Points(width), .Points(height))
   }
-  
-  
-  
-  public var width: MasonDimension {
-    get {
-      let type = getInt8(StyleKeys.WIDTH_TYPE)
-      
-      let value = getFloat(StyleKeys.WIDTH_VALUE)
-      
-      return MasonDimension.fromValueType(value, type)!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.WIDTH_TYPE, newValue.type)
-      setFloat(StyleKeys.WIDTH_VALUE, newValue.value)
-      
-      setOrAppendState(StateKeys.size)
-    }
+
+  private var gridCssCache: [Int: String] = [:]
+  private var gridWrites: [String] = []
+
+  private func readGridCss(_ property: Int, _ read: () -> String) -> String {
+    if let cached = gridCssCache[property] { return cached }
+    let value = read()
+    gridCssCache[property] = value
+    return value
   }
-  
-  
-  public var height: MasonDimension {
-    get {
-      return MasonDimension.fromValueType(getFloat(StyleKeys.HEIGHT_VALUE), getInt8(StyleKeys.HEIGHT_TYPE))!
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.HEIGHT_TYPE, newValue.type)
-      setFloat(StyleKeys.HEIGHT_VALUE, newValue.value)
-      
-      setOrAppendState(StateKeys.size)
-    }
-  }
-  
-  public var maxWidth: MasonDimension {
-    get {
-      return maxSize.width
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MAX_WIDTH_TYPE, newValue.type)
-      setFloat(StyleKeys.MAX_WIDTH_VALUE, newValue.value)
-  
-      setOrAppendState(StateKeys.maxSize)
-    }
-  }
-  
-  public var maxHeight: MasonDimension {
-    get {
-      return maxSize.height
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MAX_HEIGHT_TYPE, newValue.type)
-      setFloat(StyleKeys.MAX_HEIGHT_VALUE, newValue.value)
-  
-      setOrAppendState(StateKeys.maxSize)
-    }
-  }
-  
-  
-  
-  public var maxSize: MasonSize<MasonDimension>{
-    get{
-      var type = getInt8(StyleKeys.MAX_WIDTH_TYPE)
-      
-      var value = getFloat(StyleKeys.MAX_WIDTH_VALUE)
-      
-      let width = MasonDimension.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.MAX_HEIGHT_TYPE)
-      
-      value = getFloat(StyleKeys.MAX_HEIGHT_VALUE)
-      
-      let height = MasonDimension.fromValueType(value, type)!
-      
-      return MasonSize(width, height)
-    }
-    set {
-      prepareMut()
-      setInt8(StyleKeys.MAX_WIDTH_TYPE, newValue.width.type)
-      setFloat(StyleKeys.MAX_WIDTH_VALUE, newValue.width.value)
-      
-      setInt8(StyleKeys.MAX_HEIGHT_TYPE, newValue.height.type)
-      setFloat(StyleKeys.MAX_HEIGHT_VALUE, newValue.height.value)
-      
-      setOrAppendState(.maxSize)
-    }
-  }
-  
-  public var maxSizeCompat: MasonDimensionSizeCompat {
-    get {
-      guard let maxSize = maxSize.compatDimension else {
-        let compat = MasonDimensionSizeCompat(maxSize)
-        maxSize.compatDimension = compat
-        return compat
-      }
-      
-      return maxSize
-    }
-    
-    set {
-      maxSize = newValue.intoMasonSize()
-    }
-  }
-  
-  
-  public func setMaxSizeWidth(_ value: Float, _ type: Int) {
-    guard let width = getDimension(value, type) else {return}
-    
-    maxSize = MasonSize(width, maxSize.height)
-  }
-  
-  public func setMaxSizeHeight(_ value: Float, _ type: Int) {
-    guard let height = getDimension(value, type) else {return}
-    maxSize = MasonSize(maxSize.width, height)
-  }
-  
-  
-  public func setMaxSizeWidthHeight(_ value: Float, _ type: Int) {
-    guard let wh = getDimension(value, type) else {return}
-    maxSize = MasonSize(wh, wh)
-  }
-  
-  public var gap: MasonSize<MasonLengthPercentage>{
-    get{
-      var type = getInt8(StyleKeys.GAP_ROW_TYPE)
-      var value = getFloat(StyleKeys.GAP_ROW_VALUE)
-      
-      let width = MasonLengthPercentage.fromValueType(value, type)!
-      
-      type = getInt8(StyleKeys.GAP_COLUMN_TYPE)
-      value = getFloat(StyleKeys.GAP_COLUMN_VALUE)
-      
-      let height = MasonLengthPercentage.fromValueType(value, type)!
-      
-      return MasonSize(width, height)
-    }
-    set {
-      prepareMut()
-      
-      setInt8(StyleKeys.GAP_ROW_TYPE, newValue.width.type)
-      
-      setFloat(StyleKeys.GAP_ROW_VALUE, newValue.width.value)
-      
-      setInt8(StyleKeys.GAP_COLUMN_TYPE, newValue.height.type)
-      
-      setFloat(StyleKeys.GAP_COLUMN_VALUE,newValue.height.value)
-      
-      setOrAppendState(.gap)
-    }
-  }
-  
-  
-  public var gapCompat: MasonLengthPercentageSizeCompat {
-    get {
-      guard let gap = gap.compatLength else {
-        let compat = MasonLengthPercentageSizeCompat(gap)
-        gap.compatLength = compat
-        return compat
-      }
-      
-      return gap
-    }
-    
-    set {
-      gap = newValue.intoMasonSize()
-    }
-  }
-  
-  public func setGapRow(_ value: Float, _ type: Int) {
-    setRowGap(value, type)
-  }
-  
-  public func setGapColumn(_ value: Float, _ type: Int) {
-    setColumnGap(value, type)
-  }
-  
-  public func setRowGap(_ value: Float, _ type: Int) {
-    guard let width = getLengthPercentage(value, type) else {return}
-    
-    gap = MasonSize(width, gap.height)
-  }
-  
-  public func setColumnGap(_ value: Float, _ type: Int) {
-    guard let height = getLengthPercentage(value, type) else {return}
-    gap = MasonSize(gap.width, height)
-  }
-  
-  
-  public var aspectRatio: Float?{
-    get {
-      let value = getFloat(StyleKeys.ASPECT_RATIO)
-      if(value.isNaN){
-        return nil
-      }
-      return value
-    }
-    set {
-      prepareMut()
-      if let value = newValue {
-        if(value.isNaN){
-          setFloat(StyleKeys.ASPECT_RATIO, Float.nan)
-        }else {
-          setFloat(StyleKeys.ASPECT_RATIO, value)
-        }
-      }else {
-        setFloat(StyleKeys.ASPECT_RATIO, Float.nan)
-      }
-    }
-  }
-  
-  
-  private func lazyCache<T>(
-    getCache: () -> T?,
-    setCache: (T) -> Void,
-    fetch: () -> T
-  ) -> T {
-    if let cached = getCache() {
-      return cached
-    } else {
-      let value = fetch()
-      setCache(value)
-      return value
-    }
-  }
-  
-  
-  private var _gridArea: String?
-  public var gridArea: String{
-    set {
-      gridState.gridArea = newValue
-      _gridArea = nil
-      _gridColumnStart = nil
-      _gridColumnEnd = nil
-      _gridRowStart = nil
-      _gridRowEnd = nil
-      isSlowDirty = true
-    }
-    get {
-      lazyCache(getCache: {_gridArea}, setCache: {it in _gridArea = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_area_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-  }
-  
-  private var _gridTemplateAreas: String?
-  public var gridTemplateAreas: String{
-    set {
-      gridState.gridTemplateAreas = newValue
-      _gridTemplateAreas = nil
-      isSlowDirty = true
-    }
-    get {
-      lazyCache(getCache: {_gridTemplateAreas}, setCache: {it in _gridTemplateAreas = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_template_areas_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
+
+  private func queueGridCss(_ property: Int, _ value: String) {
+    gridWrites.append(String(property))
+    gridWrites.append(value.replacingOccurrences(of: "\0", with: "\u{FFFD}"))
+    if !inBatch && !pendingInvalidation.contains(.invalidating) {
+      pendingInvalidation = pendingInvalidation.union(.pending)
+      updateNativeStyle()
     }
   }
 
-  /// transform-origin: `.Points` are device px from the box's left/top edge, `.Percent`
-  /// a fraction of its size. Unset is the centre.
-  public var transformOrigin: (x: MasonLengthPercentage, y: MasonLengthPercentage) {
-    get {
-      guard hasTransformOrigin else { return (.Percent(0.5), .Percent(0.5)) }
-      func side(_ type: Int, _ value: Int) -> MasonLengthPercentage {
-        let v = getFloat(value)
-        return getUInt8(type) == 1 ? .Percent(v / 100) : .Points(v)
-      }
-      return (side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE),
-              side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE))
-    }
-    set {
-      prepareMut()
-      func side(_ length: MasonLengthPercentage, _ type: Int, _ value: Int) {
-        switch length {
-        case .Points(let v): setUInt8(type, 0); setFloat(value, v)
-        case .Percent(let v): setUInt8(type, 1); setFloat(value, v * 100)
-        case .Zero: setUInt8(type, 0); setFloat(value, 0)
-        }
-      }
-      side(newValue.x, StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)
-      side(newValue.y, StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)
-      setUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE, StyleState.SET)
+  public func applyLayoutLength(_ property: String, _ value: String) -> Bool {
+    applyLayoutLengthForState(0, property, value)
+  }
 
-      if(inBatch){
-        setOrAppendState(StateKeys.transformOrigin)
-      }else if transformDependsOnOrigin {
-        applyTransformFromBuffer()
+  public func applyLayoutLengthForState(_ flags: UInt16, _ property: String, _ value: String) -> Bool {
+    guard !node.isPlaceholder && !node.mason.inCompute else { return false }
+    if flags == 0 { prepareMut() }
+    let viewport = NSCMason.viewportSize
+    return property.withCString { name in
+      value.withCString { css in
+        mason_css_apply_layout_length_for_state(node.mason.nativePtr, node.nativePtr, flags, name, css,
+          resolvedFontSize, NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height))
       }
     }
   }
 
-  internal var hasTransformOrigin: Bool {
-    return getUInt8(StyleKeys.TRANSFORM_ORIGIN_STATE) != 0
+  public func layoutLengthCss(_ property: String) -> String? {
+    layoutLengthCssForState(0, property)
   }
+
+  public func layoutLengthCssForState(_ flags: UInt16, _ property: String) -> String? {
+    return property.withCString { name in
+      NativeHelpers.toSwiftString { mason_css_copy_layout_length_for_state(node.mason.nativePtr, node.nativePtr, flags, name) }
+    }
+  }
+
+  private func flushGridCss() -> Bool {
+    guard !gridWrites.isEmpty else { return false }
+    let input = Array(gridWrites.joined(separator: "\0").utf8)
+    gridWrites.removeAll(keepingCapacity: true)
+    gridCssCache.removeAll(keepingCapacity: true)
+    let viewport = NSCMason.viewportSize
+    input.withUnsafeBufferPointer {
+      mason_css_apply_grid(node.mason.nativePtr, node.nativePtr,
+        CMasonCssText(bytes: $0.baseAddress, len: UInt($0.count)),
+        resolvedFontSize, NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height))
+    }
+    return true
+  }
+
+  // <style-keys:grid-accessors>
+  public var gridAutoRows: String {
+    get { readGridCss(0) { NativeHelpers.toSwiftString { mason_style_get_grid_auto_rows_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(0, newValue) }
+  }
+
+  public var gridAutoColumns: String {
+    get { readGridCss(1) { NativeHelpers.toSwiftString { mason_style_get_grid_auto_columns_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(1, newValue) }
+  }
+
+  public var gridColumn: String {
+    get { readGridCss(2) { NativeHelpers.toSwiftString { mason_style_get_grid_column_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(2, newValue) }
+  }
+
+  public var gridColumnStart: String {
+    get { readGridCss(3) { NativeHelpers.toSwiftString { mason_style_get_grid_column_start_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(3, newValue) }
+  }
+
+  public var gridColumnEnd: String {
+    get { readGridCss(4) { NativeHelpers.toSwiftString { mason_style_get_grid_column_end_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(4, newValue) }
+  }
+
+  public var gridRow: String {
+    get { readGridCss(5) { NativeHelpers.toSwiftString { mason_style_get_grid_row_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(5, newValue) }
+  }
+
+  public var gridRowStart: String {
+    get { readGridCss(6) { NativeHelpers.toSwiftString { mason_style_get_grid_row_start_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(6, newValue) }
+  }
+
+  public var gridRowEnd: String {
+    get { readGridCss(7) { NativeHelpers.toSwiftString { mason_style_get_grid_row_end_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(7, newValue) }
+  }
+
+  public var gridTemplateRows: String {
+    get { readGridCss(8) { NativeHelpers.toSwiftString { mason_style_get_grid_template_rows_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(8, newValue) }
+  }
+
+  public var gridTemplateColumns: String {
+    get { readGridCss(9) { NativeHelpers.toSwiftString { mason_style_get_grid_template_columns_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(9, newValue) }
+  }
+
+  public var gridArea: String {
+    get { readGridCss(10) { NativeHelpers.toSwiftString { mason_style_get_grid_area_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(10, newValue) }
+  }
+
+  public var gridTemplateAreas: String {
+    get { readGridCss(11) { NativeHelpers.toSwiftString { mason_style_get_grid_template_areas_css(node.mason.nativePtr, node.nativePtr) } ?? "" } }
+    set { queueGridCss(11, newValue) }
+  }
+  // </style-keys:grid-accessors>
 
   /// Whether a buffer transform pivots on a set transform-origin or holds a percentage, so it
   /// must be reapplied on resize.
   internal var transformDependsOnOrigin: Bool {
+    if let program = transformProgram { return program.usesBoxSize || hasTransformOrigin }
     let flags = getUInt8(StyleKeys.TRANSFORM_FLAGS)
     if flags & StyleKeys.TRANSFORM_FLAG_HAS_PERCENT != 0 { return true }
     return hasTransformOrigin && (getUInt8(StyleKeys.TRANSFORM_COUNT) != 0
@@ -4248,7 +4566,7 @@ public class MasonStyle: NSObject {
   public var transform: String {
     set {
       _transformRaw = newValue
-      writeTransformToBuffer(newValue)
+      installTransform(newValue)
       applyTransformFromBuffer()
     }
     get {
@@ -4256,189 +4574,10 @@ public class MasonStyle: NSObject {
     }
   }
   
-  
-  private var _gridAutoRows: String?
-  public var gridAutoRows: String{
-    set {
-      gridState.gridAutoRows = newValue
-      _gridAutoRows = nil
-      isSlowDirty = true
-    }
-    get {
-      lazyCache(getCache: {_gridAutoRows}, setCache: {it in _gridAutoRows = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_auto_rows_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-  }
-  
-  
-  private var _gridAutoColumns: String?
-  public var gridAutoColumns: String{
-    set {
-      gridState.gridAutoColumns = newValue
-      _gridAutoColumns = nil
-      isSlowDirty = true
-    }
-    get {
-      lazyCache(getCache: {_gridAutoColumns}, setCache: {it in _gridAutoColumns = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_auto_columns_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-  }
-  
-  public var gridAutoFlow: GridAutoFlow {
-    get {
-      return GridAutoFlow(rawValue: getInt8(StyleKeys.GRID_AUTO_FLOW))!
-    }
-    
-    set {
-      prepareMut()
-      setInt8(StyleKeys.GRID_AUTO_FLOW, newValue.rawValue)
-      setOrAppendState(.gridAutoFlow)
-    }
-  }
-  
-  private var _gridColumn: String?
-  public var gridColumn: String {
-    get{
-      lazyCache(getCache: {_gridColumn}, setCache: {it in _gridColumn = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_column_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridColumn = newValue
-      _gridColumn = nil
-      isSlowDirty = true
-    }
-  }
-  
-  
-  private var _gridColumnStart: String?
-  public var gridColumnStart: String {
-    get{
-      lazyCache(getCache: {_gridColumnStart}, setCache: {it in _gridColumnStart = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_column_start_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridColumnStart = newValue
-      _gridColumnStart = nil
-      isSlowDirty = true
-    }
-  }
-  
-  private var _gridColumnEnd: String?
-  public var gridColumnEnd: String {
-    get{
-      lazyCache(getCache: {_gridColumnEnd}, setCache: {it in _gridColumnEnd = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_column_end_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridColumnEnd = newValue
-      _gridColumnEnd = nil
-      isSlowDirty = true
-    }
-  }
-  
-  
-  private var _gridRow: String?
-  public var gridRow: String {
-    get{
-      lazyCache(getCache: {_gridRow}, setCache: {it in _gridRow = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_row_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridRow = newValue
-      _gridRow = nil
-      isSlowDirty = true
-    }
-  }
-  
-  
-  private var _gridRowStart: String?
-  public var gridRowStart: String {
-    get{
-      lazyCache(getCache: {_gridRowStart}, setCache: {it in _gridRowStart = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_row_start_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridRowStart = newValue
-      _gridRowStart = nil
-      isSlowDirty = true
-    }
-  }
-  
-  private var _gridRowEnd: String?
-  public var gridRowEnd: String {
-    get{
-      lazyCache(getCache: {_gridRowEnd}, setCache: {it in _gridRowEnd = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_row_end_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridRowEnd = newValue
-      _gridRowEnd = nil
-      isSlowDirty = true
-    }
-  }
-  
-  
-  private var _gridTemplateRows: String?
-  public var gridTemplateRows: String {
-    get{
-      lazyCache(getCache: {_gridTemplateRows}, setCache: {it in _gridTemplateRows = it}, fetch: {
-        NativeHelpers.toSwiftString {
-          mason_style_get_grid_template_rows_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridTemplateRows = newValue
-      _gridTemplateRows = nil
-      isSlowDirty = true
-    }
-  }
-  
-  
-  
-  private var _gridTemplateColumns: String?
-  public var gridTemplateColumns: String {
-    get{
-      lazyCache(getCache: {_gridTemplateColumns}, setCache: {it in _gridTemplateColumns = it}, fetch: {
-        return NativeHelpers.toSwiftString {
-          mason_style_get_grid_template_columns_css(node.mason.nativePtr, node.nativePtr)
-        } ?? ""
-      })
-    }
-    set {
-      gridState.gridTemplateColumns = newValue
-      _gridTemplateColumns = nil
-      isSlowDirty = true
-    }
-  }
-  
+
   // MARK: - border-image (string-based, parsed natively)
   
-  // Parsed and drawn by NineSlice.swift in place of the border; created on first draw.
+  // Native drawing state for the image border, created when a declaration is set.
   internal var mBorderImageStorage: BorderImage?
   /// Set once a pseudo state carries `border-image`; until then draws skip the pseudo lookup.
   internal var hasPseudoBorderImage = false
@@ -4461,30 +4600,64 @@ public class MasonStyle: NSObject {
     return filter
   }
 
-  @objc public var backdropFilter: String = "" {
-    didSet {
-      if backdropFilter.isEmpty {
-        if let current = mBackdropFilterStorage, !current.filters.isEmpty {
-          current.reset()
-          node.view?.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName })?.removeFromSuperlayer()
-          if let view = node.view { CSSFilters.BackdropPaint.sync(view.backingLayer) }
-        }
-        return
-      }
+  private var backdropFilterCss = ""
+  @objc public var backdropFilter: String {
+    get { backdropFilterCss }
+    set { installBackdropFilter(newValue, filters: CSSFilters.setStyleFilter(newValue, style: self, backdrop: true)) }
+  }
 
-      mBackdropFilter.parse(css: backdropFilter)
-
-      if !mBackdropFilter.filters.isEmpty {
-        if let view = node.view {
-          // Border-radius clip is independent of `overflow` (like the
-          // element's own background) — re-queried each render frame.
-          mBackdropFilter.applyAsBackdrop(to: view, clipPathProvider: { [weak self, weak view] in
-            guard let self = self, let view = view, self.mBorderRender.hasRadii() else { return nil }
-            return self.mBorderRender.getClipPath(rect: view.bounds, radius: self.mBorderRender.radius)
-          })
-        }
+  private func installBackdropFilter(_ value: String, filters: [CSSFilters.Filter]) {
+    backdropFilterCss = value
+    if filters.isEmpty {
+      if let current = mBackdropFilterStorage, !current.filters.isEmpty {
+        current.reset()
+        node.view?.backingLayer.sublayers?.first(where: { $0.name == CSSFilters.backdropLayerName })?.removeFromSuperlayer()
+        if let view = node.view { CSSFilters.BackdropPaint.sync(view.backingLayer) }
       }
+      return
     }
+
+    mBackdropFilter.replaceFilters(filters)
+    if let view = node.view {
+      // Border-radius clip is independent of overflow and re-queried per frame.
+      mBackdropFilter.applyAsBackdrop(to: view, clipPathProvider: { [weak self, weak view] in
+        guard let self = self, let view = view, self.mBorderRender.hasRadii() else { return nil }
+        return self.mBorderRender.getClipPath(rect: view.bounds, radius: self.mBorderRender.radius)
+      })
+    }
+  }
+
+  @nonobjc internal func applyCompiledEffects(_ fields: [String], initialColor: UInt32, fontSize: Float) {
+    guard !fields.isEmpty, fields.count.isMultiple(of: CssEffectWriteRecord.stride) else { return }
+    let attached = !node.isPlaceholder
+    let deferred = attached && node.mason.inCompute
+    if attached && !deferred { prepareMut() }
+    let viewport = NSCMason.viewportSize
+    let rootFontSize = NSCMason.rootFontSize
+    var input = fields.joined(separator: "\u{0}")
+    guard let batch = input.withUTF8({ bytes in
+      mason_css_effect_batch_apply(attached && !deferred ? node.mason.nativePtr : nil,
+        attached ? node.nativePtr : nil, CMasonCssText(bytes: bytes.baseAddress, len: UInt(bytes.count)),
+        1, fontSize, rootFontSize, Float(viewport.width), Float(viewport.height), initialColor)
+    }) else { return }
+    defer { mason_css_effect_batch_release(batch) }
+
+    func apply(_ kind: StyleRecordKind, _ install: (String, UnsafeBufferPointer<Double>, CMasonCssEffectView) -> Void) {
+      let effect = mason_css_effect_batch_get(batch, kind.rawValue)
+      guard effect.present else { return }
+      if deferred { node.mason.deferStyleRecords(self, kind: kind) }
+      let value = String(decoding: UnsafeBufferPointer(start: effect.value.bytes, count: Int(effect.value.len)), as: UTF8.self)
+      let records = UnsafeBufferPointer(start: effect.values, count: Int(effect.len))
+      install(value, records, effect)
+    }
+    apply(.filter) { value, records, effect in
+      let program = effect.filter.map { NativeFilterProgram(value, handle: $0) }
+      let context = FilterContext(fontSize: fontSize, rootFontSize: rootFontSize, viewport: viewport, color: effect.current_color)
+      applyAuthoredFilter(value, program: program, filters: CSSFilters.decode(records), context: context)
+    }
+    apply(.backdropFilter) { value, records, _ in installBackdropFilter(value, filters: CSSFilters.decode(records)) }
+    apply(.boxShadow) { value, records, _ in applyBoxShadow(value, shadows: ShadowParser.readBoxShadows(records)) }
+    apply(.textShadow) { value, records, _ in applyTextShadow(value, shadows: ShadowParser.readTextShadows(records)) }
   }
 
   /// Keep the backdrop layer sized to the host view: `backdropFilter` is usually set before the
@@ -4515,94 +4688,167 @@ public class MasonStyle: NSObject {
   // Set once any mask property changes; until then there is nothing to sync.
   internal var maskEverSet = false
 
-  // Each holds the CSS string as last set; the `mask` shorthand is split before it gets here.
-  @objc public var maskImage: String = "" {
-    didSet { maskChanged() }
+  // The authored layer and mask-border longhands share the Rust record layout.
+  private static let emptyMaskInputs = Array(repeating: "", count: MaskInputRecord.stride + NineSliceInputRecord.stride)
+  internal private(set) var maskInputs = MasonStyle.emptyMaskInputs
+
+  private func setMaskInput(_ index: Int, _ value: String) {
+    maskInputs[index] = value
+    maskChanged()
   }
 
-  @objc public var maskSize: String = "" {
-    didSet { maskChanged() }
+  internal func applyCompiledMask(_ fields: [String]) {
+    let stride = CssMaskWriteRecord.stride
+    guard !fields.isEmpty, fields.count.isMultiple(of: stride) else { return }
+    var clip: String?
+    for offset in Swift.stride(from: 0, to: fields.count, by: stride) {
+      guard let slot = Int(fields[offset + CssMaskWriteRecord.slot]), slot >= 0 else { continue }
+      let value = fields[offset + CssMaskWriteRecord.value]
+      if slot == maskInputs.count {
+        clip = value
+      } else if slot < maskInputs.count {
+        maskInputs[slot] = value
+      }
+    }
+    if let clip {
+      clipPath = clip
+    } else {
+      maskChanged()
+    }
   }
 
-  @objc public var maskPosition: String = "" {
-    didSet { maskChanged() }
+  @nonobjc internal private(set) var clipPathProgram: NativeClipPath?
+
+  private func updateClipPath(from previous: String) {
+    if clipPath != previous {
+      let program = NativeClipPath(clipPath)
+      clipPathProgram = program
+      NativeClipPath.install(program, on: self)
+    }
+    maskChanged()
   }
 
-  @objc public var maskRepeat: String = "" {
-    didSet { maskChanged() }
+  // <style-keys:mask-accessors> generated from tools/scripts/style-keys/style-keys.schema
+  static let maskPropertyNames = [
+    "mask-image",
+    "mask-size",
+    "mask-position",
+    "mask-repeat",
+    "mask-origin",
+    "mask-clip",
+    "mask-mode",
+    "mask-composite",
+    "clip-path",
+    "mask-border-source",
+    "mask-border-slice",
+    "mask-border-width",
+    "mask-border-outset",
+    "mask-border-repeat",
+    "mask-border-mode",
+  ]
+
+  @objc public var maskImage: String {
+    get { maskInputs[0] }
+    set { setMaskInput(0, newValue) }
   }
 
-  @objc public var maskOrigin: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskSize: String {
+    get { maskInputs[1] }
+    set { setMaskInput(1, newValue) }
   }
 
-  @objc public var maskClip: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskPosition: String {
+    get { maskInputs[2] }
+    set { setMaskInput(2, newValue) }
   }
 
-  @objc public var maskMode: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskRepeat: String {
+    get { maskInputs[3] }
+    set { setMaskInput(3, newValue) }
   }
 
-  @objc public var maskComposite: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskOrigin: String {
+    get { maskInputs[4] }
+    set { setMaskInput(4, newValue) }
   }
 
-  // MARK: - clip-path / mask-border-* (string-based, composed into the mask; see ClipPath.swift, NineSlice.swift)
+  @objc public var maskClip: String {
+    get { maskInputs[5] }
+    set { setMaskInput(5, newValue) }
+  }
+
+  @objc public var maskMode: String {
+    get { maskInputs[6] }
+    set { setMaskInput(6, newValue) }
+  }
+
+  @objc public var maskComposite: String {
+    get { maskInputs[7] }
+    set { setMaskInput(7, newValue) }
+  }
 
   @objc public var clipPath: String = "" {
-    didSet { maskChanged() }
+    didSet { updateClipPath(from: oldValue) }
   }
 
-  // The `mask-border` and `-webkit-mask-box-image` shorthands are split before they get here.
-  @objc public var maskBorderSource: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderSource: String {
+    get { maskInputs[8] }
+    set { setMaskInput(8, newValue) }
   }
 
-  @objc public var maskBorderSlice: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderSlice: String {
+    get { maskInputs[9] }
+    set { setMaskInput(9, newValue) }
   }
 
-  @objc public var maskBorderWidth: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderWidth: String {
+    get { maskInputs[10] }
+    set { setMaskInput(10, newValue) }
   }
 
-  @objc public var maskBorderOutset: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderOutset: String {
+    get { maskInputs[11] }
+    set { setMaskInput(11, newValue) }
   }
 
-  @objc public var maskBorderRepeat: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderRepeat: String {
+    get { maskInputs[12] }
+    set { setMaskInput(12, newValue) }
   }
 
-  @objc public var maskBorderMode: String = "" {
-    didSet { maskChanged() }
+  @objc public var maskBorderMode: String {
+    get { maskInputs[13] }
+    set { setMaskInput(13, newValue) }
   }
+  // </style-keys:mask-accessors>
 
-  // MARK: - font-feature-settings (string-based)
+  private var fontFeatureSettingsCss = "normal"
+  private var fontFeatures: [[CFString: Any]]?
 
-  @objc public var fontFeatureSettings: String = "normal" {
-    didSet {
-      hasFontFeatureSettings = true
-      notifyTextStyleChanged(StateKeys.fontFamily)
+  @objc public var fontFeatureSettings: String {
+    get { fontFeatureSettingsCss }
+    set {
+      if fontFeatures != nil, newValue == fontFeatureSettingsCss { return }
+      let features = withStyleCssRecords(self, newValue, kind: .fontFeatures) { records -> [[CFString: Any]]? in
+        guard records.baseAddress != nil else { return nil }
+        return stride(from: 0, to: records.count, by: FontFeatureRecord.stride).map { index in
+          let tag = UInt32(records[index + FontFeatureRecord.tag])
+          let bytes = (0..<4).map { UInt8(truncatingIfNeeded: tag >> ($0 * 8)) }
+          return [kCTFontOpenTypeFeatureTag: String(decoding: bytes, as: UTF8.self),
+                  kCTFontOpenTypeFeatureValue: UInt32(records[index + FontFeatureRecord.value])]
+        }
+      }
+      guard let features else { return }
+      fontFeatures = features
+      fontFeatureSettingsCss = newValue
+      if node.isPlaceholder || !node.mason.inCompute {
+        if inBatch { setOrAppendState(.fontFeatureSettings) }
+        else { notifyTextStyleChanged(.fontFeatureSettings) }
+      }
     }
   }
-  private var hasFontFeatureSettings = false
-
-  /// font-feature-settings here or inherited.
-  internal var resolvedFontFeatureSettings: String {
-    if resolvedMemo.epoch != MasonStyle.resolveEpoch {
-      resolvedMemo = ResolvedMemo(epoch: MasonStyle.resolveEpoch)
-    } else if let value = resolvedMemo.fontFeatureSettings {
-      return value
-    }
-    let value = resolvedFontFeatureSettingsUncached
-    resolvedMemo.fontFeatureSettings = value
-    return value
-  }
-
-  private var resolvedFontFeatureSettingsUncached: String {
-    hasFontFeatureSettings ? fontFeatureSettings : (parentStyleWithTextValues?.resolvedFontFeatureSettings ?? "normal")
+  @nonobjc internal var resolvedFontFeatures: [[CFString: Any]] {
+    fontFeatures ?? parentStyleWithTextValues?.resolvedFontFeatures ?? []
   }
   
   public func updateNativeStyle() {
@@ -4610,179 +4856,13 @@ public class MasonStyle: NSObject {
       return
     }
     
-    if (isSlowDirty) {
-      if isDirty != 0 || isDirtyHigh != 0 {
-        // Bumped before the text notify, so the attributes the text engine
-        // rebuilds there match the final version instead of going stale.
-        styleVersion &+= 1
-      }
-      updateTextStyle()
-      
-      if(isDirty == 0 && isDirtyHigh == 0){
-        
-        mason_style_update_non_buffer_data(
-          node.mason.nativePtr,
-          node.nativePtr,
-          gridState.gridAutoRows,
-          gridState.gridAutoColumns,
-          gridState.gridColumn,
-          gridState.gridColumnStart,
-          gridState.gridColumnEnd,
-          
-          gridState.gridRow,
-          gridState.gridRowStart,
-          gridState.gridRowEnd,
-          
-          gridState.gridTemplateRows,
-          gridState.gridTemplateColumns,
-          gridState.gridArea,
-          gridState.gridTemplateAreas,
-        )
-        
-        isSlowDirty = false
-        pendingInvalidation = pendingInvalidation.union(.invalidating)
-        (node.view as? MasonElement)?.requestLayout()
-        pendingInvalidation = .none
-        return
-      }
-      
-      
-      mason_style_set_with_values(
-        node.mason.nativePtr,
-        node.nativePtr,
-        display.rawValue,
-        position.rawValue,
-        direction.rawValue,
-        flexDirection.rawValue,
-        flexWrap.rawValue,
-        //overflow.rawValue,
-        Overflow.RawValue(0),
-        alignItems.rawValue,
-        alignSelf.rawValue,
-        alignContent.rawValue,
-        justifyItems.rawValue,
-        justifySelf.rawValue,
-        justifyContent.rawValue,
-        
-        inset.left.type,
-        inset.left.value,
-        inset.right.type,
-        inset.right.value,
-        inset.top.type,
-        inset.top.value,
-        inset.bottom.type,
-        inset.bottom.value,
-        
-        margin.left.type,
-        margin.left.value,
-        margin.right.type,
-        margin.right.value,
-        margin.top.type,
-        margin.top.value,
-        margin.bottom.type,
-        margin.bottom.value,
-        
-        padding.left.type,
-        padding.left.value,
-        padding.right.type,
-        padding.right.value,
-        padding.top.type,
-        padding.top.value,
-        padding.bottom.type,
-        padding.bottom.value,
-        
-        mBorderRender.left.width.type,
-        mBorderRender.left.width.value,
-        mBorderRender.right.width.type,
-        mBorderRender.right.width.value,
-        mBorderRender.top.width.type,
-        mBorderRender.top.width.value,
-        mBorderRender.bottom.width.type,
-        mBorderRender.bottom.width.value,
-        
-        flexGrow,
-        flexShrink,
-        
-        flexBasis.type,
-        flexBasis.value,
-        
-        size.width.type,
-        size.width.value,
-        size.height.type,
-        size.height.value,
-        
-        minSize.width.type,
-        minSize.width.value,
-        minSize.height.type,
-        minSize.height.value,
-        
-        maxSize.width.type,
-        maxSize.width.value,
-        maxSize.height.type,
-        maxSize.height.value,
-        
-        gap.width.type,
-        gap.width.value,
-        gap.height.type,
-        gap.height.value,
-        
-        aspectRatio ?? Float.nan,
-        gridState.gridAutoRows,
-        gridState.gridAutoColumns,
-        gridAutoFlow.rawValue,
-        gridState.gridColumn,
-        gridState.gridColumnStart,
-        gridState.gridColumnEnd,
-        
-        gridState.gridRow,
-        gridState.gridRowStart,
-        gridState.gridRowEnd,
-        
-        gridState.gridTemplateRows,
-        gridState.gridTemplateColumns,
-        overflowX.rawValue,
-        overflowY.rawValue,
-        scrollBarWidth.value,
-        textAlign.rawValue,
-        boxSizing.rawValue,
-        gridState.gridArea,
-        gridState.gridTemplateAreas,
-      )
-      
-      let element = node.view as? MasonElement
-      
-      if(isDirty > 0 || isDirtyHigh > 0){
-        let state = StateKeys(low: isDirty, high: isDirtyHigh)
-        if(state.contains(.zIndex)){
-          element?.uiView.backingLayer.zPosition = CGFloat(zIndex)
-          if zIndex < 0 { element?.uiView.superview?.backingLayer.setNeedsDisplay() }
-        }
-        if state.contains(.caretColor) {
-          notifyTextStyleChanged(.caretColor)
-        }
-        if state.contains(.objectPosition) {
-          (node.view as? Img)?.masonLayer.setNeedsLayout()
-        }
-        if state.contains(.transformOrigin) && transformDependsOnOrigin {
-          applyTransformFromBuffer()
-        }
-      }
-      
-      isSlowDirty = false
-      isDirty = 0
-      isDirtyHigh = 0
-      pendingInvalidation = pendingInvalidation.union(.invalidating)
-      (node.view as? MasonElement)?.requestLayout()
-      pendingInvalidation = .none
-      return
-    }
-    
+    let element = node.view as? MasonElement
+    var needsLayout = flushGridCss()
+
     if (isDirty != 0 || isDirtyHigh != 0) {
-      
-      let element = node.view as? MasonElement
       let state = StateKeys(low: isDirty, high: isDirtyHigh)
 
-      // Before the text notify; see the slow path above.
+      // Update the version before notifying the text engine.
       styleVersion &+= 1
       updateTextStyle()
       
@@ -4798,30 +4878,39 @@ public class MasonStyle: NSObject {
         notifyTextStyleChanged(.caretColor)
       }
 
-      // Dispatch object-position to image views
-      if state.contains(.objectPosition) {
-        (node.view as? Img)?.masonLayer.setNeedsLayout()
+      if state.contains(.objectPaint), let image = node.view as? Img {
+        if state.contains(.objectFit) { image.setObjectFit(objectFit) }
+        image.masonLayer.setNeedsLayout()
       }
 
       if state.contains(.transformOrigin) && transformDependsOnOrigin {
         applyTransformFromBuffer()
       }
+
+      if state.contains(.borderPaint) {
+        mBorderRender.invalidateCache()
+        if let view = node.view as? MasonUIView {
+          view.invalidateDrawFlags()
+        } else {
+          node.view?.setNeedsDisplay()
+        }
+        if state.contains(.borderRadius) { node.view?.setNeedsLayout() }
+      }
+
+      if state.contains(.paintOnly) { node.view?.setNeedsDisplay() }
       
       isDirty = 0
       isDirtyHigh = 0
-      // transform-origin alone moves no box.
-      if state == .transformOrigin {
-        pendingInvalidation = .none
-        return
-      }
+      needsLayout = needsLayout || state.requiresLayout
+    }
+
+    if needsLayout {
       pendingInvalidation = pendingInvalidation.union(.invalidating)
       element?.requestLayout()
-      pendingInvalidation = .none
     }
-    
+    pendingInvalidation = .none
   }
-  
-  
+
   public override var description: String {
     var aspectRatioDesc = "undefined"
     if let aspectRatio = self.aspectRatio {
@@ -4948,9 +5037,9 @@ extension MasonStyle {
     
     let resolvedWeight = if (weightState == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedFontWeight
-      ?? NSCFontWeight(rawValue: Int(getInt32(StyleKeys.FONT_WEIGHT)))!
+      ?? storedFontWeight()
     } else {
-      NSCFontWeight(rawValue: Int(getInt32(StyleKeys.FONT_WEIGHT)))!
+      storedFontWeight()
     }
     
     let resolvedStyle = if (styleState == StyleState.INHERIT) {
@@ -5102,13 +5191,18 @@ extension MasonStyle {
     return value
   }
 
+  private func storedFontWeight() -> NSCFontWeight {
+    let value = Int(getInt32(StyleKeys.FONT_WEIGHT))
+    return NSCFontWeight(rawValue: value) ?? toFontWeight(weight: min(max(value, 100), 999)).2
+  }
+
   private var resolvedFontWeightUncached: NSCFontWeight {
     let state = getUInt8(StyleKeys.FONT_WEIGHT_STATE)
     return if (state == StyleState.INHERIT) {
       parentStyleWithTextValues?.resolvedFontWeight
-      ?? NSCFontWeight(rawValue: Int(getInt32(StyleKeys.FONT_WEIGHT)))!
+      ?? storedFontWeight()
     } else {
-      NSCFontWeight(rawValue: Int(getInt32(StyleKeys.FONT_WEIGHT)))!
+      storedFontWeight()
     }
   }
   
@@ -5439,17 +5533,6 @@ extension MasonStyle {
   }
 
 
-  internal var resolvedFontFeatureSettingsString: String {
-    for state in PSEUDO_CSS_ORDER.reversed() {
-      if node.hasPseudo(state) {
-        if let s = node.getPseudoString(state.rawValue, "font-feature-settings"), !s.isEmpty {
-          return s
-        }
-      }
-    }
-    return fontFeatureSettings
-  }
-
   // caret-color inherits, but `auto` (the initial value) inherits as `auto` and means this element's
   // own currentColor - not the color of whichever ancestor the inheritance chain ends at.
   internal var resolvedCaretColor: UInt32 {
@@ -5702,7 +5785,6 @@ internal struct ResolvedMemo {
   var textIndent: (value: Float, isPercent: Bool)?
   var lineClamp: Int32?
   var fontStretch: Int32?
-  var fontFeatureSettings: String?
 }
 
 /// Style slots per arena chunk; matches Rust's `SLOTS_PER_CHUNK`.

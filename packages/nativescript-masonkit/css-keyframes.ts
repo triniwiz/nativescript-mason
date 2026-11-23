@@ -1,7 +1,7 @@
 import { CoreTypes, unsetValue } from '@nativescript/core';
 import type { CssAnimationProperty, Style, View } from '@nativescript/core';
 import { KeyframeAnimation } from '@nativescript/core/ui/animation/keyframe-animation';
-import { tokenizeCss } from './css-shorthands';
+import { expandCssShorthand } from './native-css-values';
 import { rotateProperty, scaleXProperty, scaleYProperty, translateXProperty, translateYProperty } from '@nativescript/core/ui/styling/style-properties';
 
 /**
@@ -42,11 +42,44 @@ interface Component {
   keyword?: string;
 }
 
-const NUMERIC = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([a-z]+|%)?$/i;
+// <style-keys:animation-records>
+const enum CssAnimationLayerRecord {
+  STRIDE = 1,
+  COMPONENT_COUNT = 0,
+}
 
-function component(token: string): Component {
-  const match = NUMERIC.exec(token);
-  return match ? { number: parseFloat(match[1]), unit: match[2] ?? '' } : { keyword: token };
+const enum CssAnimationComponentRecord {
+  STRIDE = 3,
+  KIND = 0,
+  VALUE = 1,
+  UNIT = 2,
+}
+// </style-keys:animation-records>
+
+type ListKind = 'animation-position-list' | 'animation-size-list';
+
+function readAnimationList(kind: ListKind, value: string): Component[][] | null {
+  const fields = expandCssShorthand(kind, value);
+  if (!fields) return null;
+  const layers: Component[][] = [];
+  let offset = 0;
+  while (offset < fields.length) {
+    const count = Number(fields[offset + CssAnimationLayerRecord.COMPONENT_COUNT]);
+    offset += CssAnimationLayerRecord.STRIDE;
+    if ((count !== 1 && count !== 2) || offset + count * CssAnimationComponentRecord.STRIDE > fields.length) return null;
+    const layer: Component[] = [];
+    for (let i = 0; i < count; i++) {
+      const kind = fields[offset + CssAnimationComponentRecord.KIND];
+      const value = fields[offset + CssAnimationComponentRecord.VALUE];
+      const unit = fields[offset + CssAnimationComponentRecord.UNIT];
+      if (kind === 'number') layer.push({ number: Number(value), unit });
+      else if (kind === 'keyword') layer.push({ keyword: value });
+      else return null;
+      offset += CssAnimationComponentRecord.STRIDE;
+    }
+    layers.push(layer);
+  }
+  return layers;
 }
 
 function format(c: Component): string {
@@ -69,58 +102,28 @@ function mix(a: Component, b: Component, t: number): Component | null {
   return { number: a.number + (b.number - a.number) * t, unit };
 }
 
-/** Layers of a list-valued property, each split into whitespace tokens. */
-function layers(value: string): string[][] {
-  const result: string[][] = [[]];
-  for (const token of tokenizeCss(value)) {
-    if (token === ',') {
-      result.push([]);
-    } else {
-      result[result.length - 1].push(token);
-    }
-  }
-  return result;
-}
-
-const POSITION_KEYWORD: Record<string, number> = { left: 0, top: 0, center: 50, right: 100, bottom: 100 };
-const VERTICAL = new Set(['top', 'bottom']);
-const HORIZONTAL = new Set(['left', 'right']);
-
-/** One `<position>` as [x, y], or null for the 3- and 4-value edge-offset forms. */
-function position(tokens: string[]): [Component, Component] | null {
-  const read = (token: string): Component => (token in POSITION_KEYWORD ? { number: POSITION_KEYWORD[token], unit: '%' } : component(token));
-  if (tokens.length === 1) {
-    return VERTICAL.has(tokens[0]) ? [read('center'), read(tokens[0])] : [read(tokens[0]), read('center')];
-  }
-  if (tokens.length === 2) {
-    const [a, b] = tokens;
-    return VERTICAL.has(a) || HORIZONTAL.has(b) ? [read(b), read(a)] : [read(a), read(b)];
-  }
-  return null;
-}
-
-/** One `<bg-size>` as [width, height]; `cover` and `contain` stay single keywords. */
-function size(tokens: string[]): Component[] | null {
-  if (tokens.length === 1) {
-    return tokens[0] === 'cover' || tokens[0] === 'contain' ? [{ keyword: tokens[0] }] : [component(tokens[0]), { keyword: 'auto' }];
-  }
-  return tokens.length === 2 ? tokens.map(component) : null;
-}
-
-function listInterpolator(parse: (tokens: string[]) => Component[] | null): Interpolate {
+function listInterpolator(kind: ListKind): Interpolate {
+  // Reuse parsed endpoints across frames and bound memory for generated animations.
+  const endpoints = new Map<string, Component[][] | null>();
+  const read = (value: string) => {
+    const cached = endpoints.get(value);
+    if (cached !== undefined) return cached;
+    const parsed = readAnimationList(kind, value);
+    if (endpoints.size >= 64) endpoints.delete(endpoints.keys().next().value!);
+    endpoints.set(value, parsed);
+    return parsed;
+  };
   return (from, to, t) => {
-    const a = layers(from).map(parse);
-    const b = layers(to).map(parse);
+    const a = read(from);
+    const b = read(to);
     // Values that can't be mixed flip halfway, as CSS does for discrete animation.
     const discrete = () => (t < 0.5 ? from : to);
-    if (a.length !== b.length) {
-      return discrete();
-    }
+    if (!a || !b || a.length !== b.length) return discrete();
     const out: string[] = [];
     for (let i = 0; i < a.length; i++) {
       const x = a[i];
       const y = b[i];
-      if (!x || !y || x.length !== y.length) {
+      if (x.length !== y.length) {
         return discrete();
       }
       const mixed = x.map((c, j) => mix(c, y[j], t));
@@ -134,10 +137,10 @@ function listInterpolator(parse: (tokens: string[]) => Component[] | null): Inte
 }
 
 /** Interpolates `<position>` lists (`mask-position`, `background-position`). */
-export const interpolatePositionList: Interpolate = listInterpolator(position);
+export const interpolatePositionList: Interpolate = listInterpolator('animation-position-list');
 
 /** Interpolates `<bg-size>` lists (`mask-size`, `background-size`). */
-export const interpolateSizeList: Interpolate = listInterpolator(size);
+export const interpolateSizeList: Interpolate = listInterpolator('animation-size-list');
 
 // ---------------------------------------------------------------------------------------------
 // Timing

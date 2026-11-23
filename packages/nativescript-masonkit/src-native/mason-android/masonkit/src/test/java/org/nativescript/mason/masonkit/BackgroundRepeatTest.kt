@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** `background-repeat` parsing and the `space` / `round` tiling (CSS Backgrounds 3, 3.4). */
@@ -17,32 +16,11 @@ class BackgroundRepeatTest {
   }
 
   @Test
-  fun parsesOneAndTwoKeywords() {
-    assertEquals(BackgroundRepeat.REPEAT_X, BackgroundRepeat.parse("repeat-x"))
-    assertEquals(BackgroundRepeat(RepeatStyle.SPACE, RepeatStyle.SPACE), BackgroundRepeat.parse("space"))
-    assertEquals(BackgroundRepeat(RepeatStyle.ROUND, RepeatStyle.NO_REPEAT), BackgroundRepeat.parse(" Round  no-repeat "))
-    assertNull(BackgroundRepeat.parse("space repeat-y"))
-    assertNull(BackgroundRepeat.parse("repeat repeat repeat"))
-    assertNull(BackgroundRepeat.parse(""))
-  }
-
-  @Test
   fun serializesTheShortestForm() {
     assertEquals("repeat-x", BackgroundRepeat(RepeatStyle.REPEAT, RepeatStyle.NO_REPEAT).value)
     assertEquals("repeat-y", BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.REPEAT).value)
     assertEquals("round", BackgroundRepeat(RepeatStyle.ROUND, RepeatStyle.ROUND).value)
     assertEquals("space round", BackgroundRepeat(RepeatStyle.SPACE, RepeatStyle.ROUND).value)
-  }
-
-  @Test
-  fun shorthandTakesBothRepeatKeywords() {
-    assertEquals(BackgroundRepeat(RepeatStyle.SPACE, RepeatStyle.ROUND), parseLayer("url(a.png) space round").repeat)
-    assertEquals(BackgroundRepeat.REPEAT_Y, parseLayer("url(a.png) repeat-y").repeat)
-  }
-
-  @Test
-  fun invalidValueParsesToNull() {
-    assertNull(parseRepeat("bogus"))
   }
 
   @Test
@@ -102,18 +80,5 @@ class BackgroundRepeatTest {
     val layer = BackgroundLayer(repeat = BackgroundRepeat(RepeatStyle.ROUND, RepeatStyle.NO_REPEAT))
     val (w, _) = resolveTileSize(layer, 300f, 300f, 100f, 100f)
     assertEquals(100f, w, 1e-4f)
-  }
-
-  @Test
-  fun svgDataUrlWithNestedUrlsStaysWhole() {
-    val svg = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><pattern id='p'/><rect fill='url(%23p)' points='1,2'/></svg>"
-    val layer = parseLayer("url(\"$svg\") center / contain no-repeat")
-    assertEquals(svg, layer.image)
-    assertEquals(BackgroundRepeat(RepeatStyle.NO_REPEAT, RepeatStyle.NO_REPEAT), layer.repeat)
-    // Commas and parentheses inside the quotes don't split layers.
-    val layers = splitLayers("url(\"$svg\"), linear-gradient(red, blue)")
-    assertEquals(2, layers.size)
-    assertEquals(svg, findCssUrl(layers[0])?.second)
-    assertEquals("a.png", parseLayer("url(a.png) repeat-x").image)
   }
 }

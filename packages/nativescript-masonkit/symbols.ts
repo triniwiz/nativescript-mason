@@ -32,11 +32,7 @@ export const windowsFontSource_ = Symbol('[[windowsFontSource]]');
 export const hostsRuns_ = Symbol('[[hostsRuns]]');
 export const needsAnonymousText_ = Symbol('[[needsAnonymousText]]');
 
-// Per-corner / per-side caches for the CSS-class border-radius and
-// border-color longhands core's shorthand expansion hands us — see
-// `common.ts`. Kept on the view so each longhand can recompose the shorthand
-// string the native side actually parses.
-export const borderRadiusCorners_ = Symbol('[[borderRadiusCorners]]');
+// Per-side color values for the border-color longhands supplied by core.
 export const borderSideColors_ = Symbol('[[borderSideColors]]');
 
 // Overridden `Event.type`, when a host framework's DOM shim relabels the

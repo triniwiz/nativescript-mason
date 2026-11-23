@@ -1,18 +1,13 @@
-import { tokenizeCss } from './css-shorthands';
-
-// Mirrors GradientStops.kt, for platforms that parse gradients in TS (Windows).
+import { withPortableCss } from './portable-css';
 
 /** A stop with two positions (`red 10% 30%`) is two stops of the same colour. */
 export function expandColorStops(stops: string[]): string[] {
-  return stops.flatMap((stop) => {
-    let parts: string[];
-    try {
-      parts = tokenizeCss(stop);
-    } catch {
-      return [stop];
-    }
-    return parts.length === 3 ? [`${parts[0]} ${parts[1]}`, `${parts[0]} ${parts[2]}`] : [stop];
-  });
+  return stops.flatMap((stop) => withPortableCss(stop, 3, {}, (engine, input, output) => {
+    if (!engine.css_double_stop(input, stop.length, output)) return [stop];
+    const [colorStart, colorEnd, firstStart, firstEnd, secondStart, secondEnd] = new Uint32Array(engine.memory.buffer, output, 6);
+    const color = stop.slice(colorStart, colorEnd);
+    return [`${color} ${stop.slice(firstStart, firstEnd)}`, `${color} ${stop.slice(secondStart, secondEnd)}`];
+  }));
 }
 
 /**
@@ -21,27 +16,17 @@ export function expandColorStops(stops: string[]): string[] {
  * it, and a run of stops without positions spreads evenly between its neighbours.
  */
 export function resolveStopPositions(positions: Array<number | null>): number[] {
-  const n = positions.length;
-  const resolved = new Array<number>(n).fill(0);
-  let anchor = -1;
-  for (let i = 0; i < n; i++) {
-    let given = positions[i];
-    if (given == null) {
-      if (i === 0) given = 0;
-      else if (i === n - 1) given = 1;
-      else continue;
+  return withPortableCss('', positions.length * 2, {}, (engine, _input, output) => {
+    const input = new Float64Array(engine.memory.buffer, output, positions.length * 2);
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i];
+      input[i * 2] = position == null ? 0 : 1;
+      input[i * 2 + 1] = position ?? 0;
     }
-    const position = anchor >= 0 ? Math.max(given, resolved[anchor]) : given;
-    resolved[i] = position;
-    if (anchor >= 0) {
-      const start = resolved[anchor];
-      for (let k = anchor + 1; k < i; k++) {
-        resolved[k] = start + ((position - start) * (k - anchor)) / (i - anchor);
-      }
-    }
-    anchor = i;
-  }
-  return resolved;
+    engine.css_resolve_stop_positions(output, positions.length);
+    const resolved = new Float64Array(engine.memory.buffer, output, positions.length * 2);
+    return Array.from({ length: positions.length }, (_, i) => resolved[i * 2 + 1]);
+  });
 }
 
 const MAX_REPEATED_STOPS = 2048;

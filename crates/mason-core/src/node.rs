@@ -1,4 +1,6 @@
 use crate::layout_cache::LayoutCache;
+use crate::style::css::{background::Layer, clip_path::ClipPath, mask::MaskLayer, transform::TransformProgram, StyleRecordKind};
+use crate::style::css::nine_slice::{Kind as NineSliceKind, NineSlice};
 use crate::style::{Style, WritingMode};
 use crate::tree::{forget_block_measure, Id, TreeInner};
 use crate::MeasureOutput;
@@ -21,6 +23,7 @@ use objc2::runtime::NSObject;
 use crate::pass_lock::RwLock;
 use parking_lot::Mutex;
 use slotmap::SecondaryMap;
+use std::collections::HashMap;
 use std::sync::Arc;
 use taffy::{AvailableSpace, ClearState, Layout, Size};
 
@@ -343,6 +346,7 @@ pub struct PseudoStyles {
     pub focus: Option<crate::style::Style>,
     pub disabled: Option<crate::style::Style>,
     pub checked: Option<crate::style::Style>,
+    pub(crate) layout: Option<Style>,
 }
 
 impl PseudoStyles {
@@ -735,6 +739,28 @@ impl Node {
 
     pub fn style(&self) -> &Style {
         &self.style
+    }
+
+    pub(crate) fn layout_style(&self) -> &Style {
+        self.pseudo_styles.as_ref().and_then(|styles| styles.layout.as_ref()).unwrap_or(&self.style)
+    }
+
+    pub(crate) fn refresh_pseudo_layout_style(&mut self) {
+        let flags = self.get_pseudo_states();
+        let Some(styles) = self.pseudo_styles.as_mut() else { return };
+        let mut result: Option<Style> = None;
+        for (state, style) in [
+            (PseudoStates::HOVER, &styles.hover), (PseudoStates::FOCUS, &styles.focus),
+            (PseudoStates::ACTIVE, &styles.active), (PseudoStates::DISABLED, &styles.disabled),
+            (PseudoStates::CHECKED, &styles.checked),
+        ] {
+            if let Some(style) = style.as_ref().filter(|style| flags.contains(state) && style.has_pseudo_css_layout_lengths()) {
+                let result = result.get_or_insert_with(|| self.style.clone());
+                result.prepare_mut();
+                result.merge_pseudo_css_layout_lengths(style);
+            }
+        }
+        styles.layout = result;
     }
 
     pub fn style_mut(&mut self) -> &mut Style {
@@ -1204,6 +1230,7 @@ impl Node {
             if is_pseudo_set!(SK::LIST_STYLE_TYPE) {
                 copy_keys!(LIST_STYLE_TYPE, LIST_STYLE_POSITION_STATE);
             }
+            dst.merge_pseudo_css_layout_lengths(src);
         };
 
         // CSS specificity order: later entries override earlier ones.
@@ -1240,12 +1267,29 @@ impl Node {
     }
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct DeferredNodeOperations {
+    pub(crate) cleanup: Mutex<Vec<Id>>,
+    pub(crate) style_records: Mutex<PendingStyleRecords>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct PendingStyleRecords {
+    pub(crate) lists: HashMap<(Id, StyleRecordKind), Arc<[f64]>>,
+    pub(crate) backgrounds: HashMap<Id, Arc<[Layer]>>,
+    pub(crate) transforms: HashMap<Id, Option<Arc<TransformProgram>>>,
+    pub(crate) clip_paths: HashMap<Id, Option<Arc<ClipPath>>>,
+    pub(crate) masks: HashMap<Id, Option<Arc<[MaskLayer]>>>,
+    pub(crate) nine_slices: HashMap<(Id, NineSliceKind), Option<Arc<NineSlice>>>,
+    pub(crate) text_overflows: HashMap<Id, crate::style::css::text_overflow::TextOverflow>,
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeRef {
     pub(crate) id: Id,
     pub(crate) guard: Arc<()>,
     pub(crate) tree: Arc<RwLock<TreeInner>>,
-    pub(crate) deferred_cleanup: Arc<Mutex<Vec<Id>>>,
+    pub(crate) deferred: Arc<DeferredNodeOperations>,
     pub(crate) node_data: Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 }
 
@@ -1254,6 +1298,43 @@ unsafe impl Send for NodeRef {}
 impl NodeRef {
     pub fn id(&self) -> Id {
         self.id
+    }
+
+    /// Queue paint records from a layout callback without borrowing the engine
+    /// or taking the tree lock. An empty list clears the record group.
+    pub fn defer_style_css_records(&self, kind: StyleRecordKind, records: Arc<[f64]>) {
+        self.deferred.style_records.lock().lists.insert((self.id, kind), records);
+    }
+
+    pub fn defer_style_css_effects(&self, effects: &crate::style::css::EffectBatch) {
+        let mut pending = self.deferred.style_records.lock();
+        for (kind, effect) in effects.iter() {
+            pending.lists.insert((self.id, kind), Arc::clone(&effect.records));
+        }
+    }
+
+    pub fn defer_style_css_background(&self, layers: Arc<[Layer]>) {
+        self.deferred.style_records.lock().backgrounds.insert(self.id, layers);
+    }
+
+    pub fn defer_style_css_transform(&self, transform: Option<Arc<TransformProgram>>) {
+        self.deferred.style_records.lock().transforms.insert(self.id, transform);
+    }
+
+    pub fn defer_style_css_clip_path(&self, clip: Option<Arc<ClipPath>>) {
+        self.deferred.style_records.lock().clip_paths.insert(self.id, clip);
+    }
+
+    pub fn defer_style_css_mask(&self, mask: Option<Arc<[MaskLayer]>>) {
+        self.deferred.style_records.lock().masks.insert(self.id, mask);
+    }
+
+    pub fn defer_style_css_nine_slice(&self, kind: NineSliceKind, value: Option<Arc<NineSlice>>) {
+        self.deferred.style_records.lock().nine_slices.insert((self.id, kind), value);
+    }
+
+    pub fn defer_style_text_overflow(&self, overflow: crate::style::css::text_overflow::TextOverflow) {
+        self.deferred.style_records.lock().text_overflows.insert(self.id, overflow);
     }
 }
 
@@ -1311,7 +1392,7 @@ pub(crate) fn is_collectable_root(tree: &TreeInner, id: Id) -> bool {
 /// is held on the tree (e.g. before `compute_layout`).
 pub(crate) fn drain_deferred_cleanup(
     tree: &Arc<RwLock<TreeInner>>,
-    deferred: &Arc<Mutex<Vec<Id>>>,
+    deferred: &Mutex<Vec<Id>>,
     node_data: &Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 ) {
     let ids: Vec<Id> = {
@@ -1353,7 +1434,7 @@ impl Drop for NodeRef {
             }
         }
         // Lock is contended — defer cleanup to avoid deadlock.
-        self.deferred_cleanup.lock().push(self.id);
+        self.deferred.cleanup.lock().push(self.id);
     }
 }
 

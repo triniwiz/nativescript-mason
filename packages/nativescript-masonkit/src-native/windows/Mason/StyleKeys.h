@@ -1,11 +1,12 @@
 // Generated from tools/scripts/style-keys/style-keys.schema by tools/scripts/style-keys/generate.mjs. Do not edit.
 #pragma once
+#include <array>
 #include <cstdint>
 
 // Byte offsets into the shared style buffer.
 namespace mason_style_keys
 {
-    inline constexpr uint32_t kStyleBufferSize = 744;
+    inline constexpr uint32_t kStyleBufferSize = 792;
 
     inline constexpr uint32_t kDisplay = 0;
     inline constexpr uint32_t kPosition = 1;
@@ -152,8 +153,8 @@ namespace mason_style_keys
     inline constexpr uint32_t kFontMetricsCapHeightOffset = 293; // f32 (293-296)
     inline constexpr uint32_t kVerticalAlignOffsetOffset = 297; // f32 (297-300)
     inline constexpr uint32_t kVerticalAlignIsPercentOffset = 301;
-    inline constexpr uint32_t kVerticalAlignEnumOffset = 302; // f32 (302-305)
-    inline constexpr uint32_t kFirstBaselineOffset = 306; // f32 (306-309)
+    inline constexpr uint32_t kVerticalAlignEnumOffset = 302;
+    inline constexpr uint32_t kFirstBaselineOffset = 306; // f32 (306-309), preserves the three reserved bytes after vertical-align
     inline constexpr uint32_t kZIndex = 310; // i32 (310-313)
     inline constexpr uint32_t kItemIsList = 314;
     inline constexpr uint32_t kItemIsListItem = 315;
@@ -307,6 +308,43 @@ namespace mason_style_keys
     inline constexpr uint32_t kTextSpacingTrim = 740; // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
     inline constexpr uint32_t kTextSpacingTrimState = 741;
     inline constexpr uint32_t kVisibility = 742; // 0 visible, 1 hidden, 2 collapse
+    inline constexpr uint32_t kFontFeaturesRevision = 743; // Rust-owned OpenType feature settings change counter
+    inline constexpr uint32_t kBoxShadowRevision = 744; // u32 (744-747), Rust-owned box shadow records change counter
+    inline constexpr uint32_t kTextShadowRevision = 748; // u32 (748-751), Rust-owned text shadow records change counter
+    inline constexpr uint32_t kFilterRevision = 752; // u32 (752-755), Rust-owned filter records change counter
+    inline constexpr uint32_t kBackdropFilterRevision = 756; // u32 (756-759), Rust-owned backdrop-filter records change counter
+    inline constexpr uint32_t kBackgroundRevision = 760; // u32 (760-763), Rust-owned background layers change counter
+    inline constexpr uint32_t kTransformRevision = 764; // u32 (764-767), Rust-owned CSS transform list change counter
+    inline constexpr uint32_t kClipPathRevision = 768; // u32 (768-771), Rust-owned CSS clip-path change counter
+    inline constexpr uint32_t kMaskRevision = 772; // u32 (772-775), Rust-owned mask layer list change counter
+    inline constexpr uint32_t kBorderImageRevision = 776; // u32 (776-779), Rust-owned border-image change counter
+    inline constexpr uint32_t kMaskBorderRevision = 780; // u32 (780-783), Rust-owned mask-border change counter
+    inline constexpr uint32_t kTextOverflowToken = 784; // i64 (784-791), Rust-owned text-overflow string handle
+
+    struct BorderCorner { uint32_t xType, xValue, yType, yValue, exponent; };
+    inline constexpr std::array<BorderCorner, 4> kBorderCorners{{
+        { kBorderRadiusTopLeftXType, kBorderRadiusTopLeftXValue, kBorderRadiusTopLeftYType, kBorderRadiusTopLeftYValue, kBorderRadiusTopLeftExponent },
+        { kBorderRadiusTopRightXType, kBorderRadiusTopRightXValue, kBorderRadiusTopRightYType, kBorderRadiusTopRightYValue, kBorderRadiusTopRightExponent },
+        { kBorderRadiusBottomRightXType, kBorderRadiusBottomRightXValue, kBorderRadiusBottomRightYType, kBorderRadiusBottomRightYValue, kBorderRadiusBottomRightExponent },
+        { kBorderRadiusBottomLeftXType, kBorderRadiusBottomLeftXValue, kBorderRadiusBottomLeftYType, kBorderRadiusBottomLeftYValue, kBorderRadiusBottomLeftExponent },
+    }};
+
+    struct FieldRange { uint32_t offset, size; };
+    inline constexpr std::array<FieldRange, 13> kRustOwnedFields{{
+        { kRefCount, 4 },
+        { kFontFeaturesRevision, 1 },
+        { kBoxShadowRevision, 4 },
+        { kTextShadowRevision, 4 },
+        { kFilterRevision, 4 },
+        { kBackdropFilterRevision, 4 },
+        { kBackgroundRevision, 4 },
+        { kTransformRevision, 4 },
+        { kClipPathRevision, 4 },
+        { kMaskRevision, 4 },
+        { kBorderImageRevision, 4 },
+        { kMaskBorderRevision, 4 },
+        { kTextOverflowToken, 8 },
+    }};
 }
 
 // Bit numbers of the 128-bit style dirty mask.
@@ -398,4 +436,388 @@ namespace mason_state_keys
     inline constexpr uint32_t kTextCombineUpright = 83;
     inline constexpr uint32_t kTextSpacingTrim = 84;
     inline constexpr uint32_t kVisibility = 85;
+    inline constexpr uint32_t kFontFeatureSettings = 86;
+}
+
+namespace mason_state_groups
+{
+    inline constexpr std::array<uint32_t, 4> kWindowsLayout{{ 0xffffffffu, 0xbf6398ffu, 0x0025eee7u, 0x00000000u }};
+    inline constexpr std::array<uint32_t, 4> kWindowsText{{ 0x00000004u, 0xff7e0000u, 0x0005eeffu, 0x00000000u }};
+    inline constexpr std::array<uint32_t, 4> kWindowsControls{{ 0x00000000u, 0xfffe0000u, 0x00006effu, 0x00000000u }};
+    inline constexpr std::array<uint32_t, 4> kWindowsPaint{{ 0x80010060u, 0x00804700u, 0x00000000u, 0x00000000u }};
+    inline constexpr std::array<uint32_t, 4> kWindowsDisplay{{ 0x00000001u, 0x00000004u, 0x00000000u, 0x00000000u }};
+    inline constexpr std::array<uint32_t, 4> kListMarker{{ 0x00000000u, 0x00018000u, 0x00000000u, 0x00000000u }};
+}
+
+namespace mason_css_records
+{
+    inline constexpr uint8_t kBoxShadow = 0;
+    inline constexpr uint8_t kTextShadow = 1;
+    inline constexpr uint8_t kFilter = 2;
+    inline constexpr uint8_t kBackdropFilter = 3;
+    inline constexpr uint8_t kFontFeatures = 4;
+
+    namespace shadow {
+        inline constexpr uint32_t kStride = 6;
+        inline constexpr uint32_t kX = 0;
+        inline constexpr uint32_t kY = 1;
+        inline constexpr uint32_t kBlur = 2;
+        inline constexpr uint32_t kSpread = 3;
+        inline constexpr uint32_t kColor = 4;
+        inline constexpr uint32_t kInset = 5;
+    }
+
+    namespace filter {
+        inline constexpr uint32_t kStride = 5;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kAmountOrX = 1;
+        inline constexpr uint32_t kY = 2;
+        inline constexpr uint32_t kBlur = 3;
+        inline constexpr uint32_t kColor = 4;
+    }
+
+    namespace font_feature {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kTag = 0;
+        inline constexpr uint32_t kValue = 1;
+    }
+
+    namespace background {
+        inline constexpr uint32_t kStride = 17;
+        inline constexpr uint32_t kImageKind = 0;
+        inline constexpr uint32_t kColor = 1;
+        inline constexpr uint32_t kRepeatX = 2;
+        inline constexpr uint32_t kRepeatY = 3;
+        inline constexpr uint32_t kOrigin = 4;
+        inline constexpr uint32_t kClip = 5;
+        inline constexpr uint32_t kAttachment = 6;
+        inline constexpr uint32_t kSizeKind = 7;
+        inline constexpr uint32_t kPositionXFraction = 8;
+        inline constexpr uint32_t kPositionXPixels = 9;
+        inline constexpr uint32_t kPositionYFraction = 10;
+        inline constexpr uint32_t kPositionYPixels = 11;
+        inline constexpr uint32_t kWidthFraction = 12;
+        inline constexpr uint32_t kWidthPixels = 13;
+        inline constexpr uint32_t kHeightFraction = 14;
+        inline constexpr uint32_t kHeightPixels = 15;
+        inline constexpr uint32_t kBlend = 16;
+    }
+
+    namespace background_offsets {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kPositionX = 0;
+        inline constexpr uint32_t kPositionY = 1;
+        inline constexpr uint32_t kWidth = 2;
+        inline constexpr uint32_t kHeight = 3;
+    }
+
+    namespace background_input {
+        inline constexpr uint32_t kStride = 8;
+        inline constexpr uint32_t kColor = 0;
+        inline constexpr uint32_t kImage = 1;
+        inline constexpr uint32_t kRepeat = 2;
+        inline constexpr uint32_t kPosition = 3;
+        inline constexpr uint32_t kSize = 4;
+        inline constexpr uint32_t kClip = 5;
+        inline constexpr uint32_t kOrigin = 6;
+        inline constexpr uint32_t kAttachment = 7;
+    }
+
+    namespace border_components {
+        inline constexpr uint32_t kStride = 6;
+        inline constexpr uint32_t kTop = 0;
+        inline constexpr uint32_t kRight = 1;
+        inline constexpr uint32_t kBottom = 2;
+        inline constexpr uint32_t kLeft = 3;
+        inline constexpr uint32_t kStyle = 4;
+        inline constexpr uint32_t kColor = 5;
+    }
+
+    namespace border_side_components {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kWidth = 0;
+        inline constexpr uint32_t kStyle = 1;
+        inline constexpr uint32_t kColor = 2;
+    }
+
+    namespace border_radii {
+        inline constexpr uint32_t kStride = 8;
+        inline constexpr uint32_t kHorizontalTopLeft = 0;
+        inline constexpr uint32_t kHorizontalTopRight = 1;
+        inline constexpr uint32_t kHorizontalBottomRight = 2;
+        inline constexpr uint32_t kHorizontalBottomLeft = 3;
+        inline constexpr uint32_t kVerticalTopLeft = 4;
+        inline constexpr uint32_t kVerticalTopRight = 5;
+        inline constexpr uint32_t kVerticalBottomRight = 6;
+        inline constexpr uint32_t kVerticalBottomLeft = 7;
+    }
+
+    namespace clip_path {
+        inline constexpr uint32_t kStride = 7;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kBox = 1;
+        inline constexpr uint32_t kEvenOdd = 2;
+        inline constexpr uint32_t kRadiusXKind = 3;
+        inline constexpr uint32_t kRadiusYKind = 4;
+        inline constexpr uint32_t kHasPosition = 5;
+        inline constexpr uint32_t kHasMath = 6;
+    }
+
+    namespace svg_path {
+        inline constexpr uint32_t kStride = 8;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kVertexEnd = 1;
+        inline constexpr uint32_t kX1 = 2;
+        inline constexpr uint32_t kY1 = 3;
+        inline constexpr uint32_t kX2 = 4;
+        inline constexpr uint32_t kY2 = 5;
+        inline constexpr uint32_t kX = 6;
+        inline constexpr uint32_t kY = 7;
+    }
+
+    namespace mask_layer {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kClip = 0;
+        inline constexpr uint32_t kMode = 1;
+        inline constexpr uint32_t kComposite = 2;
+    }
+
+    namespace mask_input {
+        inline constexpr uint32_t kStride = 8;
+        inline constexpr uint32_t kImage = 0;
+        inline constexpr uint32_t kSize = 1;
+        inline constexpr uint32_t kPosition = 2;
+        inline constexpr uint32_t kRepeat = 3;
+        inline constexpr uint32_t kOrigin = 4;
+        inline constexpr uint32_t kClip = 5;
+        inline constexpr uint32_t kMode = 6;
+        inline constexpr uint32_t kComposite = 7;
+    }
+
+    namespace nine_slice_input {
+        inline constexpr uint32_t kStride = 6;
+        inline constexpr uint32_t kSource = 0;
+        inline constexpr uint32_t kSlice = 1;
+        inline constexpr uint32_t kWidth = 2;
+        inline constexpr uint32_t kOutset = 3;
+        inline constexpr uint32_t kRepeat = 4;
+        inline constexpr uint32_t kMode = 5;
+    }
+
+    namespace nine_slice {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kFill = 0;
+        inline constexpr uint32_t kRepeatX = 1;
+        inline constexpr uint32_t kRepeatY = 2;
+        inline constexpr uint32_t kLuminance = 3;
+    }
+
+    namespace nine_slice_side {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kHasMath = 2;
+    }
+
+    namespace text_decoration {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kLine = 0;
+        inline constexpr uint32_t kStyle = 1;
+        inline constexpr uint32_t kColor = 2;
+        inline constexpr uint32_t kThickness = 3;
+    }
+
+    namespace css_length_result {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kValue = 1;
+    }
+
+    namespace css_position_result {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kXType = 0;
+        inline constexpr uint32_t kXValue = 1;
+        inline constexpr uint32_t kYType = 2;
+        inline constexpr uint32_t kYValue = 3;
+    }
+
+    namespace css_declaration_header {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kName = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kFieldCount = 2;
+    }
+
+    namespace css_inline_replay {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kViewportDependent = 0;
+        inline constexpr uint32_t kFontDependent = 1;
+        inline constexpr uint32_t kFontSize = 2;
+    }
+
+    namespace css_background_write {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kProperty = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kCurrentColor = 2;
+    }
+
+    namespace css_background_result {
+        inline constexpr uint32_t kStride = 8;
+        inline constexpr uint32_t kLayersChanged = 0;
+        inline constexpr uint32_t kImagesReplaced = 1;
+        inline constexpr uint32_t kImageDeclaration = 2;
+        inline constexpr uint32_t kShorthandValue = 3;
+        inline constexpr uint32_t kColor = 4;
+        inline constexpr uint32_t kColorFromShorthand = 5;
+        inline constexpr uint32_t kLastImageFromShorthand = 6;
+        inline constexpr uint32_t kShorthandReset = 7;
+    }
+
+    namespace css_effect_write {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kProperty = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kCurrentColor = 2;
+    }
+
+    namespace css_effect_result {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kValue = 0;
+        inline constexpr uint32_t kRecords = 1;
+    }
+
+    namespace css_mask_write {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kSlot = 0;
+        inline constexpr uint32_t kValue = 1;
+    }
+
+    namespace css_border_result {
+        inline constexpr uint32_t kStride = 10;
+        inline constexpr uint32_t kTopKind = 0;
+        inline constexpr uint32_t kTopValue = 1;
+        inline constexpr uint32_t kRightKind = 2;
+        inline constexpr uint32_t kRightValue = 3;
+        inline constexpr uint32_t kBottomKind = 4;
+        inline constexpr uint32_t kBottomValue = 5;
+        inline constexpr uint32_t kLeftKind = 6;
+        inline constexpr uint32_t kLeftValue = 7;
+        inline constexpr uint32_t kStyle = 8;
+        inline constexpr uint32_t kColor = 9;
+    }
+
+    namespace css_border_side_result {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kStyle = 2;
+        inline constexpr uint32_t kColor = 3;
+    }
+
+    namespace gradient_interpolation {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kDirection = 0;
+        inline constexpr uint32_t kSpace = 1;
+        inline constexpr uint32_t kHue = 2;
+    }
+
+    namespace svg_font_prefix {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kItalic = 0;
+        inline constexpr uint32_t kWeight = 1;
+        inline constexpr uint32_t kSize = 2;
+    }
+
+    namespace svg_css_declaration {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kName = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kImportant = 2;
+    }
+
+    namespace svg_css_selector {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kType = 0;
+        inline constexpr uint32_t kIdCount = 1;
+        inline constexpr uint32_t kClassCount = 2;
+    }
+
+    namespace svg_css_rule {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kSelectorCount = 0;
+        inline constexpr uint32_t kDeclarationCount = 1;
+    }
+
+    namespace svg_paint {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kValue = 1;
+    }
+
+    namespace css_animation_layer {
+        inline constexpr uint32_t kStride = 1;
+        inline constexpr uint32_t kComponentCount = 0;
+    }
+
+    namespace css_animation_component {
+        inline constexpr uint32_t kStride = 3;
+        inline constexpr uint32_t kKind = 0;
+        inline constexpr uint32_t kValue = 1;
+        inline constexpr uint32_t kUnit = 2;
+    }
+
+    namespace svg_length_components {
+        inline constexpr uint32_t kStride = 2;
+        inline constexpr uint32_t kLength = 0;
+        inline constexpr uint32_t kPercent = 1;
+    }
+
+    namespace svg_affine {
+        inline constexpr uint32_t kStride = 6;
+        inline constexpr uint32_t kA = 0;
+        inline constexpr uint32_t kB = 1;
+        inline constexpr uint32_t kC = 2;
+        inline constexpr uint32_t kD = 3;
+        inline constexpr uint32_t kX = 4;
+        inline constexpr uint32_t kY = 5;
+    }
+
+    namespace svg_aspect_ratio {
+        inline constexpr uint32_t kStride = 4;
+        inline constexpr uint32_t kAlignX = 0;
+        inline constexpr uint32_t kAlignY = 1;
+        inline constexpr uint32_t kUniform = 2;
+        inline constexpr uint32_t kSlice = 3;
+    }
+}
+
+namespace mason_css_parse_kinds
+{
+    inline constexpr uint8_t kShadows = 0;
+    inline constexpr uint8_t kFilters = 1;
+    inline constexpr uint8_t kLength = 2;
+    inline constexpr uint8_t kFontSize = 3;
+    inline constexpr uint8_t kClampLength = 4;
+    inline constexpr uint8_t kTransformOrigin = 5;
+    inline constexpr uint8_t kObjectPosition = 6;
+    inline constexpr uint8_t kLineHeight = 7;
+    inline constexpr uint8_t kLetterSpacing = 8;
+    inline constexpr uint8_t kTextIndent = 9;
+    inline constexpr uint8_t kWordSpacing = 10;
+    inline constexpr uint8_t kVerticalAlign = 11;
+    inline constexpr uint8_t kDimension = 12;
+    inline constexpr uint8_t kLengthAuto = 13;
+    inline constexpr uint8_t kBorderRadius = 14;
+    inline constexpr uint8_t kBorderCornerRadius = 15;
+    inline constexpr uint8_t kSvgNumberList = 16;
+    inline constexpr uint8_t kSvgTransform = 17;
+    inline constexpr uint8_t kSvgLength = 18;
+    inline constexpr uint8_t kSvgLengthList = 19;
+    inline constexpr uint8_t kSvgOpacity = 20;
+    inline constexpr uint8_t kSvgAngle = 21;
+    inline constexpr uint8_t kSvgAspectRatio = 22;
+    inline constexpr uint8_t kSvgNumber = 23;
+    inline constexpr uint8_t kSvgDashArray = 24;
+    inline constexpr int32_t kCount = 25;
 }

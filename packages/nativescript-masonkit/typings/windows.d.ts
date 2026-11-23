@@ -95,6 +95,8 @@ declare namespace NativeScript.Mason {
       gridRowStart: string, gridRowEnd: string, gridTemplateRows: string,
       gridTemplateColumns: string, gridArea: string, gridTemplateAreas: string): void;
 
+    SetGridCss(property: number, value: string, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): void;
+
     PrepareForMutation(): void;
     // IVectorView<UInt8>.
     GetStyleBuffer(): { Size: number; GetAt(index: number): number };
@@ -179,6 +181,8 @@ declare namespace NativeScript.Mason {
     // A core (non-Mason) child's leaf style buffer, and its commit.
     ForeignStyleValues(element: any): any;
     SyncForeignStyle(element: any, d0: number, d1: number, d2: number, d3: number): void;
+    ReadPseudoStyleValues(node: Node, flags: number): number[];
+    WritePseudoStyleValues(node: Node, flags: number, values: Uint8Array): void;
     ReparentChild(parent: any, child: any, index: number): void;
     RemoveChild(parent: any, child: any): void;
     // Percentage size (0-1, NaN clears) of a core (non-Mason) child.
@@ -240,11 +244,17 @@ declare namespace NativeScript.Mason {
     static RemoveChild(parent: any, child: any): void;
     static ApplyShadow(element: any, offsetX: number, offsetY: number, blurRadius: number, argb: number, cornerRadius: number): void;
     static SetBoxShadow(element: any, shadows: string): void;
+    static SetCssEffect(element: any, name: string, value: string, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): void;
+    static SetCssEffects(element: any, payload: string, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): void;
+    static SetCssTransform(element: any, value: string, width: number, height: number, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): void;
     static SetFilter(element: any, filter: string): void;
     static SetBackdropFilter(element: any, filter: string): void;
     static SetMask(element: any, spec: string): void;
+    static ExpandCssShorthand(name: string, value: string): string;
+    static ResolveCssLength(value: string, kind: number, scale: number, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number): string;
     static SetBorderImage(element: any, spec: string): void;
     static SetBackgroundLayers(element: any, spec: string): void;
+    static SetCssBackground(element: any, request: string): number;
     static SetTransformOrigin(element: any, x: number, y: number): void;
     static SetTransforms(element: any, scaleX: number, scaleY: number, angle: number, translateX: number, translateY: number, originX: number, originY: number): void;
     static ClearShadow(element: any): void;

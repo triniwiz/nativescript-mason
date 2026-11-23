@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { Color } from '@nativescript/core';
 import { resolveCssColors } from './css-colors';
 import { cssColorToRgba } from './style';
 
@@ -30,9 +29,15 @@ describe('resolveCssColors', () => {
   it('does not touch functions that merely end in a colour name', () => {
     expect(resolveCssColors('linear-gradient(red, blue)', fake)).toBe('linear-gradient(red, blue)');
   });
+
+  it('rewrites functions inside gradients and preserves UTF-16 offsets, quotes, and URLs', () => {
+    const value = '/* 🎨 */ url("oklch(0 0 0)") "rgb(1 2 3)" linear-gradient(OKLCH(60% 0.2 240), red)';
+    expect(resolveCssColors(value, fake)).toBe(value.replace('OKLCH(60% 0.2 240)', '<OKLCH(60% 0.2 240)>'));
+    expect(resolveCssColors('oklch(60% 0.2 240', fake)).toBe('oklch(60% 0.2 240');
+  });
 });
 
-// Alpha goes through core's 8-bit ARGB, so compare it loosely.
+// The bridge packs alpha into one byte.
 function rgba(value: string | null) {
   const [r, g, b, a] = /rgba\(([^)]*)\)/
     .exec(value ?? '')![1]
@@ -42,12 +47,12 @@ function rgba(value: string | null) {
 }
 
 describe('cssColorToRgba', () => {
-  it('resolves modern colour syntax through core', () => {
+  it('serializes packed colors from Rust, including opaque white', () => {
     const shadow = rgba(cssColorToRgba('color-mix(in oklch, oklch(from #000 l c h / 0.04) 100%, transparent)'));
     expect(shadow).toMatchObject({ r: 0, g: 0, b: 0 });
     expect(shadow.a).toBeCloseTo(0.04, 2);
     expect(rgba(cssColorToRgba('rgb(0 0 0 / 15%)')).a).toBeCloseTo(0.15, 2);
-    expect(new Color(cssColorToRgba('oklch(60% 0.24 240deg)')!).a).toBe(255);
+    expect(cssColorToRgba('white')).toBe('rgba(255, 255, 255, 1)');
   });
 
   it('returns null for something that is not a colour', () => {

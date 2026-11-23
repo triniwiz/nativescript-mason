@@ -10,6 +10,7 @@ import {
   ShorthandProperty,
   Length as CoreLength,
   fontSizeProperty,
+  fontStyleProperty,
   textAlignmentProperty,
   textDecorationProperty,
   textTransformProperty,
@@ -49,15 +50,16 @@ import { elementDisplay_, isMasonView_, pointerEvents_, remapLogicalBoxes_, touc
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
 import type { LogicalGroupName, Style as MasonStyle } from './style';
-import { beginStyleWrite, cssLengthToDip, endStyleWrite, isSizingKeyword, parseAspectRatio } from './style';
-import { isCssMathFunction } from './css-math';
+import { beginStyleWrite, cssLengthToDip, endStyleWrite, isSizingKeyword, layoutMathText, parseAspectRatio, resolveCssLengthMath } from './style';
+import { isCssMathFunction } from './css-math-text';
+import { expandCssShorthand } from './native-css-values';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { parseCSSShadow } from '@nativescript/core/ui/styling/css-shadow';
 import { installKeyframes, interpolatePositionList, interpolateSizeList, registerKeyframeProperty } from './css-keyframes';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty } from '@nativescript/core/ui/styling/style-properties';
 import { transformConverter } from '@nativescript/core/ui/styling/css-transform';
-import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBorderStyleStartEnd, splitBorderWidthStartEnd, splitBorderColorStartEnd, splitInsetStartEnd, splitMarginStartEnd, splitPaddingStartEnd, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
-import { cssLength, isCssLength, toCamelCase } from './css-shorthands';
+import { BORDER_WIDTH_KEYWORDS, splitBorder, splitBorderSide, splitBorderStyle, splitBorderStyleStartEnd, splitBorderWidthStartEnd, splitBorderColorStartEnd, splitInsetStartEnd, splitMarginStartEnd, splitPaddingStartEnd, splitBackground, splitMaskBorder, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding } from './css-shorthands';
+import { cssLength, isCssLength, requireExpandedCss, toCamelCase } from './css-shorthands';
 import type { CssLength, LonghandValue } from './css-shorthands';
 import { splitListStyle, splitPlace } from './css-shorthands';
 
@@ -93,6 +95,141 @@ function isMasonView(style: Style): boolean {
     return !!(view && view[isMasonView_]);
   }
   return false;
+}
+
+// <style-keys:css-math-properties>
+const cssMathProperties = new Set<string>([
+  '-webkit-mask',
+  '-webkit-mask-box-image',
+  '-webkit-mask-position',
+  '-webkit-mask-size',
+  'backdrop-filter',
+  'background',
+  'background-image',
+  'background-position',
+  'background-position-x',
+  'background-position-y',
+  'background-size',
+  'block-size',
+  'border',
+  'border-block',
+  'border-block-end-width',
+  'border-block-start-width',
+  'border-block-width',
+  'border-bottom',
+  'border-bottom-left-radius',
+  'border-bottom-right-radius',
+  'border-bottom-width',
+  'border-image',
+  'border-inline',
+  'border-inline-end-width',
+  'border-inline-start-width',
+  'border-inline-width',
+  'border-left',
+  'border-left-width',
+  'border-radius',
+  'border-right',
+  'border-right-width',
+  'border-top',
+  'border-top-left-radius',
+  'border-top-right-radius',
+  'border-top-width',
+  'border-width',
+  'bottom',
+  'box-shadow',
+  'clip-path',
+  'column-gap',
+  'corner-shape',
+  'corner-shape-bottom-left',
+  'corner-shape-bottom-right',
+  'corner-shape-top-left',
+  'corner-shape-top-right',
+  'filter',
+  'flex-basis',
+  'font-size',
+  'gap',
+  'grid-auto-columns',
+  'grid-auto-rows',
+  'grid-column-gap',
+  'grid-gap',
+  'grid-row-gap',
+  'grid-template-columns',
+  'grid-template-rows',
+  'height',
+  'inline-size',
+  'inset',
+  'inset-block',
+  'inset-block-end',
+  'inset-block-start',
+  'inset-inline',
+  'inset-inline-end',
+  'inset-inline-start',
+  'left',
+  'letter-spacing',
+  'line-height',
+  'margin',
+  'margin-block',
+  'margin-block-end',
+  'margin-block-start',
+  'margin-bottom',
+  'margin-inline',
+  'margin-inline-end',
+  'margin-inline-start',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'mask',
+  'mask-border',
+  'mask-border-mode',
+  'mask-border-outset',
+  'mask-border-repeat',
+  'mask-border-slice',
+  'mask-border-source',
+  'mask-border-width',
+  'mask-clip',
+  'mask-composite',
+  'mask-image',
+  'mask-mode',
+  'mask-origin',
+  'mask-position',
+  'mask-repeat',
+  'mask-size',
+  'max-block-size',
+  'max-height',
+  'max-inline-size',
+  'max-width',
+  'min-block-size',
+  'min-height',
+  'min-inline-size',
+  'min-width',
+  'object-position',
+  'padding',
+  'padding-block',
+  'padding-block-end',
+  'padding-block-start',
+  'padding-bottom',
+  'padding-inline',
+  'padding-inline-end',
+  'padding-inline-start',
+  'padding-left',
+  'padding-right',
+  'padding-top',
+  'right',
+  'row-gap',
+  'text-decoration',
+  'text-decoration-color',
+  'text-decoration-thickness',
+  'text-shadow',
+  'top',
+  'transform',
+  'transform-origin',
+  'width',
+  'word-spacing',
+]);
+// </style-keys:css-math-properties>
+
+function preserveMasonCssMath(this: Style, property: string): boolean {
+  return cssMathProperties.has(property) && isMasonView(this);
 }
 
 // From core 9.1 a stylesheet shorthand is split into its longhands while the
@@ -372,19 +509,7 @@ export const whiteSpaceProperty = new CssProperty<Style, string>({
  * axis every element from the touched one up to it allows, as browsers do.
  */
 export function parseTouchAction(value: string): number {
-  const v = String(value ?? 'auto')
-    .trim()
-    .toLowerCase();
-  if (v === 'auto' || v === '') return 7;
-  if (v === 'none') return 0;
-  if (v === 'manipulation') return 7;
-  let flags = 0;
-  for (const part of v.split(/\s+/)) {
-    if (part === 'pan-x' || part === 'pan-left' || part === 'pan-right') flags |= 1;
-    else if (part === 'pan-y' || part === 'pan-up' || part === 'pan-down') flags |= 2;
-    else if (part === 'pinch-zoom') flags |= 4;
-  }
-  return flags;
+  return Number(expandCssShorthand('touch-action', String(value ?? 'auto'))?.[0] ?? 0);
 }
 
 export const touchActionProperty = new CssProperty<Style, string>({
@@ -632,6 +757,7 @@ const FlexWrapParse = makeParser<string>(makeValidator('nowrap', 'wrap', 'wrap-r
 const FlexDirectionParse = makeParser<string>(makeValidator('row', 'row-reverse', 'column', 'column-reverse'));
 const TextAlignmentParse = makeParser<string>(makeValidator('left', 'center', 'right', 'justify'));
 const TextTransformParse = makeParser<string>(makeValidator('none', 'capitalize', 'uppercase', 'lowercase'));
+const FontStyleParse = makeParser<string>(makeValidator(CoreTypes.FontStyle.normal, CoreTypes.FontStyle.italic));
 
 /**
  * Narrow one of @nativescript/core's own properties so mason views get mason's
@@ -706,6 +832,13 @@ export function masonRawDeclaration(style: Style, propertyName: string, value: u
 
 keepRawDeclarationForMasonViews(lineHeightProperty, (v) => parseFloat(v));
 keepRawDeclarationForMasonViews(letterSpacingProperty, (v) => parseFloat(v));
+
+overrideForMasonViews<string>(fontStyleProperty, {
+  coreConverter: FontStyleParse,
+  apply: (style, value) => {
+    style.fontStyle = value;
+  },
+});
 
 overrideForMasonViews<string>(flexDirectionProperty, {
   coreConverter: FlexDirectionParse,
@@ -854,7 +987,7 @@ function gapGetter(this: Style) {
 }
 
 const gapShorthand: MasonShorthand = { cssName: 'gap', longhands: [rowGapProperty, columnGapProperty], split: splitGap };
-const gridGapShorthand: MasonShorthand = { ...gapShorthand, cssName: 'grid-gap' };
+const gridGapShorthand: MasonShorthand = { ...gapShorthand, cssName: 'grid-gap', split: (value) => splitGap(value, 'grid-gap') };
 
 export const gridGapProperty = masonShorthandProperty(gridGapShorthand, gapGetter);
 
@@ -952,8 +1085,10 @@ function masonLengthEquals(a: unknown, b: unknown): boolean {
 }
 
 /** As `masonSizeConverter`, for Mason's own max-* properties (core has none). */
-function masonMaxSizeConverter(value: string) {
-  const resolved = masonSizeValue(value);
+function masonMaxSizeConverter(this: Style, value: string) {
+  const css = layoutMathText(value);
+  if (css) return { unit: css, value: -2 } as never;
+  const resolved = masonSizeValue(value, this.fontSize);
   return (resolved ?? masonLengthPercentParse(value)) as never;
 }
 
@@ -963,9 +1098,6 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: CorePercentLength.equals,
-  // masonLengthParse has no '%' handling; match width/height's converter.
-  // @ts-ignore
-  valueConverter: masonMaxSizeConverter,
   valueChanged: (target, oldValue, newValue) => {
     if (appliedInSetNative(target, maxWidthProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -983,8 +1115,6 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: CorePercentLength.equals,
-  // @ts-ignore
-  valueConverter: masonMaxSizeConverter,
   valueChanged(target, oldValue, newValue) {
     if (appliedInSetNative(target, maxHeightProperty)) return;
     const view = getViewStyle(target.viewRef);
@@ -993,6 +1123,10 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
     }
   },
 });
+
+for (const property of [maxWidthProperty, maxHeightProperty]) {
+  property.overrideHandlers({ name: property.name, cssName: property.cssLocalName, valueConverter: masonMaxSizeConverter });
+}
 
 // Core's minWidth/minHeight already route into this Style via setNative
 // (common.ts), so no new CssProperty is needed — just fix the '%' handling.
@@ -1010,14 +1144,22 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
  * as the equivalent dip; percentages, `auto` and keywords fall through
  * untouched.
  */
-function masonSizeValue(value: string): { value: number; unit: 'dip' } | undefined {
+function masonSizeValue(value: string, emBasis?: number): { value: number; unit: 'dip' | '%' } | undefined {
+  if (isCssMathFunction(value)) {
+    const result = resolveCssLengthMath(value, emBasis);
+    if (!result) return undefined;
+    if (result.kind === 'percent') return { value: result.percent / 100, unit: '%' };
+    return { value: result.kind === 'length' ? result.px : result.value, unit: 'dip' };
+  }
   const dip = cssLengthToDip(value);
   return dip === undefined ? undefined : { value: dip, unit: 'dip' };
 }
 
 function masonMinSizeConverter(this: Style, value: string) {
   if (isMasonView(this)) {
-    const resolved = masonSizeValue(value);
+    const css = layoutMathText(value);
+    if (css) return { unit: css, value: -2 } as never;
+    const resolved = masonSizeValue(value, this.fontSize);
     if (resolved) {
       return resolved as never;
     }
@@ -1054,7 +1196,7 @@ minHeightProperty.overrideHandlers({
  * does a bare `px`, which core reads as a device pixel but mason as a CSS
  * pixel).
  */
-function masonLengthDeclaration(value: unknown): unknown {
+function masonLengthDeclaration(value: unknown, emBasis?: number): unknown {
   if (typeof value !== 'string') {
     return value;
   }
@@ -1062,9 +1204,11 @@ function masonLengthDeclaration(value: unknown): unknown {
   if (keyword) {
     return keyword;
   }
-  const dip = cssLengthToDip(value);
+  const css = layoutMathText(value);
+  if (css) return { unit: css, value: -2 };
+  const resolved = masonSizeValue(value, emBasis);
   // A bare number is a dip to core and a CSS pixel to mason — the same size.
-  return dip === undefined ? value : String(dip);
+  return resolved?.unit === 'dip' ? String(resolved.value) : resolved ?? value;
 }
 
 /** Core throws on sizing keywords; a negative length reads as auto to core and carries the keyword as its unit. */
@@ -1101,7 +1245,7 @@ function masonStyleProto(proto: object): object {
       set(this: Style, value: unknown) {
         beginStyleWrite(this, key, value);
         try {
-          set.call(this, masonLengthDeclaration(value));
+          set.call(this, masonLengthDeclaration(value, this.fontSize));
         } finally {
           endStyleWrite();
         }
@@ -1118,6 +1262,10 @@ export function installMasonSizeUnits(style: Style): void {
     return;
   }
   Object.setPrototypeOf(style, masonStyleProto(Object.getPrototypeOf(style)));
+  const previousPolicy = style.preserveCssMath;
+  style.preserveCssMath = previousPolicy ? function (this: Style, property: string) {
+    return preserveMasonCssMath.call(this, property) || previousPolicy.call(this, property);
+  } : preserveMasonCssMath;
 }
 
 export const insetProperty = new ShorthandProperty<Style, LengthAuto>({
@@ -1146,62 +1294,15 @@ export const insetProperty = new ShorthandProperty<Style, LengthAuto>({
   converter: convertToInsets,
 });
 
-interface ShorthandPositioning {
-  top: string;
-  right: string;
-  bottom: string;
-  left: string;
-}
-
-function parseShorthandPositioning(value: string): ShorthandPositioning {
-  const arr = value.split(/[ ,]+/);
-
-  let top: string;
-  let right: string;
-  let bottom: string;
-  let left: string;
-
-  if (arr.length === 1) {
-    top = arr[0];
-    right = arr[0];
-    bottom = arr[0];
-    left = arr[0];
-  } else if (arr.length === 2) {
-    top = arr[0];
-    bottom = arr[0];
-    right = arr[1];
-    left = arr[1];
-  } else if (arr.length === 3) {
-    top = arr[0];
-    right = arr[1];
-    left = arr[1];
-    bottom = arr[2];
-  } else if (arr.length === 4) {
-    top = arr[0];
-    right = arr[1];
-    bottom = arr[2];
-    left = arr[3];
-  } else {
-    throw new Error('Expected 1, 2, 3 or 4 parameters. Actual: ' + value);
-  }
-
-  return {
-    top: top,
-    right: right,
-    bottom: bottom,
-    left: left,
-  };
-}
-
 function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Style, LengthAuto>, LengthAuto][] {
   if (typeof value === 'string' && value !== 'auto') {
-    const thickness = parseShorthandPositioning(value);
+    const [top, right, bottom, left] = requireExpandedCss('inset', value);
 
     return [
-      [topProperty, masonInsetConverter(thickness.top) as LengthAuto],
-      [rightProperty, masonInsetConverter(thickness.right) as LengthAuto],
-      [bottomProperty, masonInsetConverter(thickness.bottom) as LengthAuto],
-      [leftProperty, masonInsetConverter(thickness.left) as LengthAuto],
+      [topProperty, masonInsetConverter(top) as LengthAuto],
+      [rightProperty, masonInsetConverter(right) as LengthAuto],
+      [bottomProperty, masonInsetConverter(bottom) as LengthAuto],
+      [leftProperty, masonInsetConverter(left) as LengthAuto],
     ];
   } else {
     return [
@@ -1451,8 +1552,8 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
 
 export const placeShorthands: MasonShorthand[] = [
   { cssName: 'place-items', longhands: [alignItemsProperty, justifyItemsProperty], split: splitPlace },
-  { cssName: 'place-content', longhands: [alignContentProperty, justifyContentProperty], split: splitPlace },
-  { cssName: 'place-self', longhands: [alignSelfProperty, justifySelfProperty], split: splitPlace },
+  { cssName: 'place-content', longhands: [alignContentProperty, justifyContentProperty], split: (value) => splitPlace(value, 'place-content') },
+  { cssName: 'place-self', longhands: [alignSelfProperty, justifySelfProperty], split: (value) => splitPlace(value, 'place-self') },
 ];
 
 for (const entry of placeShorthands) {
@@ -1853,8 +1954,7 @@ registerAlongsideCore(cornerShapeProperty);
 registerAlongsideCore(boxShadowProperty);
 registerAlongsideCore(transformProperty);
 
-// A stylesheet `transform` reaches only the longhands core splits it into (translateX and the
-// rest, in dips), so a percentage or an em in it was lost on a mason view.
+// Mason keeps the composed transform for its native parser.
 const transformDeclarationProperty = new CssProperty<Style, string>({
   name: 'masonTransformDeclaration',
   cssName: '-mason-transform-declaration',
@@ -1869,6 +1969,9 @@ new ShorthandProperty<Style, string>({
   cssName: 'transform',
   getter(this: Style) {
     return (this as any).transform;
+  },
+  converterForStyle(value, style) {
+    return isMasonView(style) ? [[transformDeclarationProperty, value]] : undefined;
   },
   converter(value) {
     const { translate, rotate, scale } = transformConverter(value === unsetValue ? 'none' : (value as string));
@@ -1933,28 +2036,13 @@ gridAreaProperty.register(Style);
 // scalar properties lose CSS/local priority (including an explicit `auto`).
 // Preserve Mason's direct accessors; core 9.1 stylesheet expansion uses these
 // same longhands for both kinds of view.
-/** A lone `<custom-ident>` placement, which an omitted end copies instead of `auto`. */
-function isGridIdent(part: string): boolean {
-  return /^-?[A-Za-z_][\w-]*$/.test(part) && !/^(auto|span)$/i.test(part);
-}
-
-/** Splits `a / b / ...` into `count` longhands, filling omitted ones as CSS Grid does. */
 export function gridParts(value: string, count: number): string[] {
-  const parts = String(value)
-    .split('/')
-    .map((part) => part.trim());
-  if (parts.length > count || parts.some((part) => !part)) throw new Error(`Invalid grid placement: ${value}`);
-  // Omitted ends copy their start (grid-area: row-start, column-start, row-end, column-end).
-  for (let i = parts.length; i < count; i++) {
-    const start = parts[i - (count === 4 ? 2 : 1)] ?? parts[0];
-    parts.push(isGridIdent(start) ? start : 'auto');
-  }
-  return parts;
+  return requireExpandedCss(count === 4 ? 'grid-area' : 'grid-row', value);
 }
 
 const gridPlacementShorthands: MasonShorthand[] = [
   { cssName: 'grid-row', longhands: [gridRowStartProperty, gridRowEndProperty], split: (value) => gridParts(value, 2) },
-  { cssName: 'grid-column', longhands: [gridColumnStartProperty, gridColumnEndProperty], split: (value) => gridParts(value, 2) },
+  { cssName: 'grid-column', longhands: [gridColumnStartProperty, gridColumnEndProperty], split: (value) => requireExpandedCss('grid-column', value) },
   { cssName: 'grid-area', longhands: [gridRowStartProperty, gridColumnStartProperty, gridRowEndProperty, gridColumnEndProperty], split: (value) => gridParts(value, 4) },
 ];
 for (const entry of gridPlacementShorthands) {
@@ -2177,16 +2265,13 @@ export const backdropFilterProperty = new CssProperty<Style, string>({
   },
 });
 
-// CSS masking. Android and iOS parse and draw these natively, the way they do backgrounds; the
-// `mask` shorthand is split into them here, like `background`.
+// <style-keys:mask-properties> generated from tools/scripts/style-keys/style-keys.schema
 export const maskImageProperty = new CssProperty<Style, string>({
   name: 'maskImage',
   cssName: 'mask-image',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskImage = newValue as never;
-    }
+    if (view) view.maskImage = newValue as never;
   },
 });
 
@@ -2194,158 +2279,150 @@ export const maskSizeProperty = new CssAnimationProperty<Style, string>({
   name: 'maskSize',
   cssName: 'mask-size',
   valueConverter: (value) => value,
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskSize = newValue as never;
-    }
+    if (view) view.maskSize = newValue as never;
   },
 });
 
 export const maskPositionProperty = new CssAnimationProperty<Style, string>({
   name: 'maskPosition',
   cssName: 'mask-position',
-  // Keyframes keep only declarations whose property has a converter; see css-keyframes.ts.
   valueConverter: (value) => value,
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskPosition = newValue as never;
-    }
+    if (view) view.maskPosition = newValue as never;
   },
 });
 
 export const maskRepeatProperty = new CssProperty<Style, string>({
   name: 'maskRepeat',
   cssName: 'mask-repeat',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskRepeat = newValue as never;
-    }
+    if (view) view.maskRepeat = newValue as never;
   },
 });
 
 export const maskOriginProperty = new CssProperty<Style, string>({
   name: 'maskOrigin',
   cssName: 'mask-origin',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskOrigin = newValue as never;
-    }
+    if (view) view.maskOrigin = newValue as never;
   },
 });
 
 export const maskClipProperty = new CssProperty<Style, string>({
   name: 'maskClip',
   cssName: 'mask-clip',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskClip = newValue as never;
-    }
+    if (view) view.maskClip = newValue as never;
   },
 });
 
 export const maskModeProperty = new CssProperty<Style, string>({
   name: 'maskMode',
   cssName: 'mask-mode',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskMode = newValue as never;
-    }
+    if (view) view.maskMode = newValue as never;
   },
 });
 
 export const maskCompositeProperty = new CssProperty<Style, string>({
   name: 'maskComposite',
   cssName: 'mask-composite',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskComposite = newValue as never;
-    }
+    if (view) view.maskComposite = newValue as never;
   },
 });
 
 export const clipPathProperty = new CssProperty<Style, string>({
   name: 'clipPath',
   cssName: 'clip-path',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.clipPath = newValue as never;
-    }
+    if (view) view.clipPath = newValue as never;
   },
 });
 
 export const maskBorderSourceProperty = new CssProperty<Style, string>({
   name: 'maskBorderSource',
   cssName: 'mask-border-source',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderSource = newValue as never;
-    }
+    if (view) view.maskBorderSource = newValue as never;
   },
 });
 
 export const maskBorderSliceProperty = new CssProperty<Style, string>({
   name: 'maskBorderSlice',
   cssName: 'mask-border-slice',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderSlice = newValue as never;
-    }
+    if (view) view.maskBorderSlice = newValue as never;
   },
 });
 
 export const maskBorderWidthProperty = new CssProperty<Style, string>({
   name: 'maskBorderWidth',
   cssName: 'mask-border-width',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderWidth = newValue as never;
-    }
+    if (view) view.maskBorderWidth = newValue as never;
   },
 });
 
 export const maskBorderOutsetProperty = new CssProperty<Style, string>({
   name: 'maskBorderOutset',
   cssName: 'mask-border-outset',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderOutset = newValue as never;
-    }
+    if (view) view.maskBorderOutset = newValue as never;
   },
 });
 
 export const maskBorderRepeatProperty = new CssProperty<Style, string>({
   name: 'maskBorderRepeat',
   cssName: 'mask-border-repeat',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderRepeat = newValue as never;
-    }
+    if (view) view.maskBorderRepeat = newValue as never;
   },
 });
 
 export const maskBorderModeProperty = new CssProperty<Style, string>({
   name: 'maskBorderMode',
   cssName: 'mask-border-mode',
-  valueChanged(target, oldValue, newValue) {
+  valueChanged(target, _oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    if (view) {
-      view.maskBorderMode = newValue as never;
-    }
+    if (view) view.maskBorderMode = newValue as never;
   },
 });
+
+const maskLonghands = [
+  maskImageProperty,
+  maskSizeProperty,
+  maskPositionProperty,
+  maskRepeatProperty,
+  maskOriginProperty,
+  maskClipProperty,
+  maskModeProperty,
+  maskCompositeProperty,
+];
+
+const maskBorderLonghands = [
+  maskBorderSourceProperty,
+  maskBorderSliceProperty,
+  maskBorderWidthProperty,
+  maskBorderOutsetProperty,
+  maskBorderRepeatProperty,
+  maskBorderModeProperty,
+];
+// </style-keys:mask-properties>
 
 // The -webkit- prefixed names older and autoprefixed CSS still uses, set on the same Style
 // properties. Composite operators and box keywords are translated to the standard ones.
@@ -2448,15 +2525,15 @@ const webkitMaskCompositeProperty = new CssProperty<Style, string>({
 
 const maskShorthand: MasonShorthand = {
   cssName: 'mask',
-  longhands: [maskImageProperty, maskPositionProperty, maskSizeProperty, maskRepeatProperty, maskOriginProperty, maskClipProperty, maskCompositeProperty, maskModeProperty],
-  split: splitMask,
+  longhands: maskLonghands,
+  split: (value) => requireExpandedCss('mask', value),
 };
 
 export const maskProperty = masonShorthandProperty(maskShorthand, function (this: Style) {
   return this.maskImage;
 });
 
-const webkitMaskShorthand: MasonShorthand = { cssName: '-webkit-mask', longhands: maskShorthand.longhands, split: splitWebkitMask };
+const webkitMaskShorthand: MasonShorthand = { cssName: '-webkit-mask', longhands: maskLonghands, split: (value) => requireExpandedCss('-webkit-mask', value) };
 
 const webkitMaskProperty = masonShorthandProperty(webkitMaskShorthand, function (this: Style) {
   return this.maskImage;
@@ -2464,7 +2541,7 @@ const webkitMaskProperty = masonShorthandProperty(webkitMaskShorthand, function 
 
 const maskBorderShorthand: MasonShorthand = {
   cssName: 'mask-border',
-  longhands: [maskBorderSourceProperty, maskBorderSliceProperty, maskBorderWidthProperty, maskBorderOutsetProperty, maskBorderRepeatProperty, maskBorderModeProperty],
+  longhands: maskBorderLonghands,
   split: splitMaskBorder,
 };
 
@@ -2473,7 +2550,7 @@ export const maskBorderProperty = masonShorthandProperty(maskBorderShorthand, fu
 });
 
 // WebKit's name for mask-border.
-const webkitMaskBoxImageShorthand: MasonShorthand = { cssName: '-webkit-mask-box-image', longhands: maskBorderShorthand.longhands, split: splitMaskBorder };
+const webkitMaskBoxImageShorthand: MasonShorthand = { cssName: '-webkit-mask-box-image', longhands: maskBorderShorthand.longhands, split: (value) => splitMaskBorder(value, '-webkit-mask-box-image') };
 
 const webkitMaskBoxImageProperty = masonShorthandProperty(webkitMaskBoxImageShorthand, function (this: Style) {
   return this.maskBorderSource;
@@ -2694,7 +2771,7 @@ function keepCssOnMasonViews(longhands: CssProperty<Style, any>[], core: CoreLon
         }
         return length;
       },
-      // Core's parse reads `10%` and `10rem` alike, so the CSS text decides.
+      // NativeScript's comparer sees the resolved length. Mason also needs the authored units.
       equalityComparer: (a, b) => (isCssLength(a) || isCssLength(b) ? (a as CssLength)?.css === (b as CssLength)?.css : core.comparer(a, b)),
     });
   }
@@ -2782,7 +2859,7 @@ const borderShorthand: MasonShorthand = { cssName: 'border', longhands: [...bord
 const borderSideShorthands: MasonShorthand[] = [0, 1, 2, 3].map((i) => ({
   cssName: `border-${SIDES[i]}`,
   longhands: [borderWidthLonghands[i], borderStyleLonghands[i], borderColorLonghands[i]],
-  split: splitBorderSide,
+  split: (value) => splitBorderSide(value, `border-${SIDES[i]}`),
 }));
 
 function sideValues(style: Style, longhands: { name: string }[]): string[] {
@@ -2844,10 +2921,12 @@ const LOGICAL_SIDES: ReadonlyArray<[logical: string, physical: number]> = [
 ];
 
 /** `<prefix>-inline<suffix>` and `<prefix>-block<suffix>`, over a group's logical sides. */
-function logicalSides(prefix: string, suffix: string, sides: Sides, splitAxis: (value: string) => string[]): MasonShorthand[] {
+function logicalSides(prefix: string, suffix: string, sides: Sides, splitAxis: (value: string, name: string) => string[]): MasonShorthand[] {
+  const inline = `${prefix}-inline${suffix}`;
+  const block = `${prefix}-block${suffix}`;
   return [
-    { cssName: `${prefix}-inline${suffix}`, longhands: [sides[3], sides[1]], split: splitAxis },
-    { cssName: `${prefix}-block${suffix}`, longhands: [sides[0], sides[2]], split: splitAxis },
+    { cssName: inline, longhands: [sides[3], sides[1]], split: (value) => splitAxis(value, inline) },
+    { cssName: block, longhands: [sides[0], sides[2]], split: (value) => splitAxis(value, block) },
   ];
 }
 
@@ -2950,9 +3029,9 @@ const logicalShorthands: MasonShorthand[] = [
   ...logicalSides('border', '-style', borderStyleLogicalLonghands, splitBorderStyleStartEnd),
   ...logicalSides('border', '-color', borderColorLogicalLonghands, splitBorderColorStartEnd),
   // `border-inline: 1px solid` gives both sides the same border.
-  { cssName: 'border-inline', longhands: [...borderSideLonghands(3), ...borderSideLonghands(1)], split: (value) => [...splitBorderSide(value), ...splitBorderSide(value)] },
-  { cssName: 'border-block', longhands: [...borderSideLonghands(0), ...borderSideLonghands(2)], split: (value) => [...splitBorderSide(value), ...splitBorderSide(value)] },
-  ...LOGICAL_SIDES.map(([side, i]) => ({ cssName: `border-${side}`, longhands: borderSideLonghands(i), split: splitBorderSide })),
+  { cssName: 'border-inline', longhands: [...borderSideLonghands(3), ...borderSideLonghands(1)], split: (value) => requireExpandedCss('border-inline', value) },
+  { cssName: 'border-block', longhands: [...borderSideLonghands(0), ...borderSideLonghands(2)], split: (value) => requireExpandedCss('border-block', value) },
+  ...LOGICAL_SIDES.map(([side, i]) => ({ cssName: `border-${side}`, longhands: borderSideLonghands(i), split: (value: string) => splitBorderSide(value, `border-${side}`) })),
 ];
 
 for (const entry of logicalShorthands) {

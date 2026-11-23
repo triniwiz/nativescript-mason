@@ -545,6 +545,11 @@ pub fn draw_image(
         return;
     }
     match image {
+        Image::Gradient(_, _) => {
+            if let Some(resolved) = image.resolve_gradient(w, h) {
+                draw_image(el, s, &resolved, rect, fit, align);
+            }
+        }
         Image::Linear {
             angle,
             corner,

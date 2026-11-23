@@ -34,6 +34,7 @@ enum NineSliceWidth: Equatable {
   case length(CGFloat)
   case percent(CGFloat)
   case number(CGFloat)
+  case math(NativePaintOffset)
   case auto
 }
 
@@ -62,173 +63,12 @@ struct NineSliceSpec: Equatable {
                                                width: Array(repeating: .auto, count: 4),
                                                outset: Array(repeating: .number(0), count: 4), repeatX: .stretch, repeatY: .stretch)
 
-  /// An image token: `url()`, a gradient, or `none` (nil inside).
-  static func parseSource(_ token: String) -> String?? {
-    let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
-    let lower = t.lowercased()
-    if lower == "none" { return .some(nil) }
-    guard let fn = cssFunction(t) else { return nil }
-    if fn.name == "url" || fn.name.hasSuffix("gradient") { return .some(t) }
-    return nil
-  }
-
-  /// 1-4 non-negative numbers or percentages, with `fill` first or last.
-  static func parseSlice(_ tokens: [String]) -> ([NineSliceNumber], Bool)? {
-    var ts = tokens.map { $0.lowercased() }
-    var fill = false
-    if ts.first == "fill" {
-      fill = true
-      ts.removeFirst()
-    } else if ts.last == "fill" {
-      fill = true
-      ts.removeLast()
-    }
-    var values: [NineSliceNumber] = []
-    for t in ts {
-      if t.hasSuffix("%"), let v = cssNumber(String(t.dropLast())), v >= 0 {
-        values.append(.percent(v / 100))
-      } else if let v = cssNumber(t), v >= 0 {
-        values.append(.number(v))
-      } else {
-        return nil
-      }
-    }
-    guard let four = expandCssBox(values) else { return nil }
-    return (four, fill)
-  }
-
-  static func parseWidth(_ tokens: [String], em: CGFloat) -> [NineSliceWidth]? {
-    var values: [NineSliceWidth] = []
-    for t in tokens {
-      if t.lowercased() == "auto" {
-        values.append(.auto)
-      } else if let v = cssNumber(t) {
-        guard v >= 0 else { return nil }
-        values.append(.number(v))
-      } else if let l = CssLength.parse(t, em: em), !l.isNegative {
-        switch l {
-        case .points(let p): values.append(.length(p))
-        case .percent(let f): values.append(.percent(f))
-        }
-      } else {
-        return nil
-      }
-    }
-    return expandCssBox(values)
-  }
-
-  static func parseOutset(_ tokens: [String], em: CGFloat) -> [NineSliceOutset]? {
-    var values: [NineSliceOutset] = []
-    for t in tokens {
-      if let v = cssNumber(t) {
-        guard v >= 0 else { return nil }
-        values.append(.number(v))
-      } else if !t.hasSuffix("%"), let l = CssLength.parse(t, em: em), case let .points(p) = l, p >= 0 {
-        values.append(.length(p))
-      } else {
-        return nil
-      }
-    }
-    return expandCssBox(values)
-  }
-
-  /// One or two of stretch | repeat | round | space: horizontal, then vertical.
-  static func parseRepeat(_ tokens: [String]) -> (NineSliceRepeat, NineSliceRepeat)? {
-    let values = tokens.compactMap { NineSliceRepeat(rawValue: $0.lowercased()) }
-    guard values.count == tokens.count else { return nil }
-    switch values.count {
-    case 1: return (values[0], values[0])
-    case 2: return (values[0], values[1])
-    default: return nil
-    }
-  }
-
-  /// The `border-image` shorthand: `<source> || <slice> [/ <width>? [/ <outset>]?]? || <repeat>`.
-  /// Nil when invalid; a valid `none` comes back with a nil source.
   static func parseBorderImage(_ value: String, em: CGFloat = 16) -> NineSliceSpec? {
-    let tokens = splitCssValue(value.trimmingCharacters(in: .whitespacesAndNewlines), separators: ["/"])
-    guard !tokens.isEmpty else { return nil }
-    var spec = borderImageInitial
-    var sawSource = false, sawSlice = false, sawRepeat = false
-    var i = 0
-    func isRepeat(_ t: String) -> Bool { NineSliceRepeat(rawValue: t.lowercased()) != nil }
-    func isSlicePart(_ t: String) -> Bool {
-      let l = t.lowercased()
-      if l == "fill" { return true }
-      if l.hasSuffix("%") { return cssNumber(String(l.dropLast())) != nil }
-      return cssNumber(l) != nil
-    }
-    while i < tokens.count {
-      let t = tokens[i]
-      if !sawSource, let source = parseSource(t) {
-        spec.source = source
-        sawSource = true
-        i += 1
-      } else if !sawRepeat, isRepeat(t) {
-        var j = i
-        while j < tokens.count, j - i < 2, isRepeat(tokens[j]) { j += 1 }
-        guard let (x, y) = parseRepeat(Array(tokens[i..<j])) else { return nil }
-        spec.repeatX = x
-        spec.repeatY = y
-        sawRepeat = true
-        i = j
-      } else if !sawSlice, isSlicePart(t) {
-        var j = i
-        while j < tokens.count, isSlicePart(tokens[j]) { j += 1 }
-        guard let (slice, fill) = parseSlice(Array(tokens[i..<j])) else { return nil }
-        spec.slice = slice
-        spec.fill = fill
-        sawSlice = true
-        i = j
-        // `/ width`, `/ width / outset` or `/ / outset`.
-        if i < tokens.count, tokens[i] == "/" {
-          i += 1
-          var k = i
-          while k < tokens.count, tokens[k] != "/", parseSource(tokens[k]) == nil, !isRepeat(tokens[k]) { k += 1 }
-          let widthTokens = Array(tokens[i..<k])
-          i = k
-          var outsetTokens: [String] = []
-          if i < tokens.count, tokens[i] == "/" {
-            i += 1
-            var k2 = i
-            while k2 < tokens.count, tokens[k2] != "/", parseSource(tokens[k2]) == nil, !isRepeat(tokens[k2]) { k2 += 1 }
-            outsetTokens = Array(tokens[i..<k2])
-            i = k2
-            guard !outsetTokens.isEmpty else { return nil }
-          } else if widthTokens.isEmpty {
-            return nil
-          }
-          if !widthTokens.isEmpty {
-            guard let w = parseWidth(widthTokens, em: em) else { return nil }
-            spec.width = w
-          }
-          if !outsetTokens.isEmpty {
-            guard let o = parseOutset(outsetTokens, em: em) else { return nil }
-            spec.outset = o
-          }
-        }
-      } else {
-        return nil
-      }
-    }
-    return spec
+    NativeNineSlice.borderImage(value)?.spec(em: em).0
   }
 
-  /// The `mask-border-*` longhands; an empty or invalid longhand keeps its initial value.
   static func maskBorder(source: String, slice: String, width: String, outset: String, repeat: String, em: CGFloat = 16) -> NineSliceSpec {
-    var spec = maskBorderInitial
-    if let s = parseSource(source) { spec.source = s }
-    if let (v, fill) = parseSlice(splitCssValue(slice)) {
-      spec.slice = v
-      spec.fill = fill
-    }
-    if let w = parseWidth(splitCssValue(width), em: em) { spec.width = w }
-    if let o = parseOutset(splitCssValue(outset), em: em) { spec.outset = o }
-    if let (x, y) = parseRepeat(splitCssValue(`repeat`)) {
-      spec.repeatX = x
-      spec.repeatY = y
-    }
-    return spec
+    NativeNineSlice.maskBorder([source, slice, width, outset, `repeat`, ""])?.spec(em: em).0 ?? maskBorderInitial
   }
 
   /// The border image area: the border box grown by the outsets. `borders` are the element's
@@ -242,6 +82,89 @@ struct NineSliceSpec: Equatable {
       }
     }
     return box.inset(by: UIEdgeInsets(top: -o[0], left: -o[3], bottom: -o[2], right: -o[1]))
+  }
+}
+
+final class NativeNineSlice {
+  private let handle: OpaquePointer
+
+  private init(_ handle: OpaquePointer) { self.handle = handle }
+
+  deinit { mason_css_nine_slice_release(handle) }
+
+  static func borderImage(_ value: String, color: UInt32 = 0xff000000) -> NativeNineSlice? {
+    value.withCString { mason_css_border_image_parse($0, color).map(NativeNineSlice.init) }
+  }
+
+  static func maskBorder(_ values: [String], color: UInt32 = 0xff000000) -> NativeNineSlice? {
+    precondition(values.count == NineSliceInputRecord.stride)
+    let strings = values.map { strdup($0) }
+    defer { strings.forEach { free($0) } }
+    guard !strings.contains(where: { $0 == nil }) else { return nil }
+    let input = strings.map { $0.map { UnsafePointer<CChar>($0) } }
+    return input.withUnsafeBufferPointer { mason_css_mask_border_parse($0.baseAddress, color).map(NativeNineSlice.init) }
+  }
+
+  static func install(_ program: NativeNineSlice?, on style: MasonStyle, mask: Bool) {
+    let node = style.node
+    guard !node.isPlaceholder else { return }
+    let mason = node.mason
+    if mason.inCompute { mason.deferStyleRecords(style) }
+    else { style.prepareMut() }
+    mason_css_nine_slice_install(mason.inCompute ? nil : mason.nativePtr, node.nativePtr, program?.handle, mask)
+  }
+
+  private static func text(_ value: CMasonCssText) -> String? {
+    guard value.len != 0 else { return nil }
+    return String(decoding: UnsafeBufferPointer(start: value.bytes, count: Int(value.len)), as: UTF8.self)
+  }
+
+  func source() -> NineSliceSource? {
+    NineSliceSource(url: Self.text(mason_css_nine_slice_url(handle)),
+                    gradient: mason_css_nine_slice_gradient(handle).map { Gradient(handle: $0) })
+  }
+
+  func spec(em: CGFloat) -> (NineSliceSpec, Bool) {
+    let viewport = NSCMason.viewportSize
+    let records = mason_css_nine_slice_values(handle, 1, Float(em), NSCMason.rootFontSize,
+                                              Float(viewport.width), Float(viewport.height))
+    defer { mason_css_values_release(records) }
+    let rows = UnsafeBufferPointer(start: records.values, count: Int(records.len))
+    func side(_ index: Int) -> (Int, CGFloat) {
+      let start = NineSliceRecord.stride + index * NineSliceSideRecord.stride
+      return (Int(rows[start + NineSliceSideRecord.kind]), CGFloat(rows[start + NineSliceSideRecord.value]))
+    }
+    let repeatModes: [NineSliceRepeat] = [.stretch, .repeat, .round, .space]
+    let spec = NineSliceSpec(
+      source: Self.text(mason_css_nine_slice_source(handle)),
+      slice: (0..<4).map {
+        let (kind, value) = side($0)
+        return kind == 1 ? .percent(value) : .number(value)
+      },
+      fill: rows[NineSliceRecord.fill] != 0,
+      width: (0..<4).map { index in
+        let start = NineSliceRecord.stride + (index + 4) * NineSliceSideRecord.stride
+        if rows[start + NineSliceSideRecord.hasMath] != 0,
+           let offset = mason_css_nine_slice_width_offset(handle, UInt(index), 1, Float(em),
+             NSCMason.rootFontSize, Float(viewport.width), Float(viewport.height)) {
+          return .math(NativePaintOffset(owned: offset))
+        }
+        let (kind, value) = side(index + 4)
+        switch kind {
+        case 0: return .number(value)
+        case 1: return .percent(value)
+        case 2: return .length(value)
+        default: return .auto
+        }
+      },
+      outset: (8..<12).map {
+        let (kind, value) = side($0)
+        return kind == 2 ? .length(value) : .number(value)
+      },
+      repeatX: repeatModes[Int(rows[NineSliceRecord.repeatX])],
+      repeatY: repeatModes[Int(rows[NineSliceRecord.repeatY])]
+    )
+    return (spec, rows[NineSliceRecord.luminance] != 0)
   }
 }
 
@@ -308,6 +231,7 @@ enum NineSlice {
       case .length(let p): return p
       case .percent(let f): return f * areaDims[i]
       case .number(let n): return n * b[i]
+      case .math(let offset): return max(0, offset.resolve(basis: areaDims[i], units: nil, fallbackScale: 1))
       // The slice's intrinsic size; an image without one uses the border width.
       case .auto: return pointsPerUnit.map { s[i] * $0 } ?? b[i]
       }
@@ -443,9 +367,11 @@ final class NineSliceSource {
   private var svg: SvgDocument?
   private var raster: (key: [CGFloat], image: CGImage)?
 
-  init?(_ token: String) {
-    let layer = parseLayer(token)
-    guard layer.image != nil || layer.gradient != nil else { return nil }
+  init?(url: String?, gradient: Gradient?) {
+    guard url != nil || gradient != nil else { return nil }
+    let layer = BackgroundLayer()
+    layer.image = url
+    layer.gradient = gradient
     // Drawn as one tile filling the rect it is given.
     layer.backgroundColor = nil
     layer.position = nil
@@ -538,9 +464,9 @@ final class NineSliceImage {
   let spec: NineSliceSpec
   let source: NineSliceSource?
 
-  init(_ spec: NineSliceSpec) {
+  init(_ spec: NineSliceSpec, source: NineSliceSource?) {
     self.spec = spec
-    self.source = spec.source.flatMap { NineSliceSource($0) }
+    self.source = source
   }
 
   /// Paint into `ctx` (y-down) around the border box `box`. Returns false when there is nothing
@@ -567,10 +493,12 @@ final class BorderImage {
   private(set) var css: String = ""
   private(set) var image: NineSliceImage?
 
-  func update(_ value: String, em: CGFloat) {
+  func update(_ value: String, style: MasonStyle) {
     if value == css { return }
     css = value
-    image = NineSliceSpec.parseBorderImage(value, em: em).map { NineSliceImage($0) }
+    let program = NativeNineSlice.borderImage(value, color: style.color)
+    NativeNineSlice.install(program, on: style, mask: false)
+    image = program.map { NineSliceImage($0.spec(em: style.emBasis).0, source: $0.source()) }
   }
 }
 
@@ -590,8 +518,19 @@ extension MasonStyle {
     return borderImage
   }
 
+  private func syncBorderImage() -> NineSliceImage? {
+    let value = resolvedBorderImage
+    if mBorderImageStorage == nil {
+      guard !value.isEmpty else { return nil }
+      mBorderImageStorage = BorderImage()
+    }
+    mBorderImageStorage?.update(value, style: self)
+    return mBorderImageStorage?.image
+  }
+
   /// `border-image` (or a pseudo state's) changed: repaint through draw(_:).
   internal func borderImageChanged() {
+    _ = syncBorderImage()
     guard let view = node.view else { return }
     if let mv = view as? MasonUIView {
       mv.invalidateDrawFlags()
@@ -606,16 +545,7 @@ extension MasonStyle {
   /// Draw the border image in place of the border. Returns false when there is none or its
   /// source is not ready, so the border styles draw instead (as CSS falls back).
   internal func drawBorderImage(in ctx: CGContext, rect: CGRect) -> Bool {
-    guard hasBorderImage else { return false }
-    let state: BorderImage
-    if let existing = mBorderImageStorage {
-      state = existing
-    } else {
-      state = BorderImage()
-      mBorderImageStorage = state
-    }
-    state.update(resolvedBorderImage, em: emBasis)
-    guard let image = state.image else { return false }
+    guard hasBorderImage, let image = syncBorderImage() else { return false }
     let borders = mBackground.boxInsets(.paddingBox)
     return image.draw(in: ctx, box: rect, borders: borders, scale: max(CGFloat(NSCMason.scale), 1), style: self,
                       painter: mBackground, onLoad: { [weak self] in self?.borderImageChanged() })

@@ -92,6 +92,7 @@ class Spans {
     }
 
     private fun applyMetrics(tp: TextPaint) {
+      attributes.fontFeatures?.let { tp.fontFeatureSettings = it.ifEmpty { null } }
       if (letterSpacingPx != null) {
         val textSize = tp.textSize
         if (textSize > 0f) tp.letterSpacing = letterSpacingPx / textSize

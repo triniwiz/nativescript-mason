@@ -5,6 +5,17 @@ import { platformSuffixResolver } from './mason-test-kit/platform-suffix-resolve
 
 const root = resolve(__dirname, '../..');
 
+const nativeCssShorthandStub = () => ({
+  name: 'test-native-css-shorthands',
+  enforce: 'pre' as const,
+  resolveId(source: string, importer?: string) {
+    if (source === './native-css-values' && importer?.startsWith(resolve(root, 'packages/nativescript-masonkit'))) {
+      return resolve(root, 'tools/testing/mason-test-kit/css-shorthand-stub.ts');
+    }
+    return null;
+  },
+});
+
 /**
  * Bare specifier resolver for the in-repo masonkit package. The workspace does
  * not symlink it into node_modules, so Node's ESM loader cannot find it; this
@@ -53,7 +64,7 @@ export default defineConfig({
     __CSS_PARSER__: '"css-tree"',
     __SNAPSHOT__: 'false',
   },
-  plugins: [masonkitInternalResolver(), platformSuffixResolver('android')],
+  plugins: [nativeCssShorthandStub(), masonkitInternalResolver(), platformSuffixResolver('android')],
   resolve: {
     alias: [
       { find: /^@nativescript\/core$/, replacement: resolve(root, 'tools/testing/mason-test-kit/ns-core-stub.ts') },

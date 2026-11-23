@@ -50,16 +50,15 @@ import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowP
 // rather than core's root export, unlike the border *width* longhands above.
 import { fontInternalProperty, backgroundInternalProperty, borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, visibilityProperty, translateXProperty, translateYProperty, scaleXProperty, scaleYProperty, rotateProperty, rotateXProperty, rotateYProperty } from '@nativescript/core/ui/styling/style-properties';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
-import { borderRadiusCorners, composeBorderRadius, isCssLength, parseCornerRadius, toCamelCase } from './css-shorthands';
-import type { CornerIndex, CornerRadius } from './css-shorthands';
+import { isCssLength, toCamelCase } from './css-shorthands';
+import type { CornerIndex } from './css-shorthands';
 import { installLogicalBoxes } from './logical-boxes';
 import type { EventData, TouchGestureEventData } from '@nativescript/core';
 import { originXProperty, originYProperty } from '@nativescript/core/ui/core/view';
 import { animateTransforms } from './css-keyframes';
 import { adoptForeignLayout, invalidateOnLayoutRequest, releaseForeignLayout } from './foreign-layout';
-import { Style as MasonStyle, Style, nodeHelper, cssLengthToDip, resolveCssMathIn } from './style';
-import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
-import { parseCssTransform } from './css-transform';
+import { Style as MasonStyle, Style, nodeHelper } from './style';
+import { cssUnits } from './units';
 import {
   alignContentProperty,
   aspectRatioProperty,
@@ -121,7 +120,7 @@ import {
   logicalLonghands,
 } from './properties';
 import { masonLayout } from './display-density';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderRadiusCorners_, borderSideColors_, eventType_, remapLogicalBoxes_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_, pointerEvents_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_, textNodeProxied_, pseudoStyles_, emptyTextNode_, breakRun_, anonymousText_, windowsFontSource_, hostsRuns_, needsAnonymousText_, borderSideColors_, eventType_, remapLogicalBoxes_, runMember_, runsInline_, runsSettled_, blockified_, touchAction_, pointerEvents_ } from './symbols';
 import { Tree } from './tree';
 import { masonDelegate, masonEngine, removeNativeChild } from './panel-helpers';
 import { TextNode } from './text-node';
@@ -1259,6 +1258,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
       if (style) {
         for (const prop in current) {
+          const logical = logicalLonghands.find(({ property }) => property.cssLocalName === prop);
+          if (logical) {
+            style.setLogical(logical.group, logical.slot, current[prop]);
+            continue;
+          }
           // ruleset props are kebab-case; Style only has camelCase accessors.
           style[toCamelCase(prop)] = current[prop];
         }
@@ -2805,7 +2809,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.borderRadius = value;
-      (this as any)[borderRadiusCorners_] = undefined;
     }
   }
 
@@ -2816,57 +2819,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   // `border-radius` / `border-color` arriving as core's longhands.
 
-  private _nativeBorderRadiusCorners(): CornerRadius[] {
-    // @ts-ignore
-    const style = this._styleHelper as MasonStyle | undefined;
-    if ((__ANDROID__ || __APPLE__) && style && !style.hasBorderRadius()) {
-      return borderRadiusCorners('0');
-    }
-    const native = String(style?.borderRadius ?? '').trim();
-    try {
-      return borderRadiusCorners(native || '0');
-    } catch {
-      return borderRadiusCorners('0');
-    }
-  }
-
   private _borderRadiusCorner(corner: CornerIndex, value: CoreTypes.LengthType) {
     // @ts-ignore
-    const style = this._styleHelper;
-    if (!style) {
-      return;
-    }
-    if (__ANDROID__ || __APPLE__) {
-      const css = isCssLength(value) ? value.css : typeof value === 'string' ? value : undefined;
-      if (css !== undefined ? (style as MasonStyle)._writeCornerCss(corner, css) : (style as MasonStyle)._writeCornerLength(corner, value)) {
-        (this as any)[borderRadiusCorners_] = undefined;
-        return;
-      }
-    }
-    let corners: CornerRadius[] = (this as any)[borderRadiusCorners_];
-    if (!corners) {
-      corners = (this as any)[borderRadiusCorners_] = this._nativeBorderRadiusCorners();
-    }
-    // Resolve math functions first: the corner parser can't read them.
-    const text = lengthToCssString(masonLength(value));
-    const css = resolveCssMathIn(text, (style as MasonStyle).emBasisFor(text));
-    const radius = (corners[corner] = /\s/.test(css) ? parseCornerRadius(css) : [css, css]);
-    const shorthand = composeBorderRadius(corners);
-    if ((__ANDROID__ || __APPLE__) && (style as MasonStyle)._writeCornerRadius(corner, radius, shorthand)) {
-      return;
-    }
-    // @ts-ignore
-    style.borderRadius = shorthand;
+    const style = this._styleHelper as MasonStyle | undefined;
+    if (!style) return;
+    if (!isCssLength(value) && typeof value !== 'string' && style._writeCornerLength(corner, value)) return;
+    style._writeCornerCss(corner, lengthToCssString(masonLength(value)));
   }
 
   private _nativeCornerRadius(corner: CornerIndex): string {
     // @ts-ignore
     const style = this._styleHelper as MasonStyle | undefined;
-    if ((__ANDROID__ || __APPLE__) && style && style._cornerRadiusIsZero(corner)) {
-      return '0';
-    }
-    const [h, v] = this._nativeBorderRadiusCorners()[corner];
-    return h === v ? h : `${h} ${v}`;
+    return style?._cornerRadiusCss(corner) ?? '0';
   }
 
   [borderTopLeftRadiusProperty.getDefault]() {
@@ -3993,22 +3957,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.boxShadow = value;
-      if (__WINDOWS__ || __LINUX__) {
-        const nv: any = (this as any).nativeViewProtected ?? (this as any)._view;
-        try {
-          const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)));
-          const current = (style as any).color >>> 0 || 0xff000000;
-          const spec = encodeBoxShadows(shadows, (color) => {
-            if (!color || color.toLowerCase() === 'currentcolor') return current;
-            try {
-              return new Color(color as never).argb >>> 0;
-            } catch (_) {
-              return current;
-            }
-          });
-          NativeScript.Mason.Css.SetBoxShadow(nv, spec);
-        } catch (_) {}
-      }
+
     }
   }
 
@@ -4045,11 +3994,13 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._windowsTransformValue = value;
     if (!style || !nv) return;
     try {
-      const size = { width: nv.ActualWidth ?? 0, height: nv.ActualHeight ?? 0 };
-      const m = parseCssTransform(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, style.emBasisFor(token)), size);
+      const css = typeof value === 'string' ? value : '';
       const origin = this._windowsTransformOrigin(nv);
-      if (!m) NativeScript.Mason.Css.ClearTransform(nv);
-      else NativeScript.Mason.Css.ApplyTransform(nv, m[0], m[1], m[2], m[3], m[4], m[5]);
+      NativeScript.Mason.Css.SetCssTransform(
+        nv, css, nv.ActualWidth ?? 0, nv.ActualHeight ?? 0,
+        style.emBasisFor(css) ?? cssUnits.rootFontSize, cssUnits.rootFontSize,
+        cssUnits.viewportWidth, cssUnits.viewportHeight,
+      );
       NativeScript.Mason.Css.SetTransformOrigin(nv, origin.x, origin.y);
     } catch (_) {}
   }

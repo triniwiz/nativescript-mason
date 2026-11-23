@@ -69,10 +69,20 @@ namespace NativeScript.Mason
         // CSS masking, as the JSON mask.windows.ts builds: mask-* layers, clip-path and
         // mask-border in SetMask, border-image in SetBorderImage. An empty spec removes it.
         static void SetMask(Microsoft.UI.Xaml.UIElement element, String spec);
+        static String ExpandCssShorthand(String name, String value);
+        static String ResolveCssLength(String value, Int32 kind, Single scale, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
         static void SetBorderImage(Microsoft.UI.Xaml.UIElement element, String spec);
         // url() background layers (the mask layer spec), painted over background-color, which a
         // Panel's single Background brush can't otherwise show under an image.
         static void SetBackgroundLayers(Microsoft.UI.Xaml.UIElement element, String spec);
+        static Double SetCssBackground(Microsoft.UI.Xaml.UIElement element, String request);
         static void ClearShadow(Microsoft.UI.Xaml.UIElement element);
+        static void SetCssEffect(Microsoft.UI.Xaml.UIElement element, String name, String value, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
+        static void SetCssEffects(Microsoft.UI.Xaml.UIElement element, String payload, Single fontSize,
+            Single rootFontSize, Single viewportWidth, Single viewportHeight);
+        static void SetCssTransform(Microsoft.UI.Xaml.UIElement element, String value, Single width, Single height,
+            Single fontSize, Single rootFontSize, Single viewportWidth, Single viewportHeight);
     }
 }

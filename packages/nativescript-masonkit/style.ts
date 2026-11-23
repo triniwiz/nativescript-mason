@@ -1,28 +1,109 @@
 import { layout as coreLayout } from '@nativescript/core/utils';
 import { cssUnits } from './units';
-import { displayDensity, masonLayout } from './display-density';
+import { masonLayout } from './display-density';
 import { isMasonView_, style_ } from './symbols';
 import { pickFontFamily } from './fonts';
 import { arrayBufferOf, masonEngine } from './panel-helpers';
 import { reportCssDiagnostic } from './diagnostics';
-import { expandColorStops, resolveStopPositions } from './gradient-stops';
-import { encodeBoxShadows, parseBoxShadows } from './box-shadow';
-import { encodeCssFilter, parseCssFilter } from './css-filter';
-import { resolveCssColors } from './css-colors';
-import { evaluateCssMath, hasCssMathFunction, isCssMathFunction, substituteCssMath } from './css-math';
-import { encodeWindowsBackground, encodeWindowsBackgroundLayers, encodeWindowsBorderImage, encodeWindowsColorClip, encodeWindowsGradientBackground, hasCustomBackgroundBoxes, needsWindowsBackgroundLayers, type WindowsBackgroundBoxes, type WindowsBackgroundLonghands, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './mask';
-import { splitBackground } from './css-shorthands';
-import type { DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
-import { Color, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Screen, knownFolders } from '@nativescript/core';
-import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns, Float, Clear } from './utils';
+import { expandCssShorthand, resolveCssLength as nativeCssLength, resolveCssPosition, resolveCssValues } from './native-css-values';
+import { isCssMathFunction, rewriteCssMath, type CssMathResult } from './css-math-text';
+import { encodeWindowsBorderImage, encodeWindowsMask, WINDOWS_MASK_PROPERTIES, type WindowsMaskContext } from './mask';
+import type { CssMathLength, DimensionLength, GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
+import { Color, CoreTypes, Length as CoreLength, knownFolders } from '@nativescript/core';
+import { _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 
 // The Windows shell lays out in XAML DIPs, so its style buffer holds DIPs. Core's Windows density
 // is 1 until the window has a XamlRoot, so converting stored early styles unscaled and later ones scaled.
 const layout: typeof coreLayout = __WINDOWS__ || __LINUX__ ? { ...coreLayout, getDisplayDensity: () => 1, toDevicePixels: (value: number) => value, toDeviceIndependentPixels: (value: number) => value } : { ...coreLayout, ...masonLayout };
 
+// <style-keys:border-style-codes> generated from tools/scripts/style-keys/style-keys.schema
+const enum BorderStyleCode {
+  None = 0,
+  Hidden = 1,
+  Dotted = 2,
+  Dashed = 3,
+  Solid = 4,
+  Double = 5,
+  Groove = 6,
+  Ridge = 7,
+  Inset = 8,
+  Outset = 9,
+}
+// </style-keys:border-style-codes>
+
+// <style-keys:css-parse-kinds>
+enum CssParseKind {
+  Shadows = 0,
+  Filters = 1,
+  Length = 2,
+  FontSize = 3,
+  ClampLength = 4,
+  TransformOrigin = 5,
+  ObjectPosition = 6,
+  LineHeight = 7,
+  LetterSpacing = 8,
+  TextIndent = 9,
+  WordSpacing = 10,
+  VerticalAlign = 11,
+  Dimension = 12,
+  LengthAuto = 13,
+  BorderRadius = 14,
+  BorderCornerRadius = 15,
+  SvgNumberList = 16,
+  SvgTransform = 17,
+  SvgLength = 18,
+  SvgLengthList = 19,
+  SvgOpacity = 20,
+  SvgAngle = 21,
+  SvgAspectRatio = 22,
+  SvgNumber = 23,
+  SvgDashArray = 24,
+}
+// </style-keys:css-parse-kinds>
+
+// <style-keys:records>
+const enum BorderRadiiRecord {
+  STRIDE = 8,
+  HORIZONTAL_TOP_LEFT = 0,
+  HORIZONTAL_TOP_RIGHT = 1,
+  HORIZONTAL_BOTTOM_RIGHT = 2,
+  HORIZONTAL_BOTTOM_LEFT = 3,
+  VERTICAL_TOP_LEFT = 4,
+  VERTICAL_TOP_RIGHT = 5,
+  VERTICAL_BOTTOM_RIGHT = 6,
+  VERTICAL_BOTTOM_LEFT = 7,
+}
+
+const enum CssLengthResultRecord {
+  STRIDE = 2,
+  KIND = 0,
+  VALUE = 1,
+}
+
+const enum CssBackgroundWriteRecord {
+  STRIDE = 3,
+  PROPERTY = 0,
+  VALUE = 1,
+  CURRENT_COLOR = 2,
+}
+
+const enum CssEffectWriteRecord {
+  STRIDE = 3,
+  PROPERTY = 0,
+  VALUE = 1,
+  CURRENT_COLOR = 2,
+}
+
+const enum CssMaskWriteRecord {
+  STRIDE = 2,
+  SLOT = 0,
+  VALUE = 1,
+}
+// </style-keys:records>
+
 enum StyleKeys {
   // <style-keys:offsets> generated from tools/scripts/style-keys/style-keys.schema, run `npm run gen:style-keys`
-  STYLE_BUFFER_SIZE = 744,
+  STYLE_BUFFER_SIZE = 792,
 
   DISPLAY = 0,
   POSITION = 1,
@@ -169,8 +250,8 @@ enum StyleKeys {
   FONT_METRICS_CAP_HEIGHT_OFFSET = 293, // f32 (293-296)
   VERTICAL_ALIGN_OFFSET_OFFSET = 297, // f32 (297-300)
   VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301,
-  VERTICAL_ALIGN_ENUM_OFFSET = 302, // f32 (302-305)
-  FIRST_BASELINE_OFFSET = 306, // f32 (306-309)
+  VERTICAL_ALIGN_ENUM_OFFSET = 302,
+  FIRST_BASELINE_OFFSET = 306, // f32 (306-309), preserves the three reserved bytes after vertical-align
   Z_INDEX = 310, // i32 (310-313)
   ITEM_IS_LIST = 314,
   ITEM_IS_LIST_ITEM = 315,
@@ -324,50 +405,52 @@ enum StyleKeys {
   TEXT_SPACING_TRIM = 740, // 0 normal, 1 space-all, 2 space-first, 3 trim-start, 4 trim-both, 5 trim-all, 6 auto
   TEXT_SPACING_TRIM_STATE = 741,
   VISIBILITY = 742, // 0 visible, 1 hidden, 2 collapse
+  FONT_FEATURES_REVISION = 743, // Rust-owned OpenType feature settings change counter
+  BOX_SHADOW_REVISION = 744, // u32 (744-747), Rust-owned box shadow records change counter
+  TEXT_SHADOW_REVISION = 748, // u32 (748-751), Rust-owned text shadow records change counter
+  FILTER_REVISION = 752, // u32 (752-755), Rust-owned filter records change counter
+  BACKDROP_FILTER_REVISION = 756, // u32 (756-759), Rust-owned backdrop-filter records change counter
+  BACKGROUND_REVISION = 760, // u32 (760-763), Rust-owned background layers change counter
+  TRANSFORM_REVISION = 764, // u32 (764-767), Rust-owned CSS transform list change counter
+  CLIP_PATH_REVISION = 768, // u32 (768-771), Rust-owned CSS clip-path change counter
+  MASK_REVISION = 772, // u32 (772-775), Rust-owned mask layer list change counter
+  BORDER_IMAGE_REVISION = 776, // u32 (776-779), Rust-owned border-image change counter
+  MASK_BORDER_REVISION = 780, // u32 (780-783), Rust-owned mask-border change counter
+  TEXT_OVERFLOW_TOKEN = 784, // i64 (784-791), Rust-owned text-overflow string handle
   // </style-keys:offsets>
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
-// Windows: the native Style.UpdateGrid takes all grid strings at once. To set one while preserving
-// the others, read the current values back from the Grid*Css getters. (Layout grid props like
-// grid-auto-flow and gap are buffer-stored and already flow through the live style buffer.)
-function windowsSetGrid(nativeView: any, field: string, value: string) {
-  const s = nativeView?.Style;
+// <style-keys:grid-properties>
+const enum GridProperty {
+  GridAutoRows = 0,
+  GridAutoColumns = 1,
+  GridColumn = 2,
+  GridColumnStart = 3,
+  GridColumnEnd = 4,
+  GridRow = 5,
+  GridRowStart = 6,
+  GridRowEnd = 7,
+  GridTemplateRows = 8,
+  GridTemplateColumns = 9,
+  GridArea = 10,
+  GridTemplateAreas = 11,
+}
+// </style-keys:grid-properties>
+
+function windowsNativeStyle(nativeView: any) {
+  return nativeView?.Style;
+}
+
+function windowsSetGrid(nativeView: any, property: GridProperty, value: string, fontSize = 0) {
+  const s = windowsNativeStyle(nativeView);
   if (!s) return;
-  const g: any = {
-    gridAutoRows: s.GridAutoRowsCss,
-    gridAutoColumns: s.GridAutoColumnsCss,
-    gridColumn: s.GridColumnCss,
-    gridColumnStart: s.GridColumnStartCss,
-    gridColumnEnd: s.GridColumnEndCss,
-    gridRow: s.GridRowCss,
-    gridRowStart: s.GridRowStartCss,
-    gridRowEnd: s.GridRowEndCss,
-    gridTemplateRows: s.GridTemplateRowsCss,
-    gridTemplateColumns: s.GridTemplateColumnsCss,
-    // Reads back as the four lines and is applied after them, so a read-back would undo the line
-    // being set; the FFI skips an empty one.
-    gridArea: '',
-    gridTemplateAreas: s.GridTemplateAreasCss,
-  };
-  g[field] = value ?? '';
-  // `grid-row`/`grid-column` are shorthands for their `{start,end}` pair; derive
-  // start/end from it so all three stay consistent (`span 2` -> start `span 2`,
-  // end auto; `1 / 3` -> start `1`, end `3`).
-  if (field === 'gridRow' || field === 'gridColumn') {
-    const parts = String(value ?? '')
-      .split('/')
-      .map((p) => p.trim());
-    g[field + 'Start'] = parts[0] ?? '';
-    g[field + 'End'] = parts.length > 1 ? (parts[1] ?? '') : '';
-  }
-  s.UpdateGrid(g.gridAutoRows, g.gridAutoColumns, g.gridColumn, g.gridColumnStart, g.gridColumnEnd, g.gridRow, g.gridRowStart, g.gridRowEnd, g.gridTemplateRows, g.gridTemplateColumns, g.gridArea, g.gridTemplateAreas);
-  // UpdateGrid doesn't mark the node dirty / invalidate XAML measure on its own;
-  // SyncStyle does, so a grid item's placement change re-runs the container layout.
-  try {
-    (nativeView as NativeScript.Mason.IMasonElement).SyncStyle(-1, -1, -1, -1);
-  } catch (_) {}
+  const [_, em, root, width, height] = numericCssContext(value, fontSize);
+  s.SetGridCss(property, value, em, root, width, height);
+  // Grid values live outside the fixed style buffer. SyncStyle invalidates
+  // XAML measure after the Rust write.
+  (nativeView as NativeScript.Mason.IMasonElement).SyncStyle(-1, -1, -1, -1);
 }
 
 // The buffer holds device pixels; `px` on the way out means a CSS pixel, the
@@ -389,7 +472,7 @@ function parseDimension(type: number, value: number): DimensionLength {
     case 6:
       return `fit-content(${layout.toDeviceIndependentPixels(value)}px)`;
     case 7:
-      return `fit-content(${value}%)`;
+      return `fit-content(${value * 100}%)`;
     case 8:
       return 'stretch';
     case 9:
@@ -425,168 +508,85 @@ function finite(n: number): number {
 const EM_UNIT = /em/i;
 
 // Plain lengths parsed once: px, dip and bare numbers in CSS px (the density can change), % as a 0-1 fraction.
-const PLAIN_LENGTH = /^\s*([+-]?(?:\d+\.?\d*|\.\d+))(px|dip|%)?\s*$/i;
 type PlainLength = { percent: boolean; value: number };
 const plainLengths = new Map<string, PlainLength | null>();
 
 function plainLength(token: string): PlainLength | null {
   let plain = plainLengths.get(token);
   if (plain === undefined) {
-    const m = PLAIN_LENGTH.exec(token);
-    const n = m ? parseFloat(m[1]) : NaN;
-    plain = Number.isFinite(n) ? (m[2] === '%' ? { percent: true, value: n / 100 } : { percent: false, value: n }) : null;
+    const fields = expandCssShorthand('length-value', token);
+    plain = null;
+    if (fields) {
+      const [value, unit] = fields;
+      const amount = Number(value);
+      if (unit === '%') plain = { percent: true, value: amount / 100 };
+      else if (unit === '' || unit === 'px' || unit === 'dip') plain = { percent: false, value: amount };
+    }
     if (plainLengths.size >= 512) plainLengths.clear();
     plainLengths.set(token, plain);
   }
   return plain;
 }
 
-/** 1pt = 1/72in and 1 CSS px = 1/96in, so a point is 96/72 CSS px. */
-const PX_PER_PT = 96 / 72;
-
-/** `n<unit>` in CSS px inside a math function, or undefined for an unknown unit. */
-function unitToCssPx(n: number, unit: string, emBasis?: number): number | undefined {
-  switch (unit) {
-    case 'px':
-    case 'dip':
-      return n;
-    case 'dppx':
-      return layout.toDeviceIndependentPixels(n);
-    case 'rem':
-      return n * cssUnits.rootFontSize;
-    case 'em':
-      return n * (emBasis && emBasis > 0 ? emBasis : cssUnits.rootFontSize);
-    case 'pt':
-      return n * PX_PER_PT;
-    case 'vw':
-    case 'vh':
-    case 'vmin':
-    case 'vmax': {
-      noteViewportUnit();
-      const { viewportWidth: w, viewportHeight: h } = cssUnits;
-      if (w <= 0 || h <= 0) {
-        reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: `${n}${unit}`, detail: 'viewport size not known yet, resolved to 0' });
-        return 0;
-      }
-      const basis = unit === 'vw' ? w : unit === 'vh' ? h : unit === 'vmin' ? Math.min(w, h) : Math.max(w, h);
-      return (n / 100) * basis;
-    }
-    default:
-      return undefined;
-  }
-}
-
-/**
- * A math function `font-size`: `em` is parent-relative like `%`, so `calc(1.5em)` is `150%`.
- * Mixed with absolute lengths, `em` and `%` resolve against the root font size instead.
- */
-function fontSizeMath(value: string) {
-  const parentRelative = evaluateCssMath(value, (n, unit) => (unit === 'em' ? { percent: n * 100 } : unitToCssPx(n, unit)));
-  return parentRelative ?? evaluateCssMath(value, (n, unit) => (unit === '%' ? (n / 100) * cssUnits.rootFontSize : unitToCssPx(n, unit)));
-}
-
-/** A calc()/min()/max()/clamp() length, with `em` against `emBasis`. */
-function evaluateLengthMath(value: string, emBasis?: number) {
-  return evaluateCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
-}
-
-/** `value` with every resolvable math function replaced by its result, for the native parsers. */
-export function resolveCssMathIn(value: string, emBasis?: number): string {
-  return substituteCssMath(value, (n, unit) => unitToCssPx(n, unit, emBasis));
-}
-
-const GRID_RELATIVE_LENGTH = /(^|[\s(,\]])([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(rem|em|pt|vw|vh|vmin|vmax)(?=$|[\s),[])/gi;
-
-/** A grid track list with relative units and math functions resolved to `px`, which the native parser reads. */
-export function resolveGridTrackUnits(value: string, emBasis?: number): string {
-  if (!value) {
-    return value;
-  }
-  let out = hasCssMathFunction(value) ? resolveCssMathIn(value, emBasis) : value;
-  out = out.replace(GRID_RELATIVE_LENGTH, (_m, lead: string, n: string, unit: string) => `${lead}${finite(unitToCssPx(parseFloat(n), unit.toLowerCase(), emBasis) ?? 0)}px`);
-  if (hasCssMathFunction(out)) {
-    reportCssDiagnostic({ kind: 'not-implemented', name: 'grid track list', value, detail: 'a math function mixing % with a length, dropped by the track parser' });
-  }
-  return out;
-}
-
-/**
- * A math function in a `<length-percentage>` as the buffer's type/value pair,
- * or undefined when `t` isn't one or doesn't resolve.
- */
-function mathLengthPercentage(t: string, emBasis: number | undefined, lengthType: number, percentType: number): { type: number; value: number } | undefined {
-  if (!isCssMathFunction(t)) {
-    return undefined;
-  }
-  const math = evaluateLengthMath(t, emBasis);
-  switch (math?.kind) {
-    case 'length':
-      return { type: lengthType, value: layout.toDevicePixels(finite(math.px)) };
-    case 'number':
-      return { type: lengthType, value: layout.toDevicePixels(finite(math.value)) };
-    case 'percent':
-      // percentages are stored as a [0.0, 1.0] fraction, not percentage points
-      return { type: percentType, value: finite(math.percent) / 100 };
-    default:
-      return undefined;
-  }
-}
-
-/**
- * Resolve a CSS length token to the device pixels the geometry buffers store.
- *
- * `emBasis` is the font size `em` is relative to, in CSS px: the element's own
- * for a length, the parent's for `font-size` itself. It falls back to the root
- * font size when the element has no font size of its own yet.
- *
- * Suffix order matters: `rem` also ends with `em`, and `dppx` with `px`.
- */
-function tokenToDevicePx(token: string, raw: number, emBasis?: number): number {
-  const plain = plainLength(token);
-  if (plain && !plain.percent) return layout.toDevicePixels(plain.value);
-  const t = token.trim().toLowerCase();
-  if (isCssMathFunction(t)) {
-    const math = evaluateLengthMath(t, emBasis);
-    if (math?.kind === 'length') return layout.toDevicePixels(finite(math.px));
-    // A bare number is a CSS px to Mason, as outside calc().
-    if (math?.kind === 'number') return layout.toDevicePixels(finite(math.value));
-  }
-  const n = finite(raw);
-
-  if (t.endsWith(DEVICE_PIXEL_UNIT)) return n;
-  if (t.endsWith('rem')) return layout.toDevicePixels(n * cssUnits.rootFontSize);
-  if (t.endsWith('em')) return layout.toDevicePixels(n * (emBasis && emBasis > 0 ? emBasis : cssUnits.rootFontSize));
-  if (t.endsWith('pt')) return layout.toDevicePixels(n * PX_PER_PT);
-  if (t.endsWith('vmin') || t.endsWith('vmax') || t.endsWith('vw') || t.endsWith('vh')) {
+function numericCssContext(value: string, emBasis?: number, scale = layout.toDevicePixels(1)): [number, number, number, number, number] {
+  let width = 0;
+  let height = 0;
+  if (VIEWPORT_UNIT_TEXT.test(value.toLowerCase())) {
     noteViewportUnit();
-    if (cssUnits.viewportWidth <= 0 || cssUnits.viewportHeight <= 0) {
-      reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: t, detail: 'viewport size not known yet, resolved to 0' });
-      return 0;
+    width = cssUnits.viewportWidth;
+    height = cssUnits.viewportHeight;
+    if (width <= 0 || height <= 0) {
+      reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value, detail: 'viewport size not known yet, resolved to 0' });
+      width = height = 0;
     }
-    if (t.endsWith('vmin')) return layout.toDevicePixels((n / 100) * Math.min(cssUnits.viewportWidth, cssUnits.viewportHeight));
-    if (t.endsWith('vmax')) return layout.toDevicePixels((n / 100) * Math.max(cssUnits.viewportWidth, cssUnits.viewportHeight));
-    if (t.endsWith('vw')) return layout.toDevicePixels((n / 100) * cssUnits.viewportWidth);
-    return layout.toDevicePixels((n / 100) * cssUnits.viewportHeight);
   }
+  return [scale, emBasis ?? 0, cssUnits.rootFontSize, width, height];
+}
 
-  // A function value Mason can't evaluate (var(), or math mixing % with a length)
-  // collapses to 0.
-  const fn = /^([a-z-]+)\(/.exec(t);
+function resolveLengthInRust(value: string, emBasis?: number, fontSize = false) {
+  return nativeCssLength(value, fontSize ? CssParseKind.FontSize : CssParseKind.Length, ...numericCssContext(value, emBasis));
+}
+
+function lengthMathResult(fields: ReturnType<typeof nativeCssLength>): CssMathResult | undefined {
+  if (!fields) return undefined;
+  const [kind, value] = fields;
+  if (kind === 0) return { kind: 'number', value };
+  if (kind === 1) return { kind: 'length', px: layout.toDeviceIndependentPixels(value) };
+  if (kind === 2) return { kind: 'percent', percent: value * 100 };
+  return undefined;
+}
+
+export function resolveCssLengthMath(value: string, emBasis?: number) {
+  return lengthMathResult(resolveLengthInRust(value, emBasis));
+}
+
+/** Replaces math expressions which resolve before layout. */
+export function resolveCssMathIn(value: string, emBasis?: number): string {
+  return rewriteCssMath(value, (expression) => resolveCssLengthMath(expression, emBasis));
+}
+
+function fallbackDevicePx(value: string, raw: string | undefined, unit: string | undefined): number {
+  const fn = /^([a-z-]+)\(/.exec(value);
   if (fn) {
-    const detail = isCssMathFunction(t) ? `${fn[1]}() mixes % with a length, or doesn't parse, so it can't be evaluated before layout` : `${fn[1]}() is not evaluated here; it resolves only in a stylesheet, where core expands it first`;
-    reportCssDiagnostic({ kind: 'not-implemented', name: 'length', value: t, detail });
+    const detail = isCssMathFunction(value) ? `${fn[1]}() mixes % with a length, or doesn't parse, so it can't be evaluated before layout` : `${fn[1]}() is not evaluated here; it resolves only in a stylesheet, where core expands it first`;
+    reportCssDiagnostic({ kind: 'not-implemented', name: 'length', value, detail });
     return 0;
   }
-
-  // A trailing alphabetic run that isn't a unit we know is a silent
-  // mis-resolution waiting to happen — `1ch` would quietly become 1 CSS px.
-  const unit = /[a-z%]+$/.exec(t)?.[0];
   if (unit && unit !== 'px' && unit !== 'dip') {
-    reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value: t, detail: `unknown unit "${unit}", treated as CSS px` });
+    reportCssDiagnostic({ kind: 'unsupported-unit', name: 'length', value, detail: `unknown unit "${unit}", treated as CSS px` });
   }
+  return finite(Math.fround(layout.toDevicePixels(Number(raw ?? 0))));
+}
 
-  // px, dip and a bare number are all CSS pixels.
-  return layout.toDevicePixels(n);
+/** Resolve a CSS length token to device pixels, including direct-setter compatibility. */
+function tokenToDevicePx(value: string, emBasis?: number): number {
+  const plain = plainLength(value);
+  if (plain && !plain.percent) return layout.toDevicePixels(plain.value);
+  const fields = resolveLengthInRust(value, emBasis);
+  if (fields?.[0] === 0) return layout.toDevicePixels(fields[1]);
+  if (fields?.[0] === 1) return fields[1];
+  const [amount, unit] = expandCssShorthand('length-prefix', value) ?? [];
+  return fallbackDevicePx(value.trim().toLowerCase(), amount, unit);
 }
 
 /**
@@ -601,35 +601,14 @@ export function parseAspectRatio(value: unknown): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) && value > 0 ? value : Number.NaN;
   }
-  if (typeof value !== 'string') {
+  if (typeof value !== 'string' || value.trim() === '') {
     return Number.NaN;
   }
-  // `auto` may accompany a ratio (`auto 2 / 3`); mason keeps the ratio, which is
-  // what `auto` falls back to for any element without an intrinsic one.
-  const t = value
-    .trim()
-    .toLowerCase()
-    .replace(/\bauto\b/g, ' ')
-    .trim();
-  if (t === '') {
-    return Number.NaN;
+  const ratio = expandCssShorthand('aspect-ratio', value)?.[0];
+  if (ratio === undefined) {
+    reportCssDiagnostic({ kind: 'unparsable-value', name: 'aspect-ratio', value, detail: 'expected a positive <number>, a <ratio> like "2 / 3", or auto' });
   }
-  const slash = t.indexOf('/');
-  if (slash === -1) {
-    const n = Number(t);
-    if (!Number.isFinite(n) || n <= 0) {
-      reportCssDiagnostic({ kind: 'unparsable-value', name: 'aspect-ratio', value, detail: 'expected a positive <number>, a <ratio> like "2 / 3", or auto' });
-      return Number.NaN;
-    }
-    return n;
-  }
-  const width = Number(t.slice(0, slash).trim());
-  const height = Number(t.slice(slash + 1).trim());
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    reportCssDiagnostic({ kind: 'unparsable-value', name: 'aspect-ratio', value, detail: 'both sides of a <ratio> must be positive numbers' });
-    return Number.NaN;
-  }
-  return width / height;
+  return ratio ? Number(ratio) : Number.NaN;
 }
 
 /**
@@ -651,31 +630,29 @@ export function cssLengthToDip(value: unknown, emBasis?: number): number | undef
     return plain.percent ? undefined : plain.value;
   }
   const t = value.trim().toLowerCase();
-  if (t === '' || t === 'auto' || t.endsWith('%')) {
+  const resolved = resolveLengthInRust(t, emBasis);
+  if (resolved) {
+    if (resolved[0] === 0) return resolved[1];
+    if (resolved[0] === 1) return layout.toDeviceIndependentPixels(resolved[1]);
     return undefined;
   }
-  if (isCssMathFunction(t)) {
-    const math = evaluateLengthMath(t, emBasis);
-    if (math?.kind === 'length') return math.px;
-    if (math?.kind === 'number') return math.value;
-    // A percentage, or % mixed with a length, keeps its own path.
-    return undefined;
-  }
-  // Sizing keywords and function values have their own handling.
-  if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?[a-z]*$/.test(t)) {
-    return undefined;
-  }
-  const n = parseFloat(t);
-  if (!Number.isFinite(n)) {
-    return undefined;
-  }
-  return layout.toDeviceIndependentPixels(tokenToDevicePx(t, n, emBasis));
+  // Keep the existing fallback for unknown units in direct string setters.
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?[a-z]+$/.test(t)) return undefined;
+  const [amount, unit] = expandCssShorthand('length-prefix', t) ?? [];
+  return amount === undefined ? undefined : layout.toDeviceIndependentPixels(fallbackDevicePx(t, amount, unit));
 }
 
-const SIZING_KEYWORD = /^(min-content|max-content|fit-content|stretch|content|fit-content\(.+\))$/;
+const SIZING_KEYWORD = /^(min-content|max-content|fit-content|stretch|content|fit-content\(.+\))$/i;
 
 export function isSizingKeyword(value: unknown): value is string {
   return typeof value === 'string' && SIZING_KEYWORD.test(value.trim());
+}
+
+/** Authored CSS math that may need the containing size. Core can carry it as a unit string. */
+export function layoutMathText(value: unknown): string | undefined {
+  const length = value as { css?: unknown; unit?: unknown } | null;
+  const text = typeof value === 'string' ? value : length?.css ?? length?.unit;
+  return typeof text === 'string' && text.includes('%') && isCssMathFunction(text) ? text : undefined;
 }
 
 /** The keyword carried as the unit of a core length object, if any. */
@@ -683,85 +660,25 @@ function sizingKeywordOf(value: { unit?: unknown }): string | undefined {
   return isSizingKeyword(value?.unit) ? (value.unit as string) : undefined;
 }
 
-function dimensionFromString(value: string, emBasis?: number): { type: number; value: number } {
+function layoutLengthFromString(value: string, kind: LogicalKind, emBasis?: number): { type: number; value: number } {
+  const pointType = kind === 'length' ? 0 : 1;
+  const percentType = pointType + 1;
   const plain = plainLength(value);
   if (plain) {
-    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
+    return plain.percent ? { type: percentType, value: plain.value } : { type: pointType, value: layout.toDevicePixels(plain.value) };
   }
-  const t = value.trim();
-  if (t === '' || t === 'auto') {
-    return { type: 0, value: 0 };
+  if (kind !== 'length' && !value.trim()) return { type: 0, value: 0 };
+  const mode = kind === 'dimension' ? CssParseKind.Dimension : kind === 'auto' ? CssParseKind.LengthAuto : CssParseKind.Length;
+  const fields = nativeCssLength(value, mode, ...numericCssContext(value, emBasis));
+  if (fields) {
+    const [type, amount] = fields;
+    if (kind !== 'length') return { type, value: amount };
+    if (type === 2) return { type: percentType, value: amount };
+    return { type: pointType, value: type === 0 ? layout.toDevicePixels(amount) : amount };
   }
-  switch (t) {
-    case 'min-content':
-      return { type: 3, value: 0 };
-    case 'max-content':
-      return { type: 4, value: 0 };
-    case 'fit-content':
-      return { type: 5, value: 0 };
-    case 'stretch':
-      return { type: 8, value: 0 };
-    case 'content':
-      return { type: 9, value: 0 };
-  }
-  const math = mathLengthPercentage(t, emBasis, 1, 2);
-  if (math) {
-    return math;
-  }
-  if (t.startsWith('fit-content(') && t.endsWith(')')) {
-    const limit = t.slice('fit-content('.length, -1).trim();
-    if (limit.endsWith('%')) {
-      // taffy percentages are a [0.0, 1.0] fraction, not [0.0, 100.0]
-      return { type: 7, value: finite(parseFloat(limit) || 0) / 100 };
-    }
-    const n = parseFloat(limit) || 0;
-    return { type: 6, value: tokenToDevicePx(limit, n, emBasis) };
-  }
-  if (t.endsWith('%')) {
-    // percentages are stored as a [0.0, 1.0] fraction, not percentage points
-    return { type: 2, value: finite(parseFloat(t) || 0) / 100 };
-  }
-  const n = parseFloat(t) || 0;
-  return { type: 1, value: tokenToDevicePx(t, n, emBasis) };
-}
-
-// Shared parser for LengthPercentageAuto props (min/max width/height, margin, inset)
-function lengthPercentageAutoFromString(value: string, emBasis?: number): { type: number; value: number } {
-  const plain = plainLength(value);
-  if (plain) {
-    return plain.percent ? { type: 2, value: plain.value } : { type: 1, value: layout.toDevicePixels(plain.value) };
-  }
-  const t = value.trim();
-  if (t === '' || t === 'auto') {
-    return { type: 0, value: 0 };
-  }
-  const math = mathLengthPercentage(t, emBasis, 1, 2);
-  if (math) {
-    return math;
-  }
-  if (t.endsWith('%')) {
-    return { type: 2, value: finite(parseFloat(t) || 0) / 100 };
-  }
-  const n = parseFloat(t) || 0;
-  return { type: 1, value: tokenToDevicePx(t, n, emBasis) };
-}
-
-// Same as lengthPercentageAutoFromString but for padding (no "auto", type 0/1 swapped)
-function lengthPercentageFromString(value: string, emBasis?: number): { type: number; value: number } {
-  const plain = plainLength(value);
-  if (plain) {
-    return plain.percent ? { type: 1, value: plain.value } : { type: 0, value: layout.toDevicePixels(plain.value) };
-  }
-  const t = value.trim();
-  const math = mathLengthPercentage(t, emBasis, 0, 1);
-  if (math) {
-    return math;
-  }
-  if (t.endsWith('%')) {
-    return { type: 1, value: finite(parseFloat(t) || 0) / 100 };
-  }
-  const n = parseFloat(t) || 0;
-  return { type: 0, value: tokenToDevicePx(t, n, emBasis) };
+  const [amount, unit] = expandCssShorthand('length-prefix', value) ?? [];
+  if (unit === '%') return { type: percentType, value: Number(amount) / 100 };
+  return { type: pointType, value: fallbackDevicePx(value.trim().toLowerCase(), amount, unit) };
 }
 
 function parseLengthPercentage(type: number, value: number): Length {
@@ -891,15 +808,14 @@ class StateKeys {
   static readonly TEXT_COMBINE_UPRIGHT = StateKeys.flag(83);
   static readonly TEXT_SPACING_TRIM = StateKeys.flag(84);
   static readonly VISIBILITY = StateKeys.flag(85);
+  static readonly FONT_FEATURE_SETTINGS = StateKeys.flag(86);
   // </style-keys:state>
 
-  static readonly DISPLAY_AND_MODE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE);
 
-  static readonly FLOW_TYPE = StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE).or(StateKeys.POSITION).or(StateKeys.FLOAT);
-  static readonly WINDOWS_TEXT = [StateKeys.INVALIDATE_TEXT, StateKeys.FONT_COLOR, StateKeys.DECORATION_LINE, StateKeys.DECORATION_COLOR, StateKeys.TEXT_ALIGN, StateKeys.TEXT_JUSTIFY, StateKeys.FONT_SIZE, StateKeys.TEXT_TRANSFORM, StateKeys.FONT_STYLE, StateKeys.FONT_STYLE_SLANT, StateKeys.TEXT_WRAP, StateKeys.TEXT_OVERFLOW, StateKeys.DECORATION_STYLE, StateKeys.WHITE_SPACE, StateKeys.FONT_WEIGHT, StateKeys.LINE_HEIGHT, StateKeys.VERTICAL_ALIGN, StateKeys.DECORATION_THICKNESS, StateKeys.TEXT_SHADOWS, StateKeys.FONT_FAMILY, StateKeys.LETTER_SPACING, StateKeys.FONT_VARIANT_NUMERIC, StateKeys.WRITING_MODE, StateKeys.UNICODE_BIDI, StateKeys.HYPHENS, StateKeys.WORD_SPACING, StateKeys.FONT_STRETCH, StateKeys.TEXT_INDENT, StateKeys.LINE_CLAMP, StateKeys.TEXT_ORIENTATION].reduce(
-    (mask, key) => mask.or(key),
-    StateKeys.NONE,
-  );
+  // <style-keys:state-groups> generated from tools/scripts/style-keys/style-keys.schema
+  static readonly WINDOWS_TEXT_CHANGES = new StateKeys(0, -8519680, 388863, 0);
+  static readonly FLOW_TYPE = new StateKeys(3, 2052, 0, 0);
+  // </style-keys:state-groups>
 
   /** The mask as one unsigned 128-bit value (tests and diagnostics). */
   get bits(): bigint {
@@ -981,114 +897,6 @@ export function windowsAppFile(url: string): string {
   return root + '\\' + url.slice(2).replace(/\//g, '\\');
 }
 
-// Split a comma-separated list at top level only (commas inside parentheses, e.g. rgba(0,0,0,.5),
-// are kept with their token).
-function splitTopLevelCommas(s: string): string[] {
-  const out: string[] = [];
-  let depth = 0;
-  let cur = '';
-  for (const ch of s) {
-    if (ch === '(') depth++;
-    else if (ch === ')') depth = Math.max(0, depth - 1);
-    if (ch === ',' && depth === 0) {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  if (cur.trim().length) out.push(cur);
-  return out;
-}
-
-// Map a CSS gradient direction token to a CSS angle in degrees (0deg = to top, 90deg = to right).
-function parseGradientAngle(token: string): number {
-  const t = token.trim().toLowerCase();
-  const deg = /^(-?[\d.]+)deg$/.exec(t);
-  if (deg) return parseFloat(deg[1]);
-  if (/^(-?[\d.]+)turn$/.exec(t)) return parseFloat(t) * 360;
-  if (/^(-?[\d.]+)rad$/.exec(t)) return (parseFloat(t) * 180) / Math.PI;
-  if (t === 'to top') return 0;
-  if (t === 'to right') return 90;
-  if (t === 'to bottom') return 180;
-  if (t === 'to left') return 270;
-  if (t === 'to top right' || t === 'to right top') return 45;
-  if (t === 'to bottom right' || t === 'to right bottom') return 135;
-  if (t === 'to bottom left' || t === 'to left bottom') return 225;
-  if (t === 'to top left' || t === 'to left top') return 315;
-  return 180; // CSS default is 'to bottom'
-}
-
-function parseGradientCorner(token: string): [number, number] | undefined {
-  const words = token.trim().toLowerCase().split(/\s+/);
-  if (words.length !== 3 || words[0] !== 'to') return undefined;
-  let x = 0;
-  let y = 0;
-  for (const word of words.slice(1)) {
-    if (word === 'left' || word === 'right') x = word === 'left' ? -1 : 1;
-    else if (word === 'top' || word === 'bottom') y = word === 'top' ? -1 : 1;
-  }
-  return x && y ? [x, y] : undefined;
-}
-
-const LINEAR_GRADIENT = /linear-gradient/i;
-const ANY_GRADIENT = /-gradient\(/i;
-const LINEAR_GRADIENT_ARGS = /linear-gradient\s*\(([\s\S]*)\)\s*$/i;
-
-const INTERPOLATION_METHOD = /(?:^|\s)in\s+([a-z][a-z0-9-]*(?:\s+(?:shorter|longer|increasing|decreasing)\s+hue)?)(?=\s|$)/i;
-
-// Parse `linear-gradient(<dir>? <in colorspace>?, <color> <stop>?, ...)` into a CSS angle, per-stop argb + offsets and the interpolation.
-export function parseLinearGradientCss(value: string): { angle: number; corner?: [number, number]; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null> } | null {
-  const m = LINEAR_GRADIENT_ARGS.exec(value.trim());
-  if (!m) return null;
-  const parts = splitTopLevelCommas(m[1])
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length < 2) return null;
-  let angle = 180;
-  let corner: [number, number] | undefined;
-  let start = 0;
-  let head = parts[0];
-  let interpolation = '';
-  const method = INTERPOLATION_METHOD.exec(head);
-  if (method) {
-    interpolation = method[1].toLowerCase().replace(/\s+/g, ' ');
-    head = (head.slice(0, method.index) + head.slice(method.index + method[0].length)).trim();
-    start = 1;
-  }
-  if (/^(to\s|-?[\d.]+(deg|rad|turn))/i.test(head)) {
-    angle = parseGradientAngle(head);
-    corner = parseGradientCorner(head);
-    start = 1;
-  }
-  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
-  if (colors.length < 1) return null;
-  return { angle, ...(corner && { corner }), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }) };
-}
-
-// A length stop needs the gradient line's length, which only the painter knows.
-function parseGradientStops(stops: string[]): { colors: number[]; positions: Array<number | null>; lengths?: Array<number | null> } {
-  const colors: number[] = [];
-  const positions: Array<number | null> = [];
-  const lengths: Array<number | null> = [];
-  let anyLength = false;
-  for (const stop of expandColorStops(stops)) {
-    const pos = /\s+(-?[\d.]+)(%|[a-z]+)?\s*$/i.exec(stop);
-    const colorStr = pos ? stop.slice(0, pos.index).trim() : stop;
-    const argb = normalizeColorValue(colorStr);
-    if (argb == null) continue;
-    colors.push(argb >>> 0);
-    const percent = pos?.[2] === '%';
-    const length = pos && !percent ? cssLengthToDip(pos[1] + (pos[2] ?? 'px')) : undefined;
-    positions.push(percent ? parseFloat(pos[1]) / 100 : null);
-    lengths.push(length ?? null);
-    if (length != null) anyLength = true;
-  }
-  return { colors, positions, ...(anyLength && { lengths }) };
-}
-
-const RADIAL_GRADIENT_ARGS = /radial-gradient\s*\(([\s\S]*)\)\s*$/i;
-
 function positionFraction(token: string | undefined, axis: 'x' | 'y'): number | null {
   if (token == null) return null;
   const t = token.trim().toLowerCase();
@@ -1116,48 +924,6 @@ export function parseBoxPosition(value: string, fallback = 0.5): { x: number; y:
   return { x: fallback, y: fallback };
 }
 
-export function parseRadialGradientCss(value: string): { cx: number; cy: number; rx: number; ry: number; offsets: number[]; colors: number[]; interpolation: string; positions: Array<number | null>; lengths?: Array<number | null>; circle?: number; circleRadius?: number } | null {
-  const m = RADIAL_GRADIENT_ARGS.exec(value.trim());
-  if (!m) return null;
-  const parts = splitTopLevelCommas(m[1])
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length < 2) return null;
-  let start = 0;
-  let cx = 0.5;
-  let cy = 0.5;
-  let size = 'farthest-corner';
-  let interpolation = '';
-  let head = parts[0];
-  const method = INTERPOLATION_METHOD.exec(head);
-  if (method) {
-    interpolation = method[1].toLowerCase().replace(/\s+/g, ' ');
-    head = (head.slice(0, method.index) + head.slice(method.index + method[0].length)).trim();
-    start = 1;
-  }
-  if (/\b(circle|ellipse|closest-side|farthest-side|closest-corner|farthest-corner|at)\b/i.test(head)) {
-    start = 1;
-    const at = /\bat\s+(.+)$/i.exec(head);
-    if (at) {
-      const p = parseBoxPosition(at[1]);
-      cx = p.x;
-      cy = p.y;
-    }
-    const sizeKeyword = /(closest-side|farthest-side|closest-corner|farthest-corner)/i.exec(head);
-    if (sizeKeyword) size = sizeKeyword[1].toLowerCase();
-  }
-  const shape = head.replace(/\bat\s+.+$/i, '');
-  const circleLength = /\bcircle\b/i.test(shape) || /^\s*-?[\d.]+[a-z]*\s*$/i.test(shape) ? /(-?[\d.]+(?:px|r?em|pt|vw|vh)?)(?=\s|$)/i.exec(shape) : null;
-  const circleRadius = circleLength ? cssLengthToDip(/[a-z]$/i.test(circleLength[1]) ? circleLength[1] : circleLength[1] + 'px') : undefined;
-  const circle = /\bcircle\b/i.test(shape) || circleRadius != null ? ['closest-side', 'farthest-side', 'closest-corner', 'farthest-corner'].indexOf(size) : undefined;
-  const sideX = size.startsWith('closest') ? Math.min(cx, 1 - cx) : Math.max(cx, 1 - cx);
-  const sideY = size.startsWith('closest') ? Math.min(cy, 1 - cy) : Math.max(cy, 1 - cy);
-  const corner = size.endsWith('corner') ? Math.SQRT2 : 1;
-  const { colors, positions, lengths } = parseGradientStops(parts.slice(start));
-  if (colors.length < 1) return null;
-  return { cx, cy, rx: Math.max(sideX * corner, 0.001), ry: Math.max(sideY * corner, 0.001), offsets: resolveStopPositions(positions), colors, interpolation, positions, ...(lengths && { lengths }), ...(circle != null && { circle }), ...(circleRadius != null && { circleRadius }) };
-}
-
 export function backgroundFit(size: string | null | undefined): number {
   const t = (size ?? '').trim().toLowerCase();
   if (t === 'cover') return 3;
@@ -1166,28 +932,8 @@ export function backgroundFit(size: string | null | undefined): number {
   return 0;
 }
 
-const SIDE_TOKEN = /^(auto|[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?(px|dip|dppx|rem|em|pt|vw|vh|vmin|vmax|%)?|[a-z-]+\(.*\))$/i;
-
-/** 1-4 lengths, percentages or `auto`. Anything else makes the whole declaration invalid, which CSS ignores. */
 export function isSideList(value: string): boolean {
-  const parts = splitTopLevelSpaces(String(value ?? '').trim());
-  return parts.length >= 1 && parts.length <= 4 && parts.every((part) => SIDE_TOKEN.test(part));
-}
-
-// Split a `margin`/`padding`/`inset` shorthand into its four sides in CSS order.
-// The raw token strings are handed to the longhand setters rather than parsed
-// here, so there stays exactly one place that knows how to read a length.
-function expandSidesShorthand(value: string): [string, string, string, string] | null {
-  const parts = value.trim().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return null;
-  switch (parts.length) {
-    case 2:
-      return [parts[0], parts[1], parts[0], parts[1]];
-    case 3:
-      return [parts[0], parts[1], parts[2], parts[1]];
-    default:
-      return [parts[0], parts[1], parts[2], parts[3]];
-  }
+  return expandCssShorthand('margin', String(value ?? '').trim()) !== null;
 }
 
 /** One Windows border-radius corner in the buffer's encoding: type 0 = dip, 1 = percent as a 0-1 fraction. */
@@ -1201,216 +947,61 @@ const RADIUS_KEYS = [
   ['bl', { xType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_TYPE, yType: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE, xValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_X_VALUE, yValue: StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE }],
 ] as const;
 
-const FAST_RADIUS_TOKEN = /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(px|dip|dppx|%)?$/;
+const resolvedRadii = new Map<string, number[] | null>();
 
-const radiusTokens = new Map<string, WindowsRadius[] | null>();
-let radiusTokensScale = NaN;
-
-/** Parsed tokens of one radius text, shared between every element that uses it: callers only read them. */
-function fastRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
-  if (scale !== radiusTokensScale || radiusTokens.size >= 512) {
-    radiusTokens.clear();
-    radiusTokensScale = scale;
-  }
-  let tokens = radiusTokens.get(part);
-  if (tokens === undefined) {
-    tokens = parseRadiusTokens(part, scale);
-    radiusTokens.set(part, tokens);
-  }
-  return tokens;
+function resolveBorderRadii(value: string, scale: number, emBasis?: number, singleCorner = false): number[] | null {
+  const context = numericCssContext(value, emBasis, scale);
+  const kind = singleCorner ? CssParseKind.BorderCornerRadius : CssParseKind.BorderRadius;
+  const key = `${kind}:${context.join(',')}:${value}`;
+  const cached = resolvedRadii.get(key);
+  if (cached !== undefined) return cached;
+  const fields = resolveCssValues(value, kind, context);
+  if (resolvedRadii.size >= 256) resolvedRadii.clear();
+  resolvedRadii.set(key, fields);
+  return fields;
 }
 
-function parseRadiusTokens(part: string, scale: number): WindowsRadius[] | null {
-  const out: WindowsRadius[] = [];
-  for (const token of part.split(/\s+/)) {
-    if (!token) continue;
-    const m = FAST_RADIUS_TOKEN.exec(token);
-    if (!m) return null;
-    const raw = parseFloat(m[1]);
-    const num = Math.min(9999, Math.max(-9999, raw));
-    if (m[2] === '%') out.push({ type: 1, value: raw / 100 });
-    else if (m[2] === 'dppx') out.push({ type: 0, value: num });
-    else out.push({ type: 0, value: num * scale });
-  }
-  return out;
-}
-
-function radiusCorners<T>(t: T[]): T[] | null {
-  switch (t.length) {
-    case 1:
-      return [t[0], t[0], t[0], t[0]];
-    case 2:
-      return [t[0], t[1], t[0], t[1]];
-    case 3:
-      return [t[0], t[1], t[2], t[1]];
-    case 4:
-      return t;
-    default:
-      return null;
-  }
-}
-
-let deviceScaleCache = 0;
-function deviceScale(): number {
-  if (__ANDROID__) return displayDensity();
-  return deviceScaleCache || (deviceScaleCache = Screen.mainScreen.scale);
-}
-
-function parseWindowsRadius(token: string, emBasis?: number): WindowsRadius {
-  const t = token.trim();
-  if (t.endsWith('%')) {
-    return { type: 1, value: Math.max(0, finite(parseFloat(t)) / 100) };
-  }
-  const n = Number(t);
-  if (t !== '' && Number.isFinite(n)) {
-    return { type: 0, value: Math.max(0, n) };
-  }
-  return { type: 0, value: Math.max(0, cssLengthToDip(t, emBasis) ?? 0) };
-}
-
-// Parse a CSS `border-radius` shorthand into per-corner radii. Handles 1-4 space-separated
-// values (CSS order: top-left, top-right, bottom-right, bottom-left) and ignores the optional
-// `/ <vertical>` part (we treat radii as circular).
+/** Returns the horizontal radii in DIPs or percentage fractions. */
 export function parseBorderRadiusShorthand(value: string, emBasis?: number): { tl: WindowsRadius; tr: WindowsRadius; br: WindowsRadius; bl: WindowsRadius } {
-  const horizontal = String(value ?? '')
-    .split('/')[0]
-    .trim();
-  const vals = horizontal.length ? horizontal.split(/\s+/).map((v) => parseWindowsRadius(v, emBasis)) : [parseWindowsRadius('0')];
-  switch (vals.length) {
-    case 1:
-      return { tl: vals[0], tr: vals[0], br: vals[0], bl: vals[0] };
-    case 2:
-      return { tl: vals[0], tr: vals[1], br: vals[0], bl: vals[1] };
-    case 3:
-      return { tl: vals[0], tr: vals[1], br: vals[2], bl: vals[1] };
-    default:
-      return { tl: vals[0], tr: vals[1], br: vals[2], bl: vals[3] };
-  }
+  const fields = resolveBorderRadii(String(value ?? ''), 1, emBasis);
+  const [tl, tr, br, bl] = RADIUS_KEYS.map<WindowsRadius>((_, index) => {
+    const offset = index * CssLengthResultRecord.STRIDE;
+    return {
+      type: fields?.[offset + CssLengthResultRecord.KIND] === 2 ? 1 : 0,
+      value: Math.max(0, fields?.[offset + CssLengthResultRecord.VALUE] ?? 0),
+    };
+  });
+  return { tl, tr, br, bl };
 }
 
-const CORNER_SHAPE_KEYWORDS: Record<string, number> = { round: 1, squircle: 2, bevel: 0, scoop: -1, notch: -Infinity, square: Infinity };
-const SUPERELLIPSE = /^superellipse\(\s*(-?infinity|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*\)$/;
-
-/** corner-shape as each corner's superellipse parameter K (TL TR BR BL), or null if a token is invalid. An empty value resets to round. */
+/** Corner exponents in CSS corner order, or null when Rust rejects the value. */
 export function parseCornerShape(value: string): [number, number, number, number] | null {
-  const tokens = splitTopLevelSpaces(
-    String(value ?? '')
-      .trim()
-      .toLowerCase(),
-  );
-  if (!tokens.length || (tokens.length === 1 && /^(initial|unset|revert|none)$/.test(tokens[0]))) return [1, 1, 1, 1];
-  if (tokens.length > 4) return null;
-  const e: number[] = [];
-  for (const token of tokens) {
-    if (token in CORNER_SHAPE_KEYWORDS) {
-      e.push(CORNER_SHAPE_KEYWORDS[token]);
-      continue;
-    }
-    const m = SUPERELLIPSE.exec(token);
-    if (!m) return null;
-    e.push(m[1] === 'infinity' ? Infinity : m[1] === '-infinity' ? -Infinity : Number(m[1]));
-  }
-  switch (e.length) {
-    case 1:
-      return [e[0], e[0], e[0], e[0]];
-    case 2:
-      return [e[0], e[1], e[0], e[1]];
-    case 3:
-      return [e[0], e[1], e[2], e[1]];
-    default:
-      return [e[0], e[1], e[2], e[3]];
-  }
+  const fields = expandCssShorthand('corner-shape', String(value ?? ''));
+  if (!fields) return null;
+  const [tl, tr, br, bl] = fields;
+  return [Number(tl), Number(tr), Number(br), Number(bl)];
 }
 
-const CORNER_SHAPE_KEYS = [StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT];
-const CORNER_SHAPE_LONGHANDS: Record<string, number> = { 'corner-shape-top-left': 0, 'corner-shape-top-right': 1, 'corner-shape-bottom-right': 2, 'corner-shape-bottom-left': 3 };
-
-// Split on top-level whitespace, keeping parenthesised groups (e.g. `rgba(0,0,0,.5)`) intact.
-function splitTopLevelSpaces(value: string): string[] {
-  const out: string[] = [];
-  let depth = 0;
-  let cur = '';
-  for (let i = 0; i < value.length; i++) {
-    const ch = value[i];
-    if (ch === '(') depth++;
-    else if (ch === ')') depth = Math.max(0, depth - 1);
-    if (depth === 0 && /\s/.test(ch)) {
-      if (cur.length) {
-        out.push(cur);
-        cur = '';
-      }
-    } else {
-      cur += ch;
-    }
-  }
-  if (cur.length) out.push(cur);
-  return out;
-}
-
-// Parse a `border` / `border-<side>` shorthand (`<width> <style> <color>`, any order) into px width,
-// border-style enum and argb color; each is null when absent.
-function parseBorderShorthand(value: string, emBasis?: number): { width: number | null; style: number | null; color: number | null } {
-  let width: number | null = null;
-  let style: number | null = null;
-  let color: number | null = null;
-  for (const tok of splitTopLevelSpaces(String(value ?? '').trim())) {
-    const s = borderStyleToEnum(tok);
-    if (s !== -1) {
-      style = s;
-      continue;
-    }
-    const lower = tok.toLowerCase();
-    if (lower === 'thin') {
-      width = 1;
-      continue;
-    }
-    if (lower === 'medium') {
-      width = 3;
-      continue;
-    }
-    if (lower === 'thick') {
-      width = 5;
-      continue;
-    }
-    const len = /^-?\d*\.?\d+(px|dip|dp|rem|em|pt)?$/i.exec(tok);
-    if (len) {
-      width = /^(r?em|pt)$/i.test(len[1] ?? '') ? (cssLengthToDip(tok, emBasis) ?? 0) : parseFloat(tok);
-      continue;
-    }
-    const c = normalizeColorValue(tok);
-    if (c != null) color = c;
-  }
-  return { width, style, color };
+function borderWidthInDip(value: string, emBasis?: number): number | null {
+  if (!value) return null;
+  // Accept the existing `dp` spelling for a numeric Windows width.
+  if (/^[+-]?\d*\.?\d+dp$/i.test(value)) return parseFloat(value);
+  return cssLengthToDip(value, emBasis) ?? null;
 }
 
 /** `currentcolor`, the decoration color's unset value (Constants.UNSET_COLOR on Android). */
 export const DECORATION_COLOR_UNSET = 0xdeadbeef;
 
 const DECORATION_LINE_BITS: Record<string, number> = { underline: 1, overline: 2, 'line-through': 4 };
-const DECORATION_LINE_SOLO: Record<string, number> = { 'spelling-error': 8, 'grammar-error': 16 };
 const DECORATION_STYLES = ['solid', 'double', 'dotted', 'dashed', 'wavy'];
 
-/** `text-decoration-line` in the buffer's bit set; null when nothing valid was found. */
+function decorationField(name: string, value: string): string | null {
+  return expandCssShorthand(name, String(value ?? ''))?.[0] ?? null;
+}
+
 export function parseTextDecorationLine(value: string): number | null {
-  let mask = 0;
-  let seen = false;
-  for (const token of String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)) {
-    if (token === '') continue;
-    if (token === 'none') {
-      seen = true;
-    } else if (token in DECORATION_LINE_BITS) {
-      mask |= DECORATION_LINE_BITS[token];
-      seen = true;
-    } else if (token in DECORATION_LINE_SOLO) {
-      return DECORATION_LINE_SOLO[token];
-    } else {
-      return null;
-    }
-  }
-  return seen ? mask : null;
+  const field = decorationField('text-decoration-line', value);
+  return field == null ? null : Number(field);
 }
 
 export function textDecorationLineToCss(mask: number): string {
@@ -1421,12 +1012,8 @@ export function textDecorationLineToCss(mask: number): string {
 }
 
 export function parseTextDecorationStyle(value: string): number | null {
-  const index = DECORATION_STYLES.indexOf(
-    String(value ?? '')
-      .trim()
-      .toLowerCase(),
-  );
-  return index === -1 ? null : index;
+  const field = decorationField('text-decoration-style', value);
+  return field == null ? null : Number(field);
 }
 
 export function textDecorationStyleToCss(value: number): string {
@@ -1434,64 +1021,22 @@ export function textDecorationStyleToCss(value: number): string {
 }
 
 export function parseTextDecorationColor(value: string): number | null {
-  if (
-    String(value ?? '')
-      .trim()
-      .toLowerCase() === 'currentcolor'
-  )
-    return DECORATION_COLOR_UNSET;
-  const argb = normalizeColorValue(value);
-  return argb == null ? null : argb >>> 0;
+  const field = decorationField('text-decoration-color', value);
+  return field == null ? null : Number(field);
 }
 
-/**
- * The `text-decoration` shorthand, tokens in any order, the way Style.kt's setTextDecoration reads
- * it: omitted longhands reset, and an unknown token rejects the whole declaration (null).
- * `thickness` is in the units `resolveLength` returns; 0 means auto.
- */
 export function parseTextDecoration(value: string, resolveLength: (token: string) => number | undefined): { line: number; style: number; color: number; thickness: number } | null {
-  let mask = 0;
-  let solo: number | null = null;
-  let style = 0;
-  let color = DECORATION_COLOR_UNSET;
-  let thickness = 0;
-  for (const raw of splitTopLevelSpaces(String(value ?? '').trim())) {
-    const token = raw.toLowerCase();
-    if (token === 'none') continue;
-    if (token in DECORATION_LINE_BITS) {
-      mask |= DECORATION_LINE_BITS[token];
-    } else if (token in DECORATION_LINE_SOLO) {
-      solo = DECORATION_LINE_SOLO[token];
-    } else if (token === 'auto' || token === 'from-font') {
-      thickness = 0;
-    } else {
-      const parsedStyle = parseTextDecorationStyle(token);
-      const parsedColor = parsedStyle == null ? parseTextDecorationColor(raw) : null;
-      const parsedLength = parsedStyle == null && parsedColor == null ? resolveLength(token) : undefined;
-      if (parsedStyle != null) style = parsedStyle;
-      else if (parsedColor != null) color = parsedColor;
-      else if (parsedLength != null) thickness = parsedLength;
-      else return null;
-    }
-  }
-  return { line: solo ?? mask, style, color, thickness };
+  const fields = expandCssShorthand('text-decoration', String(value ?? ''));
+  if (!fields) return null;
+  const [line, style, color, length] = fields;
+  const thickness = length === '' ? 0 : resolveLength(length);
+  return thickness == null ? null : { line: Number(line), style: Number(style), color: Number(color), thickness };
 }
 
-// Parse a 1-4 token `border-color` shorthand into per-side argb (CSS order top/right/bottom/left).
 function parseSidesColorShorthand(value: string): { t: number | null; r: number | null; b: number | null; l: number | null } {
-  const cols = splitTopLevelSpaces(String(value ?? '').trim()).map((t) => normalizeColorValue(t));
-  switch (cols.length) {
-    case 0:
-      return { t: null, r: null, b: null, l: null };
-    case 1:
-      return { t: cols[0], r: cols[0], b: cols[0], l: cols[0] };
-    case 2:
-      return { t: cols[0], r: cols[1], b: cols[0], l: cols[1] };
-    case 3:
-      return { t: cols[0], r: cols[1], b: cols[2], l: cols[1] };
-    default:
-      return { t: cols[0], r: cols[1], b: cols[2], l: cols[3] };
-  }
+  const fields = expandCssShorthand('border-color-values', String(value ?? ''));
+  const [t, r, b, l] = fields?.map((field) => field ? Number(field) : null) ?? [null, null, null, null];
+  return { t, r, b, l };
 }
 
 // CSS logical properties (see StyleKeys.LOGICAL_SEQ): each group's write stamps, logical slots
@@ -1520,6 +1065,61 @@ const LOGICAL_GROUPS: Record<'margin' | 'padding' | 'inset' | 'size', LogicalGro
   },
 };
 export type LogicalGroupName = keyof typeof LOGICAL_GROUPS;
+
+// <style-keys:layout-math>
+const LAYOUT_MATH_TYPE = 10;
+
+const logicalLayoutProperties: Record<LogicalGroupName, readonly string[]> = {
+  size: ['inline-size', 'block-size', 'min-inline-size', 'min-block-size', 'max-inline-size', 'max-block-size'],
+  margin: ['margin-block-start', 'margin-inline-end', 'margin-block-end', 'margin-inline-start'],
+  padding: ['padding-block-start', 'padding-inline-end', 'padding-block-end', 'padding-inline-start'],
+  inset: ['inset-block-start', 'inset-inline-end', 'inset-block-end', 'inset-inline-start'],
+};
+
+function layoutMathState(property: string): StateKeys | undefined {
+  switch (property) {
+    case 'width': return StateKeys.SIZE;
+    case 'height': return StateKeys.SIZE;
+    case 'min-width': return StateKeys.MIN_SIZE;
+    case 'min-height': return StateKeys.MIN_SIZE;
+    case 'max-width': return StateKeys.MAX_SIZE;
+    case 'max-height': return StateKeys.MAX_SIZE;
+    case 'flex-basis': return StateKeys.FLEX_BASIS;
+    case 'row-gap': return StateKeys.GAP;
+    case 'column-gap': return StateKeys.GAP;
+    case 'top': return StateKeys.INSET;
+    case 'right': return StateKeys.INSET;
+    case 'bottom': return StateKeys.INSET;
+    case 'left': return StateKeys.INSET;
+    case 'margin-top': return StateKeys.MARGIN;
+    case 'margin-right': return StateKeys.MARGIN;
+    case 'margin-bottom': return StateKeys.MARGIN;
+    case 'margin-left': return StateKeys.MARGIN;
+    case 'padding-top': return StateKeys.PADDING;
+    case 'padding-right': return StateKeys.PADDING;
+    case 'padding-bottom': return StateKeys.PADDING;
+    case 'padding-left': return StateKeys.PADDING;
+    case 'inline-size': return StateKeys.SIZE;
+    case 'block-size': return StateKeys.SIZE;
+    case 'min-inline-size': return StateKeys.MIN_SIZE;
+    case 'min-block-size': return StateKeys.MIN_SIZE;
+    case 'max-inline-size': return StateKeys.MAX_SIZE;
+    case 'max-block-size': return StateKeys.MAX_SIZE;
+    case 'inset-block-start': return StateKeys.INSET;
+    case 'inset-inline-end': return StateKeys.INSET;
+    case 'inset-block-end': return StateKeys.INSET;
+    case 'inset-inline-start': return StateKeys.INSET;
+    case 'margin-block-start': return StateKeys.MARGIN;
+    case 'margin-inline-end': return StateKeys.MARGIN;
+    case 'margin-block-end': return StateKeys.MARGIN;
+    case 'margin-inline-start': return StateKeys.MARGIN;
+    case 'padding-block-start': return StateKeys.PADDING;
+    case 'padding-inline-end': return StateKeys.PADDING;
+    case 'padding-block-end': return StateKeys.PADDING;
+    case 'padding-inline-start': return StateKeys.PADDING;
+  }
+}
+// </style-keys:layout-math>
 const LOGICAL_STAMPS: ReadonlyArray<[order: number, length: number]> = [
   [StyleKeys.MARGIN_ORDER, 8],
   [StyleKeys.PADDING_ORDER, 8],
@@ -1530,10 +1130,10 @@ const stampUsed = new Uint8Array(256);
 const stampRank = new Uint8Array(256);
 
 /** A length in the buffer's encoding for `kind` (auto: margins, insets, min/max; length: padding; dimension: sizes). */
-function logicalTypeValue(value: unknown, kind: LogicalKind, emBasis: number | undefined): { type: number; value: number } | undefined {
+function layoutLengthValue(value: unknown, kind: LogicalKind, emBasis: number | undefined): { type: number; value: number } | undefined {
   switch (typeof value) {
     case 'string':
-      return kind === 'length' ? lengthPercentageFromString(value, emBasis) : kind === 'dimension' ? dimensionFromString(value, emBasis) : lengthPercentageAutoFromString(value, emBasis);
+      return layoutLengthFromString(value, kind, emBasis);
     case 'number':
       return { type: kind === 'length' ? 0 : 1, value: layout.toDevicePixels(value) };
     case 'object': {
@@ -1547,23 +1147,35 @@ function logicalTypeValue(value: unknown, kind: LogicalKind, emBasis: number | u
           return { type: kind === 'length' ? 1 : 2, value: length.value };
       }
       const keyword = kind === 'dimension' ? sizingKeywordOf(length) : undefined;
-      return keyword ? dimensionFromString(keyword) : undefined;
+      const text = keyword ?? layoutMathText(length);
+      return text ? layoutLengthFromString(text, kind, emBasis) : undefined;
     }
   }
   return undefined;
 }
 
 // text-spacing-trim keywords, in their buffer order.
-const TEXT_SPACING_TRIM_VALUES = ['normal', 'space-all', 'space-first', 'trim-start', 'trim-both', 'trim-all', 'auto'];
-const VISIBILITY_VALUES = ['visible', 'hidden', 'collapse'] as const;
-
-const i8Buffer = new Int8Array(4);
-
-const f32Buffer = new Uint8Array(Float32Array.BYTES_PER_ELEMENT * 4);
-const f32View = new Float32Array(f32Buffer.buffer);
 
 const i32Buffer = new Uint8Array(Int32Array.BYTES_PER_ELEMENT * 4);
 const i32View = new Int32Array(i32Buffer.buffer);
+
+function parseCssColor(value: string): number | null {
+  const field = expandCssShorthand('color-value', value)?.[0];
+  return field == null ? null : Number(field);
+}
+
+const cssKeywordCodes = new Map<string, number | undefined>();
+
+function cssKeywordCode(property: string, value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const key = `${property}:${value}`;
+  if (cssKeywordCodes.has(key)) return cssKeywordCodes.get(key);
+  const field = expandCssShorthand(`keyword:${property}`, value)?.[0];
+  const code = field == null ? undefined : Number(field);
+  if (cssKeywordCodes.size >= 256) cssKeywordCodes.clear();
+  cssKeywordCodes.set(key, code);
+  return code;
+}
 
 const colorArgbs = new Map<string, number | null>();
 
@@ -1574,11 +1186,7 @@ function normalizeColorValue(value: number | string | { argb?: number }): number
     case 'string': {
       let argb = colorArgbs.get(value);
       if (argb === undefined) {
-        try {
-          argb = new Color(value).argb;
-        } catch (_) {
-          argb = null;
-        }
+        argb = parseCssColor(value);
         if (colorArgbs.size >= 512) colorArgbs.clear();
         colorArgbs.set(value, argb);
       }
@@ -1597,103 +1205,12 @@ function normalizeColorValue(value: number | string | { argb?: number }): number
   }
 }
 
-const BORDER_STYLE_VALUES = ['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset'] as const;
-
-function borderStyleToEnum(value: string): number {
-  const idx = BORDER_STYLE_VALUES.indexOf(value as any);
-  return idx === -1 ? -1 : idx;
-}
-
-function borderStyleFromEnum(value: number): string {
-  return BORDER_STYLE_VALUES[value] ?? 'none';
-}
-
-// hoisted so it's not rebuilt on every parseObjectPosition call
-const OBJECT_POSITION_KEYWORDS: Record<string, { type: number; val: number }> = {
-  left: { type: 1, val: 0 },
-  center: { type: 1, val: 50 },
-  right: { type: 1, val: 100 },
-  top: { type: 1, val: 0 },
-  bottom: { type: 1, val: 100 },
-};
-
-function parseObjectPosition(value: string): { xType: number; xVal: number; yType: number; yVal: number } | null {
-  const parts = value.trim().split(/\s+/);
-  if (parts.length === 0) return null;
-
-  function parseComponent(s: string): { type: number; val: number } | null {
-    const kw = OBJECT_POSITION_KEYWORDS[s];
-    if (kw) return kw;
-    if (s.endsWith('%')) return { type: 1, val: parseFloat(s) };
-    return { type: 0, val: parseFloat(s) };
-  }
-
-  if (parts.length === 1) {
-    const c = parseComponent(parts[0]);
-    if (!c) return null;
-    return { xType: c.type, xVal: c.val, yType: 1, yVal: 50 };
-  }
-
-  const x = parseComponent(parts[0]);
-  const y = parseComponent(parts[1]);
-  if (!x || !y) return null;
-  return { xType: x.type, xVal: x.val, yType: y.type, yVal: y.val };
-}
-
-const ORIGIN_X_KEYWORDS: Record<string, number> = { left: 0, center: 50, right: 100 };
-const ORIGIN_Y_KEYWORDS: Record<string, number> = { top: 0, center: 50, bottom: 100 };
-
-/** `transform-origin` as two (type, value) pairs: type 0 is device px, 1 is percent. A z offset is ignored. */
+/** Type 0 is device pixels and type 1 is percent. A valid z offset is ignored. */
 export function parseTransformOrigin(value: string, emBasis?: number): { xType: number; x: number; yType: number; y: number } | null {
-  const parts = value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (parts.length === 0 || parts.length > 3) return null;
-  const length = (token: string): { type: number; value: number } | null => {
-    const n = parseFloat(token);
-    if (!Number.isFinite(n)) return null;
-    return token.endsWith('%') ? { type: 1, value: n } : { type: 0, value: tokenToDevicePx(token, n, emBasis) };
-  };
-  let [first, second = 'center'] = parts;
-  // Keywords may come in either order (`top left`); lengths are always x then y.
-  if (ORIGIN_Y_KEYWORDS[first] !== undefined && first !== 'center' && (ORIGIN_X_KEYWORDS[second] !== undefined || parts.length === 1)) {
-    [first, second] = [second, first];
-  }
-  const x = ORIGIN_X_KEYWORDS[first] !== undefined ? { type: 1, value: ORIGIN_X_KEYWORDS[first] } : length(first);
-  const y = ORIGIN_Y_KEYWORDS[second] !== undefined ? { type: 1, value: ORIGIN_Y_KEYWORDS[second] } : length(second);
-  if (!x || !y) return null;
-  return { xType: x.type, x: x.value, yType: y.type, y: y.value };
-}
-
-const FONT_STRETCH_KEYWORDS: Record<string, number> = {
-  'ultra-condensed': 5000,
-  'extra-condensed': 6250,
-  condensed: 7500,
-  'semi-condensed': 8750,
-  normal: 10000,
-  'semi-expanded': 11250,
-  expanded: 12500,
-  'extra-expanded': 15000,
-  'ultra-expanded': 20000,
-};
-
-function fontStretchToValue(value: string): number {
-  const trimmed = value.trim();
-  const kw = FONT_STRETCH_KEYWORDS[trimmed];
-  if (kw !== undefined) return kw;
-  if (trimmed.endsWith('%')) {
-    const pct = parseFloat(trimmed);
-    if (isNaN(pct) || pct < 0) return -1;
-    return Math.round(pct * 100);
-  }
-  return -1;
-}
-
-// built once instead of scanning FONT_STRETCH_KEYWORDS on every getter read
-const FONT_STRETCH_REVERSE = new Map<number, string>(Object.entries(FONT_STRETCH_KEYWORDS).map(([kw, val]) => [val, kw]));
-
-function fontStretchFromValue(v: number): string {
-  const kw = FONT_STRETCH_REVERSE.get(v);
-  if (kw !== undefined) return kw;
-  return `${v / 100}%`;
+  const fields = resolveCssPosition(value, CssParseKind.TransformOrigin, ...numericCssContext(value, emBasis));
+  if (!fields) return null;
+  const [xType, x, yType, y] = fields;
+  return { xType, x, yType, y };
 }
 
 const pendingSyncs: Style[] = [];
@@ -1808,22 +1325,17 @@ function cssInitialIfReset(value: string, initial: string): string {
   return v === '' || v === 'initial' || v === 'unset' ? initial : value;
 }
 
-/**
- * One CSS colour (`oklch(60% 0.2 240)`, `color-mix(...)`, `rgb(0 0 0 / 15%)`)
- * as `rgba(...)`, or null. Core's `Color` resolves `color-mix()` through
- * @csstools' parser; any other function is handed over as an identity mix.
- */
+/** Serialize a CSS color parsed by the shared Rust grammar. */
 export function cssColorToRgba(color: string): string | null {
-  const color_ = new Color(/^color-mix\(/i.test(color) ? color : `color-mix(in srgb, ${color} 100%, transparent)`);
-  if (color_.argb === -1) {
-    return null;
-  }
-  return `rgba(${color_.r}, ${color_.g}, ${color_.b}, ${+(color_.a / 255).toFixed(4)})`;
+  const argb = parseCssColor(color);
+  if (argb == null) return null;
+  const alpha = ((argb >>> 24) / 255).toFixed(4);
+  return `rgba(${(argb >>> 16) & 255}, ${(argb >>> 8) & 255}, ${argb & 255}, ${+alpha})`;
 }
 
 // Style writes that resolved a viewport unit, kept so a viewport change can write them again, as
 // a browser re-resolves vw/vh when the window resizes. Each setter is wrapped once below.
-const viewportWrites = new WeakMap<object, Map<string, unknown>>();
+const viewportWrites = new WeakMap<object, Map<string | number, unknown>>();
 const viewportStyles = new Set<WeakRef<object>>();
 const writeTargets: object[] = [];
 const writeNames: string[] = [];
@@ -1849,14 +1361,18 @@ export function endStyleWrite(): void {
 
 function noteViewportUnit() {
   if (!writeDepth) return;
-  const target = writeTargets[writeDepth - 1];
+  const index = writeDepth - 1;
+  rememberViewportWrite(writeTargets[index], writeNames[index], writeValues[index]);
+}
+
+function rememberViewportWrite(target: object, name: string | number, value: unknown) {
   let writes = viewportWrites.get(target);
   if (!writes) {
     writes = new Map();
     viewportWrites.set(target, writes);
     viewportStyles.add(new WeakRef(target));
   }
-  writes.set(writeNames[writeDepth - 1], writeValues[writeDepth - 1]);
+  writes.set(name, value);
 }
 
 /** Writes every style property that used vw/vh/vmin/vmax again, against the current viewport. */
@@ -1870,8 +1386,17 @@ export function refreshViewportUnits(): void {
       if (style) viewportWrites.delete(style);
       continue;
     }
-    const keys = Array.from(writes.keys());
-    for (let i = 0; i < keys.length; i++) style[keys[i]] = writes.get(keys[i]);
+    // A radius shorthand replaces its corner writes. Replay the snapshot in
+    // declaration order so the corners written after it still take precedence.
+    for (const [name, value] of Array.from(writes)) {
+      if (typeof name === 'number') {
+        const radius = style as unknown as Style;
+        if (typeof value === 'string') radius._writeCornerCss(name, value);
+        else radius._writeCornerLength(name, value);
+      } else {
+        style[name] = value;
+      }
+    }
   }
 }
 
@@ -1890,6 +1415,2191 @@ const INHERITED_TEXT_STATE = {
 export type InheritedTextProperty = keyof typeof INHERITED_TEXT_STATE;
 
 export class Style {
+  // <style-keys:writes> generated from tools/scripts/style-keys/style-keys.schema
+  private writeAlignContent(alignContent: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.ALIGN_CONTENT, alignContent);
+    this.commitState(StateKeys.ALIGN_CONTENT);
+  }
+
+  private writeAlignItems(alignItems: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.ALIGN_ITEMS, alignItems);
+    this.commitState(StateKeys.ALIGN_ITEMS);
+  }
+
+  private writeAlignSelf(alignSelf: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.ALIGN_SELF, alignSelf);
+    this.commitState(StateKeys.ALIGN_SELF);
+  }
+
+  private writeAspectRatio(aspectRatio: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, aspectRatio);
+    this.commitState(StateKeys.ASPECT_RATIO);
+  }
+
+  private writeBackgroundColor(backgroundColor: number, backgroundColorState: number, backgroundColorType: number) {
+    this.prepareMut();
+    setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, backgroundColor);
+    setUint8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, backgroundColorState);
+    setUint8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, backgroundColorType);
+    this.commitState(StateKeys.BACKGROUND_COLOR);
+  }
+
+  private writeBorderBottomStyle(borderBottomStyle: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_BOTTOM_STYLE, borderBottomStyle);
+    this.commitState(StateKeys.BORDER_STYLE);
+  }
+
+  private writeBorderBottomWidth(borderBottomType: number, borderBottomValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, borderBottomType);
+    setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, borderBottomValue);
+    this.commitState(StateKeys.BORDER);
+  }
+
+  private writeBorderLeftStyle(borderLeftStyle: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_LEFT_STYLE, borderLeftStyle);
+    this.commitState(StateKeys.BORDER_STYLE);
+  }
+
+  private writeBorderLeftWidth(borderLeftType: number, borderLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, borderLeftType);
+    setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, borderLeftValue);
+    this.commitState(StateKeys.BORDER);
+  }
+
+  private writeBorderRightStyle(borderRightStyle: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_RIGHT_STYLE, borderRightStyle);
+    this.commitState(StateKeys.BORDER_STYLE);
+  }
+
+  private writeBorderRightWidth(borderRightType: number, borderRightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, borderRightType);
+    setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, borderRightValue);
+    this.commitState(StateKeys.BORDER);
+  }
+
+  private writeBorderTopStyle(borderTopStyle: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_TOP_STYLE, borderTopStyle);
+    this.commitState(StateKeys.BORDER_STYLE);
+  }
+
+  private writeBorderTopWidth(borderTopType: number, borderTopValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_TOP_TYPE, borderTopType);
+    setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, borderTopValue);
+    this.commitState(StateKeys.BORDER);
+  }
+
+  private writeBorderStyles(borderTopStyle: number, borderRightStyle: number, borderBottomStyle: number, borderLeftStyle: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BORDER_TOP_STYLE, borderTopStyle);
+    setUint8(this.style_view, StyleKeys.BORDER_RIGHT_STYLE, borderRightStyle);
+    setUint8(this.style_view, StyleKeys.BORDER_BOTTOM_STYLE, borderBottomStyle);
+    setUint8(this.style_view, StyleKeys.BORDER_LEFT_STYLE, borderLeftStyle);
+    this.commitState(StateKeys.BORDER_STYLE);
+  }
+
+  private writeCornerShapeTopLeft(borderRadiusTopLeftExponent: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent);
+    this.commitState(StateKeys.BORDER_RADIUS);
+  }
+
+  private writeCornerShapeTopRight(borderRadiusTopRightExponent: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent);
+    this.commitState(StateKeys.BORDER_RADIUS);
+  }
+
+  private writeCornerShapeBottomRight(borderRadiusBottomRightExponent: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent);
+    this.commitState(StateKeys.BORDER_RADIUS);
+  }
+
+  private writeCornerShapeBottomLeft(borderRadiusBottomLeftExponent: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent);
+    this.commitState(StateKeys.BORDER_RADIUS);
+  }
+
+  private writeCornerShape(borderRadiusTopLeftExponent: number, borderRadiusTopRightExponent: number, borderRadiusBottomRightExponent: number, borderRadiusBottomLeftExponent: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, borderRadiusTopLeftExponent);
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, borderRadiusTopRightExponent);
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, borderRadiusBottomRightExponent);
+    setFloat32(this.style_view, StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, borderRadiusBottomLeftExponent);
+    this.commitState(StateKeys.BORDER_RADIUS);
+  }
+
+  private writeBoxSizing(boxSizing: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.BOX_SIZING, boxSizing);
+    this.commitState(StateKeys.BOX_SIZING);
+  }
+
+  private writeClear(clear: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.CLEAR, clear);
+    this.commitState(StateKeys.CLEAR);
+  }
+
+  private writeDecorationLine(decorationLine: number, decorationLineState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DECORATION_LINE, decorationLine);
+    setUint8(this.style_view, StyleKeys.DECORATION_LINE_STATE, decorationLineState);
+    this.commitState(StateKeys.DECORATION_LINE);
+  }
+
+  private writeDecorationStyle(decorationStyle: number, decorationStyleState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DECORATION_STYLE, decorationStyle);
+    setUint8(this.style_view, StyleKeys.DECORATION_STYLE_STATE, decorationStyleState);
+    this.commitState(StateKeys.DECORATION_STYLE);
+  }
+
+  private writeDecorationColor(decorationColor: number, decorationColorState: number) {
+    this.prepareMut();
+    setUint32(this.style_view, StyleKeys.DECORATION_COLOR, decorationColor);
+    setUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE, decorationColorState);
+    this.commitState(StateKeys.DECORATION_COLOR);
+  }
+
+  private writeDecorationThickness(decorationThickness: number, decorationThicknessState: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, decorationThickness);
+    setUint8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState);
+    this.commitState(StateKeys.DECORATION_THICKNESS);
+  }
+
+  private writeDirection(direction: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DIRECTION, direction);
+    this.commitState(StateKeys.DIRECTION);
+  }
+
+  private writeDisplay(display: number, displayMode: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DISPLAY, display);
+    setUint8(this.style_view, StyleKeys.DISPLAY_MODE, displayMode);
+    this.commitState(StateKeys.DISPLAY.or(StateKeys.DISPLAY_MODE));
+  }
+
+  private writeFlexBasisType(flexBasisType: number, flexBasisValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, flexBasisType);
+    setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, flexBasisValue);
+    this.commitState(StateKeys.FLEX_BASIS);
+  }
+
+  private writeFlexDirection(flexDirection: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FLEX_DIRECTION, flexDirection);
+    this.commitState(StateKeys.FLEX_DIRECTION);
+  }
+
+  private writeFlexGrow(flexGrow: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.FLEX_GROW, flexGrow);
+    this.commitState(StateKeys.FLEX_GROW);
+  }
+
+  private writeFlexShrink(flexShrink: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, flexShrink);
+    this.commitState(StateKeys.FLEX_SHRINK);
+  }
+
+  private writeFlexWrap(flexWrap: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FLEX_WRAP, flexWrap);
+    this.commitState(StateKeys.FLEX_WRAP);
+  }
+
+  private writeTextDecoration(decorationLine: number, decorationStyle: number, decorationColor: number, decorationThickness: number, decorationLineState: number, decorationStyleState: number, decorationColorState: number, decorationThicknessState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.DECORATION_LINE, decorationLine);
+    setUint8(this.style_view, StyleKeys.DECORATION_STYLE, decorationStyle);
+    setUint32(this.style_view, StyleKeys.DECORATION_COLOR, decorationColor);
+    setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, decorationThickness);
+    setUint8(this.style_view, StyleKeys.DECORATION_LINE_STATE, decorationLineState);
+    setUint8(this.style_view, StyleKeys.DECORATION_STYLE_STATE, decorationStyleState);
+    setUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE, decorationColorState);
+    setUint8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, decorationThicknessState);
+    this.commitState(StateKeys.DECORATION_LINE.or(StateKeys.DECORATION_STYLE).or(StateKeys.DECORATION_COLOR).or(StateKeys.DECORATION_THICKNESS));
+  }
+
+  private writeFloat(float: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FLOAT, float);
+    this.commitState(StateKeys.FLOAT);
+  }
+
+  private writeFontColorState(fontColorState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FONT_COLOR_STATE, fontColorState);
+    this.commitState(StateKeys.FONT_COLOR);
+  }
+
+  private writeFontColor(fontColor: number, fontColorState: number) {
+    this.prepareMut();
+    setUint32(this.style_view, StyleKeys.FONT_COLOR, fontColor);
+    setUint8(this.style_view, StyleKeys.FONT_COLOR_STATE, fontColorState);
+    this.commitState(StateKeys.FONT_COLOR);
+  }
+
+  private writeFontSize(fontSize: number, fontSizeState: number, fontSizeType: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.FONT_SIZE, fontSize);
+    setUint8(this.style_view, StyleKeys.FONT_SIZE_STATE, fontSizeState);
+    setUint8(this.style_view, StyleKeys.FONT_SIZE_TYPE, fontSizeType);
+    this.commitState(StateKeys.FONT_SIZE);
+  }
+
+  private writeFontStretch(fontStretch: number, fontStretchState: number) {
+    this.prepareMut();
+    setInt32(this.style_view, StyleKeys.FONT_STRETCH, fontStretch);
+    setUint8(this.style_view, StyleKeys.FONT_STRETCH_STATE, fontStretchState);
+    this.commitState(StateKeys.FONT_STRETCH);
+  }
+
+  private writeFontStyle(fontStyleType: number, fontStyleState: number, fontStyleSlant: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.FONT_STYLE_TYPE, fontStyleType);
+    setUint8(this.style_view, StyleKeys.FONT_STYLE_STATE, fontStyleState);
+    setInt32(this.style_view, StyleKeys.FONT_STYLE_SLANT, fontStyleSlant);
+    this.commitState(StateKeys.FONT_STYLE);
+  }
+
+  private writeFontWeight(fontWeight: number, fontWeightState: number) {
+    this.prepareMut();
+    setInt32(this.style_view, StyleKeys.FONT_WEIGHT, fontWeight);
+    setUint8(this.style_view, StyleKeys.FONT_WEIGHT_STATE, fontWeightState);
+    this.commitState(StateKeys.FONT_WEIGHT);
+  }
+
+  private writeColumnGap(gapColumnType: number, gapColumnValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, gapColumnType);
+    setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, gapColumnValue);
+    this.commitState(StateKeys.GAP);
+  }
+
+  private writeGap(gapRowType: number, gapRowValue: number, gapColumnType: number, gapColumnValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.GAP_ROW_TYPE, gapRowType);
+    setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, gapRowValue);
+    setUint8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, gapColumnType);
+    setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, gapColumnValue);
+    this.commitState(StateKeys.GAP);
+  }
+
+  private writeRowGap(gapRowType: number, gapRowValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.GAP_ROW_TYPE, gapRowType);
+    setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, gapRowValue);
+    this.commitState(StateKeys.GAP);
+  }
+
+  private writeGridAutoFlow(gridAutoFlow: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.GRID_AUTO_FLOW, gridAutoFlow);
+    this.commitState(StateKeys.GRID_AUTO_FLOW);
+  }
+
+  private writeHeight(heightType: number, heightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.HEIGHT_TYPE, heightType);
+    setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, heightValue);
+    this.stampPhysical('size', 2);
+    this.commitState(StateKeys.SIZE);
+  }
+
+  private writeHyphens(hyphens: number, hyphensState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.HYPHENS, hyphens);
+    setUint8(this.style_view, StyleKeys.HYPHENS_STATE, hyphensState);
+    this.commitState(StateKeys.HYPHENS);
+  }
+
+  private writeInsetBottomType(insetBottomType: number, insetBottomValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, insetBottomType);
+    setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue);
+    this.stampPhysical('inset', 4);
+    this.commitState(StateKeys.INSET);
+  }
+
+  private writeInsetLeftType(insetLeftType: number, insetLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.INSET_LEFT_TYPE, insetLeftType);
+    setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, insetLeftValue);
+    this.stampPhysical('inset', 8);
+    this.commitState(StateKeys.INSET);
+  }
+
+  private writeInsetRightType(insetRightType: number, insetRightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, insetRightType);
+    setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, insetRightValue);
+    this.stampPhysical('inset', 2);
+    this.commitState(StateKeys.INSET);
+  }
+
+  private writeInsetTopType(insetTopType: number, insetTopValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.INSET_TOP_TYPE, insetTopType);
+    setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, insetTopValue);
+    this.stampPhysical('inset', 1);
+    this.commitState(StateKeys.INSET);
+  }
+
+  private writeJustifyContent(justifyContent: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.JUSTIFY_CONTENT, justifyContent);
+    this.commitState(StateKeys.JUSTIFY_CONTENT);
+  }
+
+  private writeJustifyItems(justifyItems: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.JUSTIFY_ITEMS, justifyItems);
+    this.commitState(StateKeys.JUSTIFY_ITEMS);
+  }
+
+  private writeJustifySelf(justifySelf: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.JUSTIFY_SELF, justifySelf);
+    this.commitState(StateKeys.JUSTIFY_SELF);
+  }
+
+  private writeLetterSpacing(letterSpacing: number, letterSpacingState: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.LETTER_SPACING, letterSpacing);
+    setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, letterSpacingState);
+    this.commitState(StateKeys.LETTER_SPACING);
+  }
+
+  private writeLineClamp(lineClamp: number, lineClampState: number) {
+    this.prepareMut();
+    setInt32(this.style_view, StyleKeys.LINE_CLAMP, lineClamp);
+    setUint8(this.style_view, StyleKeys.LINE_CLAMP_STATE, lineClampState);
+    this.commitState(StateKeys.LINE_CLAMP);
+  }
+
+  private writeLineHeight(lineHeight: number, lineHeightState: number, lineHeightType: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, lineHeight);
+    setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, lineHeightState);
+    setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, lineHeightType);
+    this.commitState(StateKeys.LINE_HEIGHT);
+  }
+
+  private writeLineHeightState(lineHeightState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, lineHeightState);
+    this.commitState(StateKeys.LINE_HEIGHT);
+  }
+
+  private writeListStylePosition(listStylePosition: number, listStylePositionState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION, listStylePosition);
+    setUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION_STATE, listStylePositionState);
+    this.commitState(StateKeys.LIST_STYLE_POSITION);
+  }
+
+  private writeListStyleType(listStyleType: number, listStyleTypeState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.LIST_STYLE_TYPE, listStyleType);
+    setUint8(this.style_view, StyleKeys.LIST_STYLE_TYPE_STATE, listStyleTypeState);
+    this.commitState(StateKeys.LIST_STYLE_TYPE);
+  }
+
+  private writeMarginBottomType(marginBottomType: number, marginBottomValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue);
+    this.stampPhysical('margin', 4);
+    this.commitState(StateKeys.MARGIN);
+  }
+
+  private writeMarginLeftType(marginLeftType: number, marginLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, marginLeftType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue);
+    this.stampPhysical('margin', 8);
+    this.commitState(StateKeys.MARGIN);
+  }
+
+  private writeMarginRightType(marginRightType: number, marginRightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, marginRightType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue);
+    this.stampPhysical('margin', 2);
+    this.commitState(StateKeys.MARGIN);
+  }
+
+  private writeMarginTopType(marginTopType: number, marginTopValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, marginTopType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, marginTopValue);
+    this.stampPhysical('margin', 1);
+    this.commitState(StateKeys.MARGIN);
+  }
+
+  private writeMaxHeight(maxHeightType: number, maxHeightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, maxHeightType);
+    setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, maxHeightValue);
+    this.stampPhysical('size', 32);
+    this.commitState(StateKeys.MAX_SIZE);
+  }
+
+  private writeMaxWidth(maxWidthType: number, maxWidthValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, maxWidthType);
+    setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, maxWidthValue);
+    this.stampPhysical('size', 16);
+    this.commitState(StateKeys.MAX_SIZE);
+  }
+
+  private writeMinHeight(minHeightType: number, minHeightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, minHeightType);
+    setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, minHeightValue);
+    this.stampPhysical('size', 8);
+    this.commitState(StateKeys.MIN_SIZE);
+  }
+
+  private writeMinWidth(minWidthType: number, minWidthValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, minWidthType);
+    setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, minWidthValue);
+    this.stampPhysical('size', 4);
+    this.commitState(StateKeys.MIN_SIZE);
+  }
+
+  private writeObjectFit(objectFit: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.OBJECT_FIT, objectFit);
+    this.commitState(StateKeys.OBJECT_FIT);
+  }
+
+  private writeObjectPosition(objectPositionXType: number, objectPositionYType: number, objectPositionXValue: number, objectPositionYValue: number, objectPositionState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_X_TYPE, objectPositionXType);
+    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_Y_TYPE, objectPositionYType);
+    setFloat32(this.style_view, StyleKeys.OBJECT_POSITION_X_VALUE, objectPositionXValue);
+    setFloat32(this.style_view, StyleKeys.OBJECT_POSITION_Y_VALUE, objectPositionYValue);
+    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_STATE, objectPositionState);
+    this.commitState(StateKeys.OBJECT_POSITION);
+  }
+
+  private writeOverflowX(overflowX: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.OVERFLOW_X, overflowX);
+    this.commitState(StateKeys.OVERFLOW_X);
+  }
+
+  private writeOverflowAxes(overflowX: number, overflowY: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.OVERFLOW_X, overflowX);
+    setUint8(this.style_view, StyleKeys.OVERFLOW_Y, overflowY);
+    this.commitState(StateKeys.OVERFLOW);
+  }
+
+  private writeOverflowY(overflowY: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.OVERFLOW_Y, overflowY);
+    this.commitState(StateKeys.OVERFLOW_Y);
+  }
+
+  private writePaddingBottomType(paddingBottomType: number, paddingBottomValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType);
+    setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue);
+    this.stampPhysical('padding', 4);
+    this.commitState(StateKeys.PADDING);
+  }
+
+  private writePaddingLeftType(paddingLeftType: number, paddingLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, paddingLeftType);
+    setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue);
+    this.stampPhysical('padding', 8);
+    this.commitState(StateKeys.PADDING);
+  }
+
+  private writePaddingRightType(paddingRightType: number, paddingRightValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, paddingRightType);
+    setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue);
+    this.stampPhysical('padding', 2);
+    this.commitState(StateKeys.PADDING);
+  }
+
+  private writePaddingTopType(paddingTopType: number, paddingTopValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.PADDING_TOP_TYPE, paddingTopType);
+    setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, paddingTopValue);
+    this.stampPhysical('padding', 1);
+    this.commitState(StateKeys.PADDING);
+  }
+
+  private writePosition(position: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.POSITION, position);
+    this.commitState(StateKeys.POSITION);
+  }
+
+  private writeScrollbarWidth(scrollbarWidth: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, scrollbarWidth);
+    this.commitState(StateKeys.SCROLLBAR_WIDTH);
+  }
+
+  private writeTextAlign(textAlign: number, textAlignState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_ALIGN, textAlign);
+    setUint8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, textAlignState);
+    this.commitState(StateKeys.TEXT_ALIGN);
+  }
+
+  private writeTextCombineUpright(textCombineUpright: number, textCombineUprightState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT, textCombineUpright);
+    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, textCombineUprightState);
+    this.commitState(StateKeys.TEXT_COMBINE_UPRIGHT);
+  }
+
+  private writeTextIndent(textIndent: number, textIndentType: number, textIndentState: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.TEXT_INDENT, textIndent);
+    setUint8(this.style_view, StyleKeys.TEXT_INDENT_TYPE, textIndentType);
+    setUint8(this.style_view, StyleKeys.TEXT_INDENT_STATE, textIndentState);
+    this.commitState(StateKeys.TEXT_INDENT);
+  }
+
+  private writeTextJustify(textJustify: number, textJustifyState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_JUSTIFY, textJustify);
+    setUint8(this.style_view, StyleKeys.TEXT_JUSTIFY_STATE, textJustifyState);
+    this.commitState(StateKeys.TEXT_JUSTIFY);
+  }
+
+  private writeTextOrientation(textOrientation: number, textOrientationState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION, textOrientation);
+    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE, textOrientationState);
+    this.commitState(StateKeys.TEXT_ORIENTATION);
+  }
+
+  private writeTextOverflow(textOverflow: number, textOverflowState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_OVERFLOW, textOverflow);
+    setUint8(this.style_view, StyleKeys.TEXT_OVERFLOW_STATE, textOverflowState);
+    this.commitState(StateKeys.TEXT_OVERFLOW);
+  }
+
+  private writeTextSpacingTrim(textSpacingTrim: number, textSpacingTrimState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM, textSpacingTrim);
+    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE, textSpacingTrimState);
+    this.commitState(StateKeys.TEXT_SPACING_TRIM);
+  }
+
+  private writeTextTransform(textTransform: number, textTransformState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_TRANSFORM, textTransform);
+    setUint8(this.style_view, StyleKeys.TEXT_TRANSFORM_STATE, textTransformState);
+    this.commitState(StateKeys.TEXT_TRANSFORM);
+  }
+
+  private writeTextWrap(textWrap: number, textWrapState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TEXT_WRAP, textWrap);
+    setUint8(this.style_view, StyleKeys.TEXT_WRAP_STATE, textWrapState);
+    this.commitState(StateKeys.TEXT_WRAP);
+  }
+
+  private writeTransformOrigin(transformOriginXType: number, transformOriginYType: number, transformOriginXValue: number, transformOriginYValue: number, transformOriginState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_X_TYPE, transformOriginXType);
+    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, transformOriginYType);
+    setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, transformOriginXValue);
+    setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, transformOriginYValue);
+    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE, transformOriginState);
+    this.commitState(StateKeys.TRANSFORM_ORIGIN);
+  }
+
+  private writeUnicodeBidi(unicodeBidi: number, unicodeBidiState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.UNICODE_BIDI, unicodeBidi);
+    setUint8(this.style_view, StyleKeys.UNICODE_BIDI_STATE, unicodeBidiState);
+    this.commitState(StateKeys.UNICODE_BIDI);
+  }
+
+  private writeVisibility(visibility: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.VISIBILITY, visibility);
+    this.commitState(StateKeys.VISIBILITY);
+  }
+
+  private writeVerticalAlign(verticalAlignOffsetOffset: number, verticalAlignIsPercentOffset: number, verticalAlignEnumOffset: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, verticalAlignOffsetOffset);
+    setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, verticalAlignIsPercentOffset);
+    setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, verticalAlignEnumOffset);
+    this.commitState(StateKeys.VERTICAL_ALIGN);
+  }
+
+  private writeWhiteSpace(whiteSpace: number, whiteSpaceState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.WHITE_SPACE, whiteSpace);
+    setUint8(this.style_view, StyleKeys.WHITE_SPACE_STATE, whiteSpaceState);
+    this.commitState(StateKeys.WHITE_SPACE);
+  }
+
+  private writeWidth(widthType: number, widthValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.WIDTH_TYPE, widthType);
+    setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, widthValue);
+    this.stampPhysical('size', 1);
+    this.commitState(StateKeys.SIZE);
+  }
+
+  private writeWritingMode(writingMode: number, writingModeState: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.WRITING_MODE, writingMode);
+    setUint8(this.style_view, StyleKeys.WRITING_MODE_STATE, writingModeState);
+    this.commitState(StateKeys.WRITING_MODE);
+  }
+
+  private writeWordSpacing(wordSpacing: number, wordSpacingType: number, wordSpacingState: number) {
+    this.prepareMut();
+    setFloat32(this.style_view, StyleKeys.WORD_SPACING, wordSpacing);
+    setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, wordSpacingType);
+    setUint8(this.style_view, StyleKeys.WORD_SPACING_STATE, wordSpacingState);
+    this.commitState(StateKeys.WORD_SPACING);
+  }
+
+  private writeZIndex(zIndex: number) {
+    this.prepareMut();
+    setInt32(this.style_view, StyleKeys.Z_INDEX, zIndex);
+    this.commitState(StateKeys.Z_INDEX);
+  }
+
+  private writeInset(insetTopType: number, insetTopValue: number, insetRightType: number, insetRightValue: number, insetBottomType: number, insetBottomValue: number, insetLeftType: number, insetLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.INSET_TOP_TYPE, insetTopType);
+    setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, insetTopValue);
+    setUint8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, insetRightType);
+    setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, insetRightValue);
+    setUint8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, insetBottomType);
+    setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, insetBottomValue);
+    setUint8(this.style_view, StyleKeys.INSET_LEFT_TYPE, insetLeftType);
+    setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, insetLeftValue);
+    this.stampPhysical('inset', 15);
+    this.commitState(StateKeys.INSET);
+  }
+
+  private writeMargin(marginTopType: number, marginTopValue: number, marginRightType: number, marginRightValue: number, marginBottomType: number, marginBottomValue: number, marginLeftType: number, marginLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, marginTopType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, marginTopValue);
+    setUint8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, marginRightType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, marginRightValue);
+    setUint8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, marginBottomType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, marginBottomValue);
+    setUint8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, marginLeftType);
+    setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, marginLeftValue);
+    this.stampPhysical('margin', 15);
+    this.commitState(StateKeys.MARGIN);
+  }
+
+  private writePadding(paddingTopType: number, paddingTopValue: number, paddingRightType: number, paddingRightValue: number, paddingBottomType: number, paddingBottomValue: number, paddingLeftType: number, paddingLeftValue: number) {
+    this.prepareMut();
+    setUint8(this.style_view, StyleKeys.PADDING_TOP_TYPE, paddingTopType);
+    setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, paddingTopValue);
+    setUint8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, paddingRightType);
+    setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, paddingRightValue);
+    setUint8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, paddingBottomType);
+    setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, paddingBottomValue);
+    setUint8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, paddingLeftType);
+    setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, paddingLeftValue);
+    this.stampPhysical('padding', 15);
+    this.commitState(StateKeys.PADDING);
+  }
+  // </style-keys:writes>
+
+  // <style-keys:accessors>
+  get display(): 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid' {
+    const base = getInt8(this.style_view, StyleKeys.DISPLAY);
+    const mode = getInt8(this.style_view, StyleKeys.DISPLAY_MODE);
+    if (mode === 1) return 'inline';
+    if (mode === 2 && base === 3) return 'inline-block';
+    if (mode === 2 && base === 1) return 'inline-flex';
+    if (mode === 2 && base === 2) return 'inline-grid';
+    switch (base) {
+      case 0: return 'none';
+      case 1: return 'flex';
+      case 2: return 'grid';
+      case 3: return 'block';
+      default: return 'none';
+    }
+  }
+  set display(value: 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid') {
+    switch (cssKeywordCode('display', value)) {
+      case 0: this.writeDisplay(0, 0); break;
+      case 1: this.writeDisplay(1, 0); break;
+      case 2: this.writeDisplay(2, 0); break;
+      case 3: this.writeDisplay(3, 0); break;
+      case 4: this.writeDisplay(1, 1); break;
+      case 5: this.writeDisplay(3, 2); break;
+      case 6: this.writeDisplay(1, 2); break;
+      case 7: this.writeDisplay(2, 2); break;
+    }
+  }
+
+  get textOverflow(): 'clip' | 'ellipsis' {
+    if (!this.style_view) return 'clip';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_OVERFLOW)) {
+      case 1: return 'ellipsis';
+      case 2: return 'ellipsis';
+      default: return 'clip';
+    }
+  }
+  set textOverflow(value: string) {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-overflow', value);
+    if (code !== undefined) this.writeTextOverflow(code, 1);
+  }
+
+  get transformOrigin(): string {
+    if (!(this.style_view && getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE))) return '50% 50%';
+    const side = (typeKey: StyleKeys, valueKey: StyleKeys) => {
+      const value = getFloat32(this.style_view, valueKey);
+      return getUint8(this.style_view, typeKey) === 1 ? `${value}%` : `${layout.toDeviceIndependentPixels(value)}px`;
+    };
+    return `${side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)} ${side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)}`;
+  }
+  set transformOrigin(value: string) {
+    if (!this.style_view) return;
+    const parsed = parseTransformOrigin(String(value ?? ''), this.emBasisFor(value));
+    if (!parsed) return;
+    this.writeTransformOrigin(parsed.xType, parsed.yType, parsed.x, parsed.y, 1);
+    if (__WINDOWS__) (this.view as any)?._applyWindowsTransform?.();
+  }
+
+  /** Transform origin as fractions of the box, or null when unset. */
+  transformOriginFraction(width: number, height: number): { x: number; y: number } | null {
+    if (!(this.style_view && getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE))) return null;
+    const side = (typeKey: StyleKeys, valueKey: StyleKeys, size: number) => {
+      const value = getFloat32(this.style_view, valueKey);
+      if (getUint8(this.style_view, typeKey) === 1) return value / 100;
+      return size > 0 ? layout.toDeviceIndependentPixels(value) / size : 0;
+    };
+    return { x: side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, width), y: side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, height) };
+  }
+
+  get objectPosition(): string {
+    if (!(this.style_view && getUint8(this.style_view, StyleKeys.OBJECT_POSITION_STATE))) return '50% 50%';
+    const side = (typeKey: StyleKeys, valueKey: StyleKeys) => {
+      const value = getFloat32(this.style_view, valueKey);
+      return getUint8(this.style_view, typeKey) === 1 ? `${value}%` : `${value}px`;
+    };
+    return `${side(StyleKeys.OBJECT_POSITION_X_TYPE, StyleKeys.OBJECT_POSITION_X_VALUE)} ${side(StyleKeys.OBJECT_POSITION_Y_TYPE, StyleKeys.OBJECT_POSITION_Y_VALUE)}`;
+  }
+  set objectPosition(value: string) {
+    if (!this.style_view) return;
+    const fields = resolveCssPosition(value, CssParseKind.ObjectPosition, ...numericCssContext(value, this.emBasisFor(value)));
+    if (!fields) return;
+    const [xType, x, yType, y] = fields;
+    this.writeObjectPosition(xType, yType, xType === 0 ? layout.toDeviceIndependentPixels(x) : x, yType === 0 ? layout.toDeviceIndependentPixels(y) : y, 1);
+  }
+
+  set textDecoration(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'text-decoration', value,
+      () => nodeHelper().setTextDecoration(this.nativeView, value),
+      () => this.appleStyle.setTextDecoration(value),
+    );
+  }
+
+  get textDecorationLine(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getTextDecorationLine(this.nativeView);
+    if (__APPLE__) return this.appleStyle.textDecorationLine;
+    if (__WINDOWS__ && this.style_view) {
+      return textDecorationLineToCss(getUint8(this.style_view, StyleKeys.DECORATION_LINE));
+    }
+    return '';
+  }
+  set textDecorationLine(value: string) {
+    value = cssInitialIfReset(value == null ? '' : String(value), 'none');
+    this.setPseudoCssStringValue(
+      'text-decoration-line', value,
+      () => nodeHelper().setTextDecorationLine(this.nativeView, value),
+      () => (this.appleStyle.textDecorationLine = value),
+    );
+  }
+
+  get textDecorationStyle(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getTextDecorationStyle(this.nativeView);
+    if (__APPLE__) return this.appleStyle.textDecorationStyle;
+    if (__WINDOWS__ && this.style_view) {
+      return textDecorationStyleToCss(getUint8(this.style_view, StyleKeys.DECORATION_STYLE));
+    }
+    return '';
+  }
+  set textDecorationStyle(value: string) {
+    value = cssInitialIfReset(value == null ? '' : String(value), 'solid');
+    this.setPseudoCssStringValue(
+      'text-decoration-style', value,
+      () => nodeHelper().setTextDecorationStyle(this.nativeView, value),
+      () => (this.appleStyle.textDecorationStyle = value),
+    );
+  }
+
+  get textDecorationColor(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getTextDecorationColor(this.nativeView);
+    if (__APPLE__) return this.appleStyle.textDecorationColor;
+    if (__WINDOWS__ && this.style_view) {
+      const color = getUint32(this.style_view, StyleKeys.DECORATION_COLOR);
+      return !getUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE) || color === DECORATION_COLOR_UNSET ? 'currentcolor' : new Color(color).hex;
+    }
+    return '';
+  }
+  set textDecorationColor(value: string) {
+    value = cssInitialIfReset(value == null ? '' : String(value), 'currentcolor');
+    this.setPseudoCssStringValue(
+      'text-decoration-color', value,
+      () => nodeHelper().setTextDecorationColor(this.nativeView, value),
+      () => (this.appleStyle.textDecorationColor = value),
+    );
+  }
+
+  get textDecorationThickness(): number {
+    return layout.toDeviceIndependentPixels(getFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS));
+  }
+  set textDecorationThickness(value: string | number) {
+    if (typeof value === 'number') {
+      this.writeDecorationThickness(layout.toDevicePixels(finite(value)), 1);
+      return;
+    }
+    const length = decorationField('text-decoration-thickness', value);
+    if (length == null) return;
+    const devicePx = length === '' ? 0 : tokenToDevicePx(length, this.emBasisFor(length));
+    this.writeDecorationThickness(devicePx, 1);
+  }
+
+  get textIndent(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_INDENT_STATE)) return '0px';
+    const unit = getUint8(this.style_view, StyleKeys.TEXT_INDENT_TYPE);
+    const amount = getFloat32(this.style_view, StyleKeys.TEXT_INDENT);
+    return unit === 1 ? `${amount}%` : `${layout.toDeviceIndependentPixels(amount)}px`;
+  }
+  set textIndent(value: string | number) {
+    if (!this.style_view) return;
+    if (typeof value === 'number') {
+      this.writeTextIndent(layout.toDevicePixels(value), 0, 1);
+      return;
+    }
+    const css = String(value ?? '');
+    const fields = nativeCssLength(css, CssParseKind.TextIndent, ...numericCssContext(css, this.emBasisFor(css)));
+    if (!fields) return;
+    const [kind, amount] = fields;
+    this.writeTextIndent(kind === 2 ? amount * 100 : amount, kind === 2 ? 1 : 0, 1);
+  }
+
+  get wordSpacing(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.WORD_SPACING_STATE)) return 'normal';
+    const unit = getUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE);
+    if (unit === 2) return 'normal';
+    const amount = getFloat32(this.style_view, StyleKeys.WORD_SPACING);
+    return unit === 1 ? `${amount}%` : `${amount}px`;
+  }
+  set wordSpacing(value: string | number) {
+    if (!this.style_view) return;
+    if (typeof value === 'number') {
+      this.writeWordSpacing(layout.toDevicePixels(value), 0, 1);
+      return;
+    }
+    const css = value;
+    const fields = nativeCssLength(css, CssParseKind.WordSpacing, ...numericCssContext(css, this.emBasisFor(css)));
+    if (!fields) return;
+    const [kind, amount] = fields;
+    this.writeWordSpacing(amount, kind, 1);
+  }
+
+  get verticalAlign() {
+    const amount = getFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET);
+    if (getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) === 1) return `${amount * 100}%`;
+    if (amount !== 0) return `${layout.toDeviceIndependentPixels(amount)}px`;
+    switch (getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET)) {
+      case 1: return 'top';
+      case 2: return 'text-top';
+      case 3: return 'middle';
+      case 4: return 'bottom';
+      case 5: return 'text-bottom';
+      case 6: return 'sub';
+      case 7: return 'super';
+      default: return 'baseline';
+    }
+  }
+  set verticalAlign(value: VerticalAlign) {
+    if (typeof value === 'string') {
+      const fields = nativeCssLength(value, CssParseKind.VerticalAlign, ...numericCssContext(value, this.emBasisFor(value)));
+      if (!fields) return;
+      const [kind, amount] = fields;
+      this.writeVerticalAlign(kind === 3 ? 0 : amount, kind === 2 ? 1 : 0, kind === 3 ? amount : 0);
+    } else if (typeof value === 'number') {
+      if (Number.isFinite(value)) this.writeVerticalAlign(layout.toDevicePixels(value), 0, 0);
+    } else if (value && Number.isFinite(value.value)) {
+      if (value.unit === '%') this.writeVerticalAlign(value.value, 1, 0);
+      else if (value.unit === 'px' || value.unit === 'dip') this.writeVerticalAlign(layout.toDevicePixels(value.value), 0, 0);
+    }
+  }
+
+  get fontStyle() {
+    if (!this.style_view) return 'normal';
+    switch (getInt8(this.style_view, StyleKeys.FONT_STYLE_TYPE)) {
+      case 1: return 'italic';
+      case 2: return 'oblique';
+      default: return 'normal';
+    }
+  }
+  set fontStyle(value: string) {
+    if (!this.style_view || typeof value !== 'string') return;
+    const fields = expandCssShorthand('font-style', value);
+    if (fields) this.writeFontStyle(Number(fields[0]), 1, Number(fields[1]));
+  }
+
+  get fontWeight() {
+    return this.style_view ? getInt32(this.style_view, StyleKeys.FONT_WEIGHT) : 400;
+  }
+  set fontWeight(value: '100' | '200' | '300' | 'normal' | '400' | '500' | '600' | 'bold' | '700' | '800' | '900' | number) {
+    if (!this.style_view) return;
+    const weight = typeof value === 'number' ? value : Number(expandCssShorthand('font-weight', value)?.[0]);
+    if (weight >= 1 && weight <= 1000) this.writeFontWeight(weight, 1);
+  }
+
+  get fontStretch(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.FONT_STRETCH_STATE)) return 'normal';
+    const pct = getInt32(this.style_view, StyleKeys.FONT_STRETCH);
+    return expandCssShorthand('font-stretch-name', String(pct))?.[0] ?? 'normal';
+  }
+  set fontStretch(value: string) {
+    if (!this.style_view) return;
+    const field = expandCssShorthand('font-stretch', value)?.[0];
+    if (field !== undefined) this.writeFontStretch(Number(field), 1);
+  }
+
+  get textAlignment(): 'left' | 'right' | 'center' | 'justify' | 'start' | 'end' {
+    if (!this.style_view) return 'start';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_ALIGN)) {
+      case 1: return 'left';
+      case 2: return 'right';
+      case 3: return 'center';
+      case 4: return 'justify';
+      case 6: return 'end';
+      default: return 'start';
+    }
+  }
+  set textAlignment(value: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-align', value);
+    if (code !== undefined) this.writeTextAlign(code, 1);
+  }
+
+  get visibility(): 'visible' | 'hidden' | 'collapse' {
+    if (!this.style_view) return 'visible';
+    switch (getUint8(this.style_view, StyleKeys.VISIBILITY)) {
+      case 1: return 'hidden';
+      case 2: return 'collapse';
+      default: return 'visible';
+    }
+  }
+  set visibility(value: 'visible' | 'hidden' | 'collapse') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('visibility', value);
+    if (code !== undefined && getUint8(this.style_view, StyleKeys.VISIBILITY) !== code) this.writeVisibility(code);
+  }
+
+  get hyphens(): 'manual' | 'none' | 'auto' {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.HYPHENS_STATE)) return 'manual';
+    switch (getUint8(this.style_view, StyleKeys.HYPHENS)) {
+      case 1: return 'none';
+      case 2: return 'auto';
+      default: return 'manual';
+    }
+  }
+  set hyphens(value: 'manual' | 'none' | 'auto') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('hyphens', value);
+    if (code !== undefined) this.writeHyphens(code, 1);
+  }
+
+  get writingMode(): 'horizontal-tb' | 'vertical-rl' | 'vertical-lr' {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE)) return 'horizontal-tb';
+    switch (getUint8(this.style_view, StyleKeys.WRITING_MODE)) {
+      case 1: return 'vertical-rl';
+      case 2: return 'vertical-lr';
+      default: return 'horizontal-tb';
+    }
+  }
+  set writingMode(value: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('writing-mode', value);
+    if (code !== undefined) this.writeWritingMode(code, 1);
+  }
+
+  get unicodeBidi(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.UNICODE_BIDI_STATE)) return 'normal';
+    switch (getUint8(this.style_view, StyleKeys.UNICODE_BIDI)) {
+      case 1: return 'embed';
+      case 2: return 'bidi-override';
+      case 3: return 'isolate';
+      case 4: return 'isolate-override';
+      case 5: return 'plaintext';
+      default: return 'normal';
+    }
+  }
+  set unicodeBidi(value: string) {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('unicode-bidi', value);
+    if (code !== undefined) this.writeUnicodeBidi(code, 1);
+  }
+
+  get textOrientation(): 'mixed' | 'upright' | 'sideways' {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE)) return 'mixed';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION)) {
+      case 1: return 'upright';
+      case 2: return 'sideways';
+      default: return 'mixed';
+    }
+  }
+  set textOrientation(value: 'mixed' | 'upright' | 'sideways' | 'sideways-right') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-orientation', value);
+    if (code !== undefined) this.writeTextOrientation(code, 1);
+  }
+
+  get textCombineUpright(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)) return 'none';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT)) {
+      case 1: return 'all';
+      case 2: return 'digits 2';
+      case 3: return 'digits 3';
+      case 4: return 'digits 4';
+      default: return 'none';
+    }
+  }
+  set textCombineUpright(value: string) {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-combine-upright', value);
+    if (code !== undefined) this.writeTextCombineUpright(code, 1);
+  }
+
+  get textSpacingTrim(): string {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE)) return 'normal';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM)) {
+      case 1: return 'space-all';
+      case 2: return 'space-first';
+      case 3: return 'trim-start';
+      case 4: return 'trim-both';
+      case 5: return 'trim-all';
+      case 6: return 'auto';
+      default: return 'normal';
+    }
+  }
+  set textSpacingTrim(value: string) {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-spacing-trim', value);
+    if (code !== undefined) this.writeTextSpacingTrim(code, 1);
+  }
+
+  get alignContent(): 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.ALIGN_CONTENT)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'stretch';
+      case 4: return 'space-between';
+      case 5: return 'space-around';
+      case 6: return 'space-evenly';
+      case 7: return 'flex-start';
+      case 8: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set alignContent(value: 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('align-content', value);
+    if (code !== undefined) this.writeAlignContent(code);
+  }
+
+  get alignItems(): 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.ALIGN_ITEMS)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'baseline';
+      case 4: return 'stretch';
+      case 5: return 'flex-start';
+      case 6: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set alignItems(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('align-items', value);
+    if (code !== undefined) this.writeAlignItems(code);
+  }
+
+  get alignSelf(): 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.ALIGN_SELF)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'baseline';
+      case 4: return 'stretch';
+      case 5: return 'flex-start';
+      case 6: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set alignSelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('align-self', value);
+    if (code !== undefined) this.writeAlignSelf(code);
+  }
+
+  get aspectRatio(): number {
+    return getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
+  }
+  set aspectRatio(value: number | string) {
+    const ratio = typeof value === 'number' ? value : parseAspectRatio(value);
+    const current = getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
+    if (current === ratio || (Number.isNaN(current) && Number.isNaN(ratio))) return;
+    this.writeAspectRatio(ratio);
+  }
+
+  get backgroundColor(): number {
+    this.flushBackgroundWrites();
+    return this.style_view ? getUint32(this.style_view, StyleKeys.BACKGROUND_COLOR) : 0;
+  }
+  set backgroundColor(value: number | string | { argb?: number }) {
+    this.flushBackgroundWrites();
+    if (!this.style_view) return;
+    const normalized = normalizeColorValue(value);
+    if (normalized == null) {
+      // Reset to transparent.
+      if (getInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE)) {
+        this.writeBackgroundColor(0, 0, 0);
+      }
+      return;
+    }
+    this.writeBackgroundColor(normalized, 1, 0);
+  }
+
+  get borderBottomStyle(): string {
+    return this.readBorderStyle(StyleKeys.BORDER_BOTTOM_STYLE);
+  }
+  set borderBottomStyle(value: string) {
+    const code = cssKeywordCode('border-style', value);
+    if (code != null) this.writeBorderBottomStyle(code);
+  }
+
+  get borderLeftStyle(): string {
+    return this.readBorderStyle(StyleKeys.BORDER_LEFT_STYLE);
+  }
+  set borderLeftStyle(value: string) {
+    const code = cssKeywordCode('border-style', value);
+    if (code != null) this.writeBorderLeftStyle(code);
+  }
+
+  get borderRightStyle(): string {
+    return this.readBorderStyle(StyleKeys.BORDER_RIGHT_STYLE);
+  }
+  set borderRightStyle(value: string) {
+    const code = cssKeywordCode('border-style', value);
+    if (code != null) this.writeBorderRightStyle(code);
+  }
+
+  get borderTopStyle(): string {
+    return this.readBorderStyle(StyleKeys.BORDER_TOP_STYLE);
+  }
+  set borderTopStyle(value: string) {
+    const code = cssKeywordCode('border-style', value);
+    if (code != null) this.writeBorderTopStyle(code);
+  }
+
+  private readBorderStyle(offset: number): string {
+    switch (getInt8(this.style_view, offset)) {
+      case 1: return 'hidden';
+      case 2: return 'dotted';
+      case 3: return 'dashed';
+      case 4: return 'solid';
+      case 5: return 'double';
+      case 6: return 'groove';
+      case 7: return 'ridge';
+      case 8: return 'inset';
+      case 9: return 'outset';
+      default: return 'none';
+    }
+  }
+
+  get borderStyle(): string {
+    const top = this.borderTopStyle;
+    const right = this.borderRightStyle;
+    const bottom = this.borderBottomStyle;
+    const left = this.borderLeftStyle;
+    if (top === bottom && right === left) return top === right ? top : `${top} ${right}`;
+    return `${top} ${right} ${bottom} ${left}`;
+  }
+  set borderStyle(value: string) {
+    const fields = expandCssShorthand('border-style-values', value);
+    if (!fields) return;
+    const [top, right, bottom, left] = fields.map(Number);
+    this.writeBorderStyles(top, right, bottom, left);
+  }
+
+  get borderBottomWidth() {
+    return parseLengthPercentage(getInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE), getFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE));
+  }
+  set borderBottomWidth(value: Length) {
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeBorderBottomWidth(length.type, length.value);
+  }
+
+  get borderLeftWidth() {
+    return parseLengthPercentage(getInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE), getFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE));
+  }
+  set borderLeftWidth(value: Length) {
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeBorderLeftWidth(length.type, length.value);
+  }
+
+  get borderRightWidth() {
+    return parseLengthPercentage(getInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE), getFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE));
+  }
+  set borderRightWidth(value: Length) {
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeBorderRightWidth(length.type, length.value);
+  }
+
+  get borderTopWidth() {
+    return parseLengthPercentage(getInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE), getFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE));
+  }
+  set borderTopWidth(value: Length) {
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeBorderTopWidth(length.type, length.value);
+  }
+
+  get cornerShapeTopLeft(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getCornerShapeTopLeft(this.nativeView);
+    if (__APPLE__) return this.appleStyle.cornerShapeTopLeft;
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-top-left') ?? '') : '';
+  }
+  set cornerShapeTopLeft(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'corner-shape-top-left', value,
+      () => nodeHelper().setCornerShapeTopLeft(this.nativeView, value),
+      () => (this.appleStyle.cornerShapeTopLeft = value),
+    );
+  }
+
+  get cornerShapeTopRight(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getCornerShapeTopRight(this.nativeView);
+    if (__APPLE__) return this.appleStyle.cornerShapeTopRight;
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-top-right') ?? '') : '';
+  }
+  set cornerShapeTopRight(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'corner-shape-top-right', value,
+      () => nodeHelper().setCornerShapeTopRight(this.nativeView, value),
+      () => (this.appleStyle.cornerShapeTopRight = value),
+    );
+  }
+
+  get cornerShapeBottomRight(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getCornerShapeBottomRight(this.nativeView);
+    if (__APPLE__) return this.appleStyle.cornerShapeBottomRight;
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-bottom-right') ?? '') : '';
+  }
+  set cornerShapeBottomRight(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'corner-shape-bottom-right', value,
+      () => nodeHelper().setCornerShapeBottomRight(this.nativeView, value),
+      () => (this.appleStyle.cornerShapeBottomRight = value),
+    );
+  }
+
+  get cornerShapeBottomLeft(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getCornerShapeBottomLeft(this.nativeView);
+    if (__APPLE__) return this.appleStyle.cornerShapeBottomLeft;
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape-bottom-left') ?? '') : '';
+  }
+  set cornerShapeBottomLeft(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'corner-shape-bottom-left', value,
+      () => nodeHelper().setCornerShapeBottomLeft(this.nativeView, value),
+      () => (this.appleStyle.cornerShapeBottomLeft = value),
+    );
+  }
+
+  get cornerShape(): string {
+    if (!this.nativeView) return '';
+    if (__ANDROID__) return nodeHelper().getCornerShape(this.nativeView);
+    if (__APPLE__) return this.appleStyle.cornerShape;
+    return __WINDOWS__ ? (this._windowsCss.get('corner-shape') ?? '') : '';
+  }
+  set cornerShape(value: string) {
+    value = value == null ? '' : String(value);
+    this.setPseudoCssStringValue(
+      'corner-shape', value,
+      () => nodeHelper().setCornerShape(this.nativeView, value),
+      () => (this.appleStyle.cornerShape = value),
+    );
+  }
+
+  get color(): number {
+    return this.style_view ? getUint32(this.style_view, StyleKeys.FONT_COLOR) : 0;
+  }
+  set color(value: number | string | { argb?: number }) {
+    if (!this.style_view) return;
+    const normalized = normalizeColorValue(value);
+    if (normalized == null) {
+      // Reset the state so the color inherits again.
+      if (getInt8(this.style_view, StyleKeys.FONT_COLOR_STATE)) {
+        this.writeFontColorState(0);
+      }
+      return;
+    }
+    this.writeFontColor(normalized, 1);
+  }
+
+  get boxSizing(): 'border-box' | 'content-box' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.BOX_SIZING)) {
+      case 0: return 'border-box';
+      case 1: return 'content-box';
+      default: return undefined;
+    }
+  }
+  set boxSizing(value: 'border-box' | 'content-box') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('box-sizing', value);
+    if (code !== undefined) this.writeBoxSizing(code);
+  }
+
+  get clear(): 'none' | 'left' | 'right' | 'both' {
+    if (!this.style_view) return 'none';
+    switch (getUint8(this.style_view, StyleKeys.CLEAR)) {
+      case 1: return 'left';
+      case 2: return 'right';
+      case 3: return 'both';
+      default: return 'none';
+    }
+  }
+  set clear(value: 'none' | 'left' | 'right' | 'both') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('clear', value);
+    if (code !== undefined) this.writeClear(code);
+    else this.commitState(StateKeys.CLEAR);
+  }
+
+  get direction(): 'inherit' | 'ltr' | 'rtl' {
+    if (!this.style_view) return 'inherit';
+    switch (getUint8(this.style_view, StyleKeys.DIRECTION)) {
+      case 1: return 'ltr';
+      case 2: return 'rtl';
+      default: return 'inherit';
+    }
+  }
+  set direction(value: 'inherit' | 'ltr' | 'rtl') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('direction', value) ?? 0;
+    if (getUint8(this.style_view, StyleKeys.DIRECTION) !== code) this.writeDirection(code);
+  }
+
+  get flexBasis() {
+    const type = getInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE);
+    return this.readLayoutMath('flex-basis', type) ?? parseDimension(type, getFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE));
+  }
+  set flexBasis(value: DimensionLength) {
+    if (this.applyLayoutMath('flex-basis', value)) return;
+    const length = layoutLengthValue(value, 'dimension', this.emBasisFor(value));
+    if (length) this.writeFlexBasisType(length.type, length.value);
+  }
+
+  get flexDirection(): 'row' | 'column' | 'row-reverse' | 'column-reverse' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.FLEX_DIRECTION)) {
+      case 0: return 'row';
+      case 1: return 'column';
+      case 2: return 'row-reverse';
+      case 3: return 'column-reverse';
+      default: return undefined;
+    }
+  }
+  set flexDirection(value: 'row' | 'column' | 'row-reverse' | 'column-reverse') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('flex-direction', value);
+    if (code !== undefined) this.writeFlexDirection(code);
+  }
+
+  get flexGrow(): number {
+    return getFloat32(this.style_view, StyleKeys.FLEX_GROW);
+  }
+  set flexGrow(value: number) {
+    if (getFloat32(this.style_view, StyleKeys.FLEX_GROW) === value) return;
+    this.writeFlexGrow(value);
+  }
+
+  get flexShrink(): number {
+    return getFloat32(this.style_view, StyleKeys.FLEX_SHRINK);
+  }
+  set flexShrink(value: number) {
+    if (getFloat32(this.style_view, StyleKeys.FLEX_SHRINK) === value) return;
+    this.writeFlexShrink(value);
+  }
+
+  get flexWrap(): 'nowrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.FLEX_WRAP)) {
+      case 0: return 'nowrap';
+      case 1: return 'wrap';
+      case 2: return 'wrap-reverse';
+      case 3: return 'balance';
+      case 4: return 'balance-reverse';
+      default: return undefined;
+    }
+  }
+  set flexWrap(value: 'nowrap' | 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('flex-wrap', value);
+    if (code !== undefined) this.writeFlexWrap(code);
+  }
+
+  get float(): 'none' | 'left' | 'right' {
+    if (!this.style_view) return 'none';
+    switch (getUint8(this.style_view, StyleKeys.FLOAT)) {
+      case 1: return 'left';
+      case 2: return 'right';
+      default: return 'none';
+    }
+  }
+  set float(value: 'none' | 'left' | 'right') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('float', value) ?? 0;
+    if (getUint8(this.style_view, StyleKeys.FLOAT) !== code) this.writeFloat(code);
+  }
+
+  get fontSize() {
+    if (!this.style_view) return 16;
+    const unit = getUint8(this.style_view, StyleKeys.FONT_SIZE_TYPE);
+    const size = getFloat32(this.style_view, StyleKeys.FONT_SIZE);
+    return unit === 1 ? `${size / 100}%` as never : size;
+  }
+  set fontSize(value: string | number | { value: number; unit: 'dip' | 'px' | '%' }) {
+    if (!this.style_view) return;
+    switch (typeof value) {
+      case 'string': {
+        const fields = resolveLengthInRust(value, isCssMathFunction(value.trim()) ? this.parentEmBasis() : undefined, true);
+        if (!fields) break;
+        const [kind, amount] = fields;
+        this.writeFontSize(kind === 2 ? amount * 100 : kind === 1 ? layout.toDeviceIndependentPixels(amount) : amount, 1, kind === 2 ? 1 : 0);
+        break;
+      }
+      case 'number':
+        this.writeFontSize(value, 1, 0);
+        break;
+      case 'object':
+        if (value.unit === 'dip' || value.unit === 'px') this.writeFontSize(finite(value.value), 1, 0);
+        else if (value.unit === '%') this.writeFontSize(value.value * 100, 1, 1);
+        break;
+    }
+  }
+
+  get gap(): string {
+    const row = this.rowGap;
+    const column = this.columnGap;
+    const rowCss = typeof row === 'string' ? row : CoreLength.convertToString(row as never);
+    const columnCss = typeof column === 'string' ? column : CoreLength.convertToString(column as never);
+    return rowCss === columnCss ? rowCss : `${rowCss} ${columnCss}`;
+  }
+  set gap(value: string) {
+    if (typeof value !== 'string') return;
+    const gaps = expandCssShorthand('gap', value);
+    if (!gaps) return;
+    const [rowValue, columnValue] = gaps.map((gap) => gap === 'normal' ? 0 : gap);
+    if (layoutMathText(rowValue) || layoutMathText(columnValue)) {
+      this.rowGap = rowValue as Length;
+      this.columnGap = columnValue as Length;
+      return;
+    }
+    const row = layoutLengthValue(rowValue, 'length', this.emBasisFor(rowValue));
+    const column = layoutLengthValue(columnValue, 'length', this.emBasisFor(columnValue));
+    if (row && column) this.writeGap(row.type, row.value, column.type, column.value);
+  }
+
+  get gridAutoFlow(): GridAutoFlow {
+    if (!this.style_view) return 'row';
+    switch (getUint8(this.style_view, StyleKeys.GRID_AUTO_FLOW)) {
+      case 0: return 'row';
+      case 1: return 'column';
+      case 2: return 'row dense';
+      case 3: return 'column dense';
+      default: return undefined;
+    }
+  }
+  set gridAutoFlow(value: GridAutoFlow) {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('grid-auto-flow', value);
+    if (code !== undefined) this.writeGridAutoFlow(code);
+  }
+
+  get height() {
+    const type = getInt8(this.style_view, StyleKeys.HEIGHT_TYPE);
+    return this.readLayoutMath('height', type) ?? parseDimension(type, getFloat32(this.style_view, StyleKeys.HEIGHT_VALUE));
+  }
+  set height(value: DimensionLength) {
+    if (this.applyLayoutMath('height', value)) return;
+    const length = layoutLengthValue(value, 'dimension', this.emBasisFor(value));
+    if (length) this.writeHeight(length.type, length.value);
+  }
+
+  set inset(value: LengthAuto) {
+    if (typeof value === 'string' && value.trim()) {
+      const sides = expandCssShorthand('inset', value);
+      if (!sides) return;
+      const wasInBatch = this.inBatch;
+      this.inBatch = true;
+      try {
+        this.top = sides[0] as never;
+        this.right = sides[1] as never;
+        this.bottom = sides[2] as never;
+        this.left = sides[3] as never;
+      } finally {
+        this.inBatch = wasInBatch;
+      }
+      this.stampPhysical('inset', 15);
+      this.commitState(StateKeys.INSET);
+      return;
+    }
+
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeInset(
+      length.type, length.value, length.type, length.value,
+      length.type, length.value, length.type, length.value,
+    );
+  }
+
+  get justifyContent(): 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'stretch';
+      case 4: return 'space-between';
+      case 5: return 'space-around';
+      case 6: return 'space-evenly';
+      case 7: return 'flex-start';
+      case 8: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set justifyContent(value: 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('justify-content', value);
+    if (code !== undefined) this.writeJustifyContent(code);
+  }
+
+  get justifyItems(): 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'baseline';
+      case 4: return 'stretch';
+      case 5: return 'flex-start';
+      case 6: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set justifyItems(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('justify-items', value);
+    if (code !== undefined) this.writeJustifyItems(code);
+  }
+
+  get justifySelf(): 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_SELF)) {
+      case -1: return 'normal';
+      case 0: return 'start';
+      case 1: return 'end';
+      case 2: return 'center';
+      case 3: return 'baseline';
+      case 4: return 'stretch';
+      case 5: return 'flex-start';
+      case 6: return 'flex-end';
+      default: return undefined;
+    }
+  }
+  set justifySelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('justify-self', value);
+    if (code !== undefined) this.writeJustifySelf(code);
+  }
+
+  get letterSpacing(): CoreTypes.LengthType | number {
+    return getFloat32(this.style_view, StyleKeys.LETTER_SPACING);
+  }
+  set letterSpacing(value: string | CoreTypes.LengthType | number) {
+    if (typeof value === 'string') {
+      const fields = nativeCssLength(value, CssParseKind.LetterSpacing, ...numericCssContext(value, this.emBasisFor(value)));
+      if (fields) this.writeLetterSpacing(fields[1], 1);
+    } else if (typeof value === 'number') {
+      this.writeLetterSpacing(value, 1);
+    } else if (typeof value === 'object') {
+      if (value.unit === 'dip' || value.unit === 'px') this.writeLetterSpacing(layout.toDevicePixels(value.value), 1);
+    }
+  }
+
+  get lineHeight(): CoreTypes.LengthType | number {
+    return getFloat32(this.style_view, StyleKeys.LINE_HEIGHT);
+  }
+  set lineHeight(value: string | CoreTypes.LengthType | number) {
+    if (typeof value === 'string') {
+      const fields = nativeCssLength(value, CssParseKind.LineHeight, ...numericCssContext(value, this.emBasis()));
+      if (!fields) return;
+      const [kind, amount] = fields;
+      if (kind === 3) this.writeLineHeightState(0);
+      else this.writeLineHeight(amount, 1, kind);
+    } else if (typeof value === 'number') {
+      // The NativeScript numeric API distinguishes unitless multipliers from rem-derived pixels.
+      this.writeLineHeight(value, 1, value >= 4 ? 1 : 0);
+    } else if (typeof value === 'object') {
+      if (value.unit === 'dip') this.writeLineHeight(value.value, 1, 1);
+      else if (value.unit === 'px') this.writeLineHeight(layout.toDeviceIndependentPixels(value.value), 1, 1);
+    }
+  }
+
+  get lineClamp(): number | 'none' {
+    if (!this.style_view || !getUint8(this.style_view, StyleKeys.LINE_CLAMP_STATE)) return 'none';
+    const lines = getInt32(this.style_view, StyleKeys.LINE_CLAMP);
+    return lines > 0 ? lines : 'none';
+  }
+  set lineClamp(value: number | string) {
+    if (!this.style_view) return;
+    const lines = typeof value === 'number' ? Math.trunc(value) : Number(expandCssShorthand('line-clamp', value)?.[0]);
+    if (!Number.isFinite(lines) || lines < 0 || lines > 0x7fffffff) return;
+    this.writeLineClamp(lines, 1);
+  }
+
+  get listStylePosition(): 'outside' | 'inside' {
+    if (!this.style_view) return 'outside';
+    switch (getUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION)) {
+      case 1: return 'inside';
+      default: return 'outside';
+    }
+  }
+  set listStylePosition(value: 'outside' | 'inside') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('list-style-position', value);
+    if (code !== undefined) this.writeListStylePosition(code, 1);
+  }
+
+  get listStyleType(): 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal' {
+    if (!this.style_view) return 'none';
+    switch (getUint8(this.style_view, StyleKeys.LIST_STYLE_TYPE)) {
+      case 1: return 'custom';
+      case 2: return 'disc';
+      case 3: return 'circle';
+      case 4: return 'square';
+      case 5: return 'decimal';
+      default: return 'none';
+    }
+  }
+  set listStyleType(value: 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('list-style-type', value);
+    if (code !== undefined) this.writeListStyleType(code, 1);
+  }
+
+  set margin(value: LengthAuto) {
+    if (typeof value === 'string' && value.trim()) {
+      const sides = expandCssShorthand('margin', value);
+      if (!sides) return;
+      const wasInBatch = this.inBatch;
+      this.inBatch = true;
+      try {
+        this.marginTop = sides[0] as never;
+        this.marginRight = sides[1] as never;
+        this.marginBottom = sides[2] as never;
+        this.marginLeft = sides[3] as never;
+      } finally {
+        this.inBatch = wasInBatch;
+      }
+      this.stampPhysical('margin', 15);
+      this.commitState(StateKeys.MARGIN);
+      return;
+    }
+
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMargin(
+      length.type, length.value, length.type, length.value,
+      length.type, length.value, length.type, length.value,
+    );
+  }
+
+  get marginBottom() {
+    const type = getInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE);
+    return this.readLayoutMath('margin-bottom', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE));
+  }
+  set marginBottom(value: LengthAuto) {
+    if (this.applyLayoutMath('margin-bottom', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMarginBottomType(length.type, length.value);
+  }
+
+  get marginLeft() {
+    const type = getInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE);
+    return this.readLayoutMath('margin-left', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE));
+  }
+  set marginLeft(value: LengthAuto) {
+    if (this.applyLayoutMath('margin-left', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMarginLeftType(length.type, length.value);
+  }
+
+  get marginRight() {
+    const type = getInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE);
+    return this.readLayoutMath('margin-right', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE));
+  }
+  set marginRight(value: LengthAuto) {
+    if (this.applyLayoutMath('margin-right', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMarginRightType(length.type, length.value);
+  }
+
+  get marginTop() {
+    const type = getInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE);
+    return this.readLayoutMath('margin-top', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE));
+  }
+  set marginTop(value: LengthAuto) {
+    if (this.applyLayoutMath('margin-top', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMarginTopType(length.type, length.value);
+  }
+
+  get maxHeight() {
+    const type = getInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE);
+    return this.readLayoutMath('max-height', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE));
+  }
+  set maxHeight(value: LengthAuto) {
+    if (this.applyLayoutMath('max-height', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMaxHeight(length.type, length.value);
+  }
+
+  get maxWidth() {
+    const type = getInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE);
+    return this.readLayoutMath('max-width', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE));
+  }
+  set maxWidth(value: LengthAuto) {
+    if (this.applyLayoutMath('max-width', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMaxWidth(length.type, length.value);
+  }
+
+  get minHeight() {
+    const type = getInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE);
+    return this.readLayoutMath('min-height', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE));
+  }
+  set minHeight(value: LengthAuto) {
+    if (this.applyLayoutMath('min-height', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMinHeight(length.type, length.value);
+  }
+
+  get minWidth() {
+    const type = getInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE);
+    return this.readLayoutMath('min-width', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE));
+  }
+  set minWidth(value: LengthAuto) {
+    if (this.applyLayoutMath('min-width', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeMinWidth(length.type, length.value);
+  }
+
+  get objectFit(): string {
+    if (!this.style_view) return 'fill';
+    switch (getUint8(this.style_view, StyleKeys.OBJECT_FIT)) {
+      case 0: return 'contain';
+      case 1: return 'cover';
+      case 3: return 'none';
+      case 4: return 'scale-down';
+      default: return 'fill';
+    }
+  }
+  set objectFit(value: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('object-fit', value);
+    if (code !== undefined) this.writeObjectFit(code);
+  }
+
+  get overflowX(): 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.OVERFLOW_X)) {
+      case 0: return 'visible';
+      case 1: return 'hidden';
+      case 2: return 'scroll';
+      case 3: return 'clip';
+      case 4: return 'auto';
+      default: return undefined;
+    }
+  }
+  set overflowX(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('overflow-x', value);
+    if (code !== undefined) this.writeOverflowX(code);
+  }
+
+  get overflowY(): 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.OVERFLOW_Y)) {
+      case 0: return 'visible';
+      case 1: return 'hidden';
+      case 2: return 'scroll';
+      case 3: return 'clip';
+      case 4: return 'auto';
+      default: return undefined;
+    }
+  }
+  set overflowY(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('overflow-y', value);
+    if (code !== undefined) this.writeOverflowY(code);
+  }
+
+  get overflow() {
+    const x = this.overflowX;
+    const y = this.overflowY;
+    return x === y ? x : `${x} ${y}`;
+  }
+  set overflow(value: OverFlow | `${OverFlow} ${OverFlow}`) {
+    const axes = expandCssShorthand('overflow', value);
+    if (!axes) return;
+    const codes: Record<string, number> = { "visible": 0, "hidden": 1, "scroll": 2, "clip": 3, "auto": 4 };
+    this.writeOverflowAxes(codes[axes[0]], codes[axes[1]]);
+  }
+
+  set padding(value: Length) {
+    if (typeof value === 'string' && value.trim()) {
+      const sides = expandCssShorthand('padding', value);
+      if (!sides) return;
+      const wasInBatch = this.inBatch;
+      this.inBatch = true;
+      try {
+        this.paddingTop = sides[0] as never;
+        this.paddingRight = sides[1] as never;
+        this.paddingBottom = sides[2] as never;
+        this.paddingLeft = sides[3] as never;
+      } finally {
+        this.inBatch = wasInBatch;
+      }
+      this.stampPhysical('padding', 15);
+      this.commitState(StateKeys.PADDING);
+      return;
+    }
+
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writePadding(
+      length.type, length.value, length.type, length.value,
+      length.type, length.value, length.type, length.value,
+    );
+  }
+
+  get paddingBottom() {
+    const type = getInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE);
+    return this.readLayoutMath('padding-bottom', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE));
+  }
+  set paddingBottom(value: Length) {
+    if (this.applyLayoutMath('padding-bottom', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writePaddingBottomType(length.type, length.value);
+  }
+
+  get paddingLeft() {
+    const type = getInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE);
+    return this.readLayoutMath('padding-left', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE));
+  }
+  set paddingLeft(value: Length) {
+    if (this.applyLayoutMath('padding-left', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writePaddingLeftType(length.type, length.value);
+  }
+
+  get paddingRight() {
+    const type = getInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE);
+    return this.readLayoutMath('padding-right', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE));
+  }
+  set paddingRight(value: Length) {
+    if (this.applyLayoutMath('padding-right', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writePaddingRightType(length.type, length.value);
+  }
+
+  get paddingTop() {
+    const type = getInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE);
+    return this.readLayoutMath('padding-top', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE));
+  }
+  set paddingTop(value: Length) {
+    if (this.applyLayoutMath('padding-top', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writePaddingTopType(length.type, length.value);
+  }
+
+  get position(): 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky' | undefined {
+    if (!this.style_view) return undefined;
+    switch (getUint8(this.style_view, StyleKeys.POSITION)) {
+      case 0: return 'static';
+      case 1: return 'relative';
+      case 2: return 'absolute';
+      case 3: return 'fixed';
+      case 4: return 'sticky';
+      default: return undefined;
+    }
+  }
+  set position(value: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('position', value);
+    if (code !== undefined) this.writePosition(code);
+  }
+
+  get scrollBarWidth(): number | CoreTypes.LengthType {
+    return getFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH);
+  }
+  set scrollBarWidth(value: number | CoreTypes.LengthType) {
+    if (typeof value === 'number') this.writeScrollbarWidth(value);
+    else if (typeof value === 'object' && (value.unit === 'dip' || value.unit === 'px')) this.writeScrollbarWidth(layout.toDevicePixels(value.value));
+  }
+
+  get textJustify(): string {
+    if (!this.style_view) return 'auto';
+    switch (getInt8(this.style_view, StyleKeys.TEXT_JUSTIFY)) {
+      case -1: return 'none';
+      case 1: return 'inter-word';
+      case 2: return 'inter-character';
+      case 3: return 'distribute';
+      default: return 'auto';
+    }
+  }
+  set textJustify(value: 'none' | 'auto' | 'inter-word' | 'inter-character' | 'distribute') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-justify', value);
+    if (code !== undefined) this.writeTextJustify(code, 1);
+  }
+
+  get textTransform(): 'none' | 'capitalize' | 'uppercase' | 'lowercase' {
+    if (!this.style_view) return 'none';
+    switch (getUint8(this.style_view, StyleKeys.TEXT_TRANSFORM)) {
+      case 1: return 'capitalize';
+      case 2: return 'uppercase';
+      case 3: return 'lowercase';
+      default: return 'none';
+    }
+  }
+  set textTransform(value: 'none' | 'capitalize' | 'uppercase' | 'lowercase') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('text-transform', value);
+    if (code !== undefined) this.writeTextTransform(code, 1);
+  }
+
+  get textWrap(): number {
+    if (!this.style_view) return 0;
+    return getUint8(this.style_view, StyleKeys.TEXT_WRAP);
+  }
+  set textWrap(value: number | 'wrap' | 'nowrap' | 'balance' | 'pretty' | 'stable') {
+    if (!this.style_view) return;
+    const code = typeof value === 'number' ? (value >= 0 && value < 3 ? value : undefined) : cssKeywordCode('text-wrap', value);
+    if (code !== undefined) this.writeTextWrap(code, 1);
+  }
+
+  get whiteSpace(): string {
+    if (!this.style_view) return 'normal';
+    switch (getUint8(this.style_view, StyleKeys.WHITE_SPACE)) {
+      case 1: return 'pre';
+      case 2: return 'pre-wrap';
+      case 3: return 'pre-line';
+      case 4: return 'nowrap';
+      case 5: return 'break-spaces';
+      default: return 'normal';
+    }
+  }
+  set whiteSpace(value: 'normal' | 'pre' | 'pre-wrap' | 'pre-line' | 'nowrap' | 'break-spaces') {
+    if (!this.style_view) return;
+    const code = cssKeywordCode('white-space', value);
+    if (code !== undefined) this.writeWhiteSpace(code, 1);
+  }
+
+  get width() {
+    const type = getInt8(this.style_view, StyleKeys.WIDTH_TYPE);
+    return this.readLayoutMath('width', type) ?? parseDimension(type, getFloat32(this.style_view, StyleKeys.WIDTH_VALUE));
+  }
+  set width(value: DimensionLength) {
+    if (this.applyLayoutMath('width', value)) return;
+    const length = layoutLengthValue(value, 'dimension', this.emBasisFor(value));
+    if (length) this.writeWidth(length.type, length.value);
+  }
+
+  get zIndex(): number {
+    return getInt32(this.style_view, StyleKeys.Z_INDEX);
+  }
+  set zIndex(value: number) {
+    if (getInt32(this.style_view, StyleKeys.Z_INDEX) === value) return;
+    this.writeZIndex(value);
+  }
+
+  get top() {
+    const type = getInt8(this.style_view, StyleKeys.INSET_TOP_TYPE);
+    return this.readLayoutMath('top', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE));
+  }
+  set top(value: LengthAuto) {
+    if (this.applyLayoutMath('top', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeInsetTopType(length.type, length.value);
+  }
+
+  get right() {
+    const type = getInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE);
+    return this.readLayoutMath('right', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE));
+  }
+  set right(value: LengthAuto) {
+    if (this.applyLayoutMath('right', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeInsetRightType(length.type, length.value);
+  }
+
+  get bottom() {
+    const type = getInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE);
+    return this.readLayoutMath('bottom', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE));
+  }
+  set bottom(value: LengthAuto) {
+    if (this.applyLayoutMath('bottom', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeInsetBottomType(length.type, length.value);
+  }
+
+  get left() {
+    const type = getInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE);
+    return this.readLayoutMath('left', type) ?? parseLengthPercentageAuto(type, getFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE));
+  }
+  set left(value: LengthAuto) {
+    if (this.applyLayoutMath('left', value)) return;
+    const length = layoutLengthValue(value, 'auto', this.emBasisFor(value));
+    if (length) this.writeInsetLeftType(length.type, length.value);
+  }
+
+  get rowGap() {
+    const type = getInt8(this.style_view, StyleKeys.GAP_ROW_TYPE);
+    return this.readLayoutMath('row-gap', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE));
+  }
+  set rowGap(value: Length) {
+    if (this.applyLayoutMath('row-gap', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeRowGap(length.type, length.value);
+  }
+
+  get columnGap() {
+    const type = getInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
+    return this.readLayoutMath('column-gap', type) ?? parseLengthPercentage(type, getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE));
+  }
+  set columnGap(value: Length) {
+    if (this.applyLayoutMath('column-gap', value)) return;
+    const length = layoutLengthValue(value, 'length', this.emBasisFor(value));
+    if (length) this.writeColumnGap(length.type, length.value);
+  }
+
+  private writeWindowsTextDecoration(name: string, value: string) {
+    switch (name) {
+      case 'text-decoration': {
+        const decoration = parseTextDecoration(value, (token) => cssLengthToDip(token, this.emBasisFor(token)));
+        if (decoration) this.writeTextDecoration(decoration.line, decoration.style, decoration.color, decoration.thickness, 1, 1, 1, 1);
+        break;
+      }
+      case 'text-decoration-line': {
+        const result = parseTextDecorationLine(value);
+        if (result != null) this.writeDecorationLine(result, 1);
+        break;
+      }
+      case 'text-decoration-style': {
+        const result = parseTextDecorationStyle(value);
+        if (result != null) this.writeDecorationStyle(result, 1);
+        break;
+      }
+      case 'text-decoration-color': {
+        const result = parseTextDecorationColor(value);
+        if (result != null) this.writeDecorationColor(result, 1);
+        break;
+      }
+      case 'text-decoration-thickness': {
+        const length = decorationField(name, value);
+        if (length == null) break;
+        const thickness = length === '' ? 0 : cssLengthToDip(length, this.emBasisFor(length));
+        if (thickness != null) this.writeDecorationThickness(thickness, 1);
+        break;
+      }
+    }
+  }
+
+  private writeWindowsCornerShape(name: string, value: string) {
+    const fields = expandCssShorthand(name, value);
+    if (!fields) return;
+    switch (name) {
+      case 'corner-shape-top-left': this.writeCornerShapeTopLeft(Number(fields[0])); break;
+      case 'corner-shape-top-right': this.writeCornerShapeTopRight(Number(fields[0])); break;
+      case 'corner-shape-bottom-right': this.writeCornerShapeBottomRight(Number(fields[0])); break;
+      case 'corner-shape-bottom-left': this.writeCornerShapeBottomLeft(Number(fields[0])); break;
+      case 'corner-shape': this.writeCornerShape(Number(fields[0]), Number(fields[1]), Number(fields[2]), Number(fields[3])); break;
+    }
+  }
+  // </style-keys:accessors>
+
   private view_: View;
   // Fetched on first use; see loadBuffer.
   private _sv: DataView | undefined;
@@ -1916,6 +3626,9 @@ export class Style {
   // The last border-radius CSS; null when corners were written as numbers (built on read).
   private _borderRadiusCss: string | null | undefined;
   private _appleStyle: MasonStyle | undefined;
+  private _backgroundWrites?: string[];
+  private _effectWrites?: string[];
+  private _maskWrites?: Map<number, string>;
 
   static fromView(view: View, nativeView): Style {
     const ret = new Style();
@@ -1957,9 +3670,70 @@ export class Style {
   /** The native MasonStyle, fetched once (each `nativeView.style` read is a bridge call). */
   private get appleStyle(): MasonStyle {
     if (this._appleStyle === undefined) {
-      this._appleStyle = ((this.nativeView as MasonElementObjc)?.style ?? NSCMason.shared.styleForViewOrNode(this.nativeView)) as never;
+      const view = this._pseudo ? this.pseudoNativeView : this.nativeView;
+      this._appleStyle = ((view as MasonElementObjc)?.style ?? NSCMason.shared.styleForViewOrNode(view)) as never;
     }
     return this._appleStyle;
+  }
+
+  private applyLayoutMath(property: string, value: unknown): boolean {
+    if (!(__ANDROID__ || __APPLE__ || __WINDOWS__ || __LINUX__)) return false;
+    const css = layoutMathText(value);
+    const state = css ? layoutMathState(property) : undefined;
+    if (!css || !state) return false;
+    if (VIEWPORT_UNIT_TEXT.test(css)) noteViewportUnit();
+    const view = this._pseudo ? this.pseudoNativeView : this.nativeView;
+    const flags = this._pseudo;
+    let applied: boolean;
+    if (__ANDROID__) {
+      const helper = nodeHelper() as any;
+      const method = flags ? helper.applyLayoutLengthForState : helper.applyLayoutLength;
+      if (typeof method !== 'function') return false;
+      if (!flags) this.prepareMut();
+      applied = flags ? helper.applyLayoutLengthForState(view, flags, property, css) : helper.applyLayoutLength(view, property, css);
+    } else if (__APPLE__) {
+      const style = this.appleStyle as any;
+      const method = flags ? style?.applyLayoutLengthForState : style?.applyLayoutLength;
+      if (typeof method !== 'function') return false;
+      if (!flags) this.prepareMut();
+      applied = flags ? style.applyLayoutLengthForState(flags, property, css) : style.applyLayoutLength(property, css);
+    } else {
+      const native = windowsNativeStyle(view) as any;
+      const method = flags ? native?.ApplyLayoutLengthForState : native?.ApplyLayoutLength;
+      if (typeof method !== 'function') return false;
+      // Flush pending changes before the Rust write, then reload the projected style.
+      if (this._hasDirty) this.syncStyle();
+      else if (flags && this.u8View?.length) this.writeWindowsPseudoStyle();
+      const [_, font, root, width, height] = numericCssContext(css, this.emBasisFor(css));
+      if (flags) {
+        applied = native.ApplyLayoutLengthForState(flags, property, css, font, root, width, height);
+        if (applied) this.setBuffer(new Uint8Array(masonEngine().ReadPseudoStyleValues(this.nativeNode, flags)).buffer);
+      } else {
+        applied = native.ApplyLayoutLength(property, css, font, root, width, height);
+        if (applied) this.loadBuffer();
+      }
+    }
+    if (applied) this.setOrAppendState(state);
+    return true;
+  }
+
+  private readLayoutMath(property: string, type: number): CssMathLength | undefined {
+    if (type !== LAYOUT_MATH_TYPE) return;
+    let css: string | undefined | null;
+    const flags = this._pseudo;
+    if (__ANDROID__) {
+      const helper = nodeHelper() as any;
+      css = flags ? helper.layoutLengthCssForState?.(this.pseudoNativeView, flags, property) : helper.layoutLengthCss?.(this.nativeView, property);
+    }
+    if (__APPLE__) {
+      const style = this.appleStyle as any;
+      css = flags ? style?.layoutLengthCssForState?.(flags, property) : style?.layoutLengthCss?.(property);
+    }
+    if (__WINDOWS__ || __LINUX__) {
+      const style = windowsNativeStyle(flags ? this.pseudoNativeView : this.nativeView) as any;
+      css = flags ? style?.LayoutLengthCssForState?.(flags, property) : style?.LayoutLengthCss?.(property);
+    }
+    return (css || undefined) as CssMathLength | undefined;
   }
 
   // The byte views are rarely read, so they are made on demand.
@@ -2037,6 +3811,7 @@ export class Style {
     }
     const ret = new Style();
     ret._pseudo = mask;
+    ret.pseudoNativeView = nativeView;
     ret.view_ = view;
 
     if (__ANDROID__) {
@@ -2070,16 +3845,22 @@ export class Style {
       ret.i8View = new Int8Array(buffer);
       ret.u8View = new Uint8Array(buffer);
       ret.clearPseudoSetMask();
+    } else if (__WINDOWS__ && nativeView?.Node) {
+      ret.nativeNode = nativeView.Node;
+      ret.setBuffer(new Uint8Array(masonEngine().ReadPseudoStyleValues(ret.nativeNode, mask)).buffer);
+      ret.clearPseudoSetMask();
     }
 
     return ret;
   }
 
+  private pseudoNativeView?: any;
+
   private clearPseudoSetMask() {
     const LOW_OFFSET = StyleKeys.PSEUDO_SET_MASK_LOW;
     const HIGH_OFFSET = StyleKeys.PSEUDO_SET_MASK_HIGH;
 
-    if (this.style_view.byteLength < HIGH_OFFSET + 8) {
+    if (!this.style_view || this.style_view.byteLength < HIGH_OFFSET + 8) {
       return;
     }
 
@@ -2091,7 +3872,7 @@ export class Style {
     const LOW_OFFSET = StyleKeys.PSEUDO_SET_MASK_LOW;
     const HIGH_OFFSET = StyleKeys.PSEUDO_SET_MASK_HIGH;
 
-    if (this.style_view.byteLength < HIGH_OFFSET + 8) return;
+    if (!this.style_view || this.style_view.byteLength < HIGH_OFFSET + 8) return;
 
     const v = this.style_view;
     setInt32(v, LOW_OFFSET, getInt32(v, LOW_OFFSET) | key.w0);
@@ -2106,20 +3887,6 @@ export class Style {
     } else {
       this.setOrAppendState(value);
     }
-  }
-
-  // Every string-valued property goes through here on its way to the platform,
-  // whose parsers don't read modern colour syntax; see css-colors.ts.
-  private coerceCssStringValue(value: any): string {
-    if (typeof value === 'string') {
-      // Nor do they evaluate calc()/min()/max()/clamp(); see css-math.ts.
-      const resolved = hasCssMathFunction(value) ? resolveCssMathIn(value, this.emBasisFor(value)) : value;
-      return resolveCssColors(resolved, cssColorToRgba);
-    }
-    if (value == null) {
-      return '';
-    }
-    return String(value);
   }
 
   private setPseudoCssStringValue(name: string, value: string, applyAndroid: () => void, applyApple: () => void) {
@@ -2150,136 +3917,115 @@ export class Style {
     }
   }
 
+  private setBackgroundCss(name: string, value: string) {
+    if ((__ANDROID__ || __APPLE__) && this._pseudo) {
+      this.nativeNode?.setPseudoString(this._pseudo, name, value);
+      return;
+    }
+    if (!this.nativeView || !(__ANDROID__ || __APPLE__ || __WINDOWS__ || __LINUX__)) return;
+    if ((__WINDOWS__ || __LINUX__) && !this._pseudo) this._windowsCss.set(name, value);
+    const currentColor = name === 'background' || name === 'background-image' ? String(this.color) : '';
+    const fields = this._backgroundWrites ??= [];
+    const offset = fields.length;
+    fields.length += CssBackgroundWriteRecord.STRIDE;
+    fields[offset + CssBackgroundWriteRecord.PROPERTY] = name;
+    fields[offset + CssBackgroundWriteRecord.VALUE] = value.replaceAll('\0', '\uFFFD');
+    fields[offset + CssBackgroundWriteRecord.CURRENT_COLOR] = currentColor;
+    this.scheduleSync();
+  }
+
+  private setEffectCss(name: string, value: string) {
+    if (!this.nativeView || !(__ANDROID__ || __APPLE__ || __WINDOWS__ || __LINUX__)) return;
+    value = value == null ? '' : String(value);
+    if ((__ANDROID__ || __APPLE__) && this._pseudo) {
+      this.nativeNode.setPseudoString(this._pseudo, name, value);
+      return;
+    }
+    if ((__WINDOWS__ || __LINUX__) && !this._pseudo) this._windowsCss.set(name, value);
+    const style = __WINDOWS__ ? this.style_view : undefined;
+    const color = !__WINDOWS__ || (style && getUint8(style, StyleKeys.FONT_COLOR_STATE)) ? String(this.color) : '';
+    const fields = this._effectWrites ??= [];
+    const offset = fields.length;
+    fields.length += CssEffectWriteRecord.STRIDE;
+    fields[offset + CssEffectWriteRecord.PROPERTY] = name;
+    fields[offset + CssEffectWriteRecord.VALUE] = value.replaceAll('\0', '\uFFFD');
+    fields[offset + CssEffectWriteRecord.CURRENT_COLOR] = color;
+    this.scheduleSync();
+  }
+
+  private flushEffectWrites() {
+    const fields = this._effectWrites;
+    if (!fields) return;
+    this._effectWrites = undefined;
+    const payload = JSON.stringify(fields);
+    if (__ANDROID__) {
+      nodeHelper().applyEffectBatch(this.nativeView, payload);
+    } else if (__APPLE__) {
+      this.appleStyle.applyEffectBatch(payload);
+    } else if (__WINDOWS__ || __LINUX__) {
+      NativeScript.Mason.Css.SetCssEffects(this.nativeView, payload, this.emBasis(), cssUnits.rootFontSize,
+        cssUnits.viewportWidth, cssUnits.viewportHeight);
+    }
+  }
+
+  private setMaskCss(name: string, slot: number, value: string) {
+    value = value == null ? '' : String(value);
+    const write = () => {
+      (this._maskWrites ??= new Map()).set(slot, value);
+      this.scheduleSync();
+    };
+    this.setPseudoCssStringValue(name, value, write, write);
+  }
+
+  private flushMaskWrites() {
+    const pending = this._maskWrites;
+    if (!pending) return;
+    this._maskWrites = undefined;
+    const fields = new Array<string>(pending.size * CssMaskWriteRecord.STRIDE);
+    let offset = 0;
+    for (const [slot, value] of pending) {
+      fields[offset + CssMaskWriteRecord.SLOT] = String(slot);
+      fields[offset + CssMaskWriteRecord.VALUE] = value;
+      offset += CssMaskWriteRecord.STRIDE;
+    }
+    const payload = JSON.stringify(fields);
+    if (__ANDROID__) {
+      nodeHelper().applyMaskBatch(this.nativeView, payload);
+    } else if (__APPLE__) {
+      this.appleStyle.applyMaskBatch(payload);
+    }
+  }
+
+  private flushBackgroundWrites() {
+    const fields = this._backgroundWrites;
+    if (!fields) return;
+    this._backgroundWrites = undefined;
+    if (__ANDROID__) {
+      nodeHelper().applyBackgroundBatch(this.nativeView, JSON.stringify(fields));
+    } else if (__APPLE__) {
+      this.appleStyle.applyBackgroundBatch(JSON.stringify(fields));
+    } else if (__WINDOWS__ || __LINUX__) {
+      const color = NativeScript.Mason.Css.SetCssBackground(this.nativeView, JSON.stringify({
+        writes: fields,
+        units: [this.emBasis(), cssUnits.rootFontSize, cssUnits.viewportWidth, cssUnits.viewportHeight, this.color],
+        appRoot: windowsAppFile('~/'),
+      }));
+      if (color >= 0) this.backgroundColor = color;
+    }
+  }
+
   private _windowsCss = new Map<string, string>();
-  private _windowsBackground?: string;
-  private _windowsBackgroundSize?: string;
-  private _windowsBackgroundPosition?: string;
-  private _windowsImageBackground = false;
-  private _windowsBackgroundShorthand = false;
-
-  private applyWindowsBackground(shorthand: boolean) {
-    const v = (this._windowsBackground ?? '').trim();
-    const layer = splitTopLevelCommas(v)[0]?.trim() ?? '';
-    const stopsOf = (g: { offsets: number[]; colors: number[] }) => g.offsets.map((o, i) => o + ':' + (g.colors[i] >>> 0)).join(',');
-    try {
-      const longhands = this.windowsBackgroundLonghands(shorthand, v);
-      if (longhands && (needsWindowsBackgroundLayers(longhands) || (ANY_GRADIENT.test(v) && this.windowsScrolls()))) {
-        const spec = encodeWindowsBackgroundLayers(longhands, this.windowsMaskContext());
-        if (spec) {
-          this._windowsImageBackground = true;
-          NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
-          if (longhands.color) this.backgroundColor = longhands.color as never;
-          return;
-        }
-      }
-      const url = /url\(\s*(['"]?)(.*?)\1\s*\)/i.exec(layer);
-      if (!url && this._windowsImageBackground) {
-        this._windowsImageBackground = false;
-        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, '');
-      }
-      const boxes = this.windowsBackgroundBoxes(shorthand ? layer : '');
-      const setLayers = (spec: string) => {
-        if (!spec) return false;
-        this._windowsImageBackground = true;
-        NativeScript.Mason.Css.SetBackgroundLayers(this.nativeView, spec);
-        return true;
-      };
-      // Only the layer painter places a background in a box other than the CSS defaults.
-      if (ANY_GRADIENT.test(layer) && (hasCustomBackgroundBoxes(boxes) || /^(repeating-|conic-gradient)/i.test(layer) || this.windowsColorUnder() || /\d(px|r?em|pt|vw|vh)\b|\bcircle\b/i.test(layer))) {
-        const ctx = this.windowsMaskContext();
-        setLayers(encodeWindowsGradientBackground(layer, this._windowsBackgroundSize ?? '', this._windowsBackgroundPosition ?? '', this._windowsCss.get('background-repeat') ?? '', ctx, boxes));
-        return;
-      }
-      if (/^radial-gradient/i.test(layer)) {
-        const g = parseRadialGradientCss(layer);
-        if (g) NativeScript.Mason.Css.ApplyRadialGradientAt(this.nativeView, g.cx, g.cy, g.rx, g.ry, stopsOf(g), g.interpolation);
-        return;
-      }
-      if (/^linear-gradient/i.test(layer)) {
-        const g = parseLinearGradientCss(layer);
-        if (g && g.colors.length) NativeScript.Mason.Css.ApplyLinearGradient(this.nativeView, g.angle, g.corner?.[0] ?? 0, g.corner?.[1] ?? 0, stopsOf(g), g.interpolation);
-        return;
-      }
-      if (url) {
-        const rest = layer.slice(url.index + url[0].length).trim();
-        const keywords = /\b(no-repeat|repeat-x|repeat-y|repeat|space|round|scroll|fixed|local|border-box|padding-box|content-box|text)\b/gi;
-        const [positionPart, sizePart] = rest.split('/').map((p) => p.replace(keywords, '').trim());
-        const size = shorthand && sizePart ? sizePart.split(/\s+/).slice(0, 2).join(' ') : (this._windowsBackgroundSize ?? '');
-        const position = shorthand && positionPart ? positionPart : (this._windowsBackgroundPosition ?? '');
-        const repeatKeywords = shorthand ? (rest.match(/\b(no-repeat|repeat-x|repeat-y|repeat|space|round)\b/gi) ?? []).join(' ') : '';
-        const repeat = repeatKeywords || (this._windowsCss.get('background-repeat') ?? '');
-        // Painted natively over background-color (CssMask.h), which an ImageBrush would replace.
-        if (setLayers(encodeWindowsBackground(url[2], size, position, repeat, this.windowsMaskContext(), boxes))) return;
-        const source = windowsAppFile(url[2]);
-        const box = parseBoxPosition(position || '0% 0%', 0);
-        const align = (f: number) => (f <= 0.25 ? 0 : f >= 0.75 ? 2 : 1);
-        NativeScript.Mason.Css.ApplyBackgroundImage(this.nativeView, source, backgroundFit(size), align(box.x), align(box.y));
-        return;
-      }
-      if (!ANY_GRADIENT.test(layer)) {
-        NativeScript.Mason.Css.ClearBackground(this.nativeView);
-        const color = v.replace(/\b(border-box|padding-box|content-box|text)\b/gi, '').trim();
-        if (shorthand && color.length && color.toLowerCase() !== 'none') this.backgroundColor = color as never;
-        if (boxes.clip && hasCustomBackgroundBoxes({ clip: boxes.clip })) setLayers(encodeWindowsColorClip(boxes.clip, this.windowsMaskContext()));
-      }
-    } catch (_) {}
-  }
-
-  private windowsScrolls(): boolean {
-    if (!this.style_view) return false;
-    const x = getInt8(this.style_view, StyleKeys.OVERFLOW_X);
-    const y = getInt8(this.style_view, StyleKeys.OVERFLOW_Y);
-    return x === 2 || x === 4 || y === 2 || y === 4;
-  }
-
-  private windowsColorUnder(): boolean {
-    return !!this.style_view && getUint32(this.style_view, StyleKeys.BACKGROUND_COLOR) >>> 24 > 0;
-  }
-
-  private windowsReapplyGradient() {
-    if (ANY_GRADIENT.test(this._windowsBackground ?? '')) this.applyWindowsBackground(this._windowsBackgroundShorthand);
-  }
-
-  private windowsBackgroundLonghands(shorthand: boolean, value: string): (WindowsBackgroundLonghands & { color?: string }) | null {
-    const css = this._windowsCss;
-    const blend = css.get('background-blend-mode');
-    if (!shorthand) {
-      return { image: value, size: this._windowsBackgroundSize, position: this._windowsBackgroundPosition, repeat: css.get('background-repeat'), origin: css.get('background-origin'), clip: css.get('background-clip'), attachment: css.get('background-attachment'), blend };
-    }
-    let parts: unknown[];
-    try {
-      parts = splitBackground(value);
-    } catch (_) {
-      return null;
-    }
-    const text = (part: unknown) => (typeof part === 'string' ? part : undefined);
-    const [color, image, repeat, position, size, clip, origin, attachment] = parts.map(text);
-    if (!image) return null;
-    return { image, size, position, repeat, origin, clip, attachment, blend, color };
-  }
-
-  // background-origin and background-clip: the shorthand's box keywords (origin, then clip), else the longhands.
-  // `text` is a clip only; url() and gradient arguments are skipped so a file name can't match it.
-  private windowsBackgroundBoxes(shorthandLayer: string): WindowsBackgroundBoxes {
-    const bare = shorthandLayer.replace(/[\w-]+\((?:[^()]|\([^()]*\))*\)/g, ' ');
-    const keywords: string[] = bare.match(/\b(border-box|padding-box|content-box|text)\b/gi) ?? [];
-    if (keywords.length) {
-      const boxes = keywords.filter((k) => k.toLowerCase() !== 'text');
-      const text = boxes.length < keywords.length;
-      return { origin: boxes[0], clip: text ? 'text' : (boxes[1] ?? boxes[0]) };
-    }
-    return { origin: this._windowsCss.get('background-origin'), clip: this._windowsCss.get('background-clip') };
-  }
 
   private _windowsMaskSpec = '';
   private _windowsMaskOverrides?: Map<string, string>;
 
   private windowsMaskContext(): WindowsMaskContext {
     return {
-      length: (token) => cssLengthToDip(token, this.emBasisFor(token)),
-      color: (color) => normalizeColorValue(color),
-      linear: parseLinearGradientCss,
-      radial: parseRadialGradientCss,
+      gradientUnits: (value) => [
+        this.emBasisFor(value) ?? cssUnits.rootFontSize,
+        cssUnits.rootFontSize, cssUnits.viewportWidth, cssUnits.viewportHeight,
+        (this.color as unknown as number) >>> 0,
+      ],
       source: windowsAppFile,
     };
   }
@@ -2323,60 +4069,14 @@ export class Style {
       NativeScript.Mason.Css.SetBorderImage(view, spec);
       return;
     }
-    // A gradient is a Panel brush from Css that VisualApply leaves over BACKGROUND_COLOR; clearing
-    // it lets VisualApply repaint the color.
-    if (name === 'background' || name === 'background-image') {
-      this._windowsBackground = typeof value === 'string' ? value : String(value ?? '');
-      this._windowsBackgroundShorthand = name === 'background';
-      this.applyWindowsBackground(name === 'background');
-      return;
-    }
-    if (name === 'background-clip' || name === 'background-origin') {
-      this.applyWindowsBackground(false);
-      return;
-    }
-    if (name === 'background-repeat' || name === 'background-attachment' || name === 'background-blend-mode') {
-      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
-      return;
-    }
-    if (name === 'background-size' || name === 'background-position') {
-      if (name === 'background-size') this._windowsBackgroundSize = String(value ?? '');
-      else this._windowsBackgroundPosition = String(value ?? '');
-      if (/url\(|gradient/i.test(this._windowsBackground ?? '')) this.applyWindowsBackground(false);
-      return;
-    }
-
-    if (name === 'filter' || name === 'backdrop-filter') {
-      const view: any = this.nativeView;
-      if (!view) return;
-      const current = (this.color as unknown as number) >>> 0 || 0xff000000;
-      const spec = encodeCssFilter(
-        parseCssFilter(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasisFor(token))),
-        (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current),
-      );
-      if (name === 'filter') NativeScript.Mason.Css.SetFilter(view, spec);
-      else NativeScript.Mason.Css.SetBackdropFilter(view, spec);
-      return;
-    }
-
     if (name === 'font-feature-settings') {
       const view: any = this.nativeView;
       if (view && typeof view.SetFontFeatureSettings === 'function') view.SetFontFeatureSettings(typeof value === 'string' ? value : '');
       return;
     }
 
-    if (name === 'text-shadow') {
-      const view: any = this.nativeView;
-      if (view && typeof view.SetTextShadow === 'function') {
-        const current = (this.color as unknown as number) >>> 0 || 0xff000000;
-        const shadows = parseBoxShadows(typeof value === 'string' ? value : '', (token) => cssLengthToDip(token, this.emBasisFor(token)));
-        view.SetTextShadow(encodeBoxShadows(shadows, (color) => (color && color.toLowerCase() !== 'currentcolor' ? (normalizeColorValue(color) ?? current) : current)));
-      }
-      return;
-    }
-
     if (name === 'padding' || name === 'margin' || name === 'inset') {
-      if (!isSideList(value)) return;
+      if (!value?.trim()) return;
       if (name === 'padding') this.padding = value as never;
       else if (name === 'margin') this.margin = value as never;
       else this.inset = value as never;
@@ -2391,35 +4091,26 @@ export class Style {
       return;
     }
     if (name === 'border-radius') {
-      const r = parseBorderRadiusShorthand(value, this.emBasisFor(value));
-      this.prepareMut();
-      for (const [corner, keys] of RADIUS_KEYS) {
-        const { type, value: v } = r[corner];
-        setFloat32(this.style_view, keys.xValue, v);
-        setFloat32(this.style_view, keys.yValue, v);
-        setUint8(this.style_view, keys.xType, type);
-        setUint8(this.style_view, keys.yType, type);
-      }
-      this.commitState(StateKeys.BORDER_RADIUS);
+      this._writeBorderRadius(value, 1);
       return;
     }
-    if (name === 'corner-shape' || name in CORNER_SHAPE_LONGHANDS) {
-      const text = typeof value === 'string' ? value : '';
-      const e = parseCornerShape(text);
-      if (!e || (name !== 'corner-shape' && splitTopLevelSpaces(text.trim()).length > 1)) return;
-      this.prepareMut();
-      if (name === 'corner-shape') for (let i = 0; i < 4; i++) setFloat32(this.style_view, CORNER_SHAPE_KEYS[i], e[i]);
-      else setFloat32(this.style_view, CORNER_SHAPE_KEYS[CORNER_SHAPE_LONGHANDS[name]], e[0]);
-      this.commitState(StateKeys.BORDER_RADIUS);
+    if (name === 'corner-shape' || name.startsWith('corner-shape-')) {
+      this.writeWindowsCornerShape(name, value);
       return;
     }
 
     if (name === 'border' || name === 'border-top' || name === 'border-right' || name === 'border-bottom' || name === 'border-left') {
-      const p = parseBorderShorthand(value, this.emBasisFor(value));
-      let style = p.style;
-      if (style == null && (p.width != null || p.color != null)) style = 4; // solid
-      const sides: ('left' | 'right' | 'top' | 'bottom')[] = name === 'border' ? ['left', 'right', 'top', 'bottom'] : name === 'border-left' ? ['left'] : name === 'border-right' ? ['right'] : name === 'border-top' ? ['top'] : ['bottom'];
-      for (const s of sides) this.writeBorderSide(s, p.width, style, p.color);
+      const sides: ('top' | 'right' | 'bottom' | 'left')[] = name === 'border' ? ['top', 'right', 'bottom', 'left']
+        : name === 'border-top' ? ['top'] : name === 'border-right' ? ['right'] : name === 'border-bottom' ? ['bottom'] : ['left'];
+      const fields = expandCssShorthand(name === 'border' ? 'border-components' : 'border-side-components', value);
+      if (!fields) return;
+      const emBasis = this.emBasisFor(value);
+      const widths = fields.slice(0, sides.length).map((width) => borderWidthInDip(width, emBasis));
+      const styleCode = fields[sides.length] ? Number(fields[sides.length]) : -1;
+      const color = fields[sides.length + 1] ? Number(fields[sides.length + 1]) : null;
+      const style = styleCode === -1 ? (widths.some((width) => width !== null) || color !== null ? BorderStyleCode.Solid : null) : styleCode;
+      if (style === null && color === null && widths.every((width) => width === null)) return;
+      for (const [index, side] of sides.entries()) this.writeBorderSide(side, widths[index], style, color);
       this.commitState(StateKeys.BORDER);
       this.commitState(StateKeys.BORDER_STYLE);
       this.commitState(StateKeys.BORDER_COLOR);
@@ -2437,70 +4128,55 @@ export class Style {
     }
   }
 
-  // Write one side's border width/style/color into the style buffer; null components are skipped.
-  private writeBorderSide(side: 'left' | 'right' | 'top' | 'bottom', width: number | null, style: number | null, color: number | null) {
+  // <style-keys:border-accessors> generated from tools/scripts/style-keys/style-keys.schema
+  private static readonly borderSideKeys = {
+    top: [StyleKeys.BORDER_TOP_TYPE, StyleKeys.BORDER_TOP_VALUE, StyleKeys.BORDER_TOP_STYLE, StyleKeys.BORDER_TOP_COLOR],
+    right: [StyleKeys.BORDER_RIGHT_TYPE, StyleKeys.BORDER_RIGHT_VALUE, StyleKeys.BORDER_RIGHT_STYLE, StyleKeys.BORDER_RIGHT_COLOR],
+    bottom: [StyleKeys.BORDER_BOTTOM_TYPE, StyleKeys.BORDER_BOTTOM_VALUE, StyleKeys.BORDER_BOTTOM_STYLE, StyleKeys.BORDER_BOTTOM_COLOR],
+    left: [StyleKeys.BORDER_LEFT_TYPE, StyleKeys.BORDER_LEFT_VALUE, StyleKeys.BORDER_LEFT_STYLE, StyleKeys.BORDER_LEFT_COLOR],
+  } as const;
+
+  // Write the components provided by the shorthand. Its caller commits dirty groups together.
+  private writeBorderSide(side: 'top' | 'right' | 'bottom' | 'left', width: number | null, style: number | null, color: number | null) {
     if (!this.style_view) return;
-    const W = side === 'left' ? StyleKeys.BORDER_LEFT_VALUE : side === 'right' ? StyleKeys.BORDER_RIGHT_VALUE : side === 'top' ? StyleKeys.BORDER_TOP_VALUE : StyleKeys.BORDER_BOTTOM_VALUE;
-    const T = side === 'left' ? StyleKeys.BORDER_LEFT_TYPE : side === 'right' ? StyleKeys.BORDER_RIGHT_TYPE : side === 'top' ? StyleKeys.BORDER_TOP_TYPE : StyleKeys.BORDER_BOTTOM_TYPE;
-    const S = side === 'left' ? StyleKeys.BORDER_LEFT_STYLE : side === 'right' ? StyleKeys.BORDER_RIGHT_STYLE : side === 'top' ? StyleKeys.BORDER_TOP_STYLE : StyleKeys.BORDER_BOTTOM_STYLE;
-    const C = side === 'left' ? StyleKeys.BORDER_LEFT_COLOR : side === 'right' ? StyleKeys.BORDER_RIGHT_COLOR : side === 'top' ? StyleKeys.BORDER_TOP_COLOR : StyleKeys.BORDER_BOTTOM_COLOR;
+    const [widthType, widthValue, styleKey, colorKey] = Style.borderSideKeys[side];
     this.prepareMut();
     if (width != null) {
-      setInt8(this.style_view, T, 0);
-      setFloat32(this.style_view, W, width);
+      setInt8(this.style_view, widthType, 0);
+      setFloat32(this.style_view, widthValue, width);
     }
-    if (style != null) setInt8(this.style_view, S, style);
-    if (color != null) setUint32(this.style_view, C, color >>> 0);
+    if (style != null) setInt8(this.style_view, styleKey, style);
+    if (color != null) setUint32(this.style_view, colorKey, color >>> 0);
   }
 
-  private writeWindowsTextDecoration(name: string, value: string) {
-    let line: number | null = null;
-    let style: number | null = null;
-    let color: number | null = null;
-    let thickness: number | null = null;
-    switch (name) {
-      case 'text-decoration': {
-        const d = parseTextDecoration(value, (token) => cssLengthToDip(token, this.emBasisFor(token)));
-        if (!d) return;
-        ({ line, style, color, thickness } = d);
-        break;
-      }
-      case 'text-decoration-line':
-        line = parseTextDecorationLine(value);
-        break;
-      case 'text-decoration-style':
-        style = parseTextDecorationStyle(value);
-        break;
-      case 'text-decoration-color':
-        color = parseTextDecorationColor(value);
-        break;
-      case 'text-decoration-thickness':
-        thickness = cssLengthToDip(value, this.emBasisFor(value)) ?? null;
-        break;
-    }
-    if (line == null && style == null && color == null && thickness == null) return;
-    this.prepareMut();
-    if (line != null) {
-      setUint8(this.style_view, StyleKeys.DECORATION_LINE, line);
-      setUint8(this.style_view, StyleKeys.DECORATION_LINE_STATE, 1);
-      this.commitState(StateKeys.DECORATION_LINE);
-    }
-    if (style != null) {
-      setUint8(this.style_view, StyleKeys.DECORATION_STYLE, style);
-      setUint8(this.style_view, StyleKeys.DECORATION_STYLE_STATE, 1);
-      this.commitState(StateKeys.DECORATION_STYLE);
-    }
-    if (color != null) {
-      setUint32(this.style_view, StyleKeys.DECORATION_COLOR, color);
-      setUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE, 1);
-      this.commitState(StateKeys.DECORATION_COLOR);
-    }
-    if (thickness != null) {
-      setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, thickness);
-      setUint8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, 1);
-      this.commitState(StateKeys.DECORATION_THICKNESS);
-    }
+  get borderTopColor(): string {
+    return new Color(getUint32(this.style_view, StyleKeys.BORDER_TOP_COLOR)).hex;
   }
+  set borderTopColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('top', value);
+  }
+
+  get borderRightColor(): string {
+    return new Color(getUint32(this.style_view, StyleKeys.BORDER_RIGHT_COLOR)).hex;
+  }
+  set borderRightColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('right', value);
+  }
+
+  get borderBottomColor(): string {
+    return new Color(getUint32(this.style_view, StyleKeys.BORDER_BOTTOM_COLOR)).hex;
+  }
+  set borderBottomColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('bottom', value);
+  }
+
+  get borderLeftColor(): string {
+    return new Color(getUint32(this.style_view, StyleKeys.BORDER_LEFT_COLOR)).hex;
+  }
+  set borderLeftColor(value: number | string | { argb?: number }) {
+    this.setBorderSideColor('left', value);
+  }
+  // </style-keys:border-accessors>
 
   setBorderColor(value: string) {
     if (!(__WINDOWS__ || __LINUX__ || __ANDROID__ || __APPLE__) || !this.style_view) return;
@@ -2520,49 +4196,19 @@ export class Style {
     this.commitState(StateKeys.BORDER_COLOR);
   }
 
-  // Per-side colors by name, as pseudo-class styles and the border shorthands assign them.
-  private borderSideColor(key: StyleKeys): string {
-    return new Color(getUint32(this.style_view, key)).hex;
-  }
-
-  get borderTopColor(): string {
-    return this.borderSideColor(StyleKeys.BORDER_TOP_COLOR);
-  }
-
-  set borderTopColor(value: number | string | { argb?: number }) {
-    this.setBorderSideColor('top', value);
-  }
-
-  get borderRightColor(): string {
-    return this.borderSideColor(StyleKeys.BORDER_RIGHT_COLOR);
-  }
-
-  set borderRightColor(value: number | string | { argb?: number }) {
-    this.setBorderSideColor('right', value);
-  }
-
-  get borderBottomColor(): string {
-    return this.borderSideColor(StyleKeys.BORDER_BOTTOM_COLOR);
-  }
-
-  set borderBottomColor(value: number | string | { argb?: number }) {
-    this.setBorderSideColor('bottom', value);
-  }
-
-  get borderLeftColor(): string {
-    return this.borderSideColor(StyleKeys.BORDER_LEFT_COLOR);
-  }
-
-  set borderLeftColor(value: number | string | { argb?: number }) {
-    this.setBorderSideColor('left', value);
-  }
-
   resetState() {
     this._hasDirty = false;
     this._d0 = this._d1 = this._d2 = this._d3 = 0;
   }
 
+  private flushCssWrites() {
+    this.flushBackgroundWrites();
+    this.flushEffectWrites();
+    this.flushMaskWrites();
+  }
+
   private syncStyle() {
+    this.flushCssWrites();
     this._synced = true;
     const snapshot = this._turnSnapshot;
     this._turnSnapshot = undefined;
@@ -2601,8 +4247,9 @@ export class Style {
       }
       // @ts-ignore
       const view = (this.view as any)?.windows ?? this.view._view;
+      if (__WINDOWS__ && this._pseudo) this.writeWindowsPseudoStyle();
       (view as NativeScript.Mason.IMasonElement).SyncStyle(d0, d1, d2, d3);
-      const text = StateKeys.WINDOWS_TEXT;
+      const text = StateKeys.WINDOWS_TEXT_CHANGES;
       if ((d0 & text.w0) | (d1 & text.w1) | (d2 & text.w2) | (d3 & text.w3)) {
         (this.view as any)?._windowsSyncAnonymousText?.(d0, d1, d2, d3);
       }
@@ -2611,6 +4258,10 @@ export class Style {
         (this.view as any)?._windowsFlowTypeChanged?.();
       }
     }
+  }
+
+  private writeWindowsPseudoStyle() {
+    masonEngine().WritePseudoStyleValues(this.nativeNode, this._pseudo, this.u8View);
   }
 
   /** The anonymous Windows Text holding a container's own runs inherits the container's text styles. */
@@ -2637,30 +4288,30 @@ export class Style {
     this._d2 |= value.w2;
     this._d3 |= value.w3;
     this._hasDirty = true;
-    if (!this.inBatch) {
-      // Coalesce rapid-fire property changes (e.g. CSS batch apply) into a
-      // single syncStyle() call on the next microtask. This avoids N
-      // separate JNI/FFI round-trips when N properties change in the same
-      // JS turn; every style changed in the turn shares that one microtask.
-      if (!this._syncScheduled) {
-        this._syncScheduled = true;
-        queueStyleSync(this);
-      }
+    this.scheduleSync();
+  }
+
+  private scheduleSync() {
+    if (!this.inBatch && !this._syncScheduled) {
+      this._syncScheduled = true;
+      queueStyleSync(this);
     }
   }
 
   _flushScheduledSync() {
     this._syncScheduled = false;
-    if (this._hasDirty) {
-      this.syncStyle();
-    }
+    this.flushCssWrites();
+    if (this._hasDirty) this.syncStyle();
   }
 
   batch(fn: (style: Style) => void) {
     this.inBatch = true;
-    fn(this);
-    this.inBatch = false;
-    this.syncStyle();
+    try {
+      fn(this);
+    } finally {
+      this.inBatch = false;
+      this.syncStyle();
+    }
   }
 
   get view(): View {
@@ -2717,409 +4368,12 @@ export class Style {
     }
   }
 
-  get boxSizing(): 'border-box' | 'content-box' {
-    switch (getUint8(this.style_view, StyleKeys.BOX_SIZING)) {
-      case 0:
-        return 'border-box';
-      case 1:
-        return 'content-box';
-    }
-  }
-
-  set boxSizing(value: 'border-box' | 'content-box') {
-    let boxSizing = -1;
-    switch (value) {
-      case 'border-box':
-        boxSizing = 0;
-        break;
-      case 'content-box':
-        boxSizing = 1;
-        break;
-    }
-
-    if (boxSizing !== -1) {
-      this.prepareMut();
-      setUint8(this.style_view, StyleKeys.BOX_SIZING, boxSizing);
-      this.commitState(StateKeys.BOX_SIZING);
-    }
-  }
-
-  get direction(): 'inherit' | 'ltr' | 'rtl' {
-    switch (getUint8(this.style_view, StyleKeys.DIRECTION)) {
-      case 1:
-        return 'ltr';
-      case 2:
-        return 'rtl';
-      default:
-        return 'inherit';
-    }
-  }
-
-  set direction(value: 'inherit' | 'ltr' | 'rtl') {
-    const direction = value === 'ltr' ? 1 : value === 'rtl' ? 2 : 0;
-    if (getUint8(this.style_view, StyleKeys.DIRECTION) === direction) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.DIRECTION, direction);
-    this.commitState(StateKeys.DIRECTION);
-  }
-
-  get listStyleType(): 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal' {
-    switch (getUint8(this.style_view, StyleKeys.LIST_STYLE_TYPE)) {
-      case 1:
-        return 'custom';
-      case 2:
-        return 'disc';
-      case 3:
-        return 'circle';
-      case 4:
-        return 'square';
-      case 5:
-        return 'decimal';
-      default:
-        return 'none';
-    }
-  }
-
-  // Draw-time only (`View.kt`/`MasonUIView.swift`'s `drawListItemMarkers`),
-  // not wired into Taffy layout.
-  set listStyleType(value: 'none' | 'custom' | 'disc' | 'circle' | 'square' | 'decimal') {
-    const map = { none: 0, custom: 1, disc: 2, circle: 3, square: 4, decimal: 5 } as const;
-    const mapped = map[value];
-    if (mapped === undefined) {
-      return;
-    }
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.LIST_STYLE_TYPE, mapped);
-    setInt8(this.style_view, StyleKeys.LIST_STYLE_TYPE_STATE, 1);
-    this.commitState(StateKeys.LIST_STYLE_TYPE);
-  }
-
-  get listStylePosition(): 'outside' | 'inside' {
-    return getUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION) === 1 ? 'inside' : 'outside';
-  }
-
-  set listStylePosition(value: 'outside' | 'inside') {
-    if (value !== 'outside' && value !== 'inside') {
-      return;
-    }
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.LIST_STYLE_POSITION, value === 'inside' ? 1 : 0);
-    setInt8(this.style_view, StyleKeys.LIST_STYLE_POSITION_STATE, 1);
-    this.commitState(StateKeys.LIST_STYLE_POSITION);
-  }
-
-  get fontSize() {
-    if (!this.style_view) {
-      // BLACK ?
-      return 16;
-    }
-
-    const type = getUint8(this.style_view, StyleKeys.FONT_SIZE_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.FONT_SIZE);
-    if (type === 1) {
-      return `${value / 100}%` as never;
-    }
-
-    return value;
-  }
-
-  set fontSize(value: string | number | { value: number; unit: 'dip' | 'px' | '%' }) {
-    if (!this.style_view) {
-      return;
-    }
-
-    switch (typeof value) {
-      case 'string': {
-        // FONT_SIZE is stored in dip (the natives apply the density themselves),
-        // so a CSS px value goes in as-is; `dppx` is the one spelling that has to
-        // be converted back out of device pixels.
-        //
-        // On font-size, `em` is relative to the *parent's* font size — which is
-        // exactly what the buffer's percent type already means, so `1.5em`
-        // becomes `150%` and inheritance resolves it natively. `rem` is absolute
-        // against the root font size.
-        const plain = plainLength(value);
-        if (plain) {
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.FONT_SIZE, plain.percent ? plain.value * 100 : plain.value);
-          setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-          setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, plain.percent ? 1 : 0);
-          this.commitState(StateKeys.FONT_SIZE);
-          break;
-        }
-        const t = value.trim().toLowerCase();
-        const n = finite(parseFloat(t) || 0);
-        this.prepareMut();
-
-        let resolved = n;
-        let isPercent = false;
-        const math = isCssMathFunction(t) ? fontSizeMath(t) : undefined;
-        if (math) {
-          isPercent = math.kind === 'percent';
-          resolved = finite(math.kind === 'length' ? math.px : math.kind === 'percent' ? math.percent : math.value);
-        } else if (t.endsWith('%')) {
-          isPercent = true;
-        } else if (t.endsWith('rem')) {
-          resolved = n * cssUnits.rootFontSize;
-        } else if (t.endsWith('em')) {
-          resolved = n * 100;
-          isPercent = true;
-        } else if (t.endsWith('pt')) {
-          resolved = n * PX_PER_PT;
-        } else if (isDevicePixelToken(t)) {
-          resolved = layout.toDeviceIndependentPixels(n);
-        }
-
-        setFloat32(this.style_view, StyleKeys.FONT_SIZE, resolved);
-        setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-        setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, isPercent ? 1 : 0);
-        this.commitState(StateKeys.FONT_SIZE);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setFloat32(this.style_view, StyleKeys.FONT_SIZE, value);
-        setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-        setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-        this.commitState(StateKeys.FONT_SIZE);
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setFloat32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-            this.commitState(StateKeys.FONT_SIZE);
-            break;
-          case 'px':
-            this.prepareMut();
-            setFloat32(this.style_view, StyleKeys.FONT_SIZE, finite(value.value));
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 0);
-            this.commitState(StateKeys.FONT_SIZE);
-            break;
-          case '%':
-            this.prepareMut();
-            setFloat32(this.style_view, StyleKeys.FONT_SIZE, value.value * 100);
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_STATE, 1);
-            setInt8(this.style_view, StyleKeys.FONT_SIZE_TYPE, 1);
-            this.commitState(StateKeys.FONT_SIZE);
-            break;
-        }
-        break;
-    }
-  }
-
-  get fontStyle() {
-    if (!this.style_view) {
-      // normal ?
-      return 'normal';
-    }
-    switch (getInt8(this.style_view, StyleKeys.FONT_STYLE_TYPE)) {
-      case 0:
-        return 'normal';
-      case 1:
-        return 'italic';
-      case 2:
-        return 'oblique';
-      default:
-        return 'normal';
-    }
-  }
-
-  set fontStyle(value: 'normal' | 'italic' | 'oblique' | `oblique ${number}deg`) {
-    if (!this.style_view) {
-      return;
-    }
-    let style = -1;
-
-    switch (value) {
-      case 'normal':
-        style = 0;
-        break;
-      case 'italic':
-        style = 1;
-        break;
-      case 'oblique':
-        style = 2;
-        break;
-    }
-    if (style !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.FONT_STYLE_TYPE, style);
-      setInt8(this.style_view, StyleKeys.FONT_STYLE_STATE, 1);
-      this.commitState(StateKeys.FONT_STYLE);
-    }
-  }
-
-  get fontWeight() {
-    if (!this.style_view) {
-      // BLACK ?
-      return 400;
-    }
-
-    return getInt32(this.style_view, StyleKeys.FONT_WEIGHT);
-  }
-
-  set fontWeight(value: '100' | '200' | '300' | 'normal' | '400' | '500' | '600' | 'bold' | '700' | '800' | '900' | number) {
-    if (!this.style_view) {
-      return;
-    }
-    let weight = -1;
-    switch (value) {
-      case '100':
-        weight = 100;
-        break;
-      case '200':
-        weight = 200;
-        break;
-      case '300':
-        weight = 300;
-        break;
-      case 'normal':
-      case '400':
-        weight = 400;
-        break;
-      case '500':
-        weight = 500;
-        break;
-      case '600':
-        weight = 600;
-        break;
-      case '700':
-      case 'bold':
-        weight = 700;
-        break;
-      case '800':
-        weight = 800;
-        break;
-      case '900':
-        weight = 900;
-        break;
-      default:
-        if (typeof value === 'number' && value >= 100 && value <= 1000) {
-          weight = value;
-        }
-        break;
-    }
-    if (weight !== -1) {
-      this.prepareMut();
-      setInt32(this.style_view, StyleKeys.FONT_WEIGHT, weight);
-      setInt8(this.style_view, StyleKeys.FONT_WEIGHT_STATE, 1);
-      this.commitState(StateKeys.FONT_WEIGHT);
-    }
-  }
-
-  get color() {
-    if (!this.style_view) {
-      // BLACK ?
-      return 0;
-    }
-
-    return getUint32(this.style_view, StyleKeys.FONT_COLOR);
-  }
-
-  set color(value: number | string | { argb?: number }) {
-    if (!this.style_view) {
-      return;
-    }
-    const normalized = normalizeColorValue(value);
-    if (normalized == null) {
-      // A reset (a rule that stops matching, leaving :active) unsets the color, which then inherits again.
-      if (getInt8(this.style_view, StyleKeys.FONT_COLOR_STATE)) {
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 0);
-        this.commitState(StateKeys.FONT_COLOR);
-      }
-      return;
-    }
-    this.prepareMut();
-    setUint32(this.style_view, StyleKeys.FONT_COLOR, normalized);
-    setInt8(this.style_view, StyleKeys.FONT_COLOR_STATE, 1);
-
-    this.commitState(StateKeys.FONT_COLOR);
-  }
-
   set 'background-color'(value: number | string | { argb?: number }) {
     this.backgroundColor = value;
   }
 
   get 'background-color'() {
     return this.backgroundColor;
-  }
-
-  get backgroundColor() {
-    if (!this.style_view) {
-      // BLACK ?
-      return 0;
-    }
-    return getUint32(this.style_view, StyleKeys.BACKGROUND_COLOR);
-  }
-
-  set backgroundColor(value: number | string | { argb?: number }) {
-    if (!this.style_view) {
-      return;
-    }
-    const normalized = normalizeColorValue(value);
-    if (normalized == null) {
-      // A reset unsets it: transparent, as background-color doesn't inherit.
-      if (getInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE)) {
-        this.prepareMut();
-        setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, 0);
-        setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 0);
-        setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
-        this.commitState(StateKeys.BACKGROUND_COLOR);
-      }
-      return;
-    }
-    this.prepareMut();
-    setUint32(this.style_view, StyleKeys.BACKGROUND_COLOR, normalized);
-    setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_STATE, 1);
-    setInt8(this.style_view, StyleKeys.BACKGROUND_COLOR_TYPE, 0);
-    this.commitState(StateKeys.BACKGROUND_COLOR);
-    if ((__WINDOWS__ || __LINUX__) && !this._windowsImageBackground && normalized >>> 24 > 0) this.windowsReapplyGradient();
-  }
-
-  get textWrap() {
-    if (!this.style_view) {
-      // BLACK ?
-      return 0;
-    }
-    return getUint8(this.style_view, StyleKeys.TEXT_WRAP);
-  }
-
-  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance' | 'pretty' | 'stable') {
-    if (!this.style_view) {
-      return;
-    }
-
-    let wrap = -1;
-
-    switch (value) {
-      case 'nowrap':
-        wrap = 1;
-        break;
-      case 'wrap':
-      case 'pretty':
-      case 'stable':
-        wrap = 0;
-        break;
-      case 'balance':
-        wrap = 2;
-        break;
-    }
-
-    if (typeof value === 'number' && value >= 0 && value < 3) {
-      wrap = value;
-    }
-
-    if (wrap !== -1) {
-      this.prepareMut();
-      setUint8(this.style_view, StyleKeys.TEXT_WRAP, wrap);
-      setInt8(this.style_view, StyleKeys.TEXT_WRAP_STATE, 1);
-      this.commitState(StateKeys.TEXT_WRAP);
-    }
   }
 
   get styleView(): DataView {
@@ -3132,1358 +4386,6 @@ export class Style {
     if (getInt8(view, StyleKeys.WIDTH_TYPE) !== 0 || getInt8(view, StyleKeys.HEIGHT_TYPE) !== 0) return true;
     const sides = [StyleKeys.PADDING_LEFT_VALUE, StyleKeys.PADDING_RIGHT_VALUE, StyleKeys.PADDING_TOP_VALUE, StyleKeys.PADDING_BOTTOM_VALUE, StyleKeys.BORDER_LEFT_VALUE, StyleKeys.BORDER_RIGHT_VALUE, StyleKeys.BORDER_TOP_VALUE, StyleKeys.BORDER_BOTTOM_VALUE];
     return sides.some((offset) => getFloat32(view, offset) > 0);
-  }
-
-  get display() {
-    const mode = getInt8(this.style_view, StyleKeys.DISPLAY_MODE);
-    if (mode === DisplayMode.Inline) {
-      return 'inline';
-    }
-
-    switch (getInt8(this.style_view, StyleKeys.DISPLAY)) {
-      case 0:
-        return 'none';
-      case 1:
-        if (mode === DisplayMode.Box) {
-          return 'inline-flex';
-        }
-        return 'flex';
-      case 2:
-        if (mode === DisplayMode.Box) {
-          return 'inline-grid';
-        }
-        return 'grid';
-      case 3:
-        if (mode === DisplayMode.Box) {
-          return 'inline-block';
-        }
-        return 'block';
-      default:
-        return 'none';
-    }
-  }
-
-  set display(value: 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid') {
-    let display = -1;
-    let displayMode = 0;
-    switch (value) {
-      case 'none':
-        display = 0;
-        break;
-      case 'flex':
-        display = 1;
-        break;
-      case 'grid':
-        display = 2;
-        break;
-      case 'block':
-        display = 3;
-        break;
-      case 'inline':
-        // inline
-        display = 1;
-        displayMode = 1;
-        break;
-      case 'inline-block':
-        // inline-block
-        display = 3;
-        displayMode = 2;
-        break;
-      case 'inline-flex':
-        display = 1;
-        displayMode = 2;
-        break;
-      case 'inline-grid':
-        display = 2;
-        displayMode = 2;
-        break;
-    }
-    if (display != -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.DISPLAY, display);
-      setInt8(this.style_view, StyleKeys.DISPLAY_MODE, displayMode);
-      this.commitState(StateKeys.DISPLAY_AND_MODE);
-    }
-  }
-
-  get position() {
-    switch (getInt8(this.style_view, StyleKeys.POSITION)) {
-      case 0:
-        return 'static';
-      case 1:
-        return 'relative';
-      case 2:
-        return 'absolute';
-      case 3:
-        return 'fixed';
-      case 4:
-        return 'sticky';
-    }
-  }
-
-  set position(value: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky') {
-    let position = -1;
-    switch (value) {
-      case 'static':
-        position = 0;
-        break;
-      case 'relative':
-        position = 1;
-        break;
-      case 'absolute':
-        position = 2;
-        break;
-      case 'fixed':
-        position = 3;
-        break;
-      case 'sticky':
-        position = 4;
-        break;
-    }
-    if (position != -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.POSITION, position);
-      this.commitState(StateKeys.POSITION);
-    }
-  }
-
-  get flexDirection() {
-    switch (getInt8(this.style_view, StyleKeys.FLEX_DIRECTION)) {
-      case 0:
-        return 'row';
-      case 1:
-        return 'column';
-      case 2:
-        return 'row-reverse';
-      case 3:
-        return 'column-reverse';
-    }
-  }
-
-  set flexDirection(value: 'column' | 'row' | 'column-reverse' | 'row-reverse') {
-    let flex = -1;
-    switch (value) {
-      case 'row':
-        flex = 0;
-        break;
-      case 'column':
-        flex = 1;
-        break;
-      case 'row-reverse':
-        flex = 2;
-        break;
-      case 'column-reverse':
-        flex = 3;
-        break;
-    }
-    if (flex != -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.FLEX_DIRECTION, flex);
-      this.commitState(StateKeys.FLEX_DIRECTION);
-    }
-  }
-
-  get flexWrap() {
-    switch (getInt8(this.style_view, StyleKeys.FLEX_WRAP)) {
-      case 0:
-        return 'nowrap';
-      case 1:
-        return 'wrap';
-      case 2:
-        return 'wrap-reverse';
-      case 3:
-        return 'balance';
-      case 4:
-        return 'balance-reverse';
-    }
-  }
-
-  set flexWrap(value: 'nowrap' | 'no-wrap' | 'wrap' | 'wrap-reverse' | 'balance' | 'balance-reverse') {
-    let wrap = -1;
-    switch (value) {
-      case 'nowrap':
-      case 'no-wrap':
-        wrap = 0;
-        break;
-      case 'wrap':
-        wrap = 1;
-        break;
-      case 'wrap-reverse':
-        wrap = 2;
-        break;
-      case 'balance':
-        wrap = 3;
-        break;
-      case 'balance-reverse':
-        wrap = 4;
-        break;
-    }
-    if (wrap != -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.FLEX_WRAP, wrap);
-      this.commitState(StateKeys.FLEX_WRAP);
-    }
-  }
-  // get flex(): string | 'auto' | 'none' | number | 'initial' {
-  //     return this.style[StyleKeys.FLEX];
-  // }
-  // get flexFlow(): string
-
-  get minWidth() {
-    const type = getInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-  set minWidth(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, value.value);
-            break;
-          default:
-            return;
-        }
-        break;
-      default:
-        return;
-    }
-
-    this.stampPhysical('size', 0b100);
-
-    this.commitState(StateKeys.MIN_SIZE);
-  }
-
-  get minHeight() {
-    const type = getInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set minHeight(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, value.value);
-            break;
-          default:
-            return;
-        }
-        break;
-      default:
-        return;
-    }
-    this.stampPhysical('size', 0b1000);
-    this.commitState(StateKeys.MIN_SIZE);
-  }
-
-  get width() {
-    const type = getInt8(this.style_view, StyleKeys.WIDTH_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.WIDTH_VALUE);
-    return parseDimension(type, value);
-  }
-  set width(value: DimensionLength) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
-            break;
-          default: {
-            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
-            const keyword = sizingKeywordOf(value);
-            if (!keyword) {
-              return;
-            }
-            this.prepareMut();
-            const dim = dimensionFromString(keyword);
-            setInt8(this.style_view, StyleKeys.WIDTH_TYPE, dim.type);
-            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, dim.value);
-            break;
-          }
-        }
-        break;
-      default:
-        return;
-    }
-    this.stampPhysical('size', 0b1);
-    this.commitState(StateKeys.SIZE);
-  }
-
-  get height() {
-    const type = getInt8(this.style_view, StyleKeys.HEIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.HEIGHT_VALUE);
-    return parseDimension(type, value);
-  }
-  set height(value: DimensionLength) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
-            break;
-          default: {
-            // A sizing keyword routed through core (see sizingKeywordLength in properties.ts).
-            const keyword = sizingKeywordOf(value);
-            if (!keyword) {
-              return;
-            }
-            this.prepareMut();
-            const dim = dimensionFromString(keyword);
-            setInt8(this.style_view, StyleKeys.HEIGHT_TYPE, dim.type);
-            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, dim.value);
-            break;
-          }
-        }
-        break;
-      default:
-        return;
-    }
-    this.stampPhysical('size', 0b10);
-    this.commitState(StateKeys.SIZE);
-  }
-
-  get maxWidth() {
-    const type = getInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-  set maxWidth(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, value.value);
-            break;
-          default:
-            return;
-        }
-        break;
-      default:
-        return;
-    }
-    this.stampPhysical('size', 0b10000);
-    this.commitState(StateKeys.MAX_SIZE);
-  }
-
-  get maxHeight() {
-    const type = getInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-  set maxHeight(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, value.value);
-            break;
-          default:
-            return;
-        }
-        break;
-      default:
-        return;
-    }
-    this.stampPhysical('size', 0b100000);
-    this.commitState(StateKeys.MAX_SIZE);
-  }
-
-  get borderLeftWidth(): Length {
-    const type = getInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set borderLeftWidth(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.BORDER);
-  }
-
-  get borderRightWidth(): Length {
-    const type = getInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set borderRightWidth(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.BORDER);
-  }
-
-  get borderTopWidth(): Length {
-    const type = getInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set borderTopWidth(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.BORDER);
-  }
-
-  get borderBottomWidth(): Length {
-    const type = getInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set borderBottomWidth(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.BORDER);
-  }
-
-  set inset(value: LengthAuto) {
-    if (typeof value === 'string') {
-      const sides = expandSidesShorthand(value);
-      if (sides) {
-        const wasInBatch = this.inBatch;
-        this.inBatch = true;
-        this.top = sides[0] as never;
-        this.right = sides[1] as never;
-        this.bottom = sides[2] as never;
-        this.left = sides[3] as never;
-        this.inBatch = wasInBatch;
-        this.stampPhysical('inset', 0b1111);
-        this.commitState(StateKeys.INSET);
-        return;
-      }
-    }
-
-    var type;
-    var insetValue;
-
-    switch (typeof value) {
-      case 'string': {
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        type = dim.type;
-        insetValue = dim.value;
-        break;
-      }
-      case 'number':
-        type = 1;
-        insetValue = layout.toDevicePixels(value);
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            type = 1;
-            insetValue = layout.toDevicePixels(value.value);
-            break;
-          case 'px':
-            type = 1;
-            insetValue = layout.toDevicePixels(value.value);
-            break;
-          case '%':
-            type = 2;
-            insetValue = value.value;
-            break;
-        }
-        break;
-    }
-
-    if (type !== undefined && insetValue !== undefined) {
-      this.prepareMut();
-      i8Buffer.fill(type);
-
-      this.u8View.set(i8Buffer, StyleKeys.INSET_LEFT_TYPE);
-
-      f32View.fill(insetValue);
-
-      this.u8View.set(f32Buffer, StyleKeys.INSET_LEFT_VALUE);
-
-      this.stampPhysical('inset', 0b1111);
-
-      this.commitState(StateKeys.INSET);
-    }
-  }
-
-  get left(): LengthAuto {
-    const type = getInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set left(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_LEFT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('inset', 0b1000);
-    this.commitState(StateKeys.INSET);
-  }
-
-  get right(): LengthAuto {
-    const type = getInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set right(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('inset', 0b10);
-    this.commitState(StateKeys.INSET);
-  }
-
-  get top(): LengthAuto {
-    const type = getInt8(this.style_view, StyleKeys.INSET_TOP_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set top(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_TOP_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('inset', 0b1);
-    this.commitState(StateKeys.INSET);
-  }
-
-  get bottom(): LengthAuto {
-    const type = getInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set bottom(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('inset', 0b100);
-    this.commitState(StateKeys.INSET);
-  }
-
-  set margin(value: LengthAuto) {
-    if (typeof value === 'string') {
-      const sides = expandSidesShorthand(value);
-      if (sides) {
-        const wasInBatch = this.inBatch;
-        this.inBatch = true;
-        this.marginTop = sides[0] as never;
-        this.marginRight = sides[1] as never;
-        this.marginBottom = sides[2] as never;
-        this.marginLeft = sides[3] as never;
-        this.inBatch = wasInBatch;
-        this.stampPhysical('margin', 0b1111);
-        this.commitState(StateKeys.MARGIN);
-        return;
-      }
-    }
-
-    var type;
-    var marginValue;
-
-    switch (typeof value) {
-      case 'string': {
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        type = dim.type;
-        marginValue = dim.value;
-        break;
-      }
-      case 'number':
-        type = 1;
-        marginValue = layout.toDevicePixels(value);
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            type = 1;
-            marginValue = layout.toDevicePixels(value.value);
-            break;
-          case 'px':
-            type = 1;
-            marginValue = layout.toDevicePixels(value.value);
-            break;
-          case '%':
-            type = 2;
-            marginValue = value.value;
-            break;
-        }
-        break;
-    }
-
-    if (type !== undefined && marginValue !== undefined) {
-      this.prepareMut();
-      i8Buffer.fill(type);
-
-      this.u8View.set(i8Buffer, StyleKeys.MARGIN_LEFT_TYPE);
-
-      f32View.fill(marginValue);
-
-      this.u8View.set(f32Buffer, StyleKeys.MARGIN_LEFT_VALUE);
-
-      this.stampPhysical('margin', 0b1111);
-
-      this.commitState(StateKeys.MARGIN);
-    }
-  }
-
-  get marginLeft() {
-    const type = getInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set marginLeft(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('margin', 0b1000);
-    this.commitState(StateKeys.MARGIN);
-  }
-
-  get marginRight() {
-    const type = getInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set marginRight(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('margin', 0b10);
-    this.commitState(StateKeys.MARGIN);
-  }
-
-  get marginTop() {
-    const type = getInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-
-  set marginTop(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('margin', 0b1);
-    this.commitState(StateKeys.MARGIN);
-  }
-
-  get marginBottom() {
-    const type = getInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE);
-    return parseLengthPercentageAuto(type, value);
-  }
-  set marginBottom(value: LengthAuto) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageAutoFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('margin', 0b100);
-    this.commitState(StateKeys.MARGIN);
-  }
-
-  set padding(value: Length) {
-    if (typeof value === 'string') {
-      const sides = expandSidesShorthand(value);
-      if (sides) {
-        const wasInBatch = this.inBatch;
-        this.inBatch = true;
-        this.paddingTop = sides[0] as never;
-        this.paddingRight = sides[1] as never;
-        this.paddingBottom = sides[2] as never;
-        this.paddingLeft = sides[3] as never;
-        this.inBatch = wasInBatch;
-        this.stampPhysical('padding', 0b1111);
-        this.commitState(StateKeys.PADDING);
-        return;
-      }
-    }
-
-    const wasInBatch = this.inBatch;
-    this.inBatch = true;
-    this.paddingBottom = this.paddingLeft = this.paddingRight = this.paddingTop = value;
-    this.inBatch = wasInBatch;
-    this.stampPhysical('padding', 0b1111);
-    this.commitState(StateKeys.PADDING);
-  }
-
-  get paddingLeft() {
-    const type = getInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set paddingLeft(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('padding', 0b1000);
-    this.commitState(StateKeys.PADDING);
-  }
-
-  get paddingRight() {
-    const type = getInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-  set paddingRight(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('padding', 0b10);
-    this.commitState(StateKeys.PADDING);
-  }
-
-  get paddingTop() {
-    const type = getInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set paddingTop(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_TOP_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('padding', 0b1);
-    this.commitState(StateKeys.PADDING);
-  }
-
-  get paddingBottom() {
-    const type = getInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-  set paddingBottom(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.stampPhysical('padding', 0b100);
-    this.commitState(StateKeys.PADDING);
   }
 
   // CSS logical properties: see StyleKeys.LOGICAL_SEQ.
@@ -4528,7 +4430,8 @@ export class Style {
    */
   setLogical(group: LogicalGroupName, slot: number, value: unknown) {
     const entry = LOGICAL_GROUPS[group];
-    const parsed = value == null || value === '' ? undefined : logicalTypeValue(value, entry.kind(slot), this.emBasisFor(value));
+    if (this.applyLayoutMath(logicalLayoutProperties[group][slot], value)) return;
+    const parsed = value == null || value === '' ? undefined : layoutLengthValue(value, entry.kind(slot), this.emBasisFor(value));
     if (value != null && value !== '' && !parsed) return;
     this.prepareMut();
     const view = this.style_view;
@@ -4538,6 +4441,8 @@ export class Style {
       setFloat32(view, entry.values + slot * 4, parsed.value);
     } else {
       setUint8(view, entry.order + entry.half + slot, 0);
+      setInt8(view, entry.types + slot, 0);
+      setFloat32(view, entry.values + slot * 4, 0);
     }
     this.commitState(entry.state(slot));
   }
@@ -4550,538 +4455,6 @@ export class Style {
     this.gap = value;
   }
 
-  get gap() {
-    if (CoreLength.equals(this.rowGap as never, this.columnGap as never)) {
-      return `${CoreLength.convertToString(this.rowGap as never)}`;
-    }
-    return `${CoreLength.convertToString(this.rowGap as never)} ${CoreLength.convertToString(this.columnGap as never)}`;
-  }
-
-  set gap(value: string) {
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return;
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        this.rowGap = CoreLength.parse(row) as never;
-        this.columnGap = CoreLength.parse(row) as never;
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-        this.rowGap = CoreLength.parse(row) as never;
-        this.columnGap = CoreLength.parse(column) as never;
-      }
-    }
-  }
-
-  get rowGap(): Length {
-    const type = getInt8(this.style_view, StyleKeys.GAP_ROW_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set rowGap(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_ROW_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-
-    this.commitState(StateKeys.GAP);
-  }
-
-  get columnGap(): Length {
-    const type = getInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE);
-    return parseLengthPercentage(type, value);
-  }
-
-  set columnGap(value: Length) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = lengthPercentageFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
-            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.GAP);
-  }
-
-  get aspectRatio(): number {
-    return getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
-  }
-
-  set aspectRatio(value: number | string) {
-    // A string arrives from a stylesheet, an inline style or a JSX prop; all
-    // three go through the same parser so `2 / 3` means what it does on the web.
-    const ratio = typeof value === 'number' ? value : parseAspectRatio(value);
-    const current = getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
-    // NaN is "no ratio" and never equals itself, so compare that case by hand
-    // or every re-assignment would rewrite the buffer and re-dirty the node.
-    if (current === ratio || (Number.isNaN(current) && Number.isNaN(ratio))) return;
-    this.prepareMut();
-    setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, ratio);
-    this.commitState(StateKeys.ASPECT_RATIO);
-  }
-
-  get flexBasis(): DimensionLength {
-    const type = getInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE);
-    const value = getFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE);
-    return parseDimension(type, value);
-  }
-
-  set flexBasis(value: DimensionLength) {
-    switch (typeof value) {
-      case 'string': {
-        this.prepareMut();
-        const dim = dimensionFromString(value, this.emBasisFor(value));
-        setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, dim.type);
-        setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, dim.value);
-        break;
-      }
-      case 'number':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value));
-        break;
-      case 'object':
-        switch (value.unit) {
-          case 'dip':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case 'px':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
-            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value.value));
-            break;
-          case '%':
-            this.prepareMut();
-            setInt8(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 2);
-            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, value.value);
-            break;
-        }
-        break;
-    }
-    this.commitState(StateKeys.FLEX_BASIS);
-  }
-  get alignItems() {
-    switch (getInt8(this.style_view, StyleKeys.ALIGN_ITEMS)) {
-      case AlignItems.Normal:
-        return 'normal';
-      case AlignItems.Start:
-        return 'start';
-      case AlignItems.End:
-        return 'end';
-      case AlignItems.FlexStart:
-        return 'flex-start';
-      case AlignItems.FlexEnd:
-        return 'flex-end';
-      case AlignItems.Center:
-        return 'center';
-      case AlignItems.Baseline:
-        return 'baseline';
-      case AlignItems.Stretch:
-        return 'stretch';
-    }
-  }
-
-  set alignItems(value: 'normal' | 'start' | 'end' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch') {
-    let align = -1;
-    switch (value) {
-      case 'normal':
-        align = AlignItems.Normal;
-        break;
-      case 'start':
-        align = AlignItems.Start;
-        break;
-      case 'end':
-        align = AlignItems.End;
-        break;
-      case 'flex-start':
-        align = AlignItems.FlexStart;
-        break;
-      case 'flex-end':
-        align = AlignItems.FlexEnd;
-        break;
-      case 'center':
-        align = AlignItems.Center;
-        break;
-      case 'baseline':
-        align = AlignItems.Baseline;
-        break;
-      case 'stretch':
-        align = AlignItems.Stretch;
-        break;
-    }
-    if (align !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.ALIGN_ITEMS, align);
-      this.commitState(StateKeys.ALIGN_ITEMS);
-    }
-  }
-
-  get alignSelf() {
-    switch (getInt8(this.style_view, StyleKeys.ALIGN_SELF)) {
-      case AlignSelf.Normal:
-        return 'normal';
-      case AlignSelf.Start:
-        return 'start';
-      case AlignSelf.End:
-        return 'end';
-      case AlignSelf.Center:
-        return 'center';
-      case AlignSelf.Baseline:
-        return 'baseline';
-      case AlignSelf.Stretch:
-        return 'stretch';
-      case AlignSelf.FlexStart:
-        return 'flex-start';
-      case AlignSelf.FlexEnd:
-        return 'flex-end';
-    }
-  }
-
-  set alignSelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
-    let align = -2;
-    switch (value) {
-      case 'normal':
-        align = AlignSelf.Normal;
-        break;
-      case 'start':
-        align = AlignSelf.Start;
-        break;
-      case 'end':
-        align = AlignSelf.End;
-        break;
-      case 'center':
-        align = AlignSelf.Center;
-        break;
-      case 'baseline':
-        align = AlignSelf.Baseline;
-        break;
-      case 'stretch':
-        align = AlignSelf.Stretch;
-        break;
-      case 'flex-start':
-        align = AlignSelf.FlexStart;
-        break;
-      case 'flex-end':
-        align = AlignSelf.FlexEnd;
-        break;
-    }
-    if (align !== -2) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.ALIGN_SELF, align);
-      this.commitState(StateKeys.ALIGN_SELF);
-    }
-  }
-
-  get alignContent() {
-    switch (getInt8(this.style_view, StyleKeys.ALIGN_CONTENT)) {
-      case AlignContent.Normal:
-        return 'normal';
-      case AlignContent.SpaceAround:
-        return 'space-around';
-      case AlignContent.SpaceBetween:
-        return 'space-between';
-      case AlignContent.SpaceEvenly:
-        return 'space-evenly';
-      case AlignContent.Center:
-        return 'center';
-      case AlignContent.End:
-        return 'end';
-      case AlignContent.Start:
-        return 'start';
-      case AlignContent.Stretch:
-        return 'stretch';
-      case AlignContent.FlexStart:
-        return 'flex-start';
-      case AlignContent.FlexEnd:
-        return 'flex-end';
-    }
-  }
-
-  // 'flex-start'/'flex-end' were missing from this switch entirely
-  set alignContent(value: 'normal' | 'space-around' | 'space-between' | 'space-evenly' | 'center' | 'end' | 'start' | 'stretch' | 'flex-start' | 'flex-end') {
-    let align = -1;
-    switch (value) {
-      case 'normal':
-        align = AlignContent.Normal;
-        break;
-      case 'space-around':
-        align = AlignContent.SpaceAround;
-        break;
-      case 'space-between':
-        align = AlignContent.SpaceBetween;
-        break;
-      case 'space-evenly':
-        align = AlignContent.SpaceEvenly;
-        break;
-      case 'center':
-        align = AlignContent.Center;
-        break;
-      case 'end':
-        align = AlignContent.End;
-        break;
-      case 'start':
-        align = AlignContent.Start;
-        break;
-      case 'stretch':
-        align = AlignContent.Stretch;
-        break;
-      case 'flex-start':
-        align = AlignContent.FlexStart;
-        break;
-      case 'flex-end':
-        align = AlignContent.FlexEnd;
-        break;
-    }
-    if (align !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.ALIGN_CONTENT, align);
-      this.commitState(StateKeys.ALIGN_CONTENT);
-    }
-  }
-
-  get justifyItems() {
-    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS)) {
-      case JustifyItems.Normal:
-        return 'normal';
-      case JustifyItems.Start:
-        return 'start';
-      case JustifyItems.End:
-        return 'end';
-      case JustifyItems.Center:
-        return 'center';
-      case JustifyItems.Baseline:
-        return 'baseline';
-      case JustifyItems.Stretch:
-        return 'stretch';
-      case JustifyItems.FlexStart:
-        return 'flex-start';
-      case JustifyItems.FlexEnd:
-        return 'flex-end';
-    }
-  }
-  set justifyItems(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
-    let v = -1;
-    switch (value) {
-      case 'normal':
-        v = JustifyItems.Normal;
-        break;
-      case 'start':
-        v = JustifyItems.Start;
-        break;
-      case 'end':
-        v = JustifyItems.End;
-        break;
-      case 'center':
-        v = JustifyItems.Center;
-        break;
-      case 'baseline':
-        v = JustifyItems.Baseline;
-        break;
-      case 'stretch':
-        v = JustifyItems.Stretch;
-        break;
-      case 'flex-start':
-        v = JustifyItems.FlexStart;
-        break;
-      case 'flex-end':
-        v = JustifyItems.FlexEnd;
-        break;
-    }
-    if (v !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.JUSTIFY_ITEMS, v);
-      this.commitState(StateKeys.JUSTIFY_ITEMS);
-    }
-  }
-
-  get justifySelf() {
-    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_SELF)) {
-      case JustifySelf.Normal:
-        return 'normal';
-      case JustifySelf.Start:
-        return 'start';
-      case JustifySelf.End:
-        return 'end';
-      case JustifySelf.Center:
-        return 'center';
-      case JustifySelf.Baseline:
-        return 'baseline';
-      case JustifySelf.Stretch:
-        return 'stretch';
-      case JustifySelf.FlexStart:
-        return 'flex-start';
-      case JustifySelf.FlexEnd:
-        return 'flex-end';
-    }
-  }
-
-  set justifySelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
-    let v = -1;
-    switch (value) {
-      case 'normal':
-        v = JustifySelf.Normal;
-        break;
-      case 'start':
-        v = JustifySelf.Start;
-        break;
-      case 'end':
-        v = JustifySelf.End;
-        break;
-      case 'center':
-        v = JustifySelf.Center;
-        break;
-      case 'baseline':
-        v = JustifySelf.Baseline;
-        break;
-      case 'stretch':
-        v = JustifySelf.Stretch;
-        break;
-      case 'flex-start':
-        v = JustifySelf.FlexStart;
-        break;
-      case 'flex-end':
-        v = JustifySelf.FlexEnd;
-        break;
-    }
-    if (v !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.JUSTIFY_SELF, v);
-      this.commitState(StateKeys.JUSTIFY_SELF);
-    }
-  }
-
-  get justifyContent() {
-    switch (getInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT)) {
-      case JustifyContent.Normal:
-        return 'normal';
-      case JustifyContent.Start:
-        return 'start';
-      case JustifyContent.End:
-        return 'end';
-      case JustifyContent.Center:
-        return 'center';
-      case JustifyContent.Stretch:
-        return 'stretch';
-      case JustifyContent.SpaceBetween:
-        return 'space-between';
-      case JustifyContent.SpaceAround:
-        return 'space-around';
-      case JustifyContent.SpaceEvenly:
-        return 'space-evenly';
-      case JustifyContent.FlexStart:
-        return 'flex-start';
-      case JustifyContent.FlexEnd:
-        return 'flex-end';
-    }
-  }
-
-  set justifyContent(value: 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end') {
-    let v = -1;
-    switch (value) {
-      case 'normal':
-        v = JustifyContent.Normal;
-        break;
-      case 'space-around':
-        v = JustifyContent.SpaceAround;
-        break;
-      case 'space-between':
-        v = JustifyContent.SpaceBetween;
-        break;
-      case 'space-evenly':
-        v = JustifyContent.SpaceEvenly;
-        break;
-      case 'center':
-        v = JustifyContent.Center;
-        break;
-      case 'end':
-        v = JustifyContent.End;
-        break;
-      case 'start':
-        v = JustifyContent.Start;
-        break;
-      case 'stretch':
-        v = JustifyContent.Stretch;
-        break;
-      case 'flex-start':
-        v = JustifyContent.FlexStart;
-        break;
-      case 'flex-end':
-        v = JustifyContent.FlexEnd;
-        break;
-    }
-    if (v !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.JUSTIFY_CONTENT, v);
-      this.commitState(StateKeys.JUSTIFY_CONTENT);
-    }
-  }
   get gridAutoRows() {
     if (!this.nativeView) {
       return '';
@@ -5104,7 +4477,6 @@ export class Style {
     }
     // A bare number can't marshal over JNI into the native String setter.
     value = value == null ? '' : String(value);
-    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoRows(this.nativeView, value);
     }
@@ -5114,7 +4486,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridAutoRows', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridAutoRows, value, this.emBasisFor(value));
     }
   }
 
@@ -5139,7 +4511,6 @@ export class Style {
     }
     // See gridAutoRows above.
     value = value == null ? '' : String(value);
-    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridAutoColumns(this.nativeView, value);
     }
@@ -5149,29 +4520,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridAutoColumns', value);
-    }
-  }
-
-  get gridAutoFlow(): GridAutoFlow {
-    switch (getInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW)) {
-      case 0:
-        return 'row';
-      case 1:
-        return 'column';
-      case 2:
-        return 'row dense';
-      case 3:
-        return 'column dense';
-    }
-  }
-
-  set gridAutoFlow(value: GridAutoFlow) {
-    const v = gridAutoFlowFromString(value);
-    if (v !== undefined) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.GRID_AUTO_FLOW, v);
-      this.commitState(StateKeys.GRID_AUTO_FLOW);
+      windowsSetGrid(this.nativeView, GridProperty.GridAutoColumns, value, this.emBasisFor(value));
     }
   }
 
@@ -5206,7 +4555,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridColumn', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridColumn, value);
     }
   }
 
@@ -5255,7 +4604,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridColumnStart', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridColumnStart, value);
     }
   }
 
@@ -5289,7 +4638,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridColumnEnd', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridColumnEnd, value);
     }
   }
 
@@ -5308,7 +4657,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridRow', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridRow, value);
     }
   }
 
@@ -5357,7 +4706,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridRowStart', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridRowStart, value);
     }
   }
 
@@ -5391,7 +4740,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridRowEnd', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridRowEnd, value);
     }
   }
 
@@ -5410,7 +4759,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridArea', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridArea, value);
     }
   }
 
@@ -5435,7 +4784,6 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
-    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateRows(this.nativeView, value);
     }
@@ -5445,7 +4793,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridTemplateRows', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridTemplateRows, value, this.emBasisFor(value));
     }
   }
 
@@ -5485,7 +4833,6 @@ export class Style {
     }
     // null clears the template; also guards against a bare number (see gridAutoRows above).
     value = value == null ? '' : String(value);
-    value = resolveGridTrackUnits(value, this.emBasisFor(value));
     if (__ANDROID__) {
       nodeHelper().setGridTemplateColumns(this.nativeView, value);
     }
@@ -5495,7 +4842,7 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridTemplateColumns', value);
+      windowsSetGrid(this.nativeView, GridProperty.GridTemplateColumns, value, this.emBasisFor(value));
     }
   }
 
@@ -5529,382 +4876,12 @@ export class Style {
     }
 
     if (__WINDOWS__ || __LINUX__) {
-      windowsSetGrid(this.nativeView, 'gridTemplateAreas', value);
-    }
-  }
-
-  get overflow() {
-    const x = this.overflowX;
-    const y = this.overflowY;
-    if (x === y) {
-      return x;
-    }
-    return `${x} ${y}`;
-  }
-
-  set overflow(value: OverFlow | `${OverFlow} ${OverFlow}`) {
-    const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 };
-    this.prepareMut();
-    switch (value) {
-      case 'visible':
-      case 'hidden':
-      case 'scroll':
-      case 'clip':
-      case 'auto': {
-        const v = overflowMap[value];
-        setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
-        setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
-        break;
-      }
-      default: {
-        const values = value.split(' ');
-        const x = overflowMap[values[0]];
-        const y = overflowMap[values[1]];
-        if (x !== undefined) setInt8(this.style_view, StyleKeys.OVERFLOW_X, x);
-        if (y !== undefined) setInt8(this.style_view, StyleKeys.OVERFLOW_Y, y);
-        break;
-      }
-    }
-    this.commitState(StateKeys.OVERFLOW);
-    if (__WINDOWS__ || __LINUX__) this.windowsReapplyGradient();
-  }
-  get overflowX() {
-    switch (getInt8(this.style_view, StyleKeys.OVERFLOW_X)) {
-      case 0:
-        return 'visible';
-      case 1:
-        return 'hidden';
-      case 2:
-        return 'scroll';
-    }
-  }
-
-  set overflowX(value: OverFlow) {
-    const v = ({ visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 } as Record<string, number>)[value];
-    if (v !== undefined) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.OVERFLOW_X, v);
-      this.commitState(StateKeys.OVERFLOW_X);
-      if (__WINDOWS__ || __LINUX__) this.windowsReapplyGradient();
-    }
-  }
-
-  get overflowY() {
-    switch (getInt8(this.style_view, StyleKeys.OVERFLOW_Y)) {
-      case 0:
-        return 'visible';
-      case 1:
-        return 'hidden';
-      case 2:
-        return 'scroll';
-      case 3:
-        return 'clip';
-      case 4:
-        return 'auto';
-    }
-  }
-
-  set overflowY(value: OverFlow) {
-    const v = ({ visible: 0, hidden: 1, scroll: 2, clip: 3, auto: 4 } as Record<string, number>)[value];
-    if (v !== undefined) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.OVERFLOW_Y, v);
-      this.commitState(StateKeys.OVERFLOW_Y);
-      if (__WINDOWS__ || __LINUX__) this.windowsReapplyGradient();
-    }
-  }
-
-  get flexGrow(): number {
-    return getFloat32(this.style_view, StyleKeys.FLEX_GROW);
-  }
-
-  set flexGrow(value: number) {
-    // skip invalidation on a no-op re-apply of the same value
-    if (getFloat32(this.style_view, StyleKeys.FLEX_GROW) === value) return;
-    this.prepareMut();
-    setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
-    this.commitState(StateKeys.FLEX_GROW);
-  }
-
-  get flexShrink(): number {
-    return getFloat32(this.style_view, StyleKeys.FLEX_SHRINK);
-  }
-
-  set flexShrink(value: number) {
-    if (getFloat32(this.style_view, StyleKeys.FLEX_SHRINK) === value) return;
-    this.prepareMut();
-    setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
-    this.commitState(StateKeys.FLEX_SHRINK);
-  }
-
-  get scrollBarWidth(): number | CoreTypes.LengthType {
-    return getFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH);
-  }
-
-  set scrollBarWidth(value: number | CoreTypes.LengthType) {
-    if (typeof value === 'number') {
-      this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value);
-      this.commitState(StateKeys.SCROLLBAR_WIDTH);
-    } else if (typeof value === 'object') {
-      switch (value.unit) {
-        case 'dip':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
-          this.commitState(StateKeys.SCROLLBAR_WIDTH);
-          break;
-        case 'px':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
-          this.commitState(StateKeys.SCROLLBAR_WIDTH);
-          break;
-      }
-    }
-  }
-
-  get letterSpacing(): number | CoreTypes.LengthType {
-    return getFloat32(this.style_view, StyleKeys.LETTER_SPACING);
-  }
-
-  set letterSpacing(value: string | number | CoreTypes.LengthType) {
-    if (typeof value === 'string') {
-      const t = value.trim();
-      this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, t === 'normal' ? 0 : finite(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t))));
-      setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-      this.commitState(StateKeys.LETTER_SPACING);
-    } else if (typeof value === 'number') {
-      this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LETTER_SPACING, value);
-      setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-      this.commitState(StateKeys.LETTER_SPACING);
-    } else if (typeof value === 'object') {
-      switch (value.unit) {
-        case 'dip':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
-          setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-          this.commitState(StateKeys.LETTER_SPACING);
-          break;
-        case 'px':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
-          setUint8(this.style_view, StyleKeys.LETTER_SPACING_STATE, 1);
-          this.commitState(StateKeys.LETTER_SPACING);
-          break;
-      }
-    }
-  }
-
-  get lineHeight(): number | CoreTypes.LengthType {
-    return getFloat32(this.style_view, StyleKeys.LINE_HEIGHT);
-  }
-
-  set lineHeight(value: string | number | CoreTypes.LengthType) {
-    if (typeof value === 'string') {
-      const t = value.trim();
-      if (t === 'normal') {
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 0);
-        this.commitState(StateKeys.LINE_HEIGHT);
-        return;
-      }
-      // A unitless line-height is a multiplier (`line-height: 1.5`), not a
-      // length — TYPE 0 means "multiply by the resolved font size".
-      const unitless = /^-?[\d.]+$/.test(t);
-      this.prepareMut();
-      // An absolute line-height is stored in CSS px (iOS points, Android dip), as the number path.
-      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, unitless ? finite(parseFloat(t) || 0) : finite(layout.toDeviceIndependentPixels(tokenToDevicePx(t, parseFloat(t) || 0, this.emBasisFor(t)))));
-      setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
-      setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, unitless ? 0 : 1);
-      this.commitState(StateKeys.LINE_HEIGHT);
-    } else if (typeof value === 'number') {
-      this.prepareMut();
-      setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value);
-      setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
-      // Values ≥ 4 are rem-derived px values (smallest Tailwind rem = leading-3: 0.75rem→12).
-      // Values < 4 are genuine CSS unitless multipliers (leading-loose=2, leading-normal=1.5).
-      setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, value >= 4 ? 1 : 0);
-      this.commitState(StateKeys.LINE_HEIGHT);
-    } else if (typeof value === 'object') {
-      switch (value.unit) {
-        case 'dip':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, value.value);
-          setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
-          setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.commitState(StateKeys.LINE_HEIGHT);
-          break;
-        case 'px':
-          this.prepareMut();
-          setFloat32(this.style_view, StyleKeys.LINE_HEIGHT, layout.toDeviceIndependentPixels(value.value));
-          setUint8(this.style_view, StyleKeys.LINE_HEIGHT_STATE, 1);
-          setUint8(this.style_view, StyleKeys.LINE_HEIGHT_TYPE, 1);
-          this.commitState(StateKeys.LINE_HEIGHT);
-          break;
-      }
-    }
-  }
-
-  get textOverflow() {
-    if (!this.style_view) {
-      // clip ?
-      return 'clip';
-    }
-    const type = getUint8(this.style_view, StyleKeys.TEXT_OVERFLOW);
-    switch (type) {
-      case 0:
-        return 'clip';
-      case 1:
-        return 'ellipsis';
-      default:
-    }
-
-    return 'clip';
-  }
-
-  set textOverflow(value: 'clip' | 'ellipsis' | `${string}`) {
-    if (!this.style_view) {
-      return;
-    }
-
-    let flow = -1;
-
-    switch (value) {
-      case 'clip':
-        flow = 0;
-        break;
-      case 'ellipsis':
-        flow = 1;
-        break;
-      default:
-        // noop
-        break;
-    }
-
-    if (flow !== -1) {
-      this.prepareMut();
-      setUint8(this.style_view, StyleKeys.TEXT_OVERFLOW, flow);
-      setInt8(this.style_view, StyleKeys.TEXT_OVERFLOW_STATE, 1);
-      this.commitState(StateKeys.TEXT_OVERFLOW);
-    }
-  }
-
-  get textAlignment() {
-    if (!this.style_view) {
-      // clip ?
-      return 'start';
-    }
-    const type = getInt8(this.style_view, StyleKeys.TEXT_ALIGN);
-    switch (type) {
-      case 0:
-        // auto
-        return 'start';
-      case 1:
-        return 'left';
-      case 2:
-        return 'right';
-      case 3:
-        return 'center';
-      case 4:
-        return 'justify';
-      case 5:
-        return 'start';
-      case 6:
-        return 'end';
-      default:
-        return 'start';
-    }
-  }
-
-  set textAlignment(value: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end') {
-    if (!this.style_view) {
-      return;
-    }
-
-    let align = -1;
-
-    switch (value) {
-      case 'left':
-        align = 1;
-        break;
-      case 'right':
-        align = 2;
-        break;
-      case 'center':
-        align = 3;
-        break;
-      case 'justify':
-        align = 4;
-        break;
-      case 'start':
-        align = 5;
-        break;
-      case 'end':
-        align = 6;
-        break;
-      default:
-        break;
-    }
-
-    if (align !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.TEXT_ALIGN, align);
-      setInt8(this.style_view, StyleKeys.TEXT_ALIGN_STATE, 1);
-      this.commitState(StateKeys.TEXT_ALIGN);
-    }
-  }
-
-  get textTransform() {
-    if (!this.style_view) {
-      return 'none';
-    }
-    const type = getInt8(this.style_view, StyleKeys.TEXT_TRANSFORM);
-    switch (type) {
-      case 1:
-        return 'capitalize';
-      case 2:
-        return 'uppercase';
-      case 3:
-        return 'lowercase';
-      default:
-        return 'none';
-    }
-  }
-
-  set textTransform(value: 'none' | 'capitalize' | 'uppercase' | 'lowercase') {
-    if (!this.style_view) {
-      return;
-    }
-
-    let transform = -1;
-
-    switch (value) {
-      case 'none':
-        transform = 0;
-        break;
-      case 'capitalize':
-        transform = 1;
-        break;
-      case 'uppercase':
-        transform = 2;
-        break;
-      case 'lowercase':
-        transform = 3;
-        break;
-      default:
-        break;
-    }
-
-    if (transform !== -1) {
-      this.prepareMut();
-      setInt8(this.style_view, StyleKeys.TEXT_TRANSFORM, transform);
-      setInt8(this.style_view, StyleKeys.TEXT_TRANSFORM_STATE, 1);
-      this.commitState(StateKeys.TEXT_TRANSFORM);
+      windowsSetGrid(this.nativeView, GridProperty.GridTemplateAreas, value);
     }
   }
 
   get background() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -5920,16 +4897,12 @@ export class Style {
   }
 
   set background(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background',
-      value,
-      () => nodeHelper().setBackground(this.nativeView, value),
-      () => (this.appleStyle.background = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background', value);
   }
 
   get backgroundImage() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -5945,16 +4918,12 @@ export class Style {
   }
 
   set backgroundImage(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background-image',
-      value,
-      () => nodeHelper().setBackgroundImage(this.nativeView, value),
-      () => (this.appleStyle.backgroundImage = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background-image', value);
   }
 
   get backgroundRepeat() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -5970,16 +4939,12 @@ export class Style {
   }
 
   set backgroundRepeat(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background-repeat',
-      value,
-      () => nodeHelper().setBackgroundRepeat(this.nativeView, value),
-      () => (this.appleStyle.backgroundRepeat = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background-repeat', value);
   }
 
   get backgroundPosition() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -5995,16 +4960,12 @@ export class Style {
   }
 
   set backgroundPosition(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background-position',
-      value,
-      () => nodeHelper().setBackgroundPosition(this.nativeView, value),
-      () => (this.appleStyle.backgroundPosition = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background-position', value);
   }
 
   get backgroundSize() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6020,16 +4981,12 @@ export class Style {
   }
 
   set backgroundSize(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background-size',
-      value,
-      () => nodeHelper().setBackgroundSize(this.nativeView, value),
-      () => (this.appleStyle.backgroundSize = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background-size', value);
   }
 
   get backgroundClip() {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6045,16 +5002,12 @@ export class Style {
   }
 
   set backgroundClip(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'background-clip',
-      value,
-      () => nodeHelper().setBackgroundClip(this.nativeView, value),
-      () => (this.appleStyle.backgroundClip = value),
-    );
+    value = value == null ? '' : String(value);
+    this.setBackgroundCss('background-clip', value);
   }
 
   get backgroundPositionX(): string {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6068,16 +5021,12 @@ export class Style {
   }
 
   set backgroundPositionX(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), '0%');
-    this.setPseudoCssStringValue(
-      'background-position-x',
-      value,
-      () => nodeHelper().setBackgroundPositionX(this.nativeView, value),
-      () => (this.appleStyle.backgroundPositionX = value),
-    );
+    value = cssInitialIfReset(value == null ? '' : String(value), '0%');
+    this.setBackgroundCss('background-position-x', value);
   }
 
   get backgroundPositionY(): string {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6091,16 +5040,12 @@ export class Style {
   }
 
   set backgroundPositionY(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), '0%');
-    this.setPseudoCssStringValue(
-      'background-position-y',
-      value,
-      () => nodeHelper().setBackgroundPositionY(this.nativeView, value),
-      () => (this.appleStyle.backgroundPositionY = value),
-    );
+    value = cssInitialIfReset(value == null ? '' : String(value), '0%');
+    this.setBackgroundCss('background-position-y', value);
   }
 
   get backgroundOrigin(): string {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6114,16 +5059,12 @@ export class Style {
   }
 
   set backgroundOrigin(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'padding-box');
-    this.setPseudoCssStringValue(
-      'background-origin',
-      value,
-      () => nodeHelper().setBackgroundOrigin(this.nativeView, value),
-      () => (this.appleStyle.backgroundOrigin = value),
-    );
+    value = cssInitialIfReset(value == null ? '' : String(value), 'padding-box');
+    this.setBackgroundCss('background-origin', value);
   }
 
   get backgroundAttachment(): string {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6137,16 +5078,12 @@ export class Style {
   }
 
   set backgroundAttachment(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'scroll');
-    this.setPseudoCssStringValue(
-      'background-attachment',
-      value,
-      () => nodeHelper().setBackgroundAttachment(this.nativeView, value),
-      () => (this.appleStyle.backgroundAttachment = value),
-    );
+    value = cssInitialIfReset(value == null ? '' : String(value), 'scroll');
+    this.setBackgroundCss('background-attachment', value);
   }
 
   get backgroundBlendMode(): string {
+    this.flushBackgroundWrites();
     if (!this.nativeView) {
       return '';
     }
@@ -6160,13 +5097,8 @@ export class Style {
   }
 
   set backgroundBlendMode(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'normal');
-    this.setPseudoCssStringValue(
-      'background-blend-mode',
-      value,
-      () => nodeHelper().setBackgroundBlendMode(this.nativeView, value),
-      () => (this.appleStyle.backgroundBlendMode = value),
-    );
+    value = cssInitialIfReset(value == null ? '' : String(value), 'normal');
+    this.setBackgroundCss('background-blend-mode', value);
   }
 
   hasBorderRadius(): boolean {
@@ -6182,29 +5114,25 @@ export class Style {
     if (!this.nativeView) {
       return '';
     }
-    if (this._borderRadiusCss === null) this._borderRadiusCss = this._radiusCssFromBuffer();
-    if (__ANDROID__) {
-      return this._borderRadiusCss ?? nodeHelper().getBorderRadius(this.nativeView);
-    }
-
-    if (__APPLE__) {
-      return this._borderRadiusCss ?? this.appleStyle.borderRadius;
+    if (__ANDROID__ || __APPLE__) {
+      const authored = __ANDROID__ ? nodeHelper().getBorderRadius(this.nativeView) : this.appleStyle.borderRadius;
+      if (this._borderRadiusCss === null || (!authored && this._borderRadiusCss == null && this.style_view && RADIUS_KEYS.some((_, index) => !this._cornerRadiusIsZero(index)))) {
+        return this._radiusCssFromBuffer();
+      }
+      return this._borderRadiusCss ?? authored;
     }
 
     if ((__WINDOWS__ || __LINUX__) && this.style_view) {
-      // Read back so a single corner longhand keeps the other three instead of resetting them to 0.
-      return RADIUS_KEYS.map(([, keys]) => {
-        const v = getFloat32(this.style_view, keys.xValue);
-        return getUint8(this.style_view, keys.xType) === 1 ? `${v * 100}%` : `${v}px`;
-      }).join(' ');
+      return this._radiusCssFromBuffer(1);
     }
 
     return '';
   }
 
   set borderRadius(value: string) {
-    value = this.coerceCssStringValue(value);
-    if ((__ANDROID__ || __APPLE__) && this.nativeView && !this._pseudo && this._writeBorderRadius(value, deviceScale())) {
+    value = value == null ? '' : String(value);
+    if (!__WINDOWS__ && this.nativeView && !this._pseudo && this.style_view) {
+      this._writeBorderRadius(value, layout.getDisplayDensity());
       return;
     }
     if (!this._pseudo) this._borderRadiusCss = undefined;
@@ -6217,7 +5145,7 @@ export class Style {
   }
 
   /** One corner from a core length (dip number or `{ value, unit }`) without the string round trip; false when it needs one. */
-  _writeCornerLength(corner: number, value: unknown, scale = deviceScale()): boolean {
+  _writeCornerLength(corner: number, value: unknown, scale = layout.getDisplayDensity()): boolean {
     let type = 0;
     let amount: number;
     if (typeof value === 'number') {
@@ -6238,41 +5166,46 @@ export class Style {
     if (!Number.isFinite(amount) || !this.nativeView || this._pseudo || !this.style_view) return false;
     this._borderRadiusCss = null;
     this.prepareMut();
-    const keys = RADIUS_KEYS[corner][1];
-    setUint8(this.style_view, keys.xType, type);
-    setFloat32(this.style_view, keys.xValue, amount);
-    setUint8(this.style_view, keys.yType, type);
-    setFloat32(this.style_view, keys.yValue, amount);
+    this.writeRadiusAxes(corner, type, amount, type, amount);
+    this.rememberViewportCorner(corner, value);
     this.commitState(StateKeys.BORDER_RADIUS);
     return true;
   }
 
-  /** Writes one corner from plain CSS (`8px`, `50%`, `8px 4px`); false when the value needs the full parser. */
-  _writeCornerCss(corner: number, css: string, scale = deviceScale()): boolean {
+  /** Resolves and writes both axes of one CSS corner. */
+  _writeCornerCss(corner: number, css: string, scale = layout.getDisplayDensity()): boolean {
     if (!this.nativeView || this._pseudo || !this.style_view) return false;
-    const t = fastRadiusTokens(css, scale);
-    if (!t || t.length < 1 || t.length > 2) return false;
+    const fields = resolveBorderRadii(css, scale, this.emBasisFor(css), true);
+    if (fields?.length !== 2 * CssLengthResultRecord.STRIDE) return false;
     this._borderRadiusCss = null;
     this.prepareMut();
-    const keys = RADIUS_KEYS[corner][1];
-    const v = t[t.length - 1];
-    setUint8(this.style_view, keys.xType, t[0].type);
-    setFloat32(this.style_view, keys.xValue, t[0].value);
-    setUint8(this.style_view, keys.yType, v.type);
-    setFloat32(this.style_view, keys.yValue, v.value);
+    this.writeResolvedRadius(corner, fields, 0, CssLengthResultRecord.STRIDE);
+    this.rememberViewportCorner(corner, css);
     this.commitState(StateKeys.BORDER_RADIUS);
     return true;
+  }
+
+  private radiusCssAxes(corner: number, scale: number): [string, string] {
+    const view = this.style_view;
+    const token = (type: number, v: number) => (type === 1 ? `${Math.round(v * 1e5) / 1e3}%` : `${Math.round((v / scale) * 1e3) / 1e3}px`);
+    const keys = RADIUS_KEYS[corner][1];
+    return [token(getUint8(view, keys.xType), getFloat32(view, keys.xValue)), token(getUint8(view, keys.yType), getFloat32(view, keys.yValue))];
+  }
+
+  _cornerRadiusCss(corner: number): string {
+    if (!this.style_view || this._cornerRadiusIsZero(corner)) return '0';
+    const [h, v] = this.radiusCssAxes(corner, layout.getDisplayDensity());
+    return h === v ? h : `${h} ${v}`;
   }
 
   // The four corners as border-radius CSS, from the buffer.
-  private _radiusCssFromBuffer(scale = deviceScale()): string {
-    const view = this.style_view;
-    const token = (type: number, v: number) => (type === 1 ? `${Math.round(v * 1e5) / 1e3}%` : `${Math.round((v / scale) * 1e3) / 1e3}px`);
+  private _radiusCssFromBuffer(scale = layout.getDisplayDensity()): string {
     const h: string[] = [];
     const v: string[] = [];
-    for (const [, keys] of RADIUS_KEYS) {
-      h.push(token(getUint8(view, keys.xType), getFloat32(view, keys.xValue)));
-      v.push(token(getUint8(view, keys.yType), getFloat32(view, keys.yValue)));
+    for (let corner = 0; corner < RADIUS_KEYS.length; corner++) {
+      const [x, y] = this.radiusCssAxes(corner, scale);
+      h.push(x);
+      v.push(y);
     }
     const hs = h.every((t) => t === h[0]) ? h[0] : h.join(' ');
     const vs = v.every((t) => t === v[0]) ? v[0] : v.join(' ');
@@ -6287,110 +5220,43 @@ export class Style {
     return getFloat32(view, keys.xValue) === 0 && getFloat32(view, keys.yValue) === 0;
   }
 
-  _writeCornerRadius(corner: number, radius: readonly [string, string], shorthand: string, scale = deviceScale()): boolean {
-    if (!this.nativeView || this._pseudo || !this.style_view) return false;
-    const h = fastRadiusTokens(radius[0], scale);
-    const v = radius[1] === radius[0] ? h : fastRadiusTokens(radius[1], scale);
-    if (!h || h.length !== 1 || !v || v.length !== 1) return false;
-    this._borderRadiusCss = shorthand;
-    this.prepareMut();
+  private writeRadiusAxes(corner: number, xType: number, x: number, yType: number, y: number): void {
     const keys = RADIUS_KEYS[corner][1];
-    setUint8(this.style_view, keys.xType, h[0].type);
-    setFloat32(this.style_view, keys.xValue, h[0].value);
-    setUint8(this.style_view, keys.yType, v[0].type);
-    setFloat32(this.style_view, keys.yValue, v[0].value);
-    this.commitState(StateKeys.BORDER_RADIUS);
-    return true;
+    setUint8(this.style_view, keys.xType, xType);
+    setFloat32(this.style_view, keys.xValue, __WINDOWS__ ? Math.max(0, x) : x);
+    setUint8(this.style_view, keys.yType, yType);
+    setFloat32(this.style_view, keys.yValue, __WINDOWS__ ? Math.max(0, y) : y);
+  }
+
+  private writeResolvedRadius(corner: number, fields: number[], h: number, v: number): void {
+    this.writeRadiusAxes(corner,
+      fields[h + CssLengthResultRecord.KIND] - 1, fields[h + CssLengthResultRecord.VALUE],
+      fields[v + CssLengthResultRecord.KIND] - 1, fields[v + CssLengthResultRecord.VALUE]);
+  }
+
+  private rememberViewportCorner(corner: number, value: unknown): void {
+    const writes = viewportWrites.get(this);
+    if (writes?.has('borderRadius') || (typeof value === 'string' && VIEWPORT_UNIT_TEXT.test(value))) {
+      rememberViewportWrite(this, corner, value);
+    } else {
+      writes?.delete(corner);
+    }
   }
 
   _writeBorderRadius(value: string, scale: number): boolean {
-    let cleaned = value.trim();
-    if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1);
-    const slash = cleaned.indexOf('/');
-    const h = fastRadiusTokens(slash < 0 ? cleaned : cleaned.slice(0, slash).trim(), scale);
-    if (!h) return false;
-    const vPart = slash < 0 ? '' : cleaned.slice(slash + 1).trim();
-    const v = vPart ? fastRadiusTokens(vPart, scale) : h;
-    if (!v) return false;
+    const stride = CssLengthResultRecord.STRIDE;
+    const vertical = BorderRadiiRecord.VERTICAL_TOP_LEFT * stride;
+    const fields = resolveBorderRadii(value, scale, this.emBasisFor(value));
+    if (fields?.length !== BorderRadiiRecord.STRIDE * stride) return false;
     this._borderRadiusCss = value;
-    const hm = radiusCorners(h);
-    const vm = v.length ? radiusCorners(v) : hm;
-    if (!hm || !vm) return true;
     this.prepareMut();
-    for (let i = 0; i < 4; i++) {
-      const keys = RADIUS_KEYS[i][1];
-      setUint8(this.style_view, keys.xType, hm[i].type);
-      setFloat32(this.style_view, keys.xValue, hm[i].value);
-      setUint8(this.style_view, keys.yType, vm[i].type);
-      setFloat32(this.style_view, keys.yValue, vm[i].value);
+    for (let corner = 0; corner < RADIUS_KEYS.length; corner++) {
+      const h = corner * stride;
+      this.writeResolvedRadius(corner, fields, h, h + vertical);
+      viewportWrites.get(this)?.delete(corner);
     }
     this.commitState(StateKeys.BORDER_RADIUS);
     return true;
-  }
-
-  get whiteSpace(): string {
-    const map = ['normal', 'pre', 'pre-wrap', 'pre-line', 'nowrap', 'break-spaces'] as const;
-    return map[getUint8(this.style_view, StyleKeys.WHITE_SPACE)] ?? 'normal';
-  }
-
-  set whiteSpace(value: 'normal' | 'pre' | 'pre-wrap' | 'pre-line' | 'nowrap' | 'break-spaces') {
-    const map = { normal: 0, pre: 1, 'pre-wrap': 2, 'pre-line': 3, nowrap: 4, 'break-spaces': 5 } as const;
-    const mapped = map[value];
-    if (mapped === undefined) {
-      return;
-    }
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.WHITE_SPACE, mapped);
-    setInt8(this.style_view, StyleKeys.WHITE_SPACE_STATE, 1);
-    this.commitState(StateKeys.WHITE_SPACE);
-  }
-
-  get objectFit(): string {
-    const map = ['contain', 'cover', 'fill', 'none', 'scale-down'] as const;
-    return map[getUint8(this.style_view, StyleKeys.OBJECT_FIT)] ?? 'fill';
-  }
-
-  /** Read by `Img`; previously reachable only through the native HTML parser. */
-  set objectFit(value: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down') {
-    const map = { contain: 0, cover: 1, fill: 2, none: 3, 'scale-down': 4 } as const;
-    const mapped = map[value];
-    if (mapped === undefined) {
-      return;
-    }
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.OBJECT_FIT, mapped);
-    this.commitState(StateKeys.OBJECT_FIT);
-  }
-
-  get textJustify(): string {
-    const value = getInt8(this.style_view, StyleKeys.TEXT_JUSTIFY);
-    const map: Record<number, string> = { [-1]: 'none', 0: 'auto', 1: 'inter-word', 2: 'inter-character', 3: 'distribute' };
-    return map[value] ?? 'auto';
-  }
-
-  set textJustify(value: 'none' | 'auto' | 'inter-word' | 'inter-character' | 'distribute') {
-    const map = { none: -1, auto: 0, 'inter-word': 1, 'inter-character': 2, distribute: 3 } as const;
-    const mapped = map[value];
-    if (mapped === undefined) {
-      return;
-    }
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.TEXT_JUSTIFY, mapped);
-    setInt8(this.style_view, StyleKeys.TEXT_JUSTIFY_STATE, 1);
-    this.commitState(StateKeys.TEXT_JUSTIFY);
-  }
-
-  get textDecorationThickness(): number {
-    return layout.toDeviceIndependentPixels(getFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS));
-  }
-
-  /** Read by TextNode when stroking the decoration line. */
-  set textDecorationThickness(value: string | number) {
-    this.prepareMut();
-    const devicePx = typeof value === 'number' ? layout.toDevicePixels(finite(value)) : tokenToDevicePx(value, parseFloat(value) || 0, this.emBasisFor(value));
-    setFloat32(this.style_view, StyleKeys.DECORATION_THICKNESS, devicePx);
-    setInt8(this.style_view, StyleKeys.DECORATION_THICKNESS_STATE, 1);
-    this.commitState(StateKeys.DECORATION_THICKNESS);
   }
 
   get fontFamily(): string {
@@ -6408,101 +5274,12 @@ export class Style {
   // style-buffer field, so it can't be written through the shared buffer.
   set fontFamily(value: string) {
     // A CSS list, possibly quoted (`'Roboto Mono', Courier, monospace`); the natives take one name.
-    value = pickFontFamily(this.coerceCssStringValue(value));
+    value = pickFontFamily(value == null ? '' : String(value));
     this.setPseudoCssStringValue(
       'font-family',
       value,
       () => nodeHelper().setFontFamily(this.nativeView, value),
       () => (this.appleStyle.fontFamily = value),
-    );
-  }
-
-  set textDecoration(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'text-decoration',
-      value,
-      () => nodeHelper().setTextDecoration(this.nativeView, value),
-      () => this.appleStyle.setTextDecoration(value),
-    );
-  }
-
-  get textDecorationLine(): string {
-    if (!this.nativeView) {
-      return '';
-    }
-    if (__ANDROID__) {
-      return nodeHelper().getTextDecorationLine(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.textDecorationLine;
-    }
-    if ((__WINDOWS__ || __LINUX__) && this.style_view) {
-      return textDecorationLineToCss(getUint8(this.style_view, StyleKeys.DECORATION_LINE));
-    }
-    return '';
-  }
-
-  set textDecorationLine(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'none');
-    this.setPseudoCssStringValue(
-      'text-decoration-line',
-      value,
-      () => nodeHelper().setTextDecorationLine(this.nativeView, value),
-      () => (this.appleStyle.textDecorationLine = value),
-    );
-  }
-
-  get textDecorationStyle(): string {
-    if (!this.nativeView) {
-      return '';
-    }
-    if (__ANDROID__) {
-      return nodeHelper().getTextDecorationStyle(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.textDecorationStyle;
-    }
-    if ((__WINDOWS__ || __LINUX__) && this.style_view) {
-      return textDecorationStyleToCss(getUint8(this.style_view, StyleKeys.DECORATION_STYLE));
-    }
-    return '';
-  }
-
-  set textDecorationStyle(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'solid');
-    this.setPseudoCssStringValue(
-      'text-decoration-style',
-      value,
-      () => nodeHelper().setTextDecorationStyle(this.nativeView, value),
-      () => (this.appleStyle.textDecorationStyle = value),
-    );
-  }
-
-  get textDecorationColor(): string {
-    if (!this.nativeView) {
-      return '';
-    }
-    if (__ANDROID__) {
-      return nodeHelper().getTextDecorationColor(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.textDecorationColor;
-    }
-    if ((__WINDOWS__ || __LINUX__) && this.style_view) {
-      const argb = getUint32(this.style_view, StyleKeys.DECORATION_COLOR);
-      return !getUint8(this.style_view, StyleKeys.DECORATION_COLOR_STATE) || argb === DECORATION_COLOR_UNSET ? 'currentcolor' : new Color(argb).hex;
-    }
-    return '';
-  }
-
-  set textDecorationColor(value: string) {
-    value = cssInitialIfReset(this.coerceCssStringValue(value), 'currentcolor');
-    this.setPseudoCssStringValue(
-      'text-decoration-color',
-      value,
-      () => nodeHelper().setTextDecorationColor(this.nativeView, value),
-      () => (this.appleStyle.textDecorationColor = value),
     );
   }
 
@@ -6521,7 +5298,7 @@ export class Style {
   }
 
   set border(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border',
       value,
@@ -6602,7 +5379,7 @@ export class Style {
   }
 
   set borderLeft(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border-left',
       value,
@@ -6616,7 +5393,7 @@ export class Style {
   }
 
   set borderTop(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border-top',
       value,
@@ -6630,7 +5407,7 @@ export class Style {
   }
 
   set borderRight(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border-right',
       value,
@@ -6644,7 +5421,7 @@ export class Style {
   }
 
   set borderBottom(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border-bottom',
       value,
@@ -6657,6 +5434,7 @@ export class Style {
     if (!this.nativeView) {
       return '';
     }
+    this.flushEffectWrites();
     if (__ANDROID__) {
       return nodeHelper().getFilter(this.nativeView);
     }
@@ -6669,19 +5447,14 @@ export class Style {
   }
 
   set filter(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'filter',
-      value,
-      () => nodeHelper().setFilter(this.nativeView, value),
-      () => (this.appleStyle.filter = value),
-    );
+    this.setEffectCss('filter', value);
   }
 
   get boxShadow() {
     if (!this.nativeView) {
       return '';
     }
+    this.flushEffectWrites();
     if (__ANDROID__) {
       return nodeHelper().getBoxShadow(this.nativeView);
     }
@@ -6702,13 +5475,7 @@ export class Style {
   }
 
   set boxShadow(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'box-shadow',
-      value,
-      () => nodeHelper().setBoxShadow(this.nativeView, value),
-      () => (this.appleStyle.boxShadow = value),
-    );
+    this.setEffectCss('box-shadow', value);
   }
 
   get transform() {
@@ -6727,7 +5494,7 @@ export class Style {
   }
 
   set transform(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'transform',
       value,
@@ -6736,159 +5503,11 @@ export class Style {
     );
   }
 
-  get verticalAlign() {
-    const isPercent = getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1;
-    const value = getFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET);
-    if (isPercent) {
-      return `${value * 100}%`;
-    }
-    if (value > 0) {
-      return `${value}px`;
-    }
-    switch (getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET)) {
-      case 0:
-        return 'baseline';
-      case 1:
-        return 'top';
-      case 2:
-        return 'text-top';
-      case 3:
-        return 'middle';
-      case 4:
-        return 'bottom';
-      case 5:
-        return 'text-bottom';
-      case 6:
-        return 'sub';
-      case 7:
-        return 'super';
-      default:
-        // throw ??
-        return 'baseline';
-    }
-  }
-
-  set verticalAlign(value: VerticalAlign) {
-    switch (value) {
-      case 'baseline':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-        break;
-      case 'top':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 1);
-        break;
-      case 'text-top':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 2);
-        break;
-      case 'middle':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 3);
-        break;
-      case 'bottom':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 4);
-        break;
-      case 'text-bottom':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 5);
-        break;
-      case 'sub':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 6);
-        break;
-      case 'super':
-        this.prepareMut();
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
-        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 7);
-        break;
-      default: {
-        switch (typeof value) {
-          case 'number':
-            this.prepareMut();
-            setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-            setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value * layout.getDisplayDensity());
-            setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-            break;
-          case 'string':
-            {
-              try {
-                const parsed = CorePercentLength.parse(value);
-                if (typeof parsed === 'object' && parsed !== null && 'unit' in parsed) {
-                  switch (parsed.unit) {
-                    case '%':
-                      this.prepareMut();
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
-                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value);
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                      break;
-                    case 'px':
-                      this.prepareMut();
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, layout.toDevicePixels(parsed.value));
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                      break;
-                    case 'dip':
-                      this.prepareMut();
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value * layout.getDisplayDensity());
-                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                      break;
-                  }
-                }
-              } catch (error) {}
-            }
-            break;
-          case 'object':
-            if (value !== null && 'unit' in value) {
-              switch (value.unit) {
-                case '%':
-                  this.prepareMut();
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
-                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value);
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                  break;
-                case 'px':
-                  this.prepareMut();
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, layout.toDevicePixels(value.value));
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                  break;
-                case 'dip':
-                  this.prepareMut();
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
-                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value * layout.getDisplayDensity());
-                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
-                  break;
-              }
-            }
-            break;
-        }
-      }
-    }
-    this.commitState(StateKeys.VERTICAL_ALIGN);
-  }
-
   get textShadow() {
     if (!this.nativeView) {
       return '';
     }
+    this.flushEffectWrites();
     if (__ANDROID__) {
       return nodeHelper().getTextShadow(this.nativeView);
     }
@@ -6901,233 +5520,7 @@ export class Style {
   }
 
   set textShadow(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'text-shadow',
-      value,
-      () => nodeHelper().setTextShadow(this.nativeView, value),
-      () => (this.appleStyle.textShadow = value),
-    );
-  }
-
-  get zIndex(): number {
-    return getInt32(this.style_view, StyleKeys.Z_INDEX);
-  }
-
-  set zIndex(value: number) {
-    if (getInt32(this.style_view, StyleKeys.Z_INDEX) === value) return;
-    this.prepareMut();
-    setInt32(this.style_view, StyleKeys.Z_INDEX, value);
-    this.commitState(StateKeys.Z_INDEX);
-  }
-
-  get float() {
-    switch (getInt8(this.style_view, StyleKeys.FLOAT)) {
-      case Float.None:
-        return 'none';
-      case Float.Left:
-        return 'left';
-      case Float.Right:
-        return 'right';
-    }
-    return 'none';
-  }
-
-  set float(value: 'none' | 'left' | 'right') {
-    const current = getInt8(this.style_view, StyleKeys.FLOAT);
-    let enumVal: number;
-    switch (value) {
-      case 'none':
-        enumVal = Float.None;
-        break;
-      case 'left':
-        enumVal = Float.Left;
-        break;
-      case 'right':
-        enumVal = Float.Right;
-        break;
-      default:
-        enumVal = Float.None;
-    }
-
-    if (current === enumVal) {
-      return;
-    }
-
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.FLOAT, enumVal);
-    this.commitState(StateKeys.FLOAT);
-  }
-
-  get clear() {
-    switch (getInt8(this.style_view, StyleKeys.CLEAR)) {
-      case Clear.None:
-        return 'none';
-      case Clear.Left:
-        return 'left';
-      case Clear.Right:
-        return 'right';
-      case Clear.Both:
-        return 'both';
-    }
-    return 'none';
-  }
-
-  set clear(value: 'none' | 'left' | 'right' | 'both') {
-    switch (value) {
-      case 'none':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.CLEAR, Clear.None);
-        break;
-      case 'left':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.CLEAR, Clear.Left);
-        break;
-      case 'right':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.CLEAR, Clear.Right);
-        break;
-      case 'both':
-        this.prepareMut();
-        setInt8(this.style_view, StyleKeys.CLEAR, Clear.Both);
-        break;
-    }
-    this.commitState(StateKeys.CLEAR);
-  }
-
-  set cornerShape(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'corner-shape',
-      value,
-      () => nodeHelper().setCornerShape(this.nativeView, value),
-      () => (this.appleStyle.cornerShape = value),
-    );
-  }
-
-  get cornerShape(): string {
-    if (!this.nativeView) {
-      return '';
-    }
-    if (__ANDROID__) {
-      return nodeHelper().getCornerShape(this.nativeView);
-    }
-
-    if (__APPLE__) {
-      return this.appleStyle.cornerShape;
-    }
-
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('corner-shape') ?? '') : '';
-  }
-
-  get cornerShapeTopLeft() {
-    if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getCornerShapeTopLeft(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.cornerShapeTopLeft;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('corner-shape-top-left') ?? '') : '';
-  }
-
-  set cornerShapeTopLeft(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'corner-shape-top-left',
-      value,
-      () => nodeHelper().setCornerShapeTopLeft(this.nativeView, value),
-      () => (this.appleStyle.cornerShapeTopLeft = value),
-    );
-  }
-
-  get cornerShapeTopRight() {
-    if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getCornerShapeTopRight(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.cornerShapeTopRight;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('corner-shape-top-right') ?? '') : '';
-  }
-
-  set cornerShapeTopRight(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'corner-shape-top-right',
-      value,
-      () => nodeHelper().setCornerShapeTopRight(this.nativeView, value),
-      () => (this.appleStyle.cornerShapeTopRight = value),
-    );
-  }
-
-  get cornerShapeBottomRight() {
-    if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getCornerShapeBottomRight(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.cornerShapeBottomRight;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('corner-shape-bottom-right') ?? '') : '';
-  }
-
-  set cornerShapeBottomRight(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'corner-shape-bottom-right',
-      value,
-      () => nodeHelper().setCornerShapeBottomRight(this.nativeView, value),
-      () => (this.appleStyle.cornerShapeBottomRight = value),
-    );
-  }
-
-  get cornerShapeBottomLeft() {
-    if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getCornerShapeBottomLeft(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.cornerShapeBottomLeft;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('corner-shape-bottom-left') ?? '') : '';
-  }
-
-  set cornerShapeBottomLeft(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'corner-shape-bottom-left',
-      value,
-      () => nodeHelper().setCornerShapeBottomLeft(this.nativeView, value),
-      () => (this.appleStyle.cornerShapeBottomLeft = value),
-    );
-  }
-
-  get objectPosition(): string {
-    if (!this.style_view) return '50% 50%';
-    const state = getUint8(this.style_view, StyleKeys.OBJECT_POSITION_STATE);
-    if (!state) return '50% 50%';
-    const xType = getUint8(this.style_view, StyleKeys.OBJECT_POSITION_X_TYPE);
-    const yType = getUint8(this.style_view, StyleKeys.OBJECT_POSITION_Y_TYPE);
-    const xVal = getFloat32(this.style_view, StyleKeys.OBJECT_POSITION_X_VALUE);
-    const yVal = getFloat32(this.style_view, StyleKeys.OBJECT_POSITION_Y_VALUE);
-    const x = xType === 1 ? `${xVal}%` : `${xVal}px`;
-    const y = yType === 1 ? `${yVal}%` : `${yVal}px`;
-    return `${x} ${y}`;
-  }
-
-  set objectPosition(value: string) {
-    if (!this.style_view) return;
-    const parsed = parseObjectPosition(value);
-    if (!parsed) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_X_TYPE, parsed.xType);
-    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_Y_TYPE, parsed.yType);
-    setFloat32(this.style_view, StyleKeys.OBJECT_POSITION_X_VALUE, parsed.xVal);
-    setFloat32(this.style_view, StyleKeys.OBJECT_POSITION_Y_VALUE, parsed.yVal);
-    setUint8(this.style_view, StyleKeys.OBJECT_POSITION_STATE, 1);
-    this.commitState(StateKeys.OBJECT_POSITION);
+    this.setEffectCss('text-shadow', value);
   }
 
   set 'object-position'(value: string) {
@@ -7136,102 +5529,6 @@ export class Style {
 
   get 'object-position'() {
     return this.objectPosition;
-  }
-
-  get borderLeftStyle(): string {
-    return borderStyleFromEnum(getInt8(this.style_view, StyleKeys.BORDER_LEFT_STYLE));
-  }
-
-  set borderLeftStyle(value: string) {
-    const v = borderStyleToEnum(value);
-    if (v === -1) return;
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.BORDER_LEFT_STYLE, v);
-    this.commitState(StateKeys.BORDER_STYLE);
-  }
-
-  get borderRightStyle(): string {
-    return borderStyleFromEnum(getInt8(this.style_view, StyleKeys.BORDER_RIGHT_STYLE));
-  }
-
-  set borderRightStyle(value: string) {
-    const v = borderStyleToEnum(value);
-    if (v === -1) return;
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.BORDER_RIGHT_STYLE, v);
-    this.commitState(StateKeys.BORDER_STYLE);
-  }
-
-  get borderTopStyle(): string {
-    return borderStyleFromEnum(getInt8(this.style_view, StyleKeys.BORDER_TOP_STYLE));
-  }
-
-  set borderTopStyle(value: string) {
-    const v = borderStyleToEnum(value);
-    if (v === -1) return;
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.BORDER_TOP_STYLE, v);
-    this.commitState(StateKeys.BORDER_STYLE);
-  }
-
-  get borderBottomStyle(): string {
-    return borderStyleFromEnum(getInt8(this.style_view, StyleKeys.BORDER_BOTTOM_STYLE));
-  }
-
-  set borderBottomStyle(value: string) {
-    const v = borderStyleToEnum(value);
-    if (v === -1) return;
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_STYLE, v);
-    this.commitState(StateKeys.BORDER_STYLE);
-  }
-
-  get borderStyle(): string {
-    const l = this.borderLeftStyle;
-    const r = this.borderRightStyle;
-    const t = this.borderTopStyle;
-    const b = this.borderBottomStyle;
-    if (l === r && r === t && t === b) return l;
-    if (t === b && l === r) return `${t} ${l}`;
-    return `${t} ${r} ${b} ${l}`;
-  }
-
-  set borderStyle(value: string) {
-    const parts = value.trim().split(/\s+/);
-    let t: string, r: string, b: string, l: string;
-    switch (parts.length) {
-      case 1:
-        t = r = b = l = parts[0];
-        break;
-      case 2:
-        t = b = parts[0];
-        r = l = parts[1];
-        break;
-      case 3:
-        t = parts[0];
-        r = l = parts[1];
-        b = parts[2];
-        break;
-      case 4:
-        t = parts[0];
-        r = parts[1];
-        b = parts[2];
-        l = parts[3];
-        break;
-      default:
-        return;
-    }
-    const te = borderStyleToEnum(t);
-    const re = borderStyleToEnum(r);
-    const be = borderStyleToEnum(b);
-    const le = borderStyleToEnum(l);
-    if (te === -1 || re === -1 || be === -1 || le === -1) return;
-    this.prepareMut();
-    setInt8(this.style_view, StyleKeys.BORDER_TOP_STYLE, te);
-    setInt8(this.style_view, StyleKeys.BORDER_RIGHT_STYLE, re);
-    setInt8(this.style_view, StyleKeys.BORDER_BOTTOM_STYLE, be);
-    setInt8(this.style_view, StyleKeys.BORDER_LEFT_STYLE, le);
-    this.commitState(StateKeys.BORDER_STYLE);
   }
 
   set 'border-style'(value: string) {
@@ -7254,7 +5551,7 @@ export class Style {
   }
 
   set borderImage(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'border-image',
       value,
@@ -7269,24 +5566,6 @@ export class Style {
 
   get 'border-image'() {
     return this.borderImage;
-  }
-
-  get fontStretch(): string {
-    if (!this.style_view) return 'normal';
-    const state = getUint8(this.style_view, StyleKeys.FONT_STRETCH_STATE);
-    if (!state) return 'normal';
-    const pct = getInt32(this.style_view, StyleKeys.FONT_STRETCH);
-    return fontStretchFromValue(pct);
-  }
-
-  set fontStretch(value: string) {
-    if (!this.style_view) return;
-    const pct = fontStretchToValue(value);
-    if (pct === -1) return;
-    this.prepareMut();
-    setInt32(this.style_view, StyleKeys.FONT_STRETCH, pct);
-    setUint8(this.style_view, StyleKeys.FONT_STRETCH_STATE, 1);
-    this.commitState(StateKeys.FONT_STRETCH);
   }
 
   set 'font-stretch'(value: string) {
@@ -7309,7 +5588,7 @@ export class Style {
   }
 
   set fontFeatureSettings(value: string) {
-    value = this.coerceCssStringValue(value);
+    value = value == null ? '' : String(value);
     this.setPseudoCssStringValue(
       'font-feature-settings',
       value,
@@ -7326,42 +5605,6 @@ export class Style {
     return this.fontFeatureSettings;
   }
 
-  get wordSpacing(): string {
-    if (!this.style_view) return 'normal';
-    const state = getUint8(this.style_view, StyleKeys.WORD_SPACING_STATE);
-    if (!state) return 'normal';
-    const type = getUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE);
-    if (type === 2) return 'normal';
-    const value = getFloat32(this.style_view, StyleKeys.WORD_SPACING);
-    return type === 1 ? `${value}%` : `${value}px`;
-  }
-
-  set wordSpacing(value: string | number) {
-    if (!this.style_view) return;
-    this.prepareMut();
-    if (value === 'normal') {
-      setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, 2);
-      setFloat32(this.style_view, StyleKeys.WORD_SPACING, 0);
-    } else if (typeof value === 'number') {
-      setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, 0);
-      setFloat32(this.style_view, StyleKeys.WORD_SPACING, layout.toDevicePixels(value));
-    } else {
-      const trimmed = value.trim();
-      if (trimmed === 'normal') {
-        setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, 2);
-        setFloat32(this.style_view, StyleKeys.WORD_SPACING, 0);
-      } else if (trimmed.endsWith('%')) {
-        setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, 1);
-        setFloat32(this.style_view, StyleKeys.WORD_SPACING, parseFloat(trimmed));
-      } else {
-        setUint8(this.style_view, StyleKeys.WORD_SPACING_TYPE, 0);
-        setFloat32(this.style_view, StyleKeys.WORD_SPACING, layout.toDevicePixels(parseFloat(trimmed)));
-      }
-    }
-    setUint8(this.style_view, StyleKeys.WORD_SPACING_STATE, 1);
-    this.commitState(StateKeys.WORD_SPACING);
-  }
-
   set 'word-spacing'(value: string | number) {
     this.wordSpacing = value;
   }
@@ -7370,99 +5613,12 @@ export class Style {
     return this.wordSpacing;
   }
 
-  get hyphens(): 'none' | 'manual' | 'auto' {
-    if (!this.style_view) return 'manual';
-    const state = getUint8(this.style_view, StyleKeys.HYPHENS_STATE);
-    if (!state) return 'manual';
-    switch (getUint8(this.style_view, StyleKeys.HYPHENS)) {
-      case 0:
-        return 'manual';
-      case 1:
-        return 'none';
-      case 2:
-        return 'auto';
-      default:
-        return 'manual';
-    }
-  }
-
-  set hyphens(value: 'none' | 'manual' | 'auto') {
-    let v = -1;
-    switch (value) {
-      case 'manual':
-        v = 0;
-        break;
-      case 'none':
-        v = 1;
-        break;
-      case 'auto':
-        v = 2;
-        break;
-    }
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.HYPHENS, v);
-    setUint8(this.style_view, StyleKeys.HYPHENS_STATE, 1);
-    this.commitState(StateKeys.HYPHENS);
-  }
-
-  get textIndent(): string {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_INDENT_STATE)) return '0px';
-    const value = getFloat32(this.style_view, StyleKeys.TEXT_INDENT);
-    return getUint8(this.style_view, StyleKeys.TEXT_INDENT_TYPE) === 1 ? `${value}%` : `${layout.toDeviceIndependentPixels(value)}px`;
-  }
-
-  set textIndent(value: string | number) {
-    if (!this.style_view) return;
-    let type = 0;
-    let indent: number;
-    if (typeof value === 'number') {
-      indent = layout.toDevicePixels(value);
-    } else {
-      // `each-line` and `hanging` are not supported; the length still applies.
-      const token = String(value ?? '')
-        .trim()
-        .split(/\s+/)
-        .find((t) => t !== 'each-line' && t !== 'hanging');
-      if (!token) return;
-      const n = parseFloat(token);
-      if (!Number.isFinite(n)) return;
-      if (token.endsWith('%')) {
-        type = 1;
-        indent = n;
-      } else {
-        indent = tokenToDevicePx(token, n, this.emBasisFor(token));
-      }
-    }
-    this.prepareMut();
-    setFloat32(this.style_view, StyleKeys.TEXT_INDENT, indent);
-    setUint8(this.style_view, StyleKeys.TEXT_INDENT_TYPE, type);
-    setUint8(this.style_view, StyleKeys.TEXT_INDENT_STATE, 1);
-    this.commitState(StateKeys.TEXT_INDENT);
-  }
-
   set 'text-indent'(value: string | number) {
     this.textIndent = value;
   }
 
   get 'text-indent'() {
     return this.textIndent;
-  }
-
-  get lineClamp(): number | 'none' {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.LINE_CLAMP_STATE)) return 'none';
-    const lines = getInt32(this.style_view, StyleKeys.LINE_CLAMP);
-    return lines > 0 ? lines : 'none';
-  }
-
-  set lineClamp(value: number | string) {
-    if (!this.style_view) return;
-    const lines = value === 'none' ? 0 : Math.trunc(Number(value));
-    if (!Number.isFinite(lines) || lines < 0) return;
-    this.prepareMut();
-    setInt32(this.style_view, StyleKeys.LINE_CLAMP, lines);
-    setUint8(this.style_view, StyleKeys.LINE_CLAMP_STATE, 1);
-    this.commitState(StateKeys.LINE_CLAMP);
   }
 
   set 'line-clamp'(value: number | string) {
@@ -7481,41 +5637,6 @@ export class Style {
     return this.lineClamp;
   }
 
-  get transformOrigin(): string {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE)) return '50% 50%';
-    const side = (typeKey: StyleKeys, valueKey: StyleKeys) => {
-      const value = getFloat32(this.style_view, valueKey);
-      return getUint8(this.style_view, typeKey) === 1 ? `${value}%` : `${layout.toDeviceIndependentPixels(value)}px`;
-    };
-    return `${side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE)} ${side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE)}`;
-  }
-
-  set transformOrigin(value: string) {
-    if (!this.style_view) return;
-    const parsed = parseTransformOrigin(String(value ?? ''), this.emBasisFor(value));
-    if (!parsed) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_X_TYPE, parsed.xType);
-    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, parsed.yType);
-    setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, parsed.x);
-    setFloat32(this.style_view, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, parsed.y);
-    setUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE, 1);
-    this.commitState(StateKeys.TRANSFORM_ORIGIN);
-    // Windows applies the origin with the transform, natively it isn't read from the buffer.
-    if (__WINDOWS__ || __LINUX__) (this.view as any)?._applyWindowsTransform?.();
-  }
-
-  /** transform-origin as fractions of a `width` x `height` box, or null when it isn't set. */
-  transformOriginFraction(width: number, height: number): { x: number; y: number } | null {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TRANSFORM_ORIGIN_STATE)) return null;
-    const side = (typeKey: StyleKeys, valueKey: StyleKeys, size: number) => {
-      const value = getFloat32(this.style_view, valueKey);
-      if (getUint8(this.style_view, typeKey) === 1) return value / 100;
-      return size > 0 ? layout.toDeviceIndependentPixels(value) / size : 0;
-    };
-    return { x: side(StyleKeys.TRANSFORM_ORIGIN_X_TYPE, StyleKeys.TRANSFORM_ORIGIN_X_VALUE, width), y: side(StyleKeys.TRANSFORM_ORIGIN_Y_TYPE, StyleKeys.TRANSFORM_ORIGIN_Y_VALUE, height) };
-  }
-
   set 'transform-origin'(value: string) {
     this.transformOrigin = value;
   }
@@ -7526,6 +5647,7 @@ export class Style {
 
   get backdropFilter(): string {
     if (!this.nativeView) return '';
+    this.flushEffectWrites();
     if (__ANDROID__) {
       return nodeHelper().getBackdropFilter(this.nativeView);
     }
@@ -7536,13 +5658,7 @@ export class Style {
   }
 
   set backdropFilter(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'backdrop-filter',
-      value,
-      () => nodeHelper().setBackdropFilter(this.nativeView, value),
-      () => (this.appleStyle.backdropFilter = value),
-    );
+    this.setEffectCss('backdrop-filter', value);
   }
 
   set 'backdrop-filter'(value: string) {
@@ -7553,481 +5669,237 @@ export class Style {
     return this.backdropFilter;
   }
 
+  // <style-keys:mask-accessors> generated from tools/scripts/style-keys/style-keys.schema
   get maskImage(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskImage(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskImage;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-image') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskImage(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskImage;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-image') ?? '') : '';
   }
 
   set maskImage(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-image',
-      value,
-      () => nodeHelper().setMaskImage(this.nativeView, value),
-      () => (this.appleStyle.maskImage = value),
-    );
+    this.setMaskCss('mask-image', 0, value);
   }
 
-  set 'mask-image'(value: string) {
-    this.maskImage = value;
-  }
-
-  get 'mask-image'() {
-    return this.maskImage;
-  }
+  get 'mask-image'() { return this.maskImage; }
+  set 'mask-image'(value: string) { this.maskImage = value; }
 
   get maskSize(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskSize(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskSize;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-size') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskSize(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskSize;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-size') ?? '') : '';
   }
 
   set maskSize(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-size',
-      value,
-      () => nodeHelper().setMaskSize(this.nativeView, value),
-      () => (this.appleStyle.maskSize = value),
-    );
+    this.setMaskCss('mask-size', 1, value);
   }
 
-  set 'mask-size'(value: string) {
-    this.maskSize = value;
-  }
-
-  get 'mask-size'() {
-    return this.maskSize;
-  }
+  get 'mask-size'() { return this.maskSize; }
+  set 'mask-size'(value: string) { this.maskSize = value; }
 
   get maskPosition(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskPosition(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskPosition;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-position') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskPosition(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskPosition;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-position') ?? '') : '';
   }
 
   set maskPosition(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-position',
-      value,
-      () => nodeHelper().setMaskPosition(this.nativeView, value),
-      () => (this.appleStyle.maskPosition = value),
-    );
+    this.setMaskCss('mask-position', 2, value);
   }
 
-  set 'mask-position'(value: string) {
-    this.maskPosition = value;
-  }
-
-  get 'mask-position'() {
-    return this.maskPosition;
-  }
+  get 'mask-position'() { return this.maskPosition; }
+  set 'mask-position'(value: string) { this.maskPosition = value; }
 
   get maskRepeat(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskRepeat(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskRepeat;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-repeat') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskRepeat(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskRepeat;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-repeat') ?? '') : '';
   }
 
   set maskRepeat(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-repeat',
-      value,
-      () => nodeHelper().setMaskRepeat(this.nativeView, value),
-      () => (this.appleStyle.maskRepeat = value),
-    );
+    this.setMaskCss('mask-repeat', 3, value);
   }
 
-  set 'mask-repeat'(value: string) {
-    this.maskRepeat = value;
-  }
-
-  get 'mask-repeat'() {
-    return this.maskRepeat;
-  }
+  get 'mask-repeat'() { return this.maskRepeat; }
+  set 'mask-repeat'(value: string) { this.maskRepeat = value; }
 
   get maskOrigin(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskOrigin(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskOrigin;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-origin') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskOrigin(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskOrigin;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-origin') ?? '') : '';
   }
 
   set maskOrigin(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-origin',
-      value,
-      () => nodeHelper().setMaskOrigin(this.nativeView, value),
-      () => (this.appleStyle.maskOrigin = value),
-    );
+    this.setMaskCss('mask-origin', 4, value);
   }
 
-  set 'mask-origin'(value: string) {
-    this.maskOrigin = value;
-  }
-
-  get 'mask-origin'() {
-    return this.maskOrigin;
-  }
+  get 'mask-origin'() { return this.maskOrigin; }
+  set 'mask-origin'(value: string) { this.maskOrigin = value; }
 
   get maskClip(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskClip(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskClip;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-clip') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskClip(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskClip;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-clip') ?? '') : '';
   }
 
   set maskClip(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-clip',
-      value,
-      () => nodeHelper().setMaskClip(this.nativeView, value),
-      () => (this.appleStyle.maskClip = value),
-    );
+    this.setMaskCss('mask-clip', 5, value);
   }
 
-  set 'mask-clip'(value: string) {
-    this.maskClip = value;
-  }
-
-  get 'mask-clip'() {
-    return this.maskClip;
-  }
+  get 'mask-clip'() { return this.maskClip; }
+  set 'mask-clip'(value: string) { this.maskClip = value; }
 
   get maskMode(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskMode(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskMode;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-mode') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskMode(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskMode;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-mode') ?? '') : '';
   }
 
   set maskMode(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-mode',
-      value,
-      () => nodeHelper().setMaskMode(this.nativeView, value),
-      () => (this.appleStyle.maskMode = value),
-    );
+    this.setMaskCss('mask-mode', 6, value);
   }
 
-  set 'mask-mode'(value: string) {
-    this.maskMode = value;
-  }
-
-  get 'mask-mode'() {
-    return this.maskMode;
-  }
+  get 'mask-mode'() { return this.maskMode; }
+  set 'mask-mode'(value: string) { this.maskMode = value; }
 
   get maskComposite(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskComposite(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskComposite;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-composite') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskComposite(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskComposite;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-composite') ?? '') : '';
   }
 
   set maskComposite(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-composite',
-      value,
-      () => nodeHelper().setMaskComposite(this.nativeView, value),
-      () => (this.appleStyle.maskComposite = value),
-    );
+    this.setMaskCss('mask-composite', 7, value);
   }
 
-  set 'mask-composite'(value: string) {
-    this.maskComposite = value;
-  }
-
-  get 'mask-composite'() {
-    return this.maskComposite;
-  }
+  get 'mask-composite'() { return this.maskComposite; }
+  set 'mask-composite'(value: string) { this.maskComposite = value; }
 
   get clipPath(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getClipPath(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.clipPath;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('clip-path') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getClipPath(this.nativeView);
+    if (__APPLE__) return this.appleStyle.clipPath;
+    return __WINDOWS__ ? (this._windowsCss.get('clip-path') ?? '') : '';
   }
 
   set clipPath(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'clip-path',
-      value,
-      () => nodeHelper().setClipPath(this.nativeView, value),
-      () => (this.appleStyle.clipPath = value),
-    );
+    this.setMaskCss('clip-path', 14, value);
   }
 
-  set 'clip-path'(value: string) {
-    this.clipPath = value;
-  }
-
-  get 'clip-path'() {
-    return this.clipPath;
-  }
+  get 'clip-path'() { return this.clipPath; }
+  set 'clip-path'(value: string) { this.clipPath = value; }
 
   get maskBorderSource(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderSource(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderSource;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-source') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderSource(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderSource;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-source') ?? '') : '';
   }
 
   set maskBorderSource(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-source',
-      value,
-      () => nodeHelper().setMaskBorderSource(this.nativeView, value),
-      () => (this.appleStyle.maskBorderSource = value),
-    );
+    this.setMaskCss('mask-border-source', 8, value);
   }
 
-  set 'mask-border-source'(value: string) {
-    this.maskBorderSource = value;
-  }
-
-  get 'mask-border-source'() {
-    return this.maskBorderSource;
-  }
+  get 'mask-border-source'() { return this.maskBorderSource; }
+  set 'mask-border-source'(value: string) { this.maskBorderSource = value; }
 
   get maskBorderSlice(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderSlice(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderSlice;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-slice') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderSlice(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderSlice;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-slice') ?? '') : '';
   }
 
   set maskBorderSlice(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-slice',
-      value,
-      () => nodeHelper().setMaskBorderSlice(this.nativeView, value),
-      () => (this.appleStyle.maskBorderSlice = value),
-    );
+    this.setMaskCss('mask-border-slice', 9, value);
   }
 
-  set 'mask-border-slice'(value: string) {
-    this.maskBorderSlice = value;
-  }
-
-  get 'mask-border-slice'() {
-    return this.maskBorderSlice;
-  }
+  get 'mask-border-slice'() { return this.maskBorderSlice; }
+  set 'mask-border-slice'(value: string) { this.maskBorderSlice = value; }
 
   get maskBorderWidth(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderWidth(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderWidth;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-width') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderWidth(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderWidth;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-width') ?? '') : '';
   }
 
   set maskBorderWidth(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-width',
-      value,
-      () => nodeHelper().setMaskBorderWidth(this.nativeView, value),
-      () => (this.appleStyle.maskBorderWidth = value),
-    );
+    this.setMaskCss('mask-border-width', 10, value);
   }
 
-  set 'mask-border-width'(value: string) {
-    this.maskBorderWidth = value;
-  }
-
-  get 'mask-border-width'() {
-    return this.maskBorderWidth;
-  }
+  get 'mask-border-width'() { return this.maskBorderWidth; }
+  set 'mask-border-width'(value: string) { this.maskBorderWidth = value; }
 
   get maskBorderOutset(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderOutset(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderOutset;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-outset') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderOutset(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderOutset;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-outset') ?? '') : '';
   }
 
   set maskBorderOutset(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-outset',
-      value,
-      () => nodeHelper().setMaskBorderOutset(this.nativeView, value),
-      () => (this.appleStyle.maskBorderOutset = value),
-    );
+    this.setMaskCss('mask-border-outset', 11, value);
   }
 
-  set 'mask-border-outset'(value: string) {
-    this.maskBorderOutset = value;
-  }
-
-  get 'mask-border-outset'() {
-    return this.maskBorderOutset;
-  }
+  get 'mask-border-outset'() { return this.maskBorderOutset; }
+  set 'mask-border-outset'(value: string) { this.maskBorderOutset = value; }
 
   get maskBorderRepeat(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderRepeat(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderRepeat;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-repeat') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderRepeat(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderRepeat;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-repeat') ?? '') : '';
   }
 
   set maskBorderRepeat(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-repeat',
-      value,
-      () => nodeHelper().setMaskBorderRepeat(this.nativeView, value),
-      () => (this.appleStyle.maskBorderRepeat = value),
-    );
+    this.setMaskCss('mask-border-repeat', 12, value);
   }
 
-  set 'mask-border-repeat'(value: string) {
-    this.maskBorderRepeat = value;
-  }
-
-  get 'mask-border-repeat'() {
-    return this.maskBorderRepeat;
-  }
+  get 'mask-border-repeat'() { return this.maskBorderRepeat; }
+  set 'mask-border-repeat'(value: string) { this.maskBorderRepeat = value; }
 
   get maskBorderMode(): string {
     if (!this.nativeView) return '';
-    if (__ANDROID__) {
-      return nodeHelper().getMaskBorderMode(this.nativeView);
-    }
-    if (__APPLE__) {
-      return this.appleStyle.maskBorderMode;
-    }
-    return __WINDOWS__ || __LINUX__ ? (this._windowsCss.get('mask-border-mode') ?? '') : '';
+    this.flushMaskWrites();
+    if (__ANDROID__) return nodeHelper().getMaskBorderMode(this.nativeView);
+    if (__APPLE__) return this.appleStyle.maskBorderMode;
+    return __WINDOWS__ ? (this._windowsCss.get('mask-border-mode') ?? '') : '';
   }
 
   set maskBorderMode(value: string) {
-    value = this.coerceCssStringValue(value);
-    this.setPseudoCssStringValue(
-      'mask-border-mode',
-      value,
-      () => nodeHelper().setMaskBorderMode(this.nativeView, value),
-      () => (this.appleStyle.maskBorderMode = value),
-    );
+    this.setMaskCss('mask-border-mode', 13, value);
   }
 
-  set 'mask-border-mode'(value: string) {
-    this.maskBorderMode = value;
-  }
-
-  get 'mask-border-mode'() {
-    return this.maskBorderMode;
-  }
+  get 'mask-border-mode'() { return this.maskBorderMode; }
+  set 'mask-border-mode'(value: string) { this.maskBorderMode = value; }
+  // </style-keys:mask-accessors>
 
   /** This box's own writing-mode (0 horizontal-tb, 1 vertical-rl, 2 vertical-lr), or -1 when it inherits. */
   get ownWritingMode(): number {
     if (!this.style_view || !getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE)) return -1;
     return getUint8(this.style_view, StyleKeys.WRITING_MODE);
-  }
-
-  get writingMode(): 'horizontal-tb' | 'vertical-rl' | 'vertical-lr' {
-    if (!this.style_view) return 'horizontal-tb';
-    const state = getUint8(this.style_view, StyleKeys.WRITING_MODE_STATE);
-    if (!state) return 'horizontal-tb';
-    switch (getUint8(this.style_view, StyleKeys.WRITING_MODE)) {
-      case 0:
-        return 'horizontal-tb';
-      case 1:
-        return 'vertical-rl';
-      case 2:
-        return 'vertical-lr';
-      default:
-        return 'horizontal-tb';
-    }
-  }
-
-  set writingMode(value: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr') {
-    let v = -1;
-    switch (value) {
-      case 'horizontal-tb':
-        v = 0;
-        break;
-      case 'vertical-rl':
-        v = 1;
-        break;
-      case 'vertical-lr':
-        v = 2;
-        break;
-    }
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.WRITING_MODE, v);
-    setUint8(this.style_view, StyleKeys.WRITING_MODE_STATE, 1);
-    this.commitState(StateKeys.WRITING_MODE);
   }
 
   set 'writing-mode'(value: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr') {
@@ -8038,70 +5910,12 @@ export class Style {
     return this.writingMode;
   }
 
-  get textOrientation(): 'mixed' | 'upright' | 'sideways' {
-    if (!this.style_view) return 'mixed';
-    const state = getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE);
-    if (!state) return 'mixed';
-    switch (getUint8(this.style_view, StyleKeys.TEXT_ORIENTATION)) {
-      case 1:
-        return 'upright';
-      case 2:
-        return 'sideways';
-      default:
-        return 'mixed';
-    }
-  }
-
-  set textOrientation(value: 'mixed' | 'upright' | 'sideways' | 'sideways-right') {
-    let v = -1;
-    switch (value) {
-      case 'mixed':
-        v = 0;
-        break;
-      case 'upright':
-        v = 1;
-        break;
-      case 'sideways':
-      case 'sideways-right':
-        v = 2;
-        break;
-    }
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION, v);
-    setUint8(this.style_view, StyleKeys.TEXT_ORIENTATION_STATE, 1);
-    this.commitState(StateKeys.TEXT_ORIENTATION);
-  }
-
   set 'text-orientation'(value: 'mixed' | 'upright' | 'sideways') {
     this.textOrientation = value;
   }
 
   get 'text-orientation'() {
     return this.textOrientation;
-  }
-
-  /** text-combine-upright: `none`, `all`, or `digits` with an optional count of 2 to 4 (2 when omitted). */
-  get textCombineUpright(): string {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE)) return 'none';
-    const value = getUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT);
-    return value === 0 ? 'none' : value === 1 ? 'all' : `digits ${value}`;
-  }
-
-  set textCombineUpright(value: string) {
-    const parts = String(value).trim().toLowerCase().split(/\s+/);
-    let v = -1;
-    if (parts.length === 1 && parts[0] === 'none') v = 0;
-    else if (parts.length === 1 && parts[0] === 'all') v = 1;
-    else if (parts[0] === 'digits' && parts.length <= 2) {
-      const count = parts.length === 2 ? Number(parts[1]) : 2;
-      if (Number.isInteger(count) && count >= 2 && count <= 4) v = count;
-    }
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT, v);
-    setUint8(this.style_view, StyleKeys.TEXT_COMBINE_UPRIGHT_STATE, 1);
-    this.commitState(StateKeys.TEXT_COMBINE_UPRIGHT);
   }
 
   set 'text-combine-upright'(value: string) {
@@ -8112,35 +5926,8 @@ export class Style {
     return this.textCombineUpright;
   }
 
-  /** text-spacing-trim: `normal`, `space-all`, `space-first`, `trim-start`, `trim-both`, `trim-all` or `auto`. */
-  get textSpacingTrim(): string {
-    if (!this.style_view || !getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE)) return 'normal';
-    return TEXT_SPACING_TRIM_VALUES[getUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM)] ?? 'normal';
-  }
-
-  set textSpacingTrim(value: string) {
-    const v = TEXT_SPACING_TRIM_VALUES.indexOf(String(value).trim().toLowerCase());
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM, v);
-    setUint8(this.style_view, StyleKeys.TEXT_SPACING_TRIM_STATE, 1);
-    this.commitState(StateKeys.TEXT_SPACING_TRIM);
-  }
-
   set 'text-spacing-trim'(value: string) {
     this.textSpacingTrim = value;
-  }
-
-  get visibility(): (typeof VISIBILITY_VALUES)[number] {
-    return (this.style_view && VISIBILITY_VALUES[getUint8(this.style_view, StyleKeys.VISIBILITY)]) || 'visible';
-  }
-
-  set visibility(value: (typeof VISIBILITY_VALUES)[number]) {
-    const v = VISIBILITY_VALUES.indexOf(value);
-    if (v === -1 || getUint8(this.style_view, StyleKeys.VISIBILITY) === v) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.VISIBILITY, v);
-    this.commitState(StateKeys.VISIBILITY);
   }
 
   get 'text-spacing-trim'() {
@@ -8154,57 +5941,6 @@ export class Style {
     this.prepareMut();
     setUint8(this.style_view, state, 0);
     this.commitState(key);
-  }
-
-  get unicodeBidi(): string {
-    if (!this.style_view) return 'normal';
-    const state = getUint8(this.style_view, StyleKeys.UNICODE_BIDI_STATE);
-    if (!state) return 'normal';
-    switch (getUint8(this.style_view, StyleKeys.UNICODE_BIDI)) {
-      case 0:
-        return 'normal';
-      case 1:
-        return 'embed';
-      case 2:
-        return 'bidi-override';
-      case 3:
-        return 'isolate';
-      case 4:
-        return 'isolate-override';
-      case 5:
-        return 'plaintext';
-      default:
-        return 'normal';
-    }
-  }
-
-  set unicodeBidi(value: string) {
-    let v = -1;
-    switch (value) {
-      case 'normal':
-        v = 0;
-        break;
-      case 'embed':
-        v = 1;
-        break;
-      case 'bidi-override':
-        v = 2;
-        break;
-      case 'isolate':
-        v = 3;
-        break;
-      case 'isolate-override':
-        v = 4;
-        break;
-      case 'plaintext':
-        v = 5;
-        break;
-    }
-    if (v === -1) return;
-    this.prepareMut();
-    setUint8(this.style_view, StyleKeys.UNICODE_BIDI, v);
-    setUint8(this.style_view, StyleKeys.UNICODE_BIDI_STATE, 1);
-    this.commitState(StateKeys.UNICODE_BIDI);
   }
 
   set 'unicode-bidi'(value: string) {
@@ -8351,26 +6087,5 @@ export class Style {
 
 /** `grid-auto-flow` as its buffer value: `row`/`column` and `dense`, in either order. */
 export function gridAutoFlowFromString(value: unknown): number | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  const tokens = value.trim().toLowerCase().split(/\s+/);
-  if (tokens.length === 0 || tokens.length > 2 || new Set(tokens).size !== tokens.length) {
-    return undefined;
-  }
-  let column = false;
-  let dense = false;
-  for (const token of tokens) {
-    if (token === 'dense') {
-      dense = true;
-    } else if (token === 'column') {
-      column = true;
-    } else if (token !== 'row') {
-      return undefined;
-    }
-  }
-  if (tokens.length === 2 && !dense) {
-    return undefined;
-  }
-  return (column ? 1 : 0) + (dense ? 2 : 0);
+  return cssKeywordCode('grid-auto-flow', value);
 }

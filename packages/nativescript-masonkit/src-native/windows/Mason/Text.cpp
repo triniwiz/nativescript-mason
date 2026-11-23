@@ -1028,9 +1028,8 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SyncStyle(int32_t d0, int32_t d1, int32_t d2, int32_t d3)
     {
-        m_visual.styleDirty = true;
-        const auto dirty = mason_leaf::DirtyWords(d0, d1, d2, d3);
-        if (m_listItem && mason_leaf::AnyDirty(dirty, mason_leaf::StateFlags({ { 47, 48 } })))
+        const auto dirty = mason_leaf::UpdatePaintStyle(m_visual.styleDirty, d0, d1, d2, d3);
+        if (m_listItem && mason_leaf::AnyDirty(dirty, mason_state_groups::kListMarker))
         {
             m_paragraphDirty = true;
             QueueRebuild();
@@ -1425,7 +1424,33 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SetTextShadow(hstring const& shadows)
     {
-        auto parsed = mason_dwrite::ParseShadows(shadows);
+        UpdateTextShadows(mason_dwrite::ParseShadows(shadows));
+    }
+
+    void Text::SetTextShadowCss(hstring const& value, float fontSize, float rootFontSize, float viewportWidth,
+        float viewportHeight, uint32_t currentColor)
+    {
+        using namespace mason_css_records;
+        const auto input = winrt::to_string(value);
+        auto* node = m_node ? winrt::get_self<implementation::Node>(m_node) : nullptr;
+        const auto records = mason_css_set_style_records(node ? node->MasonPtr() : nullptr,
+            node ? node->NodePtr() : nullptr, kTextShadow, input.c_str(), 1.0f,
+            fontSize, rootFontSize, viewportWidth, viewportHeight, currentColor);
+        struct Release
+        {
+            CMasonStyleRecords records;
+            ~Release() { mason_css_style_records_release(records); }
+        } release{ records };
+        ApplyTextShadowRecords(records.values, records.len);
+    }
+
+    void Text::ApplyTextShadowRecords(double const* values, size_t len)
+    {
+        UpdateTextShadows(mason_dwrite::ProjectShadowRecords(values, len));
+    }
+
+    void Text::UpdateTextShadows(std::vector<mason_dwrite::Shadow> parsed)
+    {
         if (parsed == m_shadows) return;
         m_shadows = std::move(parsed);
         m_paragraphDirty = true;
@@ -1434,10 +1459,28 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SetFontFeatureSettings(hstring const& value)
     {
-        const bool has = !value.empty() && value != L"normal";
-        if (has == m_hasFeatures && value == m_features) return;
-        m_hasFeatures = has;
-        m_features = has ? value : hstring{};
+        using namespace mason_css_records;
+        const auto input = winrt::to_string(value);
+        if (input.find('\0') != std::string::npos) return;
+        auto* node = m_node ? winrt::get_self<implementation::Node>(m_node) : nullptr;
+        const auto records = mason_css_set_style_records(node ? node->MasonPtr() : nullptr,
+            node ? node->NodePtr() : nullptr, kFontFeatures, input.c_str(), 1, 0, 0, 0, 0, 0);
+        struct Release
+        {
+            CMasonStyleRecords records;
+            ~Release() { mason_css_style_records_release(records); }
+        } release{ records };
+        if (!records.values) return;
+        mason_dwrite::FontFeatures features;
+        features.reserve(records.len / font_feature::kStride);
+        for (size_t i = 0; i < records.len; i += font_feature::kStride)
+        {
+            const auto* record = records.values + i;
+            const auto tag = static_cast<DWRITE_FONT_FEATURE_TAG>(static_cast<uint32_t>(record[font_feature::kTag]));
+            features.emplace_back(tag, static_cast<uint32_t>(record[font_feature::kValue]));
+        }
+        if (m_features == features) return;
+        m_features = std::move(features);
         m_paragraphDirty = true;
         RequestRebuild();
     }
@@ -1453,7 +1496,7 @@ namespace winrt::NativeScript::Mason::implementation
         if (m_fontStretch > 0) parent.fontStretch = m_fontStretch;
         if (m_hasWordSpacing) parent.wordSpacing = m_wordSpacing;
         if (m_hasHyphens) parent.hyphens = m_hyphens;
-        if (m_hasFeatures) parent.features = m_features;
+        if (m_features) parent.features = *m_features;
         // Not inherited in CSS, but an ancestor's line is drawn through its descendants' text.
         parent.decorations = parent.decorations | m_decorations;
         if (m_decoration)
@@ -1677,7 +1720,7 @@ namespace winrt::NativeScript::Mason::implementation
             span.letterSpacing = static_cast<float>(f.letterSpacing);
             span.stretch = mason_dwrite::StretchOf(f.fontStretch);
             span.wordSpacing = f.wordSpacing;
-            span.features = std::wstring(std::wstring_view(f.features));
+            span.features = f.features;
             span.color = f.color;
             span.background = f.background;
             const bool plain = !(f.decoration & 2) && f.decorationStyle == 0 && !f.hasDecorationColor && f.decorationThickness <= 0.0f;

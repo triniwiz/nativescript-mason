@@ -5,6 +5,8 @@
 #include "Css.h"
 #include "PanelCore.h"
 #include "Events.h"
+#include "StyleKeys.h"
+#include <algorithm>
 #include <winrt/Windows.Storage.Streams.h>
 
 using namespace winrt;
@@ -117,6 +119,34 @@ namespace winrt::NativeScript::Mason::implementation
         if (!element) return;
         if (!mason_leaf::AnyDirty(mason_leaf::DirtyWords(d0, d1, d2, d3), mason_leaf::kLayoutKeys)) return;
         mason_leaf::StyleChanged(element, mason_panel::ForeignLeaf(*this, element));
+    }
+
+    winrt::com_array<uint8_t> Mason::ReadPseudoStyleValues(winrt::NativeScript::Mason::Node const& node, uint32_t flags)
+    {
+        if (!node) return {};
+        auto impl = winrt::get_self<implementation::Node>(node);
+        uintptr_t len = 0;
+        const uint8_t* data = mason_node_prepare_pseudo_style_buffer(m_ptr, impl->NodePtr(), static_cast<uint16_t>(flags), &len);
+        if (!data || len == 0) return {};
+        return winrt::com_array<uint8_t>(data, data + len);
+    }
+
+    void Mason::WritePseudoStyleValues(winrt::NativeScript::Mason::Node const& node, uint32_t flags, winrt::array_view<uint8_t const> values)
+    {
+        if (!node || values.size() == 0) return;
+        auto impl = winrt::get_self<implementation::Node>(node);
+        uintptr_t len = 0;
+        uint8_t* data = mason_node_prepare_pseudo_style_buffer(m_ptr, impl->NodePtr(), static_cast<uint16_t>(flags), &len);
+        if (!data || len == 0) return;
+        const size_t size = (std::min<size_t>)(len, values.size());
+        size_t start = 0;
+        for (const auto field : mason_style_keys::kRustOwnedFields)
+        {
+            if (field.offset >= size) break;
+            if (start < field.offset) memcpy(data + start, values.data() + start, field.offset - start);
+            start = static_cast<size_t>(field.offset) + field.size;
+        }
+        if (start < size) memcpy(data + start, values.data() + start, size - start);
     }
 
     void Mason::ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index)

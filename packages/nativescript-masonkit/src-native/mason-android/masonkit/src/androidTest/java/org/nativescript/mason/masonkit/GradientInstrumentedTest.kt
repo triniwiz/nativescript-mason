@@ -1,150 +1,192 @@
 package org.nativescript.mason.masonkit
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 
-/** Linear gradients follow the CSS gradient line, through software and HWUI drawing alike. */
 @RunWith(AndroidJUnit4::class)
 class GradientInstrumentedTest {
+  private fun num(value: Float) = CssLength(value, null)
+  private fun px(value: Float) = CssLength(value, "px")
 
-  private val instrumentation = InstrumentationRegistry.getInstrumentation()
-  private val context = instrumentation.targetContext
 
-  private fun view(w: Int, h: Int, configure: (Style) -> Unit): View {
-    val mason = Mason().apply { setDeviceScale(context.resources.displayMetrics.density) }
-    val view = View(context, mason)
-    instrumentation.runOnMainSync {
-      configure(view.style)
-      view.style.isValueInitialized = true
-      view.measure(
-        android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY),
-        android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY)
-      )
-      view.layout(0, 0, w, h)
-    }
-    return view
-  }
-
-  private fun renders(view: View, w: Int, h: Int): List<Bitmap> {
-    val software = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val picture = android.graphics.Picture()
-    instrumentation.runOnMainSync {
-      view.draw(Canvas(software))
-      val canvas = picture.beginRecording(w, h)
-      view.draw(canvas)
-      picture.endRecording()
-    }
-    return listOf(software, Bitmap.createBitmap(picture).copy(Bitmap.Config.ARGB_8888, false))
-  }
-
-  /** Red to blue at gradient position `t`. */
-  private fun assertRedToBlue(bitmap: Bitmap, x: Int, y: Int, t: Double, label: String) {
-    val p = bitmap.getPixel(x, y)
-    assertEquals("$label red", 255 * (1 - t), Color.red(p).toDouble(), 4.0)
-    assertEquals("$label blue", 255 * t, Color.blue(p).toDouble(), 4.0)
-  }
-
-  /** CSS: the line runs through the centre, |w sin a| + |h cos a| long. */
-  private fun cssT(degrees: Double, w: Int, h: Int, x: Double, y: Double): Double {
-    val a = Math.toRadians(degrees)
-    val length = abs(w * sin(a)) + abs(h * cos(a))
-    return ((x - w / 2.0) * sin(a) - (y - h / 2.0) * cos(a)) / length + 0.5
+  @Test
+  fun parseGradientSeparatesDirectionMethodAndStops() {
+    val gradient = parseGradient("linear-gradient(to bottom right in oklab, #6366f1 0%, #d946ef 100%)")!!
+    assertEquals("to bottom right", gradient.direction)
+    assertEquals(listOf("#6366f1 0%", "#d946ef 100%"), gradient.stops)
+    assertEquals(ColorInterpolation.Space.OKLAB, gradient.interpolation?.space)
   }
 
   @Test
-  fun cornerKeywordPutsTheOtherCornersHalfway() {
-    val w = 400
-    val h = 200
-    val v = view(w, h) { it.background = "linear-gradient(to bottom right, rgb(255, 0, 0), rgb(0, 0, 255))" }
-    for (bitmap in renders(v, w, h)) {
-      assertRedToBlue(bitmap, w - 1, 0, 0.5, "top right")
-      assertRedToBlue(bitmap, 0, h - 1, 0.5, "bottom left")
-      assertRedToBlue(bitmap, 0, 0, 0.0, "top left")
-      assertRedToBlue(bitmap, w - 1, h - 1, 1.0, "bottom right")
-    }
+  fun extractsTheMethodAndKeepsTheDirection() {
+    val (rest, method) = ColorInterpolation.extract("to bottom right in oklab")!!
+    assertEquals("to bottom right", rest)
+    assertEquals(ColorInterpolation.Space.OKLAB, method.space)
+    assertEquals(ColorInterpolation.HueMethod.SHORTER, method.hue)
   }
 
   @Test
-  fun angleFollowsTheCssGradientLine() {
-    val w = 400
-    val h = 100
-    val v = view(w, h) { it.background = "linear-gradient(135deg, rgb(255, 0, 0), rgb(0, 0, 255))" }
-    for (bitmap in renders(v, w, h)) {
-      for ((x, y) in listOf(20 to 20, 200 to 50, 380 to 80, 60 to 90, 340 to 10)) {
-        val t = cssT(135.0, w, h, x + 0.5, y + 0.5).coerceIn(0.0, 1.0)
-        assertRedToBlue(bitmap, x, y, t, "at $x,$y")
-      }
-    }
+  fun extractsAMethodThatComesFirstOrAlone() {
+    assertEquals("to right", ColorInterpolation.extract("in oklch to right")!!.first)
+    assertEquals("", ColorInterpolation.extract("in srgb-linear")!!.first)
+    assertEquals(ColorInterpolation.Space.SRGB_LINEAR, ColorInterpolation.extract("in srgb-linear")!!.second.space)
   }
 
   @Test
-  fun roundedCornersClipTheGradient() {
-    val w = 300
-    val h = 120
-    val v = view(w, h) {
-      it.background = "linear-gradient(90deg, rgb(255, 0, 0), rgb(0, 0, 255))"
-      it.borderRadius = "40px 0 40px 0"
-    }
-    for (bitmap in renders(v, w, h)) {
-      assertEquals("rounded top left", 0, Color.alpha(bitmap.getPixel(1, 1)))
-      assertEquals("rounded bottom right", 0, Color.alpha(bitmap.getPixel(w - 2, h - 2)))
-      assertEquals("square top right", 255, Color.alpha(bitmap.getPixel(w - 1, 0)))
-      assertEquals("square bottom left", 255, Color.alpha(bitmap.getPixel(0, h - 1)))
-      assertTrue("inside", Color.alpha(bitmap.getPixel(w / 2, h / 2)) == 255)
-      assertRedToBlue(bitmap, w / 2, h / 2, (w / 2 + 0.5) / w, "middle")
-    }
+  fun extractsHueMethods() {
+    val (rest, method) = ColorInterpolation.extract("90deg in/**/oklch longer hue")!!
+    assertEquals("90deg", rest)
+    assertEquals(ColorInterpolation.HueMethod.LONGER, method.hue)
   }
 
   @Test
-  fun colorUnderAGradientIsClippedToo() {
-    val w = 200
-    val h = 100
-    val v = view(w, h) {
-      it.background = "rgb(0, 255, 0) linear-gradient(rgba(255, 0, 0, 0), rgba(255, 0, 0, 0))"
-      it.borderRadius = "30px"
-    }
-    for (bitmap in renders(v, w, h)) {
-      assertEquals("corner", 0, Color.alpha(bitmap.getPixel(1, 1)))
-      assertEquals("middle", Color.rgb(0, 255, 0), bitmap.getPixel(w / 2, h / 2))
-    }
+  fun unknownSpacesStillLeaveTheArgument() {
+    val (rest, method) = ColorInterpolation.extract("to right in display-p3")!!
+    assertEquals("to right", rest)
+    assertEquals(ColorInterpolation.Space.SRGB, method.space)
   }
 
   @Test
-  fun radialDefaultsToAnEllipse() {
-    val w = 400
-    val h = 100
-    // closest-side from the centre: rx 200, ry 50.
-    val v = view(w, h) { it.background = "radial-gradient(closest-side, rgb(255, 0, 0), rgb(0, 0, 255))" }
-    for (bitmap in renders(v, w, h)) {
-      assertRedToBlue(bitmap, 300, 50, 0.5, "half rx")
-      assertRedToBlue(bitmap, 200, 75, 0.5, "half ry")
-    }
+  fun leavesArgumentsWithoutAMethodAlone() {
+    assertNull(ColorInterpolation.extract("to right"))
+    assertNull(ColorInterpolation.extract("circle at center"))
   }
 
   @Test
-  fun radialCircleAndExplicitRadii() {
-    val w = 400
-    val h = 100
-    val circle = view(w, h) { it.background = "radial-gradient(circle closest-side, rgb(255, 0, 0), rgb(0, 0, 255))" }
-    for (bitmap in renders(circle, w, h)) {
-      assertRedToBlue(bitmap, 225, 50, 0.5, "circle x")
-      assertRedToBlue(bitmap, 200, 75, 0.5, "circle y")
-    }
-    // Percent radii resolve against the box: 25% 40% is rx 100, ry 40, centred at the top left.
-    val explicit = view(w, h) { it.background = "radial-gradient(25% 40% at 0 0, rgb(255, 0, 0), rgb(0, 0, 255))" }
-    for (bitmap in renders(explicit, w, h)) {
-      assertRedToBlue(bitmap, 50, 0, 0.5, "explicit rx")
-      assertRedToBlue(bitmap, 0, 20, 0.5, "explicit ry")
-    }
+  fun parseGradientDropsAMethodOnlyArgument() {
+    val gradient = parseGradient("linear-gradient(in oklab, red, blue)")!!
+    assertNull(gradient.direction)
+    assertEquals(listOf("red", "blue"), gradient.stops)
   }
+
+  @Test
+  fun parsedGradientKeepsThePrelude() {
+    val g = parseMaskGradient("radial-gradient(circle closest-side, red, blue)")!!
+    assertEquals("circle closest-side", g.direction)
+    assertEquals(listOf("red", "blue"), g.stops)
+    val at = parseMaskGradient("radial-gradient(at top left, red, blue)")!!
+    assertEquals("at top left", at.direction)
+    assertNull(parseMaskGradient("radial-gradient(red, blue)")!!.direction)
+  }
+
+  @Test
+  fun noneNextToAnImageIsATransparentLayer() {
+    val layers = parseMaskLayers("url(a.png), none, linear-gradient(black, transparent)")
+    assertEquals(3, layers.size)
+    assertEquals("a.png", layers[0].source?.image)
+    assertNull(layers[1].source)
+    assertEquals("linear", layers[2].source?.gradient?.type)
+  }
+
+  @Test
+  fun gradients() {
+    val linear = parseMaskGradient("linear-gradient(black, transparent)")!!
+    assertEquals("linear", linear.type)
+    assertFalse(linear.repeating)
+    assertEquals(listOf("black", "transparent"), linear.stops)
+
+    val repeating = parseMaskGradient("repeating-linear-gradient(45deg, black 0 10%, transparent 10% 20%)")!!
+    assertEquals("linear", repeating.type)
+    assertTrue(repeating.repeating)
+    assertEquals("45deg", repeating.direction)
+    assertEquals(4, repeating.stops.size)
+
+    val radial = parseMaskGradient("repeating-radial-gradient(circle at center, black, transparent 25%)")!!
+    assertEquals("radial", radial.type)
+    assertTrue(radial.repeating)
+
+    val conic = parseMaskGradient("conic-gradient(from 90deg at 25% 75%, red, rgba(0, 0, 255, 0.5))")!!
+    assertEquals("conic", conic.type)
+    assertEquals("from 90deg at 25% 75%", conic.direction)
+    assertEquals(listOf("red", "rgba(0, 0, 255, 0.5)"), conic.stops)
+
+    val bare = parseMaskGradient("repeating-conic-gradient(black 0 25%, white 0 50%)")!!
+    assertNull(bare.direction)
+    assertTrue(bare.repeating)
+    assertEquals(4, bare.stops.size)
+
+    assertNull(parseMaskGradient("linear-gradient"))
+    assertNull(parseMaskGradient("foo-gradient(red, blue)"))
+  }
+
+  @Test
+  fun borderImageWidthOrOutsetOnly() {
+    val widthOnly = parseBorderImage("linear-gradient(red, blue) 10% / 5px 2")!!
+    assertEquals("linear", parseMaskGradient(widthOnly.source)?.type)
+    assertEquals(listOf(CssLength(5f, "dppx"), num(2f), CssLength(5f, "dppx"), num(2f)), widthOnly.width)
+    assertEquals(List(4) { num(0f) }, widthOnly.outset)
+    val outsetOnly = parseBorderImage("url(a.png) 10 / / 4px")!!
+    assertEquals(List(4) { num(1f) }, outsetOnly.width)
+    assertEquals(List(4) { CssLength(4f, "dppx") }, outsetOnly.outset)
+  }
+
+  @Test
+  fun resolvesGradientMathWithTheCurrentBoxAndFont() {
+    val layer = parseLayer("linear-gradient(calc(.25turn), red calc(50% - 1em), blue)")
+    val gradient = checkNotNull(layer.gradient)
+    val units = LengthContext(scale = 2f, emBasis = 10f)
+    val first = checkNotNull(gradient.paint(200f, 80f, units))
+    assertEquals(90f, first.angle, 0.0001f)
+    assertEquals(0.4f, first.position(0), 0.0001f)
+    assertEquals(0.45f, checkNotNull(gradient.paint(400f, 80f, units)).position(0), 0.0001f)
+    assertEquals(0.3f, checkNotNull(gradient.paint(200f, 80f, units.copy(emBasis = 20f))).position(0), 0.0001f)
+  }
+
+  @Test
+  fun storesStopsAcrossResizes() {
+    val gradient = parseGradient("linear-gradient(currentColor 20dppx, white)", 0xff123456.toInt())!!
+    val first = gradient.paint(200f, 100f)!!
+    val second = gradient.paint(200f, 200f)!!
+    assertEquals(0xff123456.toInt(), first.color(0))
+    assertEquals(0.2f, first.position(0), 0.00001f)
+    assertEquals(0.1f, second.position(0), 0.00001f)
+    assertEquals(listOf("currentColor 20dppx", "white"), gradient.stops)
+  }
+
+  @Test
+  fun radialGeometryUsesSharedBoxAndSizeRules() {
+    fun check(css: String, x: Float, y: Float, rx: Float, ry: Float) {
+      val paint = parseGradient(css)!!.paint(100f, 50f)!!
+      assertEquals(x, paint.x0, 0.001f)
+      assertEquals(y, paint.y0, 0.001f)
+      assertEquals(rx, paint.radiusX, 0.001f)
+      assertEquals(ry, paint.radiusY, 0.001f)
+    }
+    val diagonal = kotlin.math.hypot(50f, 25f)
+    val sqrt2 = kotlin.math.sqrt(2f)
+    check("radial-gradient(red, blue)", 50f, 25f, 50f * sqrt2, 25f * sqrt2)
+    check("radial-gradient(ellipse, red, blue)", 50f, 25f, 50f * sqrt2, 25f * sqrt2)
+    check("radial-gradient(circle, red, blue)", 50f, 25f, diagonal, diagonal)
+    check("radial-gradient(circle closest-side at 20% 20%, red, blue)", 20f, 10f, 10f, 10f)
+    check("radial-gradient(circle farthest-side at 20% 20%, red, blue)", 20f, 10f, 80f, 80f)
+    val near = kotlin.math.hypot(20f, 10f)
+    check("radial-gradient(circle closest-corner at 20% 20%, red, blue)", 20f, 10f, near, near)
+    check("radial-gradient(closest-side at 20% 20%, red, blue)", 20f, 10f, 20f, 10f)
+    check("radial-gradient(ellipse farthest-side at 20% 20%, red, blue)", 20f, 10f, 80f, 40f)
+    check("radial-gradient(circle 30dppx, red, blue)", 50f, 25f, 30f, 30f)
+    check("radial-gradient(30dppx, red, blue)", 50f, 25f, 30f, 30f)
+    check("radial-gradient(ellipse 40dppx 20%, red, blue)", 50f, 25f, 40f, 10f)
+    check("radial-gradient(25% 50%, red, blue)", 50f, 25f, 25f, 25f)
+  }
+
+  @Test
+  fun conicGeometryAndTypedCopiesUseSharedDirections() {
+    val conic = parseGradient("conic-gradient(at right 20dppx bottom 10dppx from 100grad, red, blue)")!!
+      .paint(200f, 100f)!!
+    assertEquals(180f, conic.x0, 0.001f)
+    assertEquals(90f, conic.y0, 0.001f)
+    assertEquals(90f, conic.angle, 0.001f)
+
+    val linear = parseGradient("linear-gradient(to bottom, red, blue)")!!
+    val copy = linear.copy(direction = "to right").paint(300f, 100f)!!
+    assertEquals(0f, copy.x0, 0.001f)
+    assertEquals(300f, copy.x1, 0.001f)
+    assertEquals(copy.y0, copy.y1, 0.001f)
+  }
+
 }

@@ -53,9 +53,19 @@ namespace winrt::NativeScript::Mason::implementation
         static void SetFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
         static void SetBackdropFilter(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& filter);
         static void SetMask(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
+        static hstring ExpandCssShorthand(hstring const& name, hstring const& value);
+        static hstring ResolveCssLength(hstring const& value, int32_t kind, float scale, float fontSize,
+            float rootFontSize, float viewportWidth, float viewportHeight);
         static void SetBorderImage(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
         static void SetBackgroundLayers(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& spec);
+        static double SetCssBackground(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& request);
         static void ClearShadow(winrt::Microsoft::UI::Xaml::UIElement const& element);
+        static void SetCssEffect(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& name, hstring const& value,
+            float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
+        static void SetCssEffects(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& payload,
+            float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
+        static void SetCssTransform(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& value,
+            float width, float height, float fontSize, float rootFontSize, float viewportWidth, float viewportHeight);
     };
 }
 

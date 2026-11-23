@@ -2845,6 +2845,8 @@ declare module org {
 				}
 				export class Mason {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason>;
+					public static expandCssShorthand(name: string, value: string): androidNative.Array<string> | null;
+					public static nativeParseCss(value: string, kind: number, scale: number, fontSize: number, rootFontSize: number, viewportWidth: number, viewportHeight: number, currentColor: number): androidNative.Array<number> | null;
 					public inCompute: boolean;
 					public createLineBreakNode($this$createLineBreakNode_u24lambda_u2419: org.nativescript.mason.masonkit.MeasureFunc): org.nativescript.mason.masonkit.Node;
 					public static getShared(): org.nativescript.mason.masonkit.Mason;
@@ -3611,6 +3613,9 @@ declare module org {
 					public getFilter(this_: globalAndroid.view.View): string;
 					public longRunningFunction(): number;
 					public setBackground(this_: globalAndroid.view.View, view: string): void;
+					public applyBackgroundBatch(view: globalAndroid.view.View, payload: string): void;
+					public applyEffectBatch(view: globalAndroid.view.View, payload: string): void;
+					public applyMaskBatch(view: globalAndroid.view.View, payload: string): void;
 					public getCachedFloatInsetsForView(w: globalAndroid.view.View, rects: number, leftInset: number): any;
 					public setOverflow(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Point<org.nativescript.mason.masonkit.enums.Overflow>): void;
 					public getBackgroundColor(this_: globalAndroid.view.View): string;

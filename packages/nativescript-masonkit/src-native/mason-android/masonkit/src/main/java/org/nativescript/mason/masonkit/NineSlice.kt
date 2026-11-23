@@ -23,21 +23,10 @@ import kotlin.math.roundToInt
  * The 9-slice painter shared by `border-image` (CSS Backgrounds 3 §6) and `mask-border`
  * (CSS Masking 1 §7): the source is cut into corners, edges and a middle by the slice
  * offsets and drawn onto the border image area (the border box grown by the outset).
- * Parsing and geometry are pure Kotlin so the JVM tests can pin them.
+ * Rust parses the values. This file projects them and draws the nine slices.
  */
 
-enum class BorderImageRepeat { STRETCH, REPEAT, ROUND, SPACE;
-
-  companion object {
-    fun parse(token: String): BorderImageRepeat? = when (token.trim().lowercase()) {
-      "stretch" -> STRETCH
-      "repeat" -> REPEAT
-      "round" -> ROUND
-      "space" -> SPACE
-      else -> null
-    }
-  }
-}
+enum class BorderImageRepeat { STRETCH, REPEAT, ROUND, SPACE }
 
 /**
  * A parsed `border-image` / `mask-border`. Sides are top, right, bottom, left.
@@ -55,231 +44,73 @@ internal data class BorderImageSpec(
   val repeatY: BorderImageRepeat,
   /** `mask-border-mode: luminance`. */
   val luminance: Boolean = false,
+  val widthProgram: NativeNineSlice? = null,
 )
 
-private fun <T> expandSides(list: List<T>): List<T>? = when (list.size) {
-  1 -> listOf(list[0], list[0], list[0], list[0])
-  2 -> listOf(list[0], list[1], list[0], list[1])
-  3 -> listOf(list[0], list[1], list[2], list[1])
-  4 -> list
-  else -> null
-}
+internal class NativeNineSlice private constructor(private val handle: Long) {
+  val source: String = Mason.nativeNineSliceSource(this, handle, false).orEmpty()
+  private var context: LengthContext? = null
+  private var spec: BorderImageSpec? = null
 
-private fun isNumberOrPercent(token: String): Boolean {
-  val m = scanNumberUnit(token) ?: return false
-  return m.unit == null || m.unit == "%"
-}
-
-/** `<number [0,∞]> | <percentage [0,∞]>`{1,4} && fill? */
-internal fun parseBorderImageSlice(value: String): Pair<List<CssLength>, Boolean>? {
-  var fill = false
-  val values = ArrayList<CssLength>(4)
-  val tokens = splitTopLevelWhitespace(value.trim().lowercase())
-  tokens.forEachIndexed { i, t ->
-    if (t == "fill") {
-      // `fill` goes before or after the numbers, not between them, and only once.
-      if (fill || (i != 0 && i != tokens.lastIndex)) return null
-      fill = true
-    } else {
-      if (!isNumberOrPercent(t)) return null
-      val v = parseCssLength(t) ?: return null
-      if (v.value < 0f) return null
-      values.add(v)
+  fun read(context: LengthContext): BorderImageSpec? {
+    if (context == this.context) return spec
+    val values = Mason.nativeNineSliceValues(
+      this, handle, context.scale, context.emBasis, context.rootFontSize, context.viewportWidth, context.viewportHeight
+    ) ?: return null
+    fun sideOffset(index: Int) = NineSliceRecord.STRIDE + index * NineSliceSideRecord.STRIDE
+    fun readSide(index: Int): CssLength? {
+      val offset = sideOffset(index)
+      val value = values[offset + NineSliceSideRecord.VALUE].toFloat()
+      return when (values[offset + NineSliceSideRecord.KIND].toInt()) {
+        0 -> CssLength(value, null)
+        1 -> CssLength(value * 100f, "%")
+        2 -> CssLength(value, "dppx")
+        else -> null
+      }
+    }
+    return BorderImageSpec(
+      source, List(4) { readSide(it)!! }, values[NineSliceRecord.FILL] != 0.0,
+      List(4) { readSide(it + 4) }, List(4) { readSide(it + 8)!! },
+      BorderImageRepeat.entries[values[NineSliceRecord.REPEAT_X].toInt()],
+      BorderImageRepeat.entries[values[NineSliceRecord.REPEAT_Y].toInt()],
+      values[NineSliceRecord.LUMINANCE] != 0.0,
+      widthProgram = takeIf { (4..<8).any { values[sideOffset(it) + NineSliceSideRecord.HAS_MATH] != 0.0 } },
+    ).also {
+      this.context = context
+      spec = it
     }
   }
-  return (expandSides(values) ?: return null) to fill
-}
 
-/** `[ <length-percentage> | <number> | auto ]{1,4}`; null entries are `auto`. */
-internal fun parseBorderImageWidth(value: String): List<CssLength?>? {
-  val values = ArrayList<CssLength?>(4)
-  for (t in splitTopLevelWhitespace(value.trim().lowercase())) {
-    if (t == "auto") {
-      values.add(null)
-      continue
-    }
-    val v = parseCssLength(t) ?: return null
-    if (v.value < 0f) return null
-    values.add(v)
-  }
-  return expandSides(values)
-}
+  fun mathWidths(width: Float, height: Float, context: LengthContext): FloatArray? =
+    Mason.nativeNineSliceMathWidths(this, handle, width, height, context.scale, context.emBasis,
+      context.rootFontSize, context.viewportWidth, context.viewportHeight)
 
-/** `[ <length> | <number> ]{1,4}`. */
-internal fun parseBorderImageOutset(value: String): List<CssLength>? {
-  val values = ArrayList<CssLength>(4)
-  for (t in splitTopLevelWhitespace(value.trim().lowercase())) {
-    val v = parseCssLength(t, allowPercent = false) ?: return null
-    if (v.value < 0f) return null
-    values.add(v)
-  }
-  return expandSides(values)
-}
+  fun image() = NineSliceSource(
+    Mason.nativeNineSliceSource(this, handle, true),
+    readGradient(Mason.nativeNineSliceGradient(this, handle)),
+  )
 
-/** One or two keywords: horizontal, then vertical (defaulting to the horizontal one). */
-internal fun parseBorderImageRepeat(value: String): Pair<BorderImageRepeat, BorderImageRepeat>? {
-  val tokens = splitTopLevelWhitespace(value.trim())
-  return when (tokens.size) {
-    1 -> BorderImageRepeat.parse(tokens[0])?.let { it to it }
-    2 -> (BorderImageRepeat.parse(tokens[0]) ?: return null) to (BorderImageRepeat.parse(tokens[1]) ?: return null)
-    else -> null
-  }
-}
+  companion object {
+    private fun fromHandle(handle: Long): NativeNineSlice? =
+      if (handle == 0L) null else NativeNineSlice(handle).also {
+        Mason.shared.gc.track(it) { Mason.nativeNineSliceRelease(handle) }
+      }
 
-/** Whether [token] is an image Mason can slice: `url()` or a gradient. */
-internal fun isBorderImageSource(token: String): Boolean {
-  val lower = token.trim().lowercase()
-  return (lower.startsWith("url(") && extractCssUrl(token) != null) ||
-    (lower.contains("gradient(") && parseMaskGradient(token) != null)
-}
+    fun parseBorderImage(value: String, color: Int): NativeNineSlice? =
+      fromHandle(Mason.nativeBorderImageParse(value, color))
 
-/** Initial longhands, in [splitBorderImageShorthand] order. */
-private val BORDER_IMAGE_INITIAL = arrayOf("none", "100%", "1", "0", "stretch", "")
-private val MASK_BORDER_INITIAL = arrayOf("none", "0", "auto", "0", "stretch", "alpha")
+    fun parseMaskBorder(values: Array<String>, color: Int): NativeNineSlice? =
+      fromHandle(Mason.nativeMaskBorderParse(values, color))
 
-/** Whitespace tokens at the top level, with `/` as a token of its own; quotes and parentheses kept. */
-private fun tokenizeBorderImage(value: String): List<String> {
-  val out = ArrayList<String>()
-  val sb = StringBuilder()
-  var depth = 0
-  var quote = 0.toChar()
-  fun flush() {
-    if (sb.isNotEmpty()) {
-      out.add(sb.toString())
-      sb.setLength(0)
+    fun install(program: NativeNineSlice?, style: Style, mask: Boolean) {
+      val node = style.node
+      if (node.isPlaceholder) return
+      val mason = node.mason
+      if (mason.inCompute) mason.deferStyleRecords(style)
+      else style.prepareMut()
+      Mason.nativeNineSliceInstall(program, program?.handle ?: 0L, if (mason.inCompute) 0L else mason.nativePtr, node.nativePtr, mask)
     }
   }
-  var i = 0
-  while (i < value.length) {
-    val c = value[i]
-    if (quote != 0.toChar()) {
-      sb.append(c)
-      if (c == '\\' && i + 1 < value.length) {
-        sb.append(value[++i])
-      } else if (c == quote) quote = 0.toChar()
-    } else when {
-      c == '"' || c == '\'' -> {
-        quote = c
-        sb.append(c)
-      }
-
-      c == '(' -> {
-        depth++
-        sb.append(c)
-      }
-
-      c == ')' -> {
-        depth = max(0, depth - 1)
-        sb.append(c)
-      }
-
-      depth == 0 && c.isWhitespace() -> flush()
-      depth == 0 && c == '/' -> {
-        flush()
-        out.add("/")
-      }
-
-      else -> sb.append(c)
-    }
-    i++
-  }
-  flush()
-  return out
-}
-
-/**
- * Splits `border-image` (or, with [mask], `mask-border`) into its longhands:
- * source, slice, width, outset, repeat, mode (empty for border-image). Null when invalid.
- * `<source> || <slice> [ / <width>? [ / <outset> ]? ]? || <repeat> [|| <mode>]`
- */
-internal fun splitBorderImageShorthand(value: String, mask: Boolean = false): Array<String>? {
-  val tokens = tokenizeBorderImage(value.trim())
-  val out = (if (mask) MASK_BORDER_INITIAL else BORDER_IMAGE_INITIAL).copyOf()
-  if (tokens.isEmpty()) return null
-  var hasSource = false
-  var hasSlice = false
-  var hasRepeat = false
-  var hasMode = false
-  var i = 0
-  fun run(max: Int, accepts: (String) -> Boolean): String {
-    val start = i
-    while (i < tokens.size && i - start < max && accepts(tokens[i])) i++
-    return tokens.subList(start, i).joinToString(" ")
-  }
-  while (i < tokens.size) {
-    val t = tokens[i]
-    val lower = t.lowercase()
-    when {
-      !hasSource && (lower == "none" || isBorderImageSource(t)) -> {
-        out[0] = t
-        hasSource = true
-        i++
-      }
-
-      !hasSlice && (isNumberOrPercent(lower) || lower == "fill") -> {
-        out[1] = run(5) { isNumberOrPercent(it) || it.equals("fill", ignoreCase = true) }
-        hasSlice = true
-        if (tokens.getOrNull(i) == "/") {
-          i++
-          val width = run(4) { it.equals("auto", ignoreCase = true) || parseCssLength(it) != null }
-          if (width.isNotEmpty()) out[2] = width
-          if (tokens.getOrNull(i) == "/") {
-            i++
-            val outset = run(4) { parseCssLength(it, allowPercent = false) != null }
-            if (outset.isEmpty()) return null
-            out[3] = outset
-          } else if (width.isEmpty()) return null
-        }
-      }
-
-      !hasRepeat && BorderImageRepeat.parse(lower) != null -> {
-        out[4] = run(2) { BorderImageRepeat.parse(it) != null }
-        hasRepeat = true
-      }
-
-      mask && !hasMode && (lower == "alpha" || lower == "luminance") -> {
-        out[5] = lower
-        hasMode = true
-        i++
-      }
-
-      else -> return null
-    }
-  }
-  return out
-}
-
-/**
- * The longhands as a spec, or null when there is nothing to draw: `none`, an unsupported
- * source, or an invalid longhand (which makes the declaration invalid). Empty strings
- * are initial values ([mask] picks the mask-border ones).
- */
-internal fun parseBorderImageLonghands(
-  source: String, slice: String = "", width: String = "", outset: String = "", repeat: String = "",
-  mode: String = "", mask: Boolean = false,
-): BorderImageSpec? {
-  val initial = if (mask) MASK_BORDER_INITIAL else BORDER_IMAGE_INITIAL
-  fun pick(v: String, i: Int) = v.trim().ifEmpty { initial[i] }
-  val src = pick(source, 0)
-  if (src.equals("none", ignoreCase = true) || !isBorderImageSource(src)) return null
-  val (sliceValues, fill) = parseBorderImageSlice(pick(slice, 1)) ?: return null
-  val widths = parseBorderImageWidth(pick(width, 2)) ?: return null
-  val outsets = parseBorderImageOutset(pick(outset, 3)) ?: return null
-  val (rx, ry) = parseBorderImageRepeat(pick(repeat, 4)) ?: return null
-  val luminance = when (pick(mode, 5).lowercase()) {
-    "luminance" -> true
-    "alpha", "" -> false
-    else -> return null
-  }
-  return BorderImageSpec(src, sliceValues, fill, widths, outsets, rx, ry, luminance && mask)
-}
-
-/** The whole `border-image` shorthand, or null when it draws nothing. */
-internal fun parseBorderImage(value: String): BorderImageSpec? {
-  val v = value.trim()
-  if (v.isEmpty() || v.equals("none", ignoreCase = true)) return null
-  val l = splitBorderImageShorthand(v) ?: return null
-  return parseBorderImageLonghands(l[0], l[1], l[2], l[3], l[4])
 }
 
 // MARK: - Geometry
@@ -389,10 +220,13 @@ internal fun layoutNineSlice(
     (if (v.isPercent) v.value / 100f * dim else v.value).coerceIn(0f, max(0f, dim))
   }
 
+  val mathWidths = spec.widthProgram?.mathWidths(aw, ah, ctx)
   val ww = FloatArray(4) { i ->
+    val math = mathWidths?.get(i)
     val v = spec.width[i]
     val horizontalSide = i % 2 == 1
     when {
+      math != null && !math.isNaN() -> max(0f, math)
       v == null -> if (unitPx > 0f) s[i] * unitPx else borders[i]
       v.isNumber -> v.value * borders[i]
       else -> max(0f, v.toPx(if (horizontalSide) aw else ah, ctx))
@@ -562,10 +396,8 @@ private const val MAX_SOURCE_RASTER_PX = 2048
  * (loaded once through Glide) or a gradient. [prepare] decides its unit size; [bitmap]
  * rasterizes vector sources at the scale they're drawn and caches the result.
  */
-internal class NineSliceSource(token: String) {
-  private val url: String? = if (token.trim().lowercase().startsWith("url(")) extractCssUrl(token) else null
-  private val gradientLayer: BackgroundLayer? =
-    if (url == null) parseMaskGradient(token)?.let { BackgroundLayer(gradient = it) } else null
+internal class NineSliceSource(private val url: String?, gradient: Gradient?) {
+  private val gradientLayer: BackgroundLayer? = gradient?.let { BackgroundLayer(gradient = it) }
   private var svg: SvgDocument? = null
   private var raster: Bitmap? = null
   private var requested = false
@@ -723,8 +555,8 @@ internal fun computedBorders(node: Node, out: FloatArray): FloatArray {
  * `border-image`, drawn by the 9-slice painter in place of the border styles. While the
  * source loads (or if it fails) the normal border is drawn, as CSS falls back to it.
  */
-internal class BorderImage(val spec: BorderImageSpec) {
-  private val source = NineSliceSource(spec.source)
+internal class BorderImage(private val program: NativeNineSlice) {
+  private val source = program.image()
   private val borders = FloatArray(4)
   private val painter = NineSlicePainter()
 
@@ -732,6 +564,7 @@ internal class BorderImage(val spec: BorderImageSpec) {
   fun draw(view: android.view.View, style: Style, canvas: Canvas, w: Float, h: Float): Boolean {
     if (w <= 0f || h <= 0f) return true
     val ctx = LengthContext.forStyle(style)
+    val spec = program.read(ctx) ?: return false
     computedBorders(style.node, borders)
     val area = borderImageArea(spec, w, h, borders, ctx)
     if (!source.prepare(view.context, view, area.width, area.height, ctx.scale)) return false

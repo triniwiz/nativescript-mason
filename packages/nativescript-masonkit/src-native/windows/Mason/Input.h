@@ -38,6 +38,7 @@ namespace winrt::NativeScript::Mason::implementation
         void SetPlaceholderColor(uint32_t argb);
         void ClearPlaceholderColor();
         void SetTextShadow(hstring const& shadows);
+        void ApplyTextShadowRecords(double const* values, size_t len);
 
         int64_t AddEventListener(hstring const& type, winrt::NativeScript::Mason::EventListener const& listener);
         bool RemoveEventListener(hstring const& type, int64_t id);

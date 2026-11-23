@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { unsetValue } from '@nativescript/core/ui/core/properties';
 import { borderTopLeftRadiusProperty, borderTopRightRadiusProperty, borderBottomRightRadiusProperty, borderBottomLeftRadiusProperty, borderTopColorProperty, borderRightColorProperty, borderBottomColorProperty, borderLeftColorProperty, marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty } from '@nativescript/core/ui/styling/style-properties';
-import { PercentLength as CorePercentLength } from '@nativescript/core/ui/styling/length-shared';
+import { Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core/ui/styling/length-shared';
 import { setScreenScale } from '../../tools/testing/mason-test-kit/ns-layout';
 import { coreHost, masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
-import { toCamelCase, borderRadiusCorners, composeBorderRadius, splitBackground, splitMask, splitMaskBorder, splitWebkitMask, webkitMaskBox, webkitMaskComposite, splitBorderColor, splitBorderRadius, splitBorderWidth, splitFlex, splitFlexFlow, splitGap, splitMargin, splitOverflow, splitPadding, tokenizeCss, splitPlace, splitMarginPair, splitPaddingPair, splitSize, splitListStyle } from './css-shorthands';
+import { toCamelCase, borderRadiusCorners, composeBorderRadius, splitBackground, webkitMaskBox, webkitMaskComposite, splitFlexFlow, tokenizeCss } from './css-shorthands';
+import { expandCssShorthand } from './native-css-values';
 import { backgroundAttachmentProperty, backgroundClipProperty, backgroundOriginProperty, backgroundImageProperty, backgroundPositionProperty, backgroundRepeatProperty, backgroundSizeProperty, masonShorthands, placeShorthands, shorthandConverter } from './properties';
+
+vi.mock('./native-css-values', async (importOriginal) => {
+  const stub = await importOriginal<typeof import('./native-css-values')>();
+  return { ...stub, expandCssShorthand: vi.fn(stub.expandCssShorthand) };
+});
 
 function entry(cssName: string) {
   const found = [...masonShorthands, ...placeShorthands].find((shorthand) => shorthand.cssName === cssName);
@@ -58,24 +64,6 @@ describe('every shorthand converter lists all its longhands for the unsetValue p
 });
 
 describe('border-radius', () => {
-  it.each([
-    ['10px', ['10px', '10px', '10px', '10px']],
-    ['1px 2px', ['1px', '2px', '1px', '2px']],
-    ['1px 2px 3px', ['1px', '2px', '3px', '2px']],
-    ['1px 2px 3px 4px', ['1px', '2px', '3px', '4px']],
-    ['50%', ['50%', '50%', '50%', '50%']],
-    ['10px / 5px', ['10px 5px', '10px 5px', '10px 5px', '10px 5px']],
-    ['10px 20px/5%', ['10px 5%', '20px 5%', '10px 5%', '20px 5%']],
-    ['1px 2px 3px 4px / 5px 6px 7px', ['1px 5px', '2px 6px', '3px 7px', '4px 6px']],
-    ['1rem', ['1rem', '1rem', '1rem', '1rem']],
-  ])('%s', (value, corners) => {
-    expect(splitBorderRadius(value)).toEqual(corners);
-  });
-
-  it.each(['', '1px 2px 3px 4px 5px', '10px /', '/ 10px', '1px / 2px / 3px', 'red'])('rejects "%s"', (value) => {
-    expect(() => splitBorderRadius(value)).toThrow();
-  });
-
   it('composes corners back into one value, with a / part only when a corner is elliptical', () => {
     expect(composeBorderRadius(borderRadiusCorners('4px'))).toBe('4px 4px 4px 4px');
     expect(composeBorderRadius(borderRadiusCorners('1px 2px / 3px'))).toBe('1px 2px 1px 2px / 3px 3px 3px 3px');
@@ -123,38 +111,6 @@ describe('border-radius', () => {
 });
 
 describe('margin, padding, border-width and border-color', () => {
-  it.each([
-    ['10px', ['10px', '10px', '10px', '10px']],
-    ['1px 2px', ['1px', '2px', '1px', '2px']],
-    ['1px 2px 3px', ['1px', '2px', '3px', '2px']],
-    ['1px 2px 3px 4px', ['1px', '2px', '3px', '4px']],
-    ['auto 10%', ['auto', '10%', 'auto', '10%']],
-    ['10, 20', ['10', '20', '10', '20']],
-    ['-1rem calc(2px + 1%)', ['-1rem', 'calc(2px + 1%)', '-1rem', 'calc(2px + 1%)']],
-  ])('margin: %s', (value, sides) => {
-    expect(splitMargin(value)).toEqual(sides);
-  });
-
-  it.each(['', '1px 2px 3px 4px 5px', '1px / 2px', 'wide'])('margin rejects "%s"', (value) => {
-    expect(() => splitMargin(value)).toThrow();
-  });
-
-  it('padding rejects auto', () => {
-    expect(() => splitPadding('auto')).toThrow();
-    expect(splitPadding('5% 1em')).toEqual(['5%', '1em', '5%', '1em']);
-  });
-
-  it('border-width takes the width keywords', () => {
-    expect(splitBorderWidth('thin 2px medium')).toEqual(['thin', '2px', 'medium', '2px']);
-    expect(() => splitBorderWidth('toString')).toThrow();
-  });
-
-  it('border-color splits only at top-level separators', () => {
-    expect(splitBorderColor('rgb(0, 0, 0) red')).toEqual(['rgb(0, 0, 0)', 'red', 'rgb(0, 0, 0)', 'red']);
-    expect(splitBorderColor('#fff hsl(0 0% 0% / 50%) blue')).toEqual(['#fff', 'hsl(0 0% 0% / 50%)', 'blue', 'hsl(0 0% 0% / 50%)']);
-    expect(() => splitBorderColor('red / blue')).toThrow();
-  });
-
   const margins = [marginTopProperty, marginRightProperty, marginBottomProperty, marginLeftProperty];
   const paddings = [paddingTopProperty, paddingRightProperty, paddingBottomProperty, paddingLeftProperty];
   const widths = [borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftWidthProperty];
@@ -164,7 +120,7 @@ describe('margin, padding, border-width and border-color', () => {
     const mason = setNativeSpies(margins);
     applyAsCore91Stylesheet(masonHost(mason.members).style, 'margin', '10% 2rem');
     expect(mason.spies['margin-top']).toHaveBeenLastCalledWith({ value: 0.1, unit: '%', css: '10%' });
-    expect(mason.spies['margin-right']).toHaveBeenLastCalledWith({ value: 2, unit: 'dip', css: '2rem' });
+    expect(mason.spies['margin-right']).toHaveBeenLastCalledWith({ value: 2 * CoreLength.getRootFontSize(), unit: 'dip', css: '2rem' });
 
     const core = setNativeSpies(margins);
     applyAsCore91Stylesheet(coreHost(core.members).style, 'margin', '10% 20');
@@ -172,12 +128,12 @@ describe('margin, padding, border-width and border-color', () => {
     expect(core.spies['margin-right']).toHaveBeenLastCalledWith(20);
   });
 
-  it('a Mason view inside a core layout reads a finite margin', () => {
+  it('a Mason view inside a core layout exposes the resolved margin', () => {
     setScreenScale(1);
     const { style } = masonHost();
     applyAsCore91Stylesheet(style, 'margin', '10% 2rem');
     expect(CorePercentLength.toDevicePixels((style as any).marginTop, 0, 400)).toBe(40);
-    expect(CorePercentLength.toDevicePixels((style as any).marginLeft, 0, 400)).toBe(2);
+    expect(CorePercentLength.toDevicePixels((style as any).marginLeft, 0, 400)).toBe(2 * CoreLength.getRootFontSize());
   });
 
   it("padding reaches a Mason view carrying the CSS text, through core's valueChanged", () => {
@@ -188,7 +144,7 @@ describe('margin, padding, border-width and border-color', () => {
     expect(mason.spies['padding-top'].mock.lastCall?.[0].css).toBe('5%');
     expect(mason.spies['padding-left'].mock.lastCall?.[0].css).toBe('2rem');
     expect(view.effectivePaddingTop).toBe(10);
-    expect(view.effectivePaddingLeft).toBe(4);
+    expect(view.effectivePaddingLeft).toBe(2 * CoreLength.getRootFontSize() * 2);
   });
 
   it("padding reaches a core view parsed, with core's effective padding", () => {
@@ -234,28 +190,19 @@ describe('margin, padding, border-width and border-color', () => {
   });
 });
 
-describe('background', () => {
-  const U = unsetValue;
-
-  it.each([
-    ['red', ['red', U, U, U, U, U, U, U]],
-    ['rgb(0, 0, 0)', ['rgb(0, 0, 0)', U, U, U, U, U, U, U]],
-    ['none', [U, 'none', U, U, U, U, U, U]],
-    ['url(a.png)', [U, 'url(a.png)', U, U, U, U, U, U]],
-    ['url(a.png) no-repeat center / cover padding-box #fff', ['#fff', 'url(a.png)', 'no-repeat', 'center', 'cover', 'padding-box', 'padding-box', U]],
-    ['#fff url(a.png) 10px 20px/5px auto fixed content-box border-box', ['#fff', 'url(a.png)', U, '10px 20px', '5px auto', 'border-box', 'content-box', 'fixed']],
-    ['repeat space radial-gradient(circle at 50% 50%, red, blue)', [U, 'radial-gradient(circle at 50% 50%, red, blue)', 'repeat space', U, U, U, U, U]],
-    ['linear-gradient(red, blue), url(b.png) repeat-x left top / 50% blue', ['blue', 'linear-gradient(red, blue), url(b.png)', 'repeat, repeat-x', '0% 0%, left top', 'auto, 50%', U, U, U]],
-    ['url(a.png) padding-box, url(b.png)', [U, 'url(a.png), url(b.png)', U, U, U, 'padding-box, border-box', 'padding-box, padding-box', U]],
-    ['linear-gradient(red, blue) text', [U, 'linear-gradient(red, blue)', U, U, U, 'text', U, U]],
-    ['linear-gradient(red, blue) content-box text', [U, 'linear-gradient(red, blue)', U, U, U, 'text', 'content-box', U]],
-    ['text content-box url(a.png)', [U, 'url(a.png)', U, U, U, 'text', 'content-box', U]],
-  ])('%s', (value, parts) => {
-    expect(splitBackground(value)).toEqual(parts);
+describe('background shorthand bridge', () => {
+  it('maps omitted Rust fields to the CSS unset value', () => {
+    const css = 'url(a.png) no-repeat';
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(['', 'url(a.png)', 'no-repeat', '', '', '', '', '']);
+    expect(splitBackground(css)).toEqual([unsetValue, 'url(a.png)', 'no-repeat', unsetValue, unsetValue, unsetValue, unsetValue, unsetValue]);
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('background', css);
   });
 
-  it.each(['red, url(a.png)', 'url(a) url(b)', 'red blue', 'url(a) / cover', 'center /', 'center / cover contain', 'url(a),', 'no-repeat repeat-x', 'url(a) text text', 'url(a) padding-box content-box text'])('rejects "%s"', (value) => {
-    expect(() => splitBackground(value)).toThrow();
+  it('rejects a declaration for which Rust returns no longhands', () => {
+    const css = 'url(a.png) / cover';
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(null);
+    expect(() => splitBackground(css)).toThrow();
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('background', css);
   });
 
   const layerLonghands = [backgroundImageProperty, backgroundRepeatProperty, backgroundPositionProperty, backgroundSizeProperty, backgroundClipProperty, backgroundOriginProperty, backgroundAttachmentProperty];
@@ -263,6 +210,7 @@ describe('background', () => {
   it("reaches a Mason view's own layer properties as CSS strings", () => {
     const { spies, members } = setNativeSpies(layerLonghands);
     const { style } = masonHost(members);
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(['#fff', 'url(a.png)', 'no-repeat', 'center', 'cover', 'padding-box', 'padding-box', '']);
     applyAsCore91Stylesheet(style, 'background', 'url(a.png) no-repeat center / cover padding-box #fff');
     expect(spies['background-image']).toHaveBeenLastCalledWith('url(a.png)');
     expect(spies['background-repeat']).toHaveBeenLastCalledWith('no-repeat');
@@ -275,6 +223,7 @@ describe('background', () => {
 
   it("reaches a core view through core's own background longhands", () => {
     const { style } = coreHost();
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(['#fff', 'url(a.png)', 'no-repeat', 'center', 'cover', '', '', '']);
     applyAsCore91Stylesheet(style, 'background', 'url(a.png) no-repeat center / cover #fff');
     const background = (style as any).backgroundInternal;
     expect(background.image).toBe('url(a.png)');
@@ -287,6 +236,9 @@ describe('background', () => {
   it('resets the parts a later declaration leaves out', () => {
     const { spies, members } = setNativeSpies(layerLonghands);
     const { style } = masonHost(members);
+    vi.mocked(expandCssShorthand)
+      .mockReturnValueOnce(['', 'url(a.png)', 'no-repeat', '', '', '', '', ''])
+      .mockReturnValueOnce(['red', '', '', '', '', '', '', '']);
     applyAsCore91Stylesheet(style, 'background', 'url(a.png) no-repeat');
     applyAsCore91Stylesheet(style, 'background', 'red');
     expect(spies['background-image']).toHaveBeenLastCalledWith(undefined);
@@ -295,221 +247,108 @@ describe('background', () => {
   });
 });
 
-describe('mask', () => {
-  const MASK_LONGHANDS = ['mask-image', 'mask-position', 'mask-size', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-composite', 'mask-mode'];
-  const split = (value: string) => Object.fromEntries(splitMask(value).map((part, i) => [MASK_LONGHANDS[i], part]));
+describe('Rust mask shorthand bridge', () => {
+  const maskLonghands = ['mask-image', 'mask-position', 'mask-size', 'mask-repeat', 'mask-origin', 'mask-clip', 'mask-composite', 'mask-mode'];
 
-  it('fills in what a layer leaves out', () => {
-    expect(split('url(a.svg)')).toEqual({
+  it.each(['mask', '-webkit-mask'])('applies the Rust longhands to a Mason view from %s', (name) => {
+    const { under, style } = masonHost();
+    const assigned: Record<string, string> = {};
+    for (const cssName of maskLonghands) {
+      Object.defineProperty(under.style, toCamelCase(cssName), {
+        configurable: true,
+        set: (value: string) => (assigned[cssName] = value),
+      });
+    }
+    const css = 'url(a.svg) center / contain no-repeat padding-box content-box exclude luminance';
+    vi.mocked(expandCssShorthand).mockReturnValueOnce([
+      'url(a.svg)', 'contain', 'center', 'no-repeat', 'padding-box', 'content-box', 'luminance', 'exclude',
+    ]);
+    applyAsCore91Stylesheet(style, name, css);
+    expect(expandCssShorthand).toHaveBeenLastCalledWith(name, css);
+    expect(assigned).toEqual({
       'mask-image': 'url(a.svg)',
-      'mask-position': '0% 0%',
-      'mask-size': 'auto',
-      'mask-repeat': 'repeat',
-      'mask-origin': 'border-box',
-      'mask-clip': 'border-box',
-      'mask-composite': 'add',
-      'mask-mode': 'match-source',
-    });
-  });
-
-  it('reads every part, in any order', () => {
-    expect(split('luminance subtract no-repeat center / contain padding-box content-box linear-gradient(black, transparent)')).toMatchObject({
-      'mask-image': 'linear-gradient(black, transparent)',
       'mask-position': 'center',
       'mask-size': 'contain',
       'mask-repeat': 'no-repeat',
       'mask-origin': 'padding-box',
       'mask-clip': 'content-box',
-      'mask-composite': 'subtract',
+      'mask-composite': 'exclude',
       'mask-mode': 'luminance',
     });
   });
 
-  it('takes one box as both origin and clip', () => {
-    expect(split('url(a.svg) content-box')).toMatchObject({ 'mask-origin': 'content-box', 'mask-clip': 'content-box' });
+  it.each(['mask-border', '-webkit-mask-box-image'])('keeps the longhand order for %s', (name) => {
+    const css = 'url(b.svg) 30 fill / 10px 20px / 2px round luminance';
+    const values = ['url(b.svg)', '30 fill', '10px 20px', '2px', 'round', 'luminance'];
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(values);
+    const converted = shorthandConverter(entry(name))(css);
+    expect(expandCssShorthand).toHaveBeenLastCalledWith(name, css);
+    expect(converted.map(([property, value]) => [property.cssLocalName, value])).toEqual(
+      ['source', 'slice', 'width', 'outset', 'repeat', 'mode'].map((suffix, index) => [`mask-border-${suffix}`, values[index]]),
+    );
   });
 
-  it.each(['padding-box no-clip', 'no-clip padding-box'])('reads %s as an origin with no clip', (boxes) => {
-    expect(split(`url(a.svg) ${boxes}`)).toMatchObject({ 'mask-origin': 'padding-box', 'mask-clip': 'no-clip' });
+  it('rejects the shorthand when Rust returns no longhands', () => {
+    const css = 'url(b.svg) fill 30 fill';
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(null);
+    expect(() => shorthandConverter(entry('mask-border'))(css)).toThrow();
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('mask-border', css);
   });
 
-  it('keeps layers apart', () => {
-    expect(split('url(a.svg) no-repeat, linear-gradient(red, blue) exclude')).toMatchObject({
-      'mask-image': 'url(a.svg), linear-gradient(red, blue)',
-      'mask-repeat': 'no-repeat, repeat',
-      'mask-composite': 'add, exclude',
-    });
-  });
-
-  it.each(['url(a.svg) red', 'url(a.svg), ', 'url(a.svg) url(b.svg)', 'padding-box content-box no-clip', 'center / cover contain'])('rejects %s', (value) => {
-    expect(() => splitMask(value)).toThrow();
-  });
-
-  it("reaches a Mason view's mask longhands from a stylesheet", () => {
-    const { under, style } = masonHost();
-    const set: Record<string, string> = {};
-    for (const cssName of MASK_LONGHANDS) {
-      Object.defineProperty(under.style, toCamelCase(cssName), { configurable: true, set: (value: string) => (set[cssName] = value) });
-    }
-    applyAsCore91Stylesheet(style, 'mask', 'url(a.svg) center / contain no-repeat');
-    expect(set).toMatchObject({ 'mask-image': 'url(a.svg)', 'mask-position': 'center', 'mask-size': 'contain', 'mask-repeat': 'no-repeat', 'mask-origin': 'border-box' });
-  });
-});
-
-describe('-webkit-mask', () => {
-  it('translates composite operators and box keywords', () => {
+  it('still maps WebKit keywords on the individual properties', () => {
     expect(webkitMaskComposite('source-over, xor, source-in, source-out, destination-in, copy')).toBe('add, exclude, intersect, subtract, intersect, add');
     expect(webkitMaskBox('padding, content-box')).toBe('padding-box, content-box');
   });
-
-  it('splits like mask, with the WebKit keywords', () => {
-    const parts = splitWebkitMask('url(a.svg) no-repeat center / contain padding xor');
-    expect(parts[0]).toBe('url(a.svg)');
-    expect(parts[4]).toBe('padding-box');
-    expect(parts[6]).toBe('exclude');
-  });
 });
 
-describe('mask-border', () => {
-  const NAMES = ['source', 'slice', 'width', 'outset', 'repeat', 'mode'];
-  const split = (value: string) => Object.fromEntries(splitMaskBorder(value).map((part, i) => [NAMES[i], part]));
-
-  it('fills in what it leaves out', () => {
-    expect(split('url(b.svg)')).toEqual({ source: 'url(b.svg)', slice: '0', width: 'auto', outset: '0', repeat: 'stretch', mode: 'alpha' });
-  });
-
-  it('reads slice, width and outset', () => {
-    expect(split('url(b.svg) 30 fill / 10px 20px / 2px round luminance')).toEqual({ source: 'url(b.svg)', slice: '30 fill', width: '10px 20px', outset: '2px', repeat: 'round', mode: 'luminance' });
-  });
-
-  it('reads an outset with no width', () => {
-    expect(split('url(b.svg) 25% / / 4px')).toMatchObject({ slice: '25%', width: 'auto', outset: '4px' });
-  });
-
-  it.each(['url(b.svg) 30 /', 'url(b.svg) 30 / 2px /', 'url(b.svg) fill 30 fill', 'url(b.svg) red'])('rejects %s', (value) => {
-    expect(() => splitMaskBorder(value)).toThrow();
-  });
-});
-
-describe('MasonKit-owned shorthands', () => {
-  it.each([
-    ['hidden', ['hidden', 'hidden']],
-    ['hidden scroll', ['hidden', 'scroll']],
-    ['auto clip', ['auto', 'clip']],
-  ])('overflow: %s', (value, parts) => {
-    expect(splitOverflow(value)).toEqual(parts);
-  });
-
-  it.each(['sideways', 'hidden scroll auto', 'hidden, scroll'])('overflow rejects "%s"', (value) => {
-    expect(() => splitOverflow(value)).toThrow();
-  });
-
+describe('Rust layout shorthand bridge', () => {
   it('overflow sets each axis on a Mason view, auto included', () => {
     const { style } = masonHost();
     (style as any).overflow = 'hidden scroll';
+    expect(expandCssShorthand).toHaveBeenCalledWith('overflow', 'hidden scroll');
     expect([(style as any).overflowX, (style as any).overflowY]).toEqual(['hidden', 'scroll']);
     (style as any).overflow = 'auto';
     expect([(style as any).overflowX, (style as any).overflowY]).toEqual(['auto', 'auto']);
   });
 
-  it.each([
-    ['row', ['row', unsetValue]],
-    ['wrap', [unsetValue, 'wrap']],
-    ['column wrap-reverse', ['column', 'wrap-reverse']],
-    ['nowrap row-reverse', ['row-reverse', 'nowrap']],
-  ])('flex-flow: %s', (value, parts) => {
-    expect(splitFlexFlow(value)).toEqual(parts);
+  it('flex-flow turns an omitted direction into the cascade unset value', () => {
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(['', 'wrap']);
+    expect(splitFlexFlow('wrap')).toEqual([unsetValue, 'wrap']);
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('flex-flow', 'wrap');
   });
 
-  it.each(['row column', 'wrap nowrap', 'diagonal', 'row wrap column'])('flex-flow rejects "%s"', (value) => {
-    expect(() => splitFlexFlow(value)).toThrow();
-  });
-
-  it.each([
-    ['none', ['0', '0', 'auto']],
-    ['auto', ['1', '1', 'auto']],
-    ['2', ['2', '1', '0%']],
-    ['0', ['0', '1', '0%']],
-    ['2 3', ['2', '3', '0%']],
-    ['10px', ['1', '1', '10px']],
-    ['content', ['1', '1', 'content']],
-    ['2 10%', ['2', '1', '10%']],
-    ['2 3 4rem', ['2', '3', '4rem']],
-    ['1 1 0', ['1', '1', '0']],
-    ['10px 2 3', ['2', '3', '10px']],
-  ])('flex: %s', (value, parts) => {
-    expect(splitFlex(value)).toEqual(parts);
-  });
-
-  it.each(['1 2 3 4', '10px 20px', 'grow', '-1', '1 10px 2', '1 auto auto'])('flex rejects "%s"', (value) => {
-    expect(() => splitFlex(value)).toThrow();
+  it('the stylesheet flex shorthand keeps its implicit percentage basis', () => {
+    vi.mocked(expandCssShorthand).mockReturnValueOnce(['2', '1', '']);
+    const parts = shorthandConverter(entry('flex'))('2');
+    expect(parts.map(([property, value]) => [property.cssLocalName, value])).toEqual([
+      ['flex-grow', '2'],
+      ['flex-shrink', '1'],
+      ['flex-basis', '0%'],
+    ]);
   });
 
   it('flex with only a basis sets the basis on a Mason view', () => {
     const { style } = masonHost();
     (style as any).flex = '10px';
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('flex', '10px');
     expect([(style as any).flexGrow, (style as any).flexShrink, (style as any).flexBasis]).toEqual([1, 1, { unit: 'px', value: 10 }]);
   });
 
-  it.each([
-    ['10px', ['10px', '10px']],
-    ['1rem 5%', ['1rem', '5%']],
-    ['normal 2', ['normal', '2']],
-  ])('gap: %s', (value, parts) => {
-    expect(splitGap(value)).toEqual(parts);
-  });
-
-  it.each(['1px 2px 3px', 'wide', '1px / 2px'])('gap rejects "%s"', (value) => {
-    expect(() => splitGap(value)).toThrow();
-  });
-
-  it.each(['gap', 'grid-gap'])('%s splits into row-gap and column-gap', (cssName) => {
-    const parts = shorthandConverter(entry(cssName))('4px 8px');
+  it.each(['gap', 'grid-gap'])('%s sets row-gap then column-gap', (name) => {
+    const parts = shorthandConverter(entry(name))('4px 8px');
+    expect(expandCssShorthand).toHaveBeenLastCalledWith(name, '4px 8px');
     expect(parts.map(([property, value]) => [property.cssLocalName, value])).toEqual([
       ['row-gap', '4px'],
       ['column-gap', '8px'],
     ]);
   });
-});
-
-describe('place-*', () => {
-  it.each([
-    ['center', ['center', 'center']],
-    ['start end', ['start', 'end']],
-    ['safe center stretch', ['safe center', 'stretch']],
-    ['last baseline', ['last baseline', 'last baseline']],
-  ])('%s', (value, parts) => {
-    expect(splitPlace(value)).toEqual(parts);
-  });
-
-  it.each(['', 'a b c'])('rejects "%s"', (value) => {
-    expect(() => splitPlace(value)).toThrow();
-  });
 
   it('place-items sets align-items then justify-items', () => {
     const pairs = shorthandConverter(entry('place-items'))('center start');
+    expect(expandCssShorthand).toHaveBeenLastCalledWith('place-items', 'center start');
     expect(pairs.map(([property, part]) => [property.cssLocalName, part])).toEqual([
       ['align-items', 'center'],
       ['justify-items', 'start'],
     ]);
-  });
-});
-
-describe('list-style', () => {
-  it.each([
-    ['square', ['square', 'outside']],
-    ['inside', ['disc', 'inside']],
-    ['decimal inside', ['decimal', 'inside']],
-    ['inside lower-roman', ['lower-roman', 'inside']],
-    ['none', ['none', 'outside']],
-    ['none none', ['none', 'outside']],
-    ['square none', ['square', 'outside']],
-    ['url(a.png) circle', ['circle', 'outside']],
-  ])('%s', (value, parts) => {
-    expect(splitListStyle(value)).toEqual(parts);
-  });
-
-  it.each(['square circle', 'none none none'])('rejects "%s"', (value) => {
-    expect(() => splitListStyle(value)).toThrow();
   });
 });

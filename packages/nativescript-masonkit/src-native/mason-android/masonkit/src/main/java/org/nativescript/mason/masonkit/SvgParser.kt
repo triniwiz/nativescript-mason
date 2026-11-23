@@ -2,17 +2,15 @@ package org.nativescript.mason.masonkit
 
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.math.tan
 
 /*
- * Static SVG reader for `data:image/svg+xml` (pure Kotlin for JVM tests; Background.kt draws). No filters,
+ * Static SVG reader for `data:image/svg+xml` (Background.kt draws). No filters,
  * <textPath>, nested <svg> or remote references. Keep in step with SvgParser.swift.
  */
 
@@ -179,314 +177,53 @@ internal fun svgViewBoxTransform(vb: FloatArray, alignX: Int?, alignY: Int?, sli
   return floatArrayOf(s, 0f, 0f, s, tx, ty)
 }
 
-// MARK: - Number scanning
+// MARK: - Shared SVG values
 
 private fun isSvgWsp(c: Char) = c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\u000C'
 
-internal class SvgScanner(private val s: String, var i: Int = 0) {
-  val atEnd: Boolean get() = i >= s.length
-  fun peek(): Char = s[i]
+private fun svgValues(raw: String?, kind: Int): DoubleArray? =
+  raw?.let { Mason.nativeParseCss(it, kind, 1f, 0f, 0f, 0f, 0f, 0) }
 
-  fun skipWsp() {
-    while (i < s.length && isSvgWsp(s[i])) i++
-  }
+private fun parseSvgScalar(raw: String, kind: Int): Float? =
+  svgValues(raw, kind)?.firstOrNull()?.toFloat()
 
-  fun skipCommaWsp() {
-    skipWsp()
-    if (i < s.length && s[i] == ',') {
-      i++
-      skipWsp()
-    }
-  }
-
-  /** An SVG number: `-1`, `.5`, `1.5` (so `1.5.5` is two numbers), `1e-3`. */
-  fun number(): Double? {
-    val n = s.length
-    val start = i
-    var j = i
-    if (j < n && (s[j] == '+' || s[j] == '-')) j++
-    var digits = 0
-    while (j < n && s[j] in '0'..'9') { j++; digits++ }
-    if (j < n && s[j] == '.') {
-      j++
-      while (j < n && s[j] in '0'..'9') { j++; digits++ }
-    }
-    if (digits == 0) return null
-    if (j < n && (s[j] == 'e' || s[j] == 'E')) {
-      var k = j + 1
-      if (k < n && (s[k] == '+' || s[k] == '-')) k++
-      if (k < n && s[k] in '0'..'9') {
-        while (k < n && s[k] in '0'..'9') k++
-        j = k
-      }
-    }
-    val v = s.substring(start, j).toDoubleOrNull() ?: return null
-    i = j
-    return v
-  }
-
-  /** An arc flag: a single `0` or `1`, which needs no separator from what follows. */
-  fun flag(): Boolean? {
-    if (i < s.length && (s[i] == '0' || s[i] == '1')) {
-      return (s[i++] == '1')
-    }
-    return null
-  }
-}
-
-/** Every number in a list such as `points`, `viewBox` or `stroke-dasharray`. */
-internal fun parseSvgNumberList(value: String): List<Double> {
-  val sc = SvgScanner(value)
-  val out = ArrayList<Double>()
-  sc.skipWsp()
-  while (!sc.atEnd) {
-    val v = sc.number() ?: break
-    out.add(v)
-    sc.skipCommaWsp()
-  }
-  return out
-}
+internal fun parseSvgNumberList(value: String): List<Double> =
+  svgValues(value, CssParseKind.SVG_NUMBER_LIST)?.asList().orEmpty()
 
 // MARK: - Path data
 
-private fun isPathCommand(c: Char) = "MmLlHhVvCcSsQqTtAaZz".indexOf(c) >= 0
-
-/**
- * Parse SVG path data into absolute commands. On an error the path is kept up to the last
- * complete segment, as SVG requires.
- */
+/** Absolute commands from the shared Rust SVG path parser. */
 fun parseSvgPathData(d: String): List<SvgPathCommand> = parseSvgPathData(d, null)
 
-/**
- * As [parseSvgPathData]; fills [vertexEnds] with false where a command ends inside an arc, which is
- * not a path vertex (markers skip it).
- */
+/** A false vertex flag identifies a cubic that ends inside an arc. */
 fun parseSvgPathData(d: String, vertexEnds: MutableList<Boolean>?): List<SvgPathCommand> {
-  val out = ArrayList<SvgPathCommand>()
-  val arcInner = ArrayList<Int>()
-  val sc = SvgScanner(d)
-  var cmd = ' '
-  var cx = 0.0
-  var cy = 0.0
-  var sx = 0.0
-  var sy = 0.0
-  // Last cubic second control point / quadratic control point, for S and T reflection.
-  var lastCubic = false
-  var lastQuad = false
-  var ctrlX = 0.0
-  var ctrlY = 0.0
-  var needMove = false
-
-  fun ensureMove() {
-    if (needMove) {
-      out.add(SvgPathCommand.MoveTo(cx.toFloat(), cy.toFloat()))
-      needMove = false
-    }
-  }
-
-  sc.skipWsp()
-  loop@ while (!sc.atEnd) {
-    val c = sc.peek()
-    if (isPathCommand(c)) {
-      cmd = c
-      sc.i++
-      sc.skipWsp()
-    } else if (cmd == ' ' || cmd == 'Z' || cmd == 'z') {
-      break // a number where a command letter must be
-    }
-    if (out.isEmpty() && cmd != 'M' && cmd != 'm') break // must start with a moveto
-    val rel = cmd.isLowerCase()
-    val ox = if (rel) cx else 0.0
-    val oy = if (rel) cy else 0.0
-    when (cmd) {
-      'M', 'm' -> {
-        val x = sc.number() ?: break@loop
-        sc.skipCommaWsp()
-        val y = sc.number() ?: break@loop
-        cx = ox + x; cy = oy + y
-        sx = cx; sy = cy
-        out.add(SvgPathCommand.MoveTo(cx.toFloat(), cy.toFloat()))
-        needMove = false
-        lastCubic = false; lastQuad = false
-        cmd = if (rel) 'l' else 'L' // further pairs are implicit linetos
-      }
-
-      'L', 'l' -> {
-        val x = sc.number() ?: break@loop
-        sc.skipCommaWsp()
-        val y = sc.number() ?: break@loop
-        ensureMove()
-        cx = ox + x; cy = oy + y
-        out.add(SvgPathCommand.LineTo(cx.toFloat(), cy.toFloat()))
-        lastCubic = false; lastQuad = false
-      }
-
-      'H', 'h' -> {
-        val x = sc.number() ?: break@loop
-        ensureMove()
-        cx = ox + x
-        out.add(SvgPathCommand.LineTo(cx.toFloat(), cy.toFloat()))
-        lastCubic = false; lastQuad = false
-      }
-
-      'V', 'v' -> {
-        val y = sc.number() ?: break@loop
-        ensureMove()
-        cy = oy + y
-        out.add(SvgPathCommand.LineTo(cx.toFloat(), cy.toFloat()))
-        lastCubic = false; lastQuad = false
-      }
-
-      'C', 'c', 'S', 's' -> {
-        val smooth = cmd == 'S' || cmd == 's'
-        var x1: Double
-        var y1: Double
-        if (smooth) {
-          x1 = if (lastCubic) 2 * cx - ctrlX else cx
-          y1 = if (lastCubic) 2 * cy - ctrlY else cy
-        } else {
-          x1 = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-          y1 = oy + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        }
-        val x2 = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        val y2 = oy + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        val x = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        val y = oy + (sc.number() ?: break@loop)
-        ensureMove()
-        out.add(
-          SvgPathCommand.CubicTo(
-            x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), x.toFloat(), y.toFloat()
-          )
-        )
-        ctrlX = x2; ctrlY = y2
-        cx = x; cy = y
-        lastCubic = true; lastQuad = false
-      }
-
-      'Q', 'q', 'T', 't' -> {
-        val smooth = cmd == 'T' || cmd == 't'
-        var x1: Double
-        var y1: Double
-        if (smooth) {
-          x1 = if (lastQuad) 2 * cx - ctrlX else cx
-          y1 = if (lastQuad) 2 * cy - ctrlY else cy
-        } else {
-          x1 = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-          y1 = oy + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        }
-        val x = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        val y = oy + (sc.number() ?: break@loop)
-        ensureMove()
-        out.add(SvgPathCommand.QuadTo(x1.toFloat(), y1.toFloat(), x.toFloat(), y.toFloat()))
-        ctrlX = x1; ctrlY = y1
-        cx = x; cy = y
-        lastCubic = false; lastQuad = true
-      }
-
-      'A', 'a' -> {
-        val rx = sc.number() ?: break@loop; sc.skipCommaWsp()
-        val ry = sc.number() ?: break@loop; sc.skipCommaWsp()
-        val rot = sc.number() ?: break@loop; sc.skipCommaWsp()
-        val large = sc.flag() ?: break@loop; sc.skipCommaWsp()
-        val sweep = sc.flag() ?: break@loop; sc.skipCommaWsp()
-        val x = ox + (sc.number() ?: break@loop); sc.skipCommaWsp()
-        val y = oy + (sc.number() ?: break@loop)
-        ensureMove()
-        val before = out.size
-        appendSvgArc(out, cx, cy, rx, ry, rot, large, sweep, x, y)
-        if (out.size - before > 1) for (k in before until out.size - 1) arcInner.add(k)
-        cx = x; cy = y
-        lastCubic = false; lastQuad = false
-      }
-
-      'Z', 'z' -> {
-        out.add(SvgPathCommand.Close)
-        cx = sx; cy = sy
-        needMove = true // a drawing command straight after Z starts at the subpath start
-        lastCubic = false; lastQuad = false
-      }
-
-      else -> break@loop
-    }
-    sc.skipCommaWsp()
-  }
-  if (vertexEnds != null) {
-    vertexEnds.clear()
-    repeat(out.size) { vertexEnds.add(true) }
-    for (k in arcInner) vertexEnds[k] = false
-  }
-  return out
+  vertexEnds?.clear()
+  val records = Mason.nativeSvgPathRecords(d) ?: return emptyList()
+  return decodeSvgPathRecords(records, vertexEnds = vertexEnds)
 }
 
-/**
- * An elliptical arc from (x1, y1) to (x2, y2) as cubic Béziers: endpoint to centre
- * parameterisation per SVG 1.1 F.6.5, radii scaled up per F.6.6, then at most 90° per cubic.
- */
-internal fun appendSvgArc(
-  out: MutableList<SvgPathCommand>,
-  x1: Double, y1: Double, rxIn: Double, ryIn: Double, angleDeg: Double,
-  largeArc: Boolean, sweep: Boolean, x2: Double, y2: Double,
-) {
-  if (x1 == x2 && y1 == y2) return
-  var rx = abs(rxIn)
-  var ry = abs(ryIn)
-  if (rx == 0.0 || ry == 0.0) {
-    out.add(SvgPathCommand.LineTo(x2.toFloat(), y2.toFloat()))
-    return
-  }
-  val phi = Math.toRadians(angleDeg % 360.0)
-  val cosPhi = cos(phi)
-  val sinPhi = sin(phi)
-  val dx2 = (x1 - x2) / 2
-  val dy2 = (y1 - y2) / 2
-  val x1p = cosPhi * dx2 + sinPhi * dy2
-  val y1p = -sinPhi * dx2 + cosPhi * dy2
-  val lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry)
-  if (lambda > 1) {
-    val s = sqrt(lambda)
-    rx *= s; ry *= s
-  }
-  val rx2 = rx * rx
-  val ry2 = ry * ry
-  val num = rx2 * ry2 - rx2 * y1p * y1p - ry2 * x1p * x1p
-  val den = rx2 * y1p * y1p + ry2 * x1p * x1p
-  var coef = if (den == 0.0) 0.0 else sqrt(max(0.0, num / den))
-  if (largeArc == sweep) coef = -coef
-  val cxp = coef * (rx * y1p / ry)
-  val cyp = coef * -(ry * x1p / rx)
-  val cx = cosPhi * cxp - sinPhi * cyp + (x1 + x2) / 2
-  val cy = sinPhi * cxp + cosPhi * cyp + (y1 + y2) / 2
-  val ux = (x1p - cxp) / rx
-  val uy = (y1p - cyp) / ry
-  val vx = (-x1p - cxp) / rx
-  val vy = (-y1p - cyp) / ry
-  val theta1 = atan2(uy, ux)
-  var dTheta = atan2(ux * vy - uy * vx, ux * vx + uy * vy)
-  if (!sweep && dTheta > 0) dTheta -= 2 * Math.PI
-  else if (sweep && dTheta < 0) dTheta += 2 * Math.PI
-
-  val segments = max(1, ceil(abs(dTheta) / (Math.PI / 2) - 1e-7).toInt())
-  val delta = dTheta / segments
-  val t = 4.0 / 3.0 * tan(delta / 4)
-  fun mapX(u: Double, v: Double) = cx + rx * cosPhi * u - ry * sinPhi * v
-  fun mapY(u: Double, v: Double) = cy + rx * sinPhi * u + ry * cosPhi * v
-  var a1 = theta1
-  for (i in 0 until segments) {
-    val a2 = a1 + delta
-    val c1 = cos(a1)
-    val s1 = sin(a1)
-    val c2 = cos(a2)
-    val s2 = sin(a2)
-    val last = i == segments - 1
-    out.add(
-      SvgPathCommand.CubicTo(
-        mapX(c1 - t * s1, s1 + t * c1).toFloat(), mapY(c1 - t * s1, s1 + t * c1).toFloat(),
-        mapX(c2 + t * s2, s2 - t * c2).toFloat(), mapY(c2 + t * s2, s2 - t * c2).toFloat(),
-        (if (last) x2 else mapX(c2, s2)).toFloat(), (if (last) y2 else mapY(c2, s2)).toFloat(),
+internal fun decodeSvgPathRecords(
+  records: DoubleArray, offset: Int = 0, vertexEnds: MutableList<Boolean>? = null
+): List<SvgPathCommand> {
+  val commands = ArrayList<SvgPathCommand>((records.size - offset) / SvgPathRecord.STRIDE)
+  for (index in offset until records.size step SvgPathRecord.STRIDE) {
+    fun read(field: Int) = records[index + field].toFloat()
+    val x = read(SvgPathRecord.X)
+    val y = read(SvgPathRecord.Y)
+    val command = when (read(SvgPathRecord.KIND).toInt()) {
+      0 -> SvgPathCommand.MoveTo(x, y)
+      1 -> SvgPathCommand.LineTo(x, y)
+      2 -> SvgPathCommand.CubicTo(
+        read(SvgPathRecord.X1), read(SvgPathRecord.Y1), read(SvgPathRecord.X2), read(SvgPathRecord.Y2), x, y
       )
-    )
-    a1 = a2
+      3 -> SvgPathCommand.QuadTo(read(SvgPathRecord.X1), read(SvgPathRecord.Y1), x, y)
+      4 -> SvgPathCommand.Close
+      else -> break
+    }
+    commands.add(command)
+    vertexEnds?.add(read(SvgPathRecord.VERTEX_END) != 0f)
   }
+  return commands
 }
 
 // MARK: - Basic shapes
@@ -573,138 +310,59 @@ internal fun svgMultiply(m: FloatArray, n: FloatArray) = floatArrayOf(
 
 /** A `transform` list (matrix, translate, scale, rotate, skewX, skewY); null if malformed. */
 fun parseSvgTransform(value: String): FloatArray? {
-  var result = SVG_IDENTITY
-  val s = value
-  var i = 0
-  while (i < s.length) {
-    while (i < s.length && (isSvgWsp(s[i]) || s[i] == ',')) i++
-    if (i >= s.length) break
-    val nameStart = i
-    while (i < s.length && s[i].isLetter()) i++
-    val name = s.substring(nameStart, i)
-    while (i < s.length && isSvgWsp(s[i])) i++
-    if (name.isEmpty() || i >= s.length || s[i] != '(') return null
-    val close = s.indexOf(')', i)
-    if (close < 0) return null
-    val args = parseSvgNumberList(s.substring(i + 1, close)).map { it.toFloat() }
-    i = close + 1
-    val t: FloatArray = when (name) {
-      "matrix" -> if (args.size == 6) args.toFloatArray() else return null
-      "translate" -> when (args.size) {
-        1 -> floatArrayOf(1f, 0f, 0f, 1f, args[0], 0f)
-        2 -> floatArrayOf(1f, 0f, 0f, 1f, args[0], args[1])
-        else -> return null
-      }
-
-      "scale" -> when (args.size) {
-        1 -> floatArrayOf(args[0], 0f, 0f, args[0], 0f, 0f)
-        2 -> floatArrayOf(args[0], 0f, 0f, args[1], 0f, 0f)
-        else -> return null
-      }
-
-      "rotate" -> {
-        if (args.size != 1 && args.size != 3) return null
-        val a = Math.toRadians(args[0].toDouble())
-        val c = cos(a).toFloat()
-        val sn = sin(a).toFloat()
-        val r = floatArrayOf(c, sn, -sn, c, 0f, 0f)
-        if (args.size == 3) {
-          svgMultiply(
-            svgMultiply(floatArrayOf(1f, 0f, 0f, 1f, args[1], args[2]), r),
-            floatArrayOf(1f, 0f, 0f, 1f, -args[1], -args[2])
-          )
-        } else r
-      }
-
-      "skewX" -> if (args.size == 1) {
-        floatArrayOf(1f, 0f, tan(Math.toRadians(args[0].toDouble())).toFloat(), 1f, 0f, 0f)
-      } else return null
-
-      "skewY" -> if (args.size == 1) {
-        floatArrayOf(1f, tan(Math.toRadians(args[0].toDouble())).toFloat(), 0f, 1f, 0f, 0f)
-      } else return null
-
-      else -> return null
-    }
-    result = svgMultiply(result, t)
-  }
-  return result
+  val fields = svgValues(value, CssParseKind.SVG_TRANSFORM) ?: return null
+  if (fields.size != SvgAffineRecord.STRIDE) return null
+  return floatArrayOf(
+    fields[SvgAffineRecord.A].toFloat(), fields[SvgAffineRecord.B].toFloat(),
+    fields[SvgAffineRecord.C].toFloat(), fields[SvgAffineRecord.D].toFloat(),
+    fields[SvgAffineRecord.X].toFloat(), fields[SvgAffineRecord.Y].toFloat(),
+  )
 }
 
 // MARK: - Paint and lengths
 
 /** `fill`/`stroke` value; null when it is not a valid paint (the attribute is then ignored). */
 internal fun parseSvgPaint(raw: String): SvgPaint? {
-  val v = raw.trim()
-  if (v.isEmpty()) return null
-  val lower = v.lowercase()
-  return when {
-    lower == "none" -> SvgPaint.None
-    lower == "currentcolor" -> SvgPaint.CurrentColor
-    lower == "transparent" -> SvgPaint.Color(0)
-    lower.startsWith("url(") -> {
-      val close = v.indexOf(')')
-      if (close < 0) return SvgPaint.None
-      val fallback = v.substring(close + 1).trim().takeIf { it.isNotEmpty() }?.let { parseSvgPaint(it) }
-      SvgPaint.Ref(svgUrlFragment(v.substring(0, close + 1)) ?: "", fallback)
+  val fields = Mason.expandCssShorthand("svg-paint", raw) ?: return null
+  val width = SvgPaintRecord.STRIDE
+  if (fields.size % width != 0) return null
+  var paint: SvgPaint? = null
+  for (start in (fields.size - width) downTo 0 step width) {
+    val value = fields[start + SvgPaintRecord.VALUE]
+    paint = when (fields[start + SvgPaintRecord.KIND]) {
+      "none" -> SvgPaint.None
+      "currentcolor" -> SvgPaint.CurrentColor
+      "color" -> value.toUIntOrNull()?.let { SvgPaint.Color(it.toInt()) }
+      "ref" -> SvgPaint.Ref(value, paint)
+      else -> return null
     }
-
-    else -> parseSvgColor(v)?.let { SvgPaint.Color(it) }
   }
+  return paint
 }
 
 /** The id in a local `url(#id)` (quotes allowed), else null. */
-internal fun svgUrlFragment(value: String): String? {
-  val v = value.trim()
-  if (!v.startsWith("url(", ignoreCase = true)) return null
-  val close = v.indexOf(')')
-  if (close < 0) return null
-  val inner = v.substring(4, close).trim().trim('"', '\'').trim()
-  return if (inner.startsWith("#") && inner.length > 1) inner.substring(1) else null
-}
+internal fun svgUrlFragment(value: String): String? =
+  Mason.expandCssShorthand("svg-url-fragment", value)?.firstOrNull()
 
 internal fun parseSvgColor(value: String): Int? = parseColor(value)
 
-/** A length in user units: plain, px, the absolute units, em/ex at 16px, % of [percentBasis]. */
+private fun svgLength(fields: DoubleArray, index: Int, basis: Float): Float =
+  (fields[index + SvgLengthComponentsRecord.LENGTH] +
+    fields[index + SvgLengthComponentsRecord.PERCENT] * (basis / 100.0)).toFloat()
+
 internal fun parseSvgLength(raw: String?, percentBasis: Float): Float? {
-  val v = raw?.trim() ?: return null
-  if (v.isEmpty()) return null
-  val sc = SvgScanner(v)
-  val n = sc.number() ?: return null
-  val unit = v.substring(sc.i).trim().lowercase()
-  val scale = when (unit) {
-    "", "px" -> 1.0
-    "%" -> percentBasis / 100.0
-    "pt" -> 4.0 / 3.0
-    "pc" -> 16.0
-    "in" -> 96.0
-    "cm" -> 96.0 / 2.54
-    "mm" -> 96.0 / 25.4
-    "em" -> 16.0
-    "ex" -> 8.0
-    else -> return null
-  }
-  return (n * scale).toFloat()
+  val fields = svgValues(raw, CssParseKind.SVG_LENGTH) ?: return null
+  return if (fields.size == SvgLengthComponentsRecord.STRIDE) svgLength(fields, 0, percentBasis) else null
 }
 
-private fun parseSvgOpacity(raw: String): Float? {
-  val v = raw.trim()
-  val n = if (v.endsWith("%")) v.dropLast(1).trim().toFloatOrNull()?.div(100f) else v.toFloatOrNull()
-  return n?.coerceIn(0f, 1f)
-}
+private fun parseSvgOpacity(raw: String): Float? = parseSvgScalar(raw, CssParseKind.SVG_OPACITY)
 
-/** `preserveAspectRatio`: (alignX, alignY, slice); null align means `none`. */
 internal fun parseSvgPreserveAspectRatio(raw: String?): Triple<Int?, Int?, Boolean> {
-  val parts = raw?.trim()?.split(Regex("\\s+")) ?: return Triple(0, 0, false)
-  val align = parts.firstOrNull() ?: ""
-  val slice = parts.getOrNull(1) == "slice"
-  if (align == "none") return Triple(null, null, slice)
-  if (align.length == 8 && align.startsWith("x")) {
-    val ax = when (align.substring(1, 4)) { "Min" -> -1; "Max" -> 1; else -> 0 }
-    val ay = when (align.substring(5, 8)) { "Min" -> -1; "Max" -> 1; else -> 0 }
-    return Triple(ax, ay, slice)
-  }
-  return Triple(0, 0, slice)
+  val fields = svgValues(raw, CssParseKind.SVG_ASPECT_RATIO) ?: return Triple(0, 0, false)
+  if (fields.size != SvgAspectRatioRecord.STRIDE) return Triple(0, 0, false)
+  val slice = fields[SvgAspectRatioRecord.SLICE] != 0.0
+  if (fields[SvgAspectRatioRecord.UNIFORM] == 0.0) return Triple(null, null, slice)
+  return Triple(fields[SvgAspectRatioRecord.ALIGN_X].toInt(), fields[SvgAspectRatioRecord.ALIGN_Y].toInt(), slice)
 }
 
 // MARK: - Bounds
@@ -893,100 +551,52 @@ internal class SvgCssSelector(val type: String?, val ids: List<String>, val clas
 
 internal class SvgCssRule(val selector: SvgCssSelector, val declarations: List<SvgCssDeclaration>, val order: Int)
 
-private fun isCssIdentChar(c: Char) = c.isLetterOrDigit() || c == '-' || c == '_' || c.code > 0x7F
-
-/** One compound selector; null for anything else (combinators, attributes, pseudo-classes). */
-internal fun parseSvgCssSelector(raw: String): SvgCssSelector? {
-  val s = raw.trim()
-  if (s.isEmpty()) return null
-  var i = 0
-  var type: String? = null
-  if (s[0] == '*') {
-    i = 1
-  } else if (isCssIdentChar(s[0])) {
-    while (i < s.length && isCssIdentChar(s[i])) i++
-    type = s.substring(0, i)
+private fun decodeSvgCssDeclarations(fields: Array<String>, start: Int, count: Int): List<SvgCssDeclaration> =
+  List(count) { index ->
+    val offset = start + index * SvgCssDeclarationRecord.STRIDE
+    SvgCssDeclaration(
+      fields[offset + SvgCssDeclarationRecord.NAME],
+      fields[offset + SvgCssDeclarationRecord.VALUE],
+      fields[offset + SvgCssDeclarationRecord.IMPORTANT] == "1",
+    )
   }
-  val ids = ArrayList<String>()
-  val classes = ArrayList<String>()
-  while (i < s.length) {
-    val c = s[i]
-    if (c != '.' && c != '#') return null
-    val start = ++i
-    while (i < s.length && isCssIdentChar(s[i])) i++
-    if (i == start) return null
-    (if (c == '.') classes else ids).add(s.substring(start, i))
-  }
-  return SvgCssSelector(type, ids, classes)
-}
 
-/** `name: value` pairs split on `;` outside quotes and parentheses. */
 internal fun parseSvgCssDeclarations(text: String): List<SvgCssDeclaration> {
-  val out = ArrayList<SvgCssDeclaration>()
-  fun take(decl: String) {
-    val colon = decl.indexOf(':')
-    if (colon <= 0) return
-    val name = decl.substring(0, colon).trim().lowercase()
-    var value = decl.substring(colon + 1).trim()
-    val important = Regex("!\\s*important\\s*$", RegexOption.IGNORE_CASE).find(value)
-    if (important != null) value = value.substring(0, important.range.first).trim()
-    if (name.isNotEmpty() && value.isNotEmpty()) out.add(SvgCssDeclaration(name, value, important != null))
-  }
-  var depth = 0
-  var quote = 0.toChar()
-  var start = 0
-  for (i in text.indices) {
-    val c = text[i]
-    when {
-      quote != 0.toChar() -> if (c == quote) quote = 0.toChar()
-      c == '"' || c == '\'' -> quote = c
-      c == '(' -> depth++
-      c == ')' -> if (depth > 0) depth--
-      c == ';' && depth == 0 -> {
-        take(text.substring(start, i)); start = i + 1
-      }
-    }
-  }
-  take(text.substring(start))
-  return out
+  val fields = Mason.expandCssShorthand("svg-css-declarations", text) ?: return emptyList()
+  val stride = SvgCssDeclarationRecord.STRIDE
+  if (fields.size % stride != 0) return emptyList()
+  return decodeSvgCssDeclarations(fields, 0, fields.size / stride)
 }
 
-/** Rules of a `<style>` sheet; at-rules are skipped. */
 internal fun parseSvgStyleSheet(raw: String): List<SvgCssRule> {
-  val css = Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL).replace(raw, " ")
+  val fields = Mason.expandCssShorthand("svg-css-stylesheet", raw) ?: return emptyList()
   val rules = ArrayList<SvgCssRule>()
-  var order = 0
-  var i = 0
-  val n = css.length
-  while (i < n) {
-    while (i < n && css[i].isWhitespace()) i++
-    if (i >= n) break
-    if (css[i] == '@') {
-      val semi = css.indexOf(';', i).let { if (it < 0) n else it }
-      val brace = css.indexOf('{', i).let { if (it < 0) n else it }
-      if (semi < brace) {
-        i = semi + 1
-        continue
-      }
-      var depth = 0
-      var j = brace
-      while (j < n) {
-        if (css[j] == '{') depth++ else if (css[j] == '}') { depth--; if (depth == 0) break }
-        j++
-      }
-      i = j + 1
-      continue
+  var offset = 0
+  while (fields.size - offset >= SvgCssRuleRecord.STRIDE) {
+    val selectorCount = fields[offset + SvgCssRuleRecord.SELECTOR_COUNT].toIntOrNull() ?: return emptyList()
+    val declarationCount = fields[offset + SvgCssRuleRecord.DECLARATION_COUNT].toIntOrNull() ?: return emptyList()
+    offset += SvgCssRuleRecord.STRIDE
+    if (selectorCount !in 0..(fields.size - offset) / SvgCssSelectorRecord.STRIDE || declarationCount < 0) return emptyList()
+    val selectors = ArrayList<SvgCssSelector>()
+    repeat(selectorCount) {
+      if (fields.size - offset < SvgCssSelectorRecord.STRIDE) return emptyList()
+      val type = fields[offset + SvgCssSelectorRecord.TYPE].ifEmpty { null }
+      val ids = fields[offset + SvgCssSelectorRecord.ID_COUNT].toIntOrNull() ?: return emptyList()
+      val classes = fields[offset + SvgCssSelectorRecord.CLASS_COUNT].toIntOrNull() ?: return emptyList()
+      offset += SvgCssSelectorRecord.STRIDE
+      if (ids !in 0..(fields.size - offset) || classes !in 0..(fields.size - offset - ids)) return emptyList()
+      val idNames = List(ids) { fields[offset + it] }
+      offset += ids
+      val classNames = List(classes) { fields[offset + it] }
+      offset += classes
+      selectors.add(SvgCssSelector(type, idNames, classNames))
     }
-    val open = css.indexOf('{', i)
-    if (open < 0) break
-    val close = css.indexOf('}', open).let { if (it < 0) n else it }
-    val declarations = parseSvgCssDeclarations(css.substring(open + 1, close))
-    for (sel in css.substring(i, open).split(',')) {
-      parseSvgCssSelector(sel)?.let { rules.add(SvgCssRule(it, declarations, order++)) }
-    }
-    i = close + 1
+    if (declarationCount > (fields.size - offset) / SvgCssDeclarationRecord.STRIDE) return emptyList()
+    val declarations = decodeSvgCssDeclarations(fields, offset, declarationCount)
+    offset += declarationCount * SvgCssDeclarationRecord.STRIDE
+    for (selector in selectors) rules.add(SvgCssRule(selector, declarations, rules.size))
   }
-  return rules
+  return if (offset == fields.size) rules else emptyList()
 }
 
 // MARK: - Document
@@ -1041,14 +651,6 @@ private val TEXT_CONTENT_TAGS = setOf("text", "tspan", "a")
 /** Shapes that take markers. */
 private val MARKER_TAGS = setOf("path", "line", "polyline", "polygon")
 private const val TEXT_NODE_NAME = "#text"
-private val FONT_SIZE_KEYWORDS = mapOf(
-  "xx-small" to 9f, "x-small" to 10f, "small" to 13f, "medium" to 16f, "large" to 18f, "x-large" to 24f,
-  "xx-large" to 32f, "xxx-large" to 48f,
-)
-private val FONT_STRETCH_KEYWORDS = setOf(
-  "normal", "small-caps", "ultra-condensed", "extra-condensed", "condensed", "semi-condensed",
-  "semi-expanded", "expanded", "extra-expanded", "ultra-expanded",
-)
 /** Shorthands applySvgStyle reads before their longhands. */
 private val SVG_SHORTHANDS = mapOf(
   "font" to listOf("font-family", "font-size", "font-weight", "font-style", "font-variant", "font-stretch", "line-height"),
@@ -1056,100 +658,33 @@ private val SVG_SHORTHANDS = mapOf(
 )
 
 /** The families of a `font-family` list, unquoted. */
-fun parseSvgFontFamilies(raw: String): List<String> {
-  val out = ArrayList<String>()
-  val current = StringBuilder()
-  var quote = 0.toChar()
-  for (c in raw) {
-    if (quote != 0.toChar()) {
-      if (c == quote) quote = 0.toChar() else current.append(c)
-    } else if (c == '"' || c == '\'') {
-      quote = c
-    } else if (c == ',') {
-      current.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
-      current.setLength(0)
-    } else {
-      current.append(c)
-    }
-  }
-  current.toString().trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
-  return out
-}
-
-/** A length where `em` is [fontSize] and `%` is a fraction of [percentBasis]. */
-private fun parseSvgFontRelativeLength(raw: String, fontSize: Float, percentBasis: Float): Float? {
-  val v = raw.trim().lowercase()
-  val sc = SvgScanner(v)
-  val n = sc.number() ?: return null
-  return when (v.substring(sc.i).trim()) {
-    "em" -> n.toFloat() * fontSize
-    "ex" -> n.toFloat() * fontSize / 2f
-    "rem" -> n.toFloat() * 16f
-    else -> parseSvgLength(v, percentBasis)
-  }
-}
+fun parseSvgFontFamilies(raw: String): List<String> =
+  Mason.expandCssShorthand("font-family", raw)?.asList().orEmpty()
 
 /** A `font-size`; `em` and `%` are relative to the parent's size. */
-fun parseSvgFontSize(raw: String, parent: Float): Float? {
-  val v = raw.trim().lowercase()
-  FONT_SIZE_KEYWORDS[v]?.let { return it }
-  if (v == "larger") return parent * 1.2f
-  if (v == "smaller") return parent / 1.2f
-  return parseSvgFontRelativeLength(v, parent, parent)?.takeIf { it >= 0f }
-}
+fun parseSvgFontSize(raw: String, parent: Float): Float? =
+  Mason.expandCssShorthand("svg-font-size:$parent", raw)?.firstOrNull()?.toFloatOrNull()
+
+private fun parseSvgFontSpacing(raw: String, fontSize: Float): Float? =
+  Mason.expandCssShorthand("svg-font-spacing:$fontSize", raw)?.firstOrNull()?.toFloatOrNull()
 
 /** A `font-weight` as a number; `bolder`/`lighter` step from the parent's. */
-fun parseSvgFontWeight(raw: String, parent: Int): Int? = when (val v = raw.trim().lowercase()) {
-  "normal" -> 400
-  "bold" -> 700
-  "bolder" -> if (parent < 350) 400 else if (parent < 550) 700 else 900
-  "lighter" -> if (parent < 550) 100 else if (parent < 750) 400 else 700
-  else -> v.toDoubleOrNull()?.takeIf { it >= 1.0 && it <= 1000.0 }?.toInt()
-}
+fun parseSvgFontWeight(raw: String, parent: Int): Int? =
+  Mason.expandCssShorthand("svg-font-weight:$parent", raw)?.firstOrNull()?.toIntOrNull()
 
-/** An angle in degrees: plain, or with `deg`, `rad`, `grad` or `turn`. */
-fun parseSvgAngle(raw: String): Float? {
-  val v = raw.trim()
-  val sc = SvgScanner(v)
-  val n = sc.number() ?: return null
-  return when (v.substring(sc.i).trim().lowercase()) {
-    "", "deg" -> n.toFloat()
-    "rad" -> Math.toDegrees(n).toFloat()
-    "grad" -> (n * 0.9).toFloat()
-    "turn" -> (n * 360).toFloat()
-    else -> null
-  }
-}
+/** An angle in degrees. */
+fun parseSvgAngle(raw: String): Float? = parseSvgScalar(raw, CssParseKind.SVG_ANGLE)
 
-/** The `font` shorthand: [style || weight || variant || stretch] size[/line-height] family. */
+/** Apply the Rust-parsed font shorthand as one update. */
 private fun applySvgFontShorthand(raw: String, s: SvgStyleState, parentSize: Float, parentWeight: Int) {
-  var rest = raw.trim()
-  var italic = false
-  var weight = 400
-  while (rest.isNotEmpty()) {
-    val end = rest.indexOfFirst { it.isWhitespace() }.let { if (it < 0) rest.length else it }
-    val token = rest.substring(0, end)
-    val lower = token.lowercase()
-    val after = rest.substring(end).trimStart()
-    val w = parseSvgFontWeight(lower, parentWeight)
-    if (lower == "italic" || lower == "oblique") {
-      italic = true
-    } else if (lower in FONT_STRETCH_KEYWORDS) {
-      // nothing to apply
-    } else if (w != null) {
-      weight = w
-    } else {
-      val size = parseSvgFontSize(lower.substringBefore('/'), parentSize) ?: return
-      val families = parseSvgFontFamilies(after)
-      if (families.isEmpty()) return
-      s.italic = italic
-      s.fontWeight = weight
-      s.fontSize = size
-      s.fontFamilies = families
-      return
-    }
-    rest = after
-  }
+  val fields = Mason.expandCssShorthand("svg-font:$parentSize:$parentWeight", raw) ?: return
+  if (fields.size <= SvgFontPrefixRecord.STRIDE) return
+  val weight = fields[SvgFontPrefixRecord.WEIGHT].toIntOrNull() ?: return
+  val size = fields[SvgFontPrefixRecord.SIZE].toFloatOrNull() ?: return
+  s.italic = fields[SvgFontPrefixRecord.ITALIC] == "1"
+  s.fontWeight = weight
+  s.fontSize = size
+  s.fontFamilies = fields.asList().subList(SvgFontPrefixRecord.STRIDE, fields.size)
 }
 
 /** A marker property as a one-element array: the id, or null for none. null when invalid. */
@@ -1265,15 +800,11 @@ private fun applySvgStyle(parent: SvgStyleState, props: Map<String, String>): Sv
       "bevel" -> s.lineJoin = SvgLineJoin.BEVEL
     }
   }
-  prop("stroke-miterlimit")?.let { v -> v.toFloatOrNull()?.takeIf { it >= 1f }?.let { s.miterLimit = it } }
+  prop("stroke-miterlimit")?.let { v -> parseSvgScalar(v, CssParseKind.SVG_NUMBER)?.takeIf { it >= 1f }?.let { s.miterLimit = it } }
   prop("stroke-dasharray")?.let { v ->
-    if (v == "none") {
-      s.dashArray = null
-    } else {
-      val nums = parseSvgNumberList(v).map { it.toFloat() }
-      s.dashArray = if (nums.isEmpty() || nums.any { it < 0f } || nums.all { it == 0f }) null
-      else (if (nums.size % 2 == 1) nums + nums else nums).toFloatArray()
-    }
+    s.dashArray = svgValues(v, CssParseKind.SVG_DASH_ARRAY)
+      ?.takeIf { it.isNotEmpty() }
+      ?.let { fields -> FloatArray(fields.size) { fields[it].toFloat() } }
   }
   prop("stroke-dashoffset")?.let { v -> parseSvgLength(v, 16f)?.let { s.dashOffset = it } }
   prop("visibility")?.let { v -> s.visible = v == "visible" }
@@ -1282,9 +813,8 @@ private fun applySvgStyle(parent: SvgStyleState, props: Map<String, String>): Sv
   prop("font-family")?.let { v -> parseSvgFontFamilies(v).takeIf { it.isNotEmpty() }?.let { s.fontFamilies = it } }
   prop("font-size")?.let { v -> parseSvgFontSize(v, parent.fontSize)?.let { s.fontSize = it } }
   prop("font-weight")?.let { v -> parseSvgFontWeight(v, parent.fontWeight)?.let { s.fontWeight = it } }
-  when (prop("font-style")) {
-    "italic", "oblique" -> s.italic = true
-    "normal" -> s.italic = false
+  prop("font-style")?.let { value ->
+    Mason.expandCssShorthand("font-style", value)?.firstOrNull()?.let { s.italic = it != "0" }
   }
   when (prop("text-anchor")) {
     "start" -> s.textAnchor = SvgTextAnchor.START
@@ -1300,12 +830,8 @@ private fun applySvgStyle(parent: SvgStyleState, props: Map<String, String>): Sv
     "text-bottom", "text-after-edge", "ideographic" -> s.baseline = SvgBaseline.TEXT_BOTTOM
     "mathematical" -> s.baseline = SvgBaseline.MATHEMATICAL
   }
-  prop("letter-spacing")?.let { v ->
-    if (v == "normal") s.letterSpacing = 0f else parseSvgFontRelativeLength(v, s.fontSize, s.fontSize)?.let { s.letterSpacing = it }
-  }
-  prop("word-spacing")?.let { v ->
-    if (v == "normal") s.wordSpacing = 0f else parseSvgFontRelativeLength(v, s.fontSize, s.fontSize)?.let { s.wordSpacing = it }
-  }
+  prop("letter-spacing")?.let { v -> parseSvgFontSpacing(v, s.fontSize)?.let { s.letterSpacing = it } }
+  prop("word-spacing")?.let { v -> parseSvgFontSpacing(v, s.fontSize)?.let { s.wordSpacing = it } }
   when (prop("xml:space")) {
     "preserve" -> s.preserveSpace = true
     "default" -> s.preserveSpace = false
@@ -1455,13 +981,10 @@ private class SvgTextRange(val node: SvgNode, val start: Int, var end: Int)
 
 /** Lengths in a list attribute such as a text's `x` or `dx`. */
 private fun parseSvgLengthList(raw: String?, percentBasis: Float): List<Float> {
-  if (raw == null) return emptyList()
-  val out = ArrayList<Float>()
-  for (token in raw.split(',', ' ', '\t', '\n', '\r')) {
-    if (token.isEmpty()) continue
-    out.add(parseSvgLength(token, percentBasis) ?: break)
-  }
-  return out
+  val fields = svgValues(raw, CssParseKind.SVG_LENGTH_LIST) ?: return emptyList()
+  val stride = SvgLengthComponentsRecord.STRIDE
+  if (fields.size % stride != 0) return emptyList()
+  return List(fields.size / stride) { svgLength(fields, it * stride, percentBasis) }
 }
 
 internal fun svgTranslated(commands: List<SvgPathCommand>, dx: Float, dy: Float): List<SvgPathCommand> {
@@ -1676,10 +1199,8 @@ private class SvgBuilder(val tree: SvgTree, val vbW: Float, val vbH: Float) {
     var last = 0f
     for (stop in stopNodes) {
       val props = cascade(stop)
-      val offset = stop.attrs["offset"]?.trim()?.let { o ->
-        if (o.endsWith("%")) o.dropLast(1).trim().toFloatOrNull()?.div(100f) else o.toFloatOrNull()
-      } ?: 0f
-      last = max(last, offset.coerceIn(0f, 1f))
+      val offset = stop.attrs["offset"]?.let(::parseSvgOpacity) ?: 0f
+      last = max(last, offset)
       val opacity = props["stop-opacity"]?.let { parseSvgOpacity(it) } ?: 1f
       val raw = props["stop-color"]?.trim()?.takeIf { it.isNotEmpty() && it != "inherit" } ?: "black"
       var argb = 0xFF000000.toInt()

@@ -1,56 +1,9 @@
 import { unsetValue } from '@nativescript/core';
+import { expandCssShorthand } from './native-css-values';
 
 export type LonghandValue = string | typeof unsetValue;
 
-export function tokenizeCss(value: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let depth = 0;
-  let quote = '';
-  let escaped = false;
-  const flush = () => {
-    if (current) {
-      tokens.push(current);
-      current = '';
-    }
-  };
-  for (const ch of value) {
-    if (quote) {
-      current += ch;
-      if (escaped) {
-        escaped = false;
-      } else if (ch === '\\') {
-        escaped = true;
-      } else if (ch === quote) {
-        quote = '';
-      }
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-    } else if (ch === '(') {
-      depth++;
-    } else if (ch === ')') {
-      if (depth === 0) {
-        throw new Error(`Unbalanced ")" in "${value}"`);
-      }
-      depth--;
-    } else if (depth === 0 && /\s/.test(ch)) {
-      flush();
-      continue;
-    } else if (depth === 0 && (ch === ',' || ch === '/')) {
-      flush();
-      tokens.push(ch);
-      continue;
-    }
-    current += ch;
-  }
-  if (depth !== 0 || quote) {
-    throw new Error(`Unterminated "${quote || '('}" in "${value}"`);
-  }
-  flush();
-  return tokens;
-}
+export const tokenizeCss = (value: string) => requireExpandedCss('tokenize', value);
 
 export interface CssLength {
   value: number;
@@ -85,164 +38,36 @@ export function toCamelCase(prop: string): string {
   return prop.replace(KEBAB_SEGMENT, (_, c: string) => c.toUpperCase());
 }
 
-const LENGTH = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?([a-z]+|%)?$/i;
-const FUNCTION = /^[a-z-]+\(.*\)$/is;
-
-function isLength(token: string): boolean {
-  return LENGTH.test(token) || FUNCTION.test(token);
-}
-
-/**
- * The space-separated values of a 1–4 value shorthand. Core's own splitter
- * also accepts commas between them, so they are skipped rather than rejected.
- */
-function values(value: string, accepts: (token: string) => boolean): string[] {
-  const tokens = tokenizeCss(value).filter((token) => token !== ',');
-  for (const token of tokens) {
-    if (!accepts(token)) {
-      throw new Error(`Unexpected "${token}" in "${value}"`);
-    }
-  }
-  return tokens;
-}
-
-function expandSides<T>(parts: T[], value: string): [T, T, T, T] {
-  switch (parts.length) {
-    case 1:
-      return [parts[0], parts[0], parts[0], parts[0]];
-    case 2:
-      return [parts[0], parts[1], parts[0], parts[1]];
-    case 3:
-      return [parts[0], parts[1], parts[2], parts[1]];
-    case 4:
-      return [parts[0], parts[1], parts[2], parts[3]];
-    default:
-      throw new Error(`Expected 1 to 4 values in "${value}"`);
-  }
-}
-
-function sides(accepts: (token: string) => boolean) {
-  return (value: string): string[] => expandSides(values(value, accepts), value);
-}
-
-export const splitMargin = sides((token) => token === 'auto' || isLength(token));
-export const splitPadding = sides(isLength);
+export const splitMargin = (value: string) => requireExpandedCss('margin', value);
+export const splitPadding = (value: string) => requireExpandedCss('padding', value);
 
 export const BORDER_WIDTH_KEYWORDS: ReadonlyMap<string, string> = new Map([
   ['thin', '1'],
   ['medium', '3'],
   ['thick', '5'],
 ]);
-export const splitBorderWidth = sides((token) => BORDER_WIDTH_KEYWORDS.has(token) || isLength(token));
+export const splitBorderWidth = (value: string) => requireExpandedCss('border-width', value);
+export const splitBorderColor = (value: string) => requireExpandedCss('border-color', value);
 
-export const splitBorderColor = sides((token) => token !== '/');
-
-/** A logical axis shorthand (`margin-inline: <start> [<end>]`): start and end. */
-function startEnd(accepts: (token: string) => boolean) {
-  return (value: string): string[] => {
-    const parts = values(value, accepts);
-    if (parts.length < 1 || parts.length > 2) {
-      throw new Error(`Expected 1 or 2 values in "${value}"`);
-    }
-    return [parts[0], parts[1] ?? parts[0]];
-  };
-}
-
-export const splitMarginStartEnd = startEnd((token) => token === 'auto' || isLength(token));
-export const splitPaddingStartEnd = startEnd(isLength);
-export const splitInsetStartEnd = startEnd((token) => token === 'auto' || isLength(token));
-export const splitBorderWidthStartEnd = startEnd((token) => BORDER_WIDTH_KEYWORDS.has(token) || isLength(token));
-export const splitBorderColorStartEnd = startEnd((token) => token !== '/');
-
-export const BORDER_STYLES: ReadonlySet<string> = new Set(['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset']);
-
-export const splitBorderStyle = sides((token) => BORDER_STYLES.has(token.toLowerCase()));
-export const splitBorderStyleStartEnd = startEnd((token) => BORDER_STYLES.has(token.toLowerCase()));
-
-const LENGTH_FUNCTION = /^(calc|min|max|clamp)\(/i;
-
-/**
- * Values for omitted `border` parts, matching the native border parsers:
- * `medium`, `solid` (CSS: `none`) and black (CSS: `currentcolor`).
- */
-const BORDER_OMITTED = { width: '3', style: 'solid', color: 'black' };
-
-interface BorderParts {
-  widths: string[];
-  style: string;
-  color: string;
-}
-
-/** `<width> || <style> || <color>`, in any order, each at most once. */
-function parseBorderParts(value: string, maxWidths: number): BorderParts {
-  const widths: string[] = [];
-  let style: string | undefined;
-  let color: string | undefined;
-  for (const token of tokenizeCss(value)) {
-    const lower = token.toLowerCase();
-    if (BORDER_STYLES.has(lower)) {
-      if (style !== undefined) {
-        throw new Error(`Two border styles in "${value}"`);
-      }
-      style = lower;
-    } else if (BORDER_WIDTH_KEYWORDS.has(lower) || LENGTH.test(token) || LENGTH_FUNCTION.test(token)) {
-      if (widths.length === maxWidths) {
-        throw new Error(`Too many border widths in "${value}"`);
-      }
-      widths.push(BORDER_WIDTH_KEYWORDS.get(lower) ?? token);
-    } else if (token === ',' || token === '/' || color !== undefined) {
-      throw new Error(`Unexpected "${token}" in border "${value}"`);
-    } else {
-      color = token;
-    }
-  }
-  if (!widths.length && style === undefined && color === undefined) {
-    throw new Error(`Empty border "${value}"`);
-  }
-  // A border with no style has a computed width of 0, so it takes no room.
-  const hidden = style === 'none' || style === 'hidden';
-  return {
-    widths: hidden ? ['0'] : widths.length ? widths : [BORDER_OMITTED.width],
-    style: style ?? BORDER_OMITTED.style,
-    color: color === undefined || color.toLowerCase() === 'currentcolor' ? BORDER_OMITTED.color : color,
-  };
-}
-
-/** `border-<side>` as its width, style and color; omitted parts take BORDER_OMITTED. */
-export function splitBorderSide(value: string): string[] {
-  const { widths, style, color } = parseBorderParts(value, 1);
-  return [widths[0], style, color];
-}
-
-/**
- * `border` as four widths, four styles and four colors (top, right, bottom, left).
- * Accepts up to four widths, as `border-width` does.
- */
-export function splitBorder(value: string): string[] {
-  const { widths, style, color } = parseBorderParts(value, 4);
-  return [...expandSides(widths, value), style, style, style, style, color, color, color, color];
-}
-
-export function splitBorderRadius(value: string): string[] {
-  const tokens = values(value, (token) => token === '/' || isLength(token));
-  const slash = tokens.indexOf('/');
-  const horizontal = slash === -1 ? tokens : tokens.slice(0, slash);
-  const vertical = slash === -1 ? undefined : tokens.slice(slash + 1);
-  if (vertical && (vertical.length === 0 || vertical.includes('/'))) {
-    throw new Error(`Expected one "/" between radii in "${value}"`);
-  }
-  const h = expandSides(horizontal, value);
-  const v = vertical ? expandSides(vertical, value) : undefined;
-  return h.map((radius, i) => (v ? `${radius} ${v[i]}` : radius));
-}
+export const splitMarginStartEnd = (value: string, name = 'margin-inline') => requireExpandedCss(name, value);
+export const splitPaddingStartEnd = (value: string, name = 'padding-inline') => requireExpandedCss(name, value);
+export const splitInsetStartEnd = (value: string, name = 'inset-inline') => requireExpandedCss(name, value);
+export const splitBorderWidthStartEnd = (value: string, name = 'border-inline-width') => requireExpandedCss(name, value);
+export const splitBorderColorStartEnd = (value: string, name = 'border-inline-color') => requireExpandedCss(name, value);
+export const splitBorderStyleStartEnd = (value: string, name = 'border-inline-style') => requireExpandedCss(name, value);
+export const splitBorderStyle = (value: string) => requireExpandedCss('border-style', value);
+export const splitBorderSide = (value: string, name = 'border-top') => requireExpandedCss(name, value);
+export const splitBorder = (value: string) => requireExpandedCss('border', value);
+export const splitBorderRadius = (value: string) => requireExpandedCss('border-radius', value);
 
 export type CornerRadius = [horizontal: string, vertical: string];
 
 export type CornerIndex = 0 | 1 | 2 | 3;
 
 export function parseCornerRadius(value: string): CornerRadius {
-  const [h = '0', v = h] = tokenizeCss(value);
-  return [h, v];
+  if (!value.trim()) return ['0', '0'];
+  const [horizontal, vertical] = requireExpandedCss('border-corner-radius', value);
+  return [horizontal, vertical];
 }
 
 // The same few radius strings repeat across a tree, so parse each once. Callers
@@ -252,7 +77,8 @@ const cornersCache = new Map<string, CornerRadius[]>();
 export function borderRadiusCorners(value: string): CornerRadius[] {
   let corners = cornersCache.get(value);
   if (!corners) {
-    corners = splitBorderRadius(value).map(parseCornerRadius);
+    const axes = requireExpandedCss('border-radius-components', value);
+    corners = axes.slice(0, 4).map((horizontal, index) => [horizontal, axes[index + 4]]);
     if (cornersCache.size >= 256) cornersCache.clear();
     cornersCache.set(value, corners);
   }
@@ -267,459 +93,49 @@ export function composeBorderRadius(corners: CornerRadius[]): string {
   return `${horizontal} / ${corners.map(([, v]) => v).join(' ')}`;
 }
 
-const IMAGE_FUNCTION = /^(url|image-set|cross-fade|element|(repeating-)?(linear|radial|conic)-gradient)\(/i;
-const REPEAT_SINGLE = new Set(['repeat-x', 'repeat-y']);
-const REPEAT = new Set(['repeat', 'space', 'round', 'no-repeat']);
-const ATTACHMENT = new Set(['scroll', 'fixed', 'local']);
-const BOX = new Set(['border-box', 'padding-box', 'content-box']);
-const POSITION_KEYWORD = new Set(['left', 'right', 'top', 'bottom', 'center']);
-const SIZE_KEYWORD = new Set(['auto', 'cover', 'contain']);
-
-function isColorCandidate(token: string): boolean {
-  return token !== '/' && token !== 'none' && token !== 'text' && !IMAGE_FUNCTION.test(token) && !LENGTH.test(token) && ![REPEAT_SINGLE, REPEAT, ATTACHMENT, BOX, POSITION_KEYWORD, SIZE_KEYWORD].some((keywords) => keywords.has(token));
-}
-
-interface BackgroundLayer {
-  color?: string;
-  image?: string;
-  repeat?: string;
-  position?: string;
-  size?: string;
-  origin?: string;
-  clip?: string;
-  attachment?: string;
-}
-
-const LAYER_INITIAL = { image: 'none', repeat: 'repeat', position: '0% 0%', size: 'auto', clip: 'border-box', origin: 'padding-box', attachment: 'scroll' };
-
-function parseBackgroundLayer(tokens: string[], value: string, isFinal: boolean): BackgroundLayer {
-  const layer: BackgroundLayer = {};
-  let boxes = 0;
-  // `text` is a clip value only; a box keyword beside it is the origin.
-  let clipsToText = false;
-  const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in background "${value}"`);
-  let i = 0;
-  const run = (accepts: (token: string) => boolean, max: number) => {
-    const start = i;
-    while (i < tokens.length && i - start < max && accepts(tokens[i])) {
-      i++;
-    }
-    return tokens.slice(start, i).join(' ');
-  };
-  while (i < tokens.length) {
-    const token = tokens[i];
-    if (layer.image === undefined && (token === 'none' || IMAGE_FUNCTION.test(token))) {
-      layer.image = token;
-      i++;
-    } else if (layer.repeat === undefined && REPEAT_SINGLE.has(token)) {
-      layer.repeat = token;
-      i++;
-    } else if (layer.repeat === undefined && REPEAT.has(token)) {
-      layer.repeat = run((t) => REPEAT.has(t), 2);
-    } else if (layer.attachment === undefined && ATTACHMENT.has(token)) {
-      layer.attachment = token;
-      i++;
-    } else if (!clipsToText && token === 'text') {
-      clipsToText = true;
-      i++;
-    } else if (boxes < (clipsToText ? 1 : 2) && BOX.has(token)) {
-      if (boxes === 0) {
-        layer.origin = token;
-      }
-      layer.clip = token;
-      boxes++;
-      i++;
-    } else if (layer.position === undefined && (POSITION_KEYWORD.has(token) || LENGTH.test(token))) {
-      layer.position = run((t) => POSITION_KEYWORD.has(t) || LENGTH.test(t), 4);
-      if (tokens[i] === '/') {
-        i++;
-        const size = run((t) => SIZE_KEYWORD.has(t) || LENGTH.test(t), 2).split(' ');
-        if (!size[0] || (size.length === 2 && size.some((t) => t === 'cover' || t === 'contain'))) {
-          throw invalid();
-        }
-        layer.size = size.join(' ');
-      }
-    } else if (isFinal && layer.color === undefined && isColorCandidate(token)) {
-      layer.color = token;
-      i++;
-    } else {
-      throw invalid();
-    }
-  }
-  if (clipsToText) {
-    if (boxes > 1) {
-      throw invalid();
-    }
-    layer.clip = 'text';
-  }
-  return layer;
-}
-
 export function splitBackground(value: string): LonghandValue[] {
-  const layerTokens: string[][] = [[]];
-  for (const token of tokenizeCss(value)) {
-    if (token === ',') {
-      layerTokens.push([]);
-    } else {
-      layerTokens[layerTokens.length - 1].push(token);
-    }
-  }
-  const layers = layerTokens.map((tokens, i) => {
-    if (tokens.length === 0) {
-      throw new Error(`Empty layer in background "${value}"`);
-    }
-    return parseBackgroundLayer(tokens, value, i === layerTokens.length - 1);
-  });
-  const perLayer = (part: keyof typeof LAYER_INITIAL, read: (layer: BackgroundLayer) => string | undefined): LonghandValue => {
-    const parts = layers.map(read);
-    return parts.some((p) => p !== undefined) ? parts.map((p) => p ?? LAYER_INITIAL[part]).join(', ') : unsetValue;
-  };
-  return [layers[layers.length - 1].color ?? unsetValue, perLayer('image', (layer) => layer.image), perLayer('repeat', (layer) => layer.repeat), perLayer('position', (layer) => layer.position), perLayer('size', (layer) => layer.size), perLayer('clip', (layer) => layer.clip), perLayer('origin', (layer) => layer.origin), perLayer('attachment', (layer) => layer.attachment)];
+  return requireExpandedCss('background', value).map((part) => part || unsetValue);
 }
 
-const MASK_BOX = new Set(['border-box', 'padding-box', 'content-box', 'margin-box', 'fill-box', 'stroke-box', 'view-box']);
-const MASK_COMPOSITE = new Set(['add', 'subtract', 'intersect', 'exclude']);
-const MASK_MODE = new Set(['alpha', 'luminance', 'match-source']);
-
-interface MaskLayer {
-  image?: string;
-  position?: string;
-  size?: string;
-  repeat?: string;
-  origin?: string;
-  clip?: string;
-  composite?: string;
-  mode?: string;
+export function requireExpandedCss(name: string, value: string): string[] {
+  const fields = expandCssShorthand(name, value);
+  if (!fields) throw new Error(`Invalid ${name} value "${value}"`);
+  return fields;
 }
 
-const MASK_INITIAL = { image: 'none', position: '0% 0%', size: 'auto', repeat: 'repeat', origin: 'border-box', clip: 'border-box', composite: 'add', mode: 'match-source' };
-
-// Like a background layer, without a colour or attachment, with a compositing operator and a
-// masking mode, and with `no-clip` as a clip box.
-function parseMaskLayer(tokens: string[], value: string): MaskLayer {
-  const layer: MaskLayer = {};
-  let boxes = 0;
-  let noClip = false;
-  const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in mask "${value}"`);
-  let i = 0;
-  const run = (accepts: (token: string) => boolean, max: number) => {
-    const start = i;
-    while (i < tokens.length && i - start < max && accepts(tokens[i])) {
-      i++;
-    }
-    return tokens.slice(start, i).join(' ');
-  };
-  while (i < tokens.length) {
-    const token = tokens[i];
-    if (layer.image === undefined && (token === 'none' || IMAGE_FUNCTION.test(token))) {
-      layer.image = token;
-      i++;
-    } else if (layer.repeat === undefined && REPEAT_SINGLE.has(token)) {
-      layer.repeat = token;
-      i++;
-    } else if (layer.repeat === undefined && REPEAT.has(token)) {
-      layer.repeat = run((t) => REPEAT.has(t), 2);
-    } else if (MASK_BOX.has(token) && (noClip ? layer.origin === undefined : boxes < 2)) {
-      if (layer.origin === undefined) {
-        layer.origin = token;
-      }
-      if (!noClip) {
-        layer.clip = token;
-      }
-      boxes++;
-      i++;
-    } else if (token === 'no-clip' && !noClip && boxes < 2) {
-      // One box and `no-clip`, either way round: the box is the origin.
-      layer.clip = token;
-      noClip = true;
-      i++;
-    } else if (layer.composite === undefined && MASK_COMPOSITE.has(token)) {
-      layer.composite = token;
-      i++;
-    } else if (layer.mode === undefined && MASK_MODE.has(token)) {
-      layer.mode = token;
-      i++;
-    } else if (layer.position === undefined && (POSITION_KEYWORD.has(token) || LENGTH.test(token))) {
-      layer.position = run((t) => POSITION_KEYWORD.has(t) || LENGTH.test(t), 4);
-      if (tokens[i] === '/') {
-        i++;
-        const size = run((t) => SIZE_KEYWORD.has(t) || LENGTH.test(t), 2).split(' ');
-        if (!size[0] || (size.length === 2 && size.some((t) => t === 'cover' || t === 'contain'))) {
-          throw invalid();
-        }
-        layer.size = size.join(' ');
-      }
-    } else {
-      throw invalid();
-    }
-  }
-  return layer;
+function splitMaskLayers(name: 'mask' | '-webkit-mask', value: string): string[] {
+  const [image, size, position, repeat, origin, clip, mode, composite] = requireExpandedCss(name, value);
+  return [image, position, size, repeat, origin, clip, composite, mode];
 }
 
 /** `mask` into image, position, size, repeat, origin, clip, composite and mode, per layer. */
 export function splitMask(value: string): LonghandValue[] {
-  const layerTokens: string[][] = [[]];
-  for (const token of tokenizeCss(value)) {
-    if (token === ',') {
-      layerTokens.push([]);
-    } else {
-      layerTokens[layerTokens.length - 1].push(token);
-    }
-  }
-  const layers = layerTokens.map((tokens) => {
-    if (tokens.length === 0) {
-      throw new Error(`Empty layer in mask "${value}"`);
-    }
-    return parseMaskLayer(tokens, value);
-  });
-  // A shorthand sets every longhand, so whatever a layer leaves out gets its initial value.
-  const perLayer = (part: keyof typeof MASK_INITIAL) => layers.map((layer) => layer[part] ?? MASK_INITIAL[part]).join(', ');
-  return [perLayer('image'), perLayer('position'), perLayer('size'), perLayer('repeat'), perLayer('origin'), perLayer('clip'), perLayer('composite'), perLayer('mode')];
+  return splitMaskLayers('mask', value);
 }
 
-// -webkit-mask-composite uses canvas-style operator names. These are the ones with a standard
-// equivalent for how a layer combines with the layers below it.
-const WEBKIT_MASK_COMPOSITE: Record<string, string> = {
-  'source-over': 'add',
-  'source-in': 'intersect',
-  'source-out': 'subtract',
-  xor: 'exclude',
-  'destination-in': 'intersect',
-};
-
-// Older WebKit box keywords for -webkit-mask-origin/-clip.
-const WEBKIT_MASK_BOX: Record<string, string> = { border: 'border-box', padding: 'padding-box', content: 'content-box' };
-
-/** A -webkit-mask-composite list as `mask-composite`; operators with no equivalent become `add`. */
-export function webkitMaskComposite(value: string): string {
-  return splitLayerList(value)
-    .map((part) => (MASK_COMPOSITE.has(part) ? part : (WEBKIT_MASK_COMPOSITE[part] ?? 'add')))
-    .join(', ');
-}
+/** A -webkit-mask-composite list as `mask-composite`, with unsupported operators mapped to add. */
+export const webkitMaskComposite = (value: string) => requireExpandedCss('webkit-mask-composite-list', value)[0];
 
 /** A -webkit-mask-origin or -clip list as the standard property. */
-export function webkitMaskBox(value: string): string {
-  return splitLayerList(value)
-    .map((part) => WEBKIT_MASK_BOX[part] ?? part)
-    .join(', ');
-}
+export const webkitMaskBox = (value: string) => requireExpandedCss('webkit-mask-box-list', value)[0];
 
-function splitLayerList(value: string): string[] {
-  const parts: string[] = [''];
-  for (const token of tokenizeCss(value)) {
-    if (token === ',') {
-      parts.push('');
-    } else {
-      parts[parts.length - 1] += (parts[parts.length - 1] ? ' ' : '') + token;
-    }
-  }
-  return parts.map((part) => part.trim());
-}
-
-/** `-webkit-mask`: `mask` with WebKit's composite operators and box keywords. */
+/** `-webkit-mask` with its composite operators and box keywords. */
 export function splitWebkitMask(value: string): LonghandValue[] {
-  const standard = tokenizeCss(value)
-    .map((token) => WEBKIT_MASK_COMPOSITE[token] ?? WEBKIT_MASK_BOX[token] ?? token)
-    .join(' ');
-  return splitMask(standard);
+  return splitMaskLayers('-webkit-mask', value);
 }
 
-const MASK_BORDER_REPEAT = new Set(['stretch', 'repeat', 'round', 'space']);
-const MASK_BORDER_MODE = new Set(['alpha', 'luminance']);
-const NUMBER_OR_PERCENT = /^[+]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?%?$/i;
-
-/**
- * `mask-border` (and `-webkit-mask-box-image`) into source, slice, width, outset, repeat and mode:
- * `<source> || <slice> [ / <width>? [ / <outset> ]? ]? || <repeat> || <mode>`.
- */
-export function splitMaskBorder(value: string): LonghandValue[] {
-  const tokens = tokenizeCss(value);
-  const invalid = () => new Error(`Unexpected "${tokens.join(' ')}" in mask-border "${value}"`);
-  let source: string | undefined;
-  let slice: string | undefined;
-  let width: string | undefined;
-  let outset: string | undefined;
-  let repeat: string | undefined;
-  let mode: string | undefined;
-  let i = 0;
-  const run = (accepts: (token: string) => boolean, max: number) => {
-    const start = i;
-    while (i < tokens.length && i - start < max && accepts(tokens[i])) {
-      i++;
-    }
-    return tokens.slice(start, i).join(' ');
-  };
-  while (i < tokens.length) {
-    const token = tokens[i];
-    if (source === undefined && (token === 'none' || IMAGE_FUNCTION.test(token))) {
-      source = token;
-      i++;
-    } else if (slice === undefined && (NUMBER_OR_PERCENT.test(token) || token === 'fill')) {
-      slice = run((t) => NUMBER_OR_PERCENT.test(t) || t === 'fill', 5);
-      if (slice.split(' ').filter((t) => t === 'fill').length > 1) {
-        throw invalid();
-      }
-      if (tokens[i] === '/') {
-        i++;
-        width = run((t) => t === 'auto' || LENGTH.test(t), 4) || undefined;
-        if (tokens[i] === '/') {
-          i++;
-          outset = run((t) => LENGTH.test(t), 4);
-          if (!outset) {
-            throw invalid();
-          }
-        } else if (width === undefined) {
-          throw invalid();
-        }
-      }
-    } else if (repeat === undefined && MASK_BORDER_REPEAT.has(token)) {
-      repeat = run((t) => MASK_BORDER_REPEAT.has(t), 2);
-    } else if (mode === undefined && MASK_BORDER_MODE.has(token)) {
-      mode = token;
-      i++;
-    } else {
-      throw invalid();
-    }
-  }
-  return [source ?? 'none', slice ?? '0', width ?? 'auto', outset ?? '0', repeat ?? 'stretch', mode ?? 'alpha'];
+/** The six image-border longhands in cascade order. */
+export function splitMaskBorder(value: string, name: 'mask-border' | '-webkit-mask-box-image' = 'mask-border'): LonghandValue[] {
+  return requireExpandedCss(name, value);
 }
 
-function keywordList(value: string, allowed: ReadonlySet<string>, max: number): string[] {
-  const tokens = tokenizeCss(value);
-  if (tokens.length === 0 || tokens.length > max || !tokens.every((token) => allowed.has(token))) {
-    throw new Error(`Expected 1 to ${max} of ${[...allowed].join(', ')} in "${value}"`);
-  }
-  return tokens;
-}
-
-const OVERFLOW = new Set(['visible', 'hidden', 'clip', 'scroll', 'auto']);
-
-export function splitOverflow(value: string): string[] {
-  const [x, y = x] = keywordList(value, OVERFLOW, 2);
-  return [x, y];
-}
-
-const FLEX_DIRECTION = new Set(['row', 'row-reverse', 'column', 'column-reverse']);
-const FLEX_WRAP = new Set(['nowrap', 'wrap', 'wrap-reverse']);
-
-export function splitFlexFlow(value: string): LonghandValue[] {
-  const tokens = keywordList(value, new Set([...FLEX_DIRECTION, ...FLEX_WRAP]), 2);
-  const direction = tokens.filter((token) => FLEX_DIRECTION.has(token));
-  const wrap = tokens.filter((token) => FLEX_WRAP.has(token));
-  if (direction.length > 1 || wrap.length > 1) {
-    throw new Error(`Expected at most one direction and one wrap in "${value}"`);
-  }
-  return [direction[0] ?? unsetValue, wrap[0] ?? unsetValue];
-}
-
-const FLEX_FACTOR = /^\+?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
-const FLEX_BASIS_KEYWORD = new Set(['auto', 'content', 'min-content', 'max-content', 'fit-content']);
-
+export const splitOverflow = (value: string) => requireExpandedCss('overflow', value);
+export const splitFlexFlow = (value: string): LonghandValue[] => requireExpandedCss('flex-flow', value).map((part) => part || unsetValue);
 export function splitFlex(value: string): string[] {
-  const tokens = tokenizeCss(value);
-  if (tokens.length === 1 && tokens[0] === 'none') {
-    return ['0', '0', 'auto'];
-  }
-  if (tokens.length === 1 && tokens[0] === 'auto') {
-    return ['1', '1', 'auto'];
-  }
-  let grow: string | undefined;
-  let shrink: string | undefined;
-  let basis: string | undefined;
-  let i = 0;
-  const takeFactors = () => {
-    if (grow === undefined && FLEX_FACTOR.test(tokens[i] ?? '')) {
-      grow = tokens[i++];
-      if (FLEX_FACTOR.test(tokens[i] ?? '')) {
-        shrink = tokens[i++];
-      }
-    }
-  };
-  const takeBasis = () => {
-    if (basis === undefined && i < tokens.length && (FLEX_BASIS_KEYWORD.has(tokens[i]) || (isLength(tokens[i]) && !tokens[i].startsWith('-')))) {
-      basis = tokens[i++];
-    }
-  };
-  takeFactors();
-  takeBasis();
-  takeFactors();
-  if (i !== tokens.length || i === 0) {
-    throw new Error(`Expected [<grow> <shrink>?] || <basis> in flex "${value}"`);
-  }
-  return [grow ?? '1', shrink ?? '1', basis ?? '0%'];
+  const [grow, shrink, basis] = requireExpandedCss('flex', value);
+  return [grow, shrink, basis || '0%'];
 }
+export const splitGap = (value: string, name = 'gap') => requireExpandedCss(name, value);
+export const splitPlace = (value: string, name = 'place-items') => requireExpandedCss(name, value);
 
-export function splitGap(value: string): string[] {
-  const tokens = values(value, (token) => token === 'normal' || isLength(token));
-  if (tokens.length === 0 || tokens.length > 2) {
-    throw new Error(`Expected 1 or 2 values in gap "${value}"`);
-  }
-  const [row, column = row] = tokens;
-  return [row, column];
-}
-
-const ALIGNMENT_PREFIX = new Set(['safe', 'unsafe', 'first', 'last']);
-
-/** `place-items` / `place-content` / `place-self`: the align value, then the justify value, which defaults to it. */
-export function splitPlace(value: string): string[] {
-  const tokens = tokenizeCss(value);
-  const parts: string[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    // `safe center` and `last baseline` are one value.
-    if (ALIGNMENT_PREFIX.has(tokens[i]) && i + 1 < tokens.length) {
-      parts.push(`${tokens[i]} ${tokens[++i]}`);
-    } else {
-      parts.push(tokens[i]);
-    }
-  }
-  if (parts.length === 0 || parts.length > 2) {
-    throw new Error(`Expected 1 or 2 values in "${value}"`);
-  }
-  const [align, justify = align] = parts;
-  return [align, justify];
-}
-
-const LIST_STYLE_POSITIONS = new Set(['inside', 'outside']);
-
-/**
- * Splits `list-style` into type and position, in any order. An image is accepted
- * and dropped; omitted parts reset to `disc` and `outside`.
- */
-export function splitListStyle(value: string): string[] {
-  let type: string | undefined;
-  let position: string | undefined;
-  let image = false;
-  let nones = 0;
-  for (const token of tokenizeCss(value)) {
-    const lower = token.toLowerCase();
-    if (lower === 'none') {
-      nones++;
-    } else if (LIST_STYLE_POSITIONS.has(lower)) {
-      if (position !== undefined) {
-        throw new Error(`Two list-style positions in "${value}"`);
-      }
-      position = lower;
-    } else if (IMAGE_FUNCTION.test(token)) {
-      if (image) {
-        throw new Error(`Two list-style images in "${value}"`);
-      }
-      image = true;
-    } else if (token === ',' || token === '/' || type !== undefined) {
-      throw new Error(`Unexpected "${token}" in list-style "${value}"`);
-    } else {
-      type = lower;
-    }
-  }
-  // `none` fills whichever of type and image is still open, type first.
-  const open = (type === undefined ? 1 : 0) + (image ? 0 : 1);
-  if (nones > open) {
-    throw new Error(`Too many "none" in list-style "${value}"`);
-  }
-  if (nones > 0 && type === undefined) {
-    type = 'none';
-  }
-  if (type === undefined && position === undefined && !image && nones === 0) {
-    throw new Error(`Empty list-style "${value}"`);
-  }
-  return [type ?? 'disc', position ?? 'outside'];
-}
+export const splitListStyle = (value: string) => requireExpandedCss('list-style', value);
