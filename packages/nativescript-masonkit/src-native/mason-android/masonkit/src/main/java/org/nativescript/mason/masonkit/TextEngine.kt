@@ -2078,7 +2078,6 @@ class TextEngine(val container: TextContainer) {
     if (style.resolvedTextWrap != TextWrap.Wrap) return null
     val a = child.attributes
     if ((a.letterSpacing ?: 0f) != 0f || style.resolvedWordSpacing != 0f) return null
-    if ((a.lineHeight ?: 0f) > 0f) return null
     if (a.decorationLine.let { it != null && it != Styles.DecorationLine.None } || !a.textShadow.isNullOrEmpty()) {
       return null
     }
@@ -2134,7 +2133,8 @@ class TextEngine(val container: TextContainer) {
     val font = runMetrics(paint, lastRunMetrics)
     var ascent = font.ascent
     var descent = font.descent
-    if (!(font.asciiInPrimaryFont && text.all { it in ' '..'~' })) {
+    val usesOnlyPrimaryFont = font.asciiInPrimaryFont && text.all { it in ' '..'~' }
+    if (!usesOnlyPrimaryFont) {
       val fmi = scratchFontMetricsInt
       paint.getFontMetricsInt(text, 0, n, 0, n, false, fmi)
       if (fmi.ascent < ascent || fmi.descent > descent) {
@@ -2147,6 +2147,12 @@ class TextEngine(val container: TextContainer) {
         if (minOf(fmi.ascent, font.ascent) != ascent || maxOf(fmi.descent, font.descent) != descent) return false
       }
     }
+    val fixedLineHeight = TextNode.fixedLineHeightDip(child.node.attributes)?.let { it * paint.density }
+    // StaticLayout grows a line's carried metrics to the fonts that line uses, Rust to the whole
+    // text's. They differ only when a line height no taller than the text meets a fallback font.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) <= descent - ascent && !usesOnlyPrimaryFont) return false
+    // Layout.draw skips a layout with no height.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) == 0) return false
     val advances = FloatArray(n)
     paint.getTextWidths(text, advances)
     val inline = NodeUtils.isInlineLike(node)
@@ -2154,7 +2160,9 @@ class TextEngine(val container: TextContainer) {
       node, text, icuLocale(paint.textLocale), advances,
       ascent = ascent,
       descent = descent,
-      lineHeight = TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
+      lineHeight = fixedLineHeight
+        ?: TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
+      fixedLineHeight = fixedLineHeight != null,
       minLineHeight = runMetrics(view.paint, lastViewMetrics).minLineHeight,
       inline = inline,
     )

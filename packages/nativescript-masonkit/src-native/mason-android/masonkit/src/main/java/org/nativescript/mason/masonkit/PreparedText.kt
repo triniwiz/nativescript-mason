@@ -35,10 +35,12 @@ object PreparedText {
     ascent: Int,
     descent: Int,
     lineHeight: Float,
+    fixedLineHeight: Boolean,
     minLineHeight: Float,
     inline: Boolean,
   ): Boolean = nativePrepare(
-    node.mason.nativePtr, node.nativePtr, text, locale, advances, ascent, descent, lineHeight, minLineHeight, inline
+    node.mason.nativePtr, node.nativePtr, text, locale, advances, ascent, descent, lineHeight, fixedLineHeight,
+    minLineHeight, inline
   )
 
   internal fun clear(node: Node) = nativeClear(node.mason.nativePtr, node.nativePtr)
@@ -56,6 +58,7 @@ object PreparedText {
     ascent: Int,
     descent: Int,
     lineHeight: Float,
+    fixedLineHeight: Boolean,
     minLineHeight: Float,
     inline: Boolean,
   ): Boolean

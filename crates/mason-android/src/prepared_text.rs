@@ -1,7 +1,7 @@
 use jni::objects::{JClass, JFloatArray, JString};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
-use mason_core::prepared_text::{Flow, LineBox, LineMetrics, PreparedText};
+use mason_core::prepared_text::{Flow, LineBox, LineHeight, LineMetrics, PreparedText};
 use mason_core::{Id, Mason, NodeRef};
 use std::ffi::{c_char, CStr, CString};
 
@@ -37,6 +37,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     ascent: jint,
     descent: jint,
     line_height: jfloat,
+    fixed_line_height: jboolean,
     min_line_height: jfloat,
     inline: jboolean,
 ) -> jboolean {
@@ -76,7 +77,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     let metrics = LineMetrics {
         ascent,
         descent,
-        height: line_height,
+        line_height: if fixed_line_height == JNI_TRUE {
+            LineHeight::Fixed(line_height)
+        } else {
+            LineHeight::Normal(line_height)
+        },
         min_height: min_line_height,
     };
     let flow = if inline == JNI_TRUE {

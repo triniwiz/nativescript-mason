@@ -403,29 +403,50 @@ class PreparedTextInstrumentedTest {
     }
   }
 
-  @Test
-  fun textAlignWrittenAfterPreparationIsDrawnAsWithStaticLayout() {
-    fun drawn(preparedText: Boolean) = withPreparedText(preparedText) {
-      val mason = Mason()
-      val p = mason.createTextView(context, TextType.P).apply { textContent = "Start-aligned words, then centred ones" }
-      val root = mason.createView(context).apply { addView(p) }
-      val start = layOutAndDraw(root, 601)
-      Assert.assertEquals("prepared start-aligned", preparedText, p.engine.preparedText != null)
-      p.writeStyleThenSync(StateKeys.TEXT_ALIGN) {
-        it.put(StyleKeys.TEXT_ALIGN, TextAlign.Center.value)
-        it.put(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
+  private fun <T> onMainThread(block: () -> T): T {
+    var result: Result<T>? = null
+    InstrumentationRegistry.getInstrumentation().runOnMainSync { result = runCatching(block) }
+    return result!!.getOrThrow()
+  }
+
+  private fun assertRestyledAsWithStaticLayout(
+    name: String,
+    changed: StateKeys,
+    text: String = "Words drawn before and after a style change that moves them",
+    write: (java.nio.ByteBuffer) -> Unit,
+  ) {
+    fun drawn(preparedText: Boolean) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val p = mason.createTextView(context, TextType.P).apply { textContent = text }
+        val root = mason.createView(context).apply { addView(p) }
+        val before = layOutAndDraw(root, 601)
+        Assert.assertEquals("$name: prepared before", preparedText, p.engine.preparedText != null)
+        p.writeStyleThenSync(changed, write)
+        layOutAndDraw(root, 601).also {
+          Assert.assertEquals("$name: prepared after", preparedText, p.engine.preparedText != null)
+          Assert.assertFalse("$name moved the text, prepared text $preparedText", it.sameAs(before))
+        }
       }
-      // The compute that applies the change lays the text out with StaticLayout; the next prepares it.
-      val changed = layOutAndDraw(root, 601)
-      val again = layOutAndDraw(root, 601)
-      Assert.assertEquals("prepared centred", preparedText, p.engine.preparedText != null)
-      Assert.assertFalse("centring moved the text, prepared text $preparedText", again.sameAs(start))
-      changed to again
     }
-    val (changed, again) = drawn(true)
-    val (changedOff, againOff) = drawn(false)
-    Assert.assertTrue("centred as with StaticLayout when changed", changed.sameAs(changedOff))
-    Assert.assertTrue("centred as with StaticLayout once prepared", again.sameAs(againOff))
+    Assert.assertTrue("$name: drawn as with StaticLayout", drawn(true).sameAs(drawn(false)))
+  }
+
+  @Test
+  fun textAlignWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("text-align: center", StateKeys.TEXT_ALIGN) {
+      it.put(StyleKeys.TEXT_ALIGN, TextAlign.Center.value)
+      it.put(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
+    }
+
+  @Test
+  fun lineHeightWrittenAfterPreparationIsDrawnAsWithStaticLayout() = assertRestyledAsWithStaticLayout(
+    "line-height: 24.6px", StateKeys.LINE_HEIGHT,
+    text = "A paragraph long enough to wrap onto several lines, so that a taller line height moves each of them"
+  ) {
+    it.putFloat(StyleKeys.LINE_HEIGHT, 24.6f)
+    it.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
+    it.put(StyleKeys.LINE_HEIGHT_TYPE, StyleState.SET)
   }
 
   @Test

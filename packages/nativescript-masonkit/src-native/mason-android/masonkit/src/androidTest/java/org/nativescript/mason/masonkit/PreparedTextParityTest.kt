@@ -176,6 +176,36 @@ class PreparedTextParityTest {
   }
 
   @Test
+  fun lineHeightsUnderAPixelAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(361f)) { mason ->
+    val root = column(mason)
+    for ((lineHeight, relative) in listOf(0.012f to true, 0.3f to false, 0.02f to true, 0.01f to true)) {
+      for (value in listOf("One line", ALIGNED_SAMPLES.last())) {
+        root.addView(text(mason, value, 16f, prepares = lineHeight != 0.01f) { it.setLineHeight(lineHeight, relative) })
+      }
+    }
+    root
+  }
+
+  @Test
+  fun textWithAnExplicitLineHeightIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for ((lineHeight, relative) in LINE_HEIGHTS_AROUND_16_DIP_TEXT) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center)) {
+        root.addView(text(mason, ALIGNED_SAMPLES.last(), 16f) {
+          it.setLineHeight(lineHeight, relative)
+          it.textAlign = align
+        })
+      }
+      root.addView(text(mason, "One line", 16f) { it.setLineHeight(lineHeight, relative) })
+    }
+    root.addView(text(mason, "Status ✅ shipped, with a taller line height", 16f) { it.setLineHeight(31.7f, false) })
+    for (value in listOf("Café, naïve and Ελληνικά", "Status ✅ shipped")) {
+      root.addView(text(mason, "$value, with a shorter line height", 16f, prepares = false) { it.setLineHeight(10f, false) })
+    }
+    root
+  }
+
+  @Test
   fun segmentsBrokenAfterASpaceAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(400f)) { mason ->
     val root = mason.createView(context)
     for (value in SEGMENTS_WITH_SPACES) {
@@ -450,6 +480,9 @@ class PreparedTextParityTest {
     const val CARDS = 200
     val WIDTHS = floatArrayOf(1080f, 936f, 808f, 680f, 552f, 424f, 360f, 240f, 120f)
     val ODD_WIDTHS = floatArrayOf(1080f, 937f, 808.5f, 681.25f, 551f, 424.75f, 361f, 240.5f, 121.3f)
+
+    private val LINE_HEIGHTS_AROUND_16_DIP_TEXT =
+      listOf(10f to false, 19.5f to false, 24.6f to false, 31.7f to false, 0.8f to true, 1.5f to true)
 
     private val SEGMENTS_WITH_SPACES = listOf("( barbazqux", "(( b barbazqux", "« bonjour »", "Yes / No")
 

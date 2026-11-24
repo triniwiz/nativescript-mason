@@ -4,10 +4,31 @@ use taffy::{AvailableSpace, Size};
 const UNBOUNDED: f32 = 1_000_000.0;
 
 #[derive(Debug, Clone, Copy)]
+pub enum LineHeight {
+    Normal(f32),
+    /// StaticLayout carries each line's metrics to the next and grows them to the fonts that line
+    /// uses. Rust grows them to the whole text's; TextEngine.prepare rejects texts where those
+    /// differ.
+    Fixed(f32),
+}
+
+impl LineHeight {
+    fn px(self) -> f32 {
+        match self {
+            LineHeight::Normal(px) | LineHeight::Fixed(px) => px,
+        }
+    }
+
+    fn carries_metrics(self) -> bool {
+        matches!(self, LineHeight::Fixed(_))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct LineMetrics {
     pub ascent: i32,
     pub descent: i32,
-    pub height: f32,
+    pub line_height: LineHeight,
     pub min_height: f32,
 }
 
@@ -50,6 +71,12 @@ struct Segment {
 struct Line {
     start: u32,
     width: f32,
+}
+
+struct LineExtent {
+    top: i32,
+    ascent: i32,
+    descent: i32,
 }
 
 #[derive(Debug)]
@@ -226,12 +253,20 @@ impl PreparedText {
         line
     }
 
-    /// Each line's bottom: the running float sum of the line height, rounded, as
-    /// NormalLineHeightSpan places it.
+    /// Each line's bottom, the rounded running sum of the line height. LineBoxes.apply takes a line
+    /// at the same top as the one before it for that line again, so it adds nothing to the sum.
     fn line_bottoms(&self) -> impl Iterator<Item = i32> {
-        let height = self.metrics.height;
-        std::iter::successors(Some(height), move |bottom| Some(bottom + height))
-            .map(|b| b.round() as i32)
+        let height = self.metrics.line_height.px();
+        let mut top = 0;
+        let mut sum = 0f32;
+        std::iter::repeat_with(move || {
+            let bottom = (sum + height).round() as i32;
+            if bottom != top {
+                sum += height;
+                top = bottom;
+            }
+            bottom
+        })
     }
 
     pub fn line_boxes(&self, width: f32) -> Vec<LineBox> {
@@ -242,20 +277,14 @@ impl PreparedText {
         let limit = ceil_constraint(width);
         let lines = self.lines(limit);
         let boring_layout = self.drawn_as_boring_layout(&lines, limit);
-        let LineMetrics {
-            ascent, descent, ..
-        } = self.metrics;
-        let mut top = 0;
         lines
             .iter()
-            .zip(self.line_bottoms())
+            .zip(self.line_extents())
             .enumerate()
-            .map(|(i, (line, bottom))| {
-                let diff = (bottom - top) - (descent - ascent);
-                let line_ascent = ascent - diff / 2;
+            .map(|(i, (line, extent))| {
                 let next = lines.get(i + 1);
                 let end = next.map_or(self.advances.len() as u32, |next| next.start);
-                let line_box = LineBox {
+                LineBox {
                     start: line.start,
                     end,
                     visible_end: if next.is_some() {
@@ -268,14 +297,43 @@ impl PreparedText {
                     } else {
                         self.line_max(line, next.is_none())
                     },
-                    baseline: top - line_ascent,
-                    ascent: line_ascent,
-                    descent: descent + (diff - diff / 2),
-                };
-                top = bottom;
-                line_box
+                    baseline: extent.top - extent.ascent,
+                    ascent: extent.ascent,
+                    descent: extent.descent,
+                }
             })
             .collect()
+    }
+
+    /// TextNode.LineBoxes.apply.
+    fn line_extents(&self) -> impl Iterator<Item = LineExtent> + '_ {
+        let LineMetrics {
+            ascent,
+            descent,
+            line_height,
+            ..
+        } = self.metrics;
+        let mut top = 0;
+        let mut carried_metrics = (ascent, descent);
+        self.line_bottoms().map(move |bottom| {
+            let (above, below) = if line_height.carries_metrics() {
+                (
+                    carried_metrics.0.min(ascent),
+                    carried_metrics.1.max(descent),
+                )
+            } else {
+                (ascent, descent)
+            };
+            let diff = (bottom - top) - (below - above);
+            carried_metrics = (above - diff / 2, below + (diff - diff / 2));
+            let extent = LineExtent {
+                top,
+                ascent: carried_metrics.0,
+                descent: carried_metrics.1,
+            };
+            top = bottom;
+            extent
+        })
     }
 
     /// Layout.getLineMax, which counts the trailing spaces of the last line.
@@ -353,7 +411,7 @@ mod tests {
     const METRICS: LineMetrics = LineMetrics {
         ascent: -30,
         descent: 8,
-        height: 43.066,
+        line_height: LineHeight::Normal(43.066),
         min_height: 0.0,
     };
 
@@ -508,6 +566,40 @@ mod tests {
     fn a_measure_at_a_definite_width_wraps_to_it() {
         let size = measure(&ten_words(), AvailableSpace::Definite(15.0));
         assert_eq!((size.width, size.height), (10.0, 431.0));
+    }
+
+    fn baselines(line_height: LineHeight) -> Vec<i32> {
+        let text: Vec<u16> = "a b c d".encode_utf16().collect();
+        let metrics = LineMetrics {
+            line_height,
+            ..METRICS
+        };
+        PreparedText::new(&text, vec![10.0; 7], &[2, 4, 6, 7], metrics, Flow::Block)
+            .line_boxes(15.0)
+            .iter()
+            .map(|line| line.baseline)
+            .collect()
+    }
+
+    #[test]
+    fn an_explicit_line_height_carries_each_lines_ascent_to_the_next() {
+        assert_eq!(baselines(LineHeight::Fixed(49.6)), [36, 86, 135, 185]);
+        assert_eq!(
+            baselines(LineHeight::Normal(49.6)),
+            [36, 85, 135, 184],
+            "line-height: normal starts each line from the text's metrics"
+        );
+    }
+
+    #[test]
+    fn an_explicit_line_height_below_the_fonts_is_split_from_the_texts_metrics() {
+        assert_eq!(baselines(LineHeight::Fixed(20.4)), [21, 42, 62, 83]);
+    }
+
+    #[test]
+    fn a_line_with_no_height_leaves_the_lines_after_it_where_it_is() {
+        assert_eq!(baselines(LineHeight::Fixed(0.416)), [11, 11, 11, 11]);
+        assert_eq!(baselines(LineHeight::Fixed(0.7875)), [12, 13, 13, 13]);
     }
 
     #[test]

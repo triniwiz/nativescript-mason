@@ -470,6 +470,14 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     internal fun normalLineHeight(ascent: Int, descent: Int, fontAscent: Int, fontDescent: Int, fontHeight: Float): Float =
       if (ascent == fontAscent && descent == fontDescent) fontHeight else (descent - ascent).toFloat()
 
+    internal fun fixedLineHeightDip(attributes: TextDefaultAttributes): Float? {
+      val lineHeight = attributes.lineHeight?.takeIf { it > 0 } ?: return null
+      val type = attributes.lineHeightType ?: 0
+      if (type == StyleState.SET) return lineHeight
+      val fontSizeDip = (attributes.fontSize?.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
+      return lineHeight * fontSizeDip
+    }
+
     internal fun runStyleSpan(attributes: TextDefaultAttributes): Spans.RunStyleSpan? {
       val setColor = attributes.color.let { it != null && it != 0 }
       val measureSize = attributes.fontSize?.takeIf { it > 0 }
@@ -504,24 +512,12 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       // Resolve line-height to absolute (multiplier * font-size) + idempotent
       // FixedLineHeightSpan; RelativeLineHeightSpan compounds on repeated
       // chooseHeight() calls into an exponential blowup.
-      val lineHeight = attributes.lineHeight?.takeIf { it > 0 }
-      if (lineHeight == null) {
+      val fixedLineHeight = fixedLineHeightDip(attributes)
+      if (fixedLineHeight != null) {
+        spannable.setSpan(FixedLineHeightSpan(fixedLineHeight), start, end, flags)
+      } else {
         val fontSizeDip = (attributes.fontSize?.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
         spannable.setSpan(NormalLineHeightSpan(fontSizeDip, typeface), start, end, flags)
-      } else {
-        val type = attributes.lineHeightType ?: 0
-        lineHeight.let {
-          if (type == StyleState.SET) {
-            spannable.setSpan(FixedLineHeightSpan(it), start, end, flags)
-          } else {
-            val fontSizeDip = (attributes.fontSize?.takeIf { fs -> fs > 0 }
-              ?: Constants.DEFAULT_FONT_SIZE).toFloat()
-            val absolute = it * fontSizeDip
-            if (absolute > 0f) {
-              spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
-            }
-          }
-        }
       }
 
       // Apply decoration
