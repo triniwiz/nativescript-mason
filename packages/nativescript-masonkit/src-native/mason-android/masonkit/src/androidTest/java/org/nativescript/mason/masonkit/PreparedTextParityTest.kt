@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Picture
+import android.os.Build
 import android.text.StaticLayout
 import android.util.Log
 import android.view.View.MeasureSpec
@@ -74,7 +75,7 @@ class PreparedTextParityTest {
         }
         row.addView(text)
         row.applyLayoutFlat(row.node, row.computeAndLayout(40f, -1f))
-        assertEquals("'${sample.text}' prepared", preparedText, text.engine.preparedText != null)
+        assertEquals("'${sample.text}' prepared", preparedText && sample.prepares, text.engine.preparedText != null)
         return text.node.size()
       }
       assertEquals("'${sample.text}', inline ${sample.inline}", size(false), size(true))
@@ -135,10 +136,14 @@ class PreparedTextParityTest {
 
   private class Sample(
     val text: String,
-    val prepares: Boolean = true,
+    prepares: Boolean = true,
     val inline: Boolean = false,
     val whiteSpace: Styles.WhiteSpace? = null,
-  )
+    startsInTallerFallbackFont: Boolean = false,
+  ) {
+    val prepares = prepares &&
+      (!startsInTallerFallbackFont || Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+  }
 
   private class Fixture(context: Context, private val preparedText: Boolean) {
     val mason = Mason()
@@ -246,14 +251,14 @@ class PreparedTextParityTest {
       Sample("東京の天気は晴れです。今日は良い一日になりそうです。", prepares = false),
       Sample("Status ✅ shipped 🚀 with emoji 😀🎉 inline"),
       Sample("مرحبا بالعالم and hello world", prepares = false),
-      Sample("日本語のテキストと English が混ざった文字列"),
+      Sample("日本語のテキストと English が混ざった文字列", startsInTallerFallbackFont = true),
       Sample("Café naïve résumé façade coöperate Ångström"),
     )
 
     private val BREAK_SAMPLES = listOf(
       Sample("A well-known state-of-the-art re-entry plan for a long-awaited follow-up"),
       Sample("Dashes\u2010and\u2013ranges like 1990\u20132000 or pre\u2010war, mid\u2027dot and more"),
-      Sample("\u0532\u0561\u0580\u0565\u0582 first, so its taller fallback font sets every line from the start"),
+      Sample("\u0532\u0561\u0580\u0565\u0582 first, so its taller fallback font sets every line from the start", startsInTallerFallbackFont = true),
       Sample("A taller fallback font later on, \u0532\u0561\u0580\u0565\u0582, grows only the lines from its own", prepares = false),
       Sample("Write to someone@example.com or visit https://example.com/products/category/item today", prepares = false),
       Sample("Soft\u00ADhyphenated words like extra\u00ADordinary stay on the StaticLayout path", prepares = false),
@@ -275,9 +280,9 @@ class PreparedTextParityTest {
     private val MIN_CONTENT_SAMPLES = listOf(
       Sample("well-known-and-widely-adopted"),
       Sample("red/green/blue/yellow/orange/purple"),
-      Sample("日本語の文章は単語の間に空白を入れないのでほとんどの文字の間で改行できます"),
+      Sample("日本語の文章は単語の間に空白を入れないのでほとんどの文字の間で改行できます", startsInTallerFallbackFont = true),
       Sample("10\u00A0km"),
-      Sample("日本語 then Café naïve Ελληνικά 😀"),
+      Sample("日本語 then Café naïve Ελληνικά 😀", startsInTallerFallbackFont = true),
       Sample("foo-bar", inline = true),
       Sample("An inline span of several words", inline = true),
       Sample("A well-known span, then more words", inline = true),
