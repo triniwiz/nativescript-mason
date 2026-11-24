@@ -239,7 +239,7 @@ impl PreparedText {
                     width: if boring_layout {
                         line.width.ceil()
                     } else {
-                        line.width
+                        self.line_max(line, i + 1 == lines.len())
                     },
                     baseline: top - line_ascent,
                     ascent: line_ascent,
@@ -249,6 +249,15 @@ impl PreparedText {
                 line_box
             })
             .collect()
+    }
+
+    /// Layout.getLineMax, which counts the trailing spaces of the last line.
+    fn line_max(&self, line: &Line, last: bool) -> f32 {
+        if last {
+            self.advances[line.start as usize..].iter().sum()
+        } else {
+            line.width
+        }
     }
 
     /// TextView.baselineFromTop: the last line's baseline in a content box `content` big.
@@ -296,7 +305,12 @@ impl PreparedText {
         } else if self.fits_one_line(limit) {
             self.one_line_width.ceil()
         } else {
-            lines.iter().map(|l| ceil_fine(l.width)).fold(0.0, f32::max)
+            let last = lines.len().saturating_sub(1);
+            lines
+                .iter()
+                .enumerate()
+                .map(|(i, line)| ceil_fine(self.line_max(line, i == last)))
+                .fold(0.0, f32::max)
         };
         Size {
             width,
@@ -460,5 +474,16 @@ mod tests {
     fn a_measure_at_a_definite_width_wraps_to_it() {
         let size = measure(&ten_words(), AvailableSpace::Definite(15.0));
         assert_eq!((size.width, size.height), (10.0, 431.0));
+    }
+
+    #[test]
+    fn a_wrapped_texts_last_line_counts_its_trailing_spaces_in_its_width() {
+        let text = evenly("ab cdefg  ", 10.0, &[3, 10], Flow::Block);
+        assert_eq!(
+            lines(&text, 75.0),
+            [(0, 3, 20.0), (3, 10, 70.0)],
+            "the last line's two spaces count"
+        );
+        assert_eq!(measure(&text, AvailableSpace::Definite(75.0)).width, 70.0);
     }
 }

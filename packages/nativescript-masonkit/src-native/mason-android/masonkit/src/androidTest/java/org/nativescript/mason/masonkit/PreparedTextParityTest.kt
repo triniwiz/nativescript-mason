@@ -1,7 +1,10 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Picture
+import android.graphics.Rect
 import android.os.Build
 import android.text.StaticLayout
 import android.util.Log
@@ -15,11 +18,13 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.fontmanager.FontWeight
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
 import org.nativescript.mason.masonkit.enums.TextType
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.random.Random
 
 @RunWith(AndroidJUnit4::class)
@@ -128,6 +133,94 @@ class PreparedTextParityTest {
       return listOf(label.node.computedY, box.node.computedY, root.node.computedHeight, paragraph.node.computedHeight)
     }
     assertEquals("label y, box y, root height, paragraph height", layOut(false), layOut(true))
+  }
+
+  @Test
+  fun shrinkToFitParagraphsEndingInASpaceAreSizedAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason).apply { style.alignItems = AlignItems.FlexStart }
+    for (value in listOf("ab cd efghijklmnop ", "Short words then a much longer final word ", "x yyyyyyyyyyyyyyyyyyyyy  ")) {
+      root.addView(text(mason, value, 16f))
+    }
+    root
+  }
+
+  private val expectPrepared = mutableMapOf<TextView, Boolean>()
+
+  private fun column(mason: Mason) = View.createFlexView(mason, context).apply {
+    flexDirection = FlexDirection.Column
+    setPadding(12.3f, 12.3f, 12.3f, 12.3f)
+    setGap(6.7f, 6.7f)
+  }
+
+  private fun text(mason: Mason, value: String, size: Float, prepares: Boolean = true, style: (Style) -> Unit = {}) =
+    TextView(context, mason, TextType.None).also {
+      style(it.style)
+      it.textContent = value
+      it.setTextSize(size)
+      expectPrepared[it] = prepares
+    }
+
+  private class Drawn(val sizes: List<String>, val prepared: List<Boolean>, val bitmap: Bitmap)
+
+  /**
+   * Lays out the scene [build] makes at each width, with prepared text on and then off, and checks
+   * every text gets the same box and the root draws the same pixels.
+   */
+  private fun assertSceneMatches(widths: FloatArray, build: (Mason) -> View) {
+    expectPrepared.clear()
+    fun drawAll(preparedText: Boolean): Pair<List<TextView>, List<Drawn>> = withPreparedText(preparedText) {
+      val before = expectPrepared.keys.toSet()
+      val root = build(Mason())
+      val texts = expectPrepared.keys.filter { it !in before }
+      texts to widths.map { width ->
+        val bitmap = drawnAt(root, width)
+        Drawn(texts.map { it.node.size() }, texts.map { it.engine.preparedText != null }, bitmap)
+      }
+    }
+    val (texts, on) = drawAll(true)
+    val (_, off) = drawAll(false)
+    val mismatches = mutableListOf<String>()
+    for ((i, width) in widths.withIndex()) {
+      for ((j, text) in texts.withIndex()) {
+        val name = "at $width, '${text.textContent.take(30)}'"
+        if (on[i].prepared[j] != expectPrepared[text]) mismatches += "$name prepared ${on[i].prepared[j]}"
+        if (off[i].prepared[j]) mismatches += "$name prepared with prepared text off"
+        if (on[i].sizes[j] != off[i].sizes[j]) mismatches += "$name box ${on[i].sizes[j]}, StaticLayout's ${off[i].sizes[j]}"
+      }
+      firstDifference(on[i].bitmap, off[i].bitmap)?.let { (x, y) ->
+        val at = texts.firstOrNull { bounds(it).contains(x, y) }?.textContent?.take(30)
+        mismatches += "at $width, pixel ($x, $y) differs, in '$at'"
+      }
+    }
+    assertEquals(emptyList<String>(), mismatches.take(20))
+  }
+
+  private fun drawnAt(root: View, width: Float): Bitmap {
+    root.node.computeCacheDirty = true
+    root.applyLayoutFlat(root.node, root.computeAndLayout(width, -1f))
+    val w = ceil(width).toInt()
+    val h = ceil(root.node.computedHeight).toInt().coerceAtLeast(1)
+    root.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY))
+    root.layout(0, 0, w, h)
+    return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { root.draw(Canvas(it)) }
+  }
+
+  private fun bounds(view: TextView): Rect {
+    val rect = Rect(0, 0, view.width, view.height)
+    var v: android.view.View? = view
+    while (v != null) {
+      rect.offset(v.left, v.top)
+      v = v.parent as? android.view.View
+    }
+    return rect
+  }
+
+  private fun firstDifference(a: Bitmap, b: Bitmap): Pair<Int, Int>? {
+    if (a.width != b.width || a.height != b.height) return 0 to 0
+    for (y in 0 until a.height) for (x in 0 until a.width) {
+      if (a.getPixel(x, y) != b.getPixel(x, y)) return x to y
+    }
+    return null
   }
 
   private class Measured(val width: Float, val height: Float, val lineStarts: IntArray)
@@ -239,6 +332,7 @@ class PreparedTextParityTest {
     const val TAG = "PreparedTextParity"
     const val CARDS = 200
     val WIDTHS = floatArrayOf(1080f, 936f, 808f, 680f, 552f, 424f, 360f, 240f, 120f)
+    val ODD_WIDTHS = floatArrayOf(1080f, 937f, 808.5f, 681.25f, 551f, 424.75f, 361f, 240.5f, 121.3f)
 
     private val WORDS = ("the of and to in is it layout measure text android rust native kotlin bridge mason taffy " +
       "flex grid wrap line break shaping glyph font weight style paragraph container width height pixel cache " +
