@@ -13,10 +13,11 @@ unsafe fn node_of<'a>(mason: jlong, node: jlong) -> Option<(&'a mut Mason, Id)> 
 }
 
 /// One line as PreparedLines (PreparedText.kt) reads it.
-fn packed(line: &LineBox) -> [f32; 6] {
+fn packed(line: &LineBox) -> [f32; 7] {
     [
         line.start as f32,
         line.end as f32,
+        line.visible_end as f32,
         line.width,
         line.baseline as f32,
         line.ascent as f32,

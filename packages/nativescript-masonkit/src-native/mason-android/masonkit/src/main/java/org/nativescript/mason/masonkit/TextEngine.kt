@@ -2054,14 +2054,16 @@ class TextEngine(val container: TextContainer) {
       node.parent?.everParentOfCheckedText = true
       if (preparedRun != null) return true
       val child = preparableChild()
-      val text = child?.let(::preparableText)
-      if (child != null && text != null && prepare(text, TextNode.runStyleSpan(child.attributes))) return true
+      val text = child?.let { preparableText(it.node) }
+      if (child != null && text != null && prepare(text, child)) return true
     }
     clearPreparedText()
     return false
   }
 
-  private fun preparableChild(): TextNode? {
+  private class PreparableChild(val node: TextNode, val paragraph: PreparedParagraph)
+
+  private fun preparableChild(): PreparableChild? {
     val view = container as? TextView ?: return null
     if (view.javaClass != TextView::class.java) return null
     when (view.type) {
@@ -2080,11 +2082,7 @@ class TextEngine(val container: TextContainer) {
     if (a.decorationLine.let { it != null && it != Styles.DecorationLine.None } || !a.textShadow.isNullOrEmpty()) {
       return null
     }
-    if (a.textAlign.let { it != null && it != Layout.Alignment.ALIGN_NORMAL } ||
-      style.resolvedTextAlign == TextAlign.Justify
-    ) {
-      return null
-    }
+    val paragraph = PreparedParagraph.preparableOrNull(this, a) ?: return null
     if (style.resolvedTextIndent != 0f || style.resolvedHyphens.toInt() == 2) return null
     if (includePadding || lineClamp > 0 || style.textOverflowEllipsis) return null
     // The JVM measure wraps at a max-width in points even for a max-content size.
@@ -2096,7 +2094,7 @@ class TextEngine(val container: TextContainer) {
       true
     }
     if (parentFloats || hasFloatedSibling() || inBlockLineBoxes()) return null
-    return child
+    return PreparableChild(child, paragraph)
   }
 
   // Its block lays an inline text out from the segments its JVM measure sends.
@@ -2127,9 +2125,10 @@ class TextEngine(val container: TextContainer) {
     return text
   }
 
-  private fun prepare(text: String, runStyle: Spans.RunStyleSpan?): Boolean {
+  private fun prepare(text: String, child: PreparableChild): Boolean {
     if (node.mason.inCompute) return false
     val view = container as TextView
+    val runStyle = TextNode.runStyleSpan(child.node.attributes)
     val paint = view.preparedPaint(runStyle)
     val n = text.length
     val font = runMetrics(paint, lastRunMetrics)
@@ -2160,7 +2159,7 @@ class TextEngine(val container: TextContainer) {
       inline = inline,
     )
     if (!prepared) return false
-    this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline)
+    this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
     preparedEngines[this] = true
     if (appliedTextVersion != segmentsInvalidateVersion) {
       view.setTextDeferred(text, BufferType.NORMAL)

@@ -29,6 +29,9 @@ impl Flow {
 pub struct LineBox {
     pub start: u32,
     pub end: u32,
+    /// Layout.getLineVisibleEnd: the line's end without the spaces that hang past it, which on
+    /// the last line count as visible.
+    pub visible_end: u32,
     pub width: f32,
     pub baseline: i32,
     pub ascent: i32,
@@ -51,6 +54,7 @@ struct Line {
 
 #[derive(Debug)]
 pub struct PreparedText {
+    text: Vec<u16>,
     advances: Vec<f32>,
     segments: Vec<Segment>,
     metrics: LineMetrics,
@@ -71,6 +75,14 @@ fn ceil_constraint(v: f32) -> f32 {
 fn is_line_end_space(c: u16) -> bool {
     matches!(c, 0x20 | 0x09 | 0x1680 | 0x205F | 0x3000)
         || ((0x2000..=0x200A).contains(&c) && c != 0x2007)
+}
+
+fn visible_end(text: &[u16], start: usize, end: usize) -> usize {
+    let mut visible_end = end;
+    while visible_end > start && is_line_end_space(text[visible_end - 1]) {
+        visible_end -= 1;
+    }
+    visible_end
 }
 
 /// Kotlin's Char.isWhitespace, which TextEngine trims min-content pieces with.
@@ -108,10 +120,7 @@ impl PreparedText {
             if end < text.len() && is_line_breaking_hyphen(text[end - 1]) {
                 continue;
             }
-            let mut visible_end = end;
-            while visible_end > start && is_line_end_space(text[visible_end - 1]) {
-                visible_end -= 1;
-            }
+            let visible_end = visible_end(text, start, end);
             let mut piece_end = end;
             while piece_end > start && is_kotlin_whitespace(text[piece_end - 1]) {
                 piece_end -= 1;
@@ -127,6 +136,7 @@ impl PreparedText {
         }
         let one_line_width = width(0, segments.last().map_or(0, |s| s.visible_end as usize));
         PreparedText {
+            text: text.to_vec(),
             advances,
             segments,
             metrics,
@@ -203,6 +213,8 @@ impl PreparedText {
         for i in segment.start as usize..segment.visible_end as usize {
             let advance = self.advances[i];
             if line.width > 0.0 && line.width + advance > limit && advance > 0.0 {
+                let visible = line.start as usize..visible_end(&self.text, line.start as usize, i);
+                line.width = self.advances[visible].iter().sum();
                 lines.push(line);
                 line = Line {
                     start: i as u32,
@@ -241,16 +253,20 @@ impl PreparedText {
             .map(|(i, (line, bottom))| {
                 let diff = (bottom - top) - (descent - ascent);
                 let line_ascent = ascent - diff / 2;
-                let end = lines
-                    .get(i + 1)
-                    .map_or(self.advances.len() as u32, |next| next.start);
+                let next = lines.get(i + 1);
+                let end = next.map_or(self.advances.len() as u32, |next| next.start);
                 let line_box = LineBox {
                     start: line.start,
                     end,
+                    visible_end: if next.is_some() {
+                        visible_end(&self.text, line.start as usize, end as usize) as u32
+                    } else {
+                        end
+                    },
                     width: if boring_layout {
                         line.width.ceil()
                     } else {
-                        self.line_max(line, i + 1 == lines.len())
+                        self.line_max(line, next.is_none())
                     },
                     baseline: top - line_ascent,
                     ascent: line_ascent,
@@ -362,6 +378,13 @@ mod tests {
             &[2, 4, 6, 8, 10, 12, 14, 16, 18, 19],
             Flow::Block,
         )
+    }
+
+    fn visible_ends(text: &PreparedText, width: f32) -> Vec<u32> {
+        text.line_boxes(width)
+            .iter()
+            .map(|line| line.visible_end)
+            .collect()
     }
 
     fn lines(text: &PreparedText, width: f32) -> Vec<(u32, u32, f32)> {
@@ -528,5 +551,24 @@ mod tests {
             [(0, 3, 20.0), (3, 4, 35.0), (4, 5, 10.0)],
             "a last line of just the trailing space"
         );
+    }
+
+    #[test]
+    fn a_line_is_visible_up_to_its_hanging_spaces_but_the_last_line_counts_them() {
+        let text = evenly("abc  def  ", 10.0, &[5, 10], Flow::Block);
+        assert_eq!(visible_ends(&text, 45.0), [3, 10]);
+    }
+
+    #[test]
+    fn a_line_broken_after_a_space_inside_a_segment_is_visible_and_as_wide_as_up_to_the_space() {
+        let text = evenly("((( wxyz", 10.0, &[8], Flow::Block);
+        assert_eq!(visible_ends(&text, 45.0), [3, 8]);
+        assert_eq!(lines(&text, 45.0), [(0, 4, 30.0), (4, 8, 40.0)]);
+    }
+
+    #[test]
+    fn a_line_broken_inside_a_word_is_visible_to_its_end() {
+        let text = evenly("abcdefg h", 10.0, &[8, 9], Flow::Block);
+        assert_eq!(visible_ends(&text, 35.0), [3, 6, 9]);
     }
 }

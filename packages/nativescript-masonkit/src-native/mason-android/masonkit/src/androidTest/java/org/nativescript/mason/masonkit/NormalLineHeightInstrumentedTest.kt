@@ -73,10 +73,9 @@ class NormalLineHeightInstrumentedTest {
     val size = sizeWithFloatLineTallerThanInt()
     val text = withPreparedText(true) { longParagraph(size) }
 
-    val n = text.node
     val prepared = text.engine.preparedRun
     assertNotNull("the paragraph is prepared", prepared)
-    val lines = prepared!!.lines(n.computedWidth - n.computedPaddingLeft - n.computedPaddingRight)!!
+    val lines = text.drawnLines(prepared!!)!!.lines
     assertTrue("the paragraph wraps to many lines (${lines.lineCount})", lines.lineCount >= 12)
 
     val line = floatLineHeight(probe(size))

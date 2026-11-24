@@ -20,6 +20,7 @@ import org.nativescript.mason.masonkit.enums.DisplayMode
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.Float as CSSFloat
 
@@ -400,6 +401,31 @@ class PreparedTextInstrumentedTest {
       }
       Assert.assertTrue("'$label': drawn as with StaticLayout", badge(true).sameAs(badge(false)))
     }
+  }
+
+  @Test
+  fun textAlignWrittenAfterPreparationIsDrawnAsWithStaticLayout() {
+    fun drawn(preparedText: Boolean) = withPreparedText(preparedText) {
+      val mason = Mason()
+      val p = mason.createTextView(context, TextType.P).apply { textContent = "Start-aligned words, then centred ones" }
+      val root = mason.createView(context).apply { addView(p) }
+      val start = layOutAndDraw(root, 601)
+      Assert.assertEquals("prepared start-aligned", preparedText, p.engine.preparedText != null)
+      p.writeStyleThenSync(StateKeys.TEXT_ALIGN) {
+        it.put(StyleKeys.TEXT_ALIGN, TextAlign.Center.value)
+        it.put(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
+      }
+      // The compute that applies the change lays the text out with StaticLayout; the next prepares it.
+      val changed = layOutAndDraw(root, 601)
+      val again = layOutAndDraw(root, 601)
+      Assert.assertEquals("prepared centred", preparedText, p.engine.preparedText != null)
+      Assert.assertFalse("centring moved the text, prepared text $preparedText", again.sameAs(start))
+      changed to again
+    }
+    val (changed, again) = drawn(true)
+    val (changedOff, againOff) = drawn(false)
+    Assert.assertTrue("centred as with StaticLayout when changed", changed.sameAs(changedOff))
+    Assert.assertTrue("centred as with StaticLayout once prepared", again.sameAs(againOff))
   }
 
   @Test

@@ -1,6 +1,10 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
+import android.text.Layout
+import android.text.TextPaint
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 /** Plain text laid out and drawn without a StaticLayout. */
 object PreparedText {
@@ -63,6 +67,49 @@ object PreparedText {
   private external fun nativeLines(mason: Long, node: Long, width: Float): FloatArray?
 }
 
+internal data class PreparedParagraph(val alignment: Layout.Alignment) {
+  val drawnAtViewWidth: Boolean
+    get() = alignment != Layout.Alignment.ALIGN_NORMAL
+
+  /**
+   * Layout.drawText's line starts. It truncates an aligned line's extent to whole pixels, even
+   * ones when centred. TextLine shapes the line alone, so a line broken inside a word loses its
+   * kerning and the extent isn't a sum of the paragraph's advances.
+   */
+  fun lineLefts(lines: PreparedLines, text: String, paint: TextPaint, layoutWidth: Int): FloatArray {
+    val lefts = FloatArray(lines.lineCount)
+    if (alignment == Layout.Alignment.ALIGN_NORMAL) return lefts
+    for (i in lefts.indices) {
+      val start = lines.lineStart(i)
+      val end = lines.lineVisibleEnd(i)
+      val extent = paint.getRunAdvance(text, start, end, start, end, false, end).toInt()
+      lefts[i] = when (alignment) {
+        Layout.Alignment.ALIGN_CENTER -> (layoutWidth - (extent and 1.inv())) shr 1
+        else -> layoutWidth - extent
+      }.toFloat()
+    }
+    return lefts
+  }
+
+  companion object {
+    fun preparableOrNull(engine: TextEngine, attributes: TextDefaultAttributes): PreparedParagraph? {
+      val style = engine.style
+      if (style.resolvedTextAlign == TextAlign.Justify) return null
+      val alignment = engine.getLayoutAlignment()
+      // StaticLayout aligns by the text's AlignmentSpan; a one-line text's plain-String BoringLayout
+      // has no spans and uses its own alignment.
+      if (attributes.textAlign.let { it != null && it != alignment }) return null
+      if (alignment != Layout.Alignment.ALIGN_NORMAL && isFlexOrGridContainer(style)) return null
+      return PreparedParagraph(alignment)
+    }
+
+    private fun isFlexOrGridContainer(style: Style): Boolean = style.isValueInitialized && when (style.display) {
+      Display.Flex, Display.InlineFlex, Display.Grid, Display.InlineGrid -> true
+      else -> false
+    }
+  }
+}
+
 /** A text Rust measures, as of [version] of its engine's text, with the lines last drawn. */
 internal class PreparedRun(
   private val node: Node,
@@ -70,18 +117,23 @@ internal class PreparedRun(
   val runStyle: Spans.RunStyleSpan?,
   val version: Int,
   val inline: Boolean,
+  val paragraph: PreparedParagraph,
 ) {
-  private var linesWidth = Float.NaN
-  private var lines: PreparedLines? = null
+  private var drawnWidth = Float.NaN
+  private var drawn: DrawnLines? = null
 
-  fun lines(width: Float): PreparedLines? {
-    if (width != linesWidth) {
-      lines = PreparedText.lines(node, width)
-      linesWidth = width
+  fun drawnLines(width: Float, contentWidth: Int, paint: TextPaint): DrawnLines? {
+    if (width != drawnWidth) {
+      drawn = PreparedText.lines(node, width)?.let {
+        DrawnLines(it, paragraph.lineLefts(it, text, paint, contentWidth))
+      }
+      drawnWidth = width
     }
-    return lines
+    return drawn
   }
 }
+
+internal class DrawnLines(val lines: PreparedLines, val lefts: FloatArray)
 
 internal interface TextLines {
   val lineCount: Int
@@ -110,6 +162,7 @@ internal value class PreparedLines(private val packed: FloatArray) : TextLines {
 
   override fun lineStart(line: Int) = packed[line * STRIDE + START].toInt()
   override fun lineEnd(line: Int) = packed[line * STRIDE + END].toInt()
+  fun lineVisibleEnd(line: Int) = packed[line * STRIDE + VISIBLE_END].toInt()
   override fun lineBaseline(line: Int) = packed[line * STRIDE + BASELINE].toInt()
   override fun lineTop(line: Int) = lineBaseline(line) + lineAscent(line)
   fun lineWidth(line: Int) = packed[line * STRIDE + WIDTH]
@@ -129,10 +182,11 @@ internal value class PreparedLines(private val packed: FloatArray) : TextLines {
   private companion object {
     const val START = 0
     const val END = 1
-    const val WIDTH = 2
-    const val BASELINE = 3
-    const val ASCENT = 4
-    const val DESCENT = 5
-    const val STRIDE = 6
+    const val VISIBLE_END = 2
+    const val WIDTH = 3
+    const val BASELINE = 4
+    const val ASCENT = 5
+    const val DESCENT = 6
+    const val STRIDE = 7
   }
 }
