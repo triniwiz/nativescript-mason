@@ -49,6 +49,7 @@ impl Flow {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Paragraph {
     pub first_line_indent_px: i32,
+    pub nowrap: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -331,7 +332,11 @@ impl PreparedText {
         if !(width > 0.0 && width.is_finite()) {
             return Vec::new();
         }
-        let limit = ceil_constraint(width);
+        let limit = if self.paragraph.nowrap {
+            UNBOUNDED
+        } else {
+            ceil_constraint(width)
+        };
         let lines = self.lines(limit);
         let boring_layout = self.drawn_as_boring_layout(&lines, limit);
         lines
@@ -427,8 +432,10 @@ impl PreparedText {
                 height: BASELINE_QUERY,
             };
         }
+        let wraps = !self.paragraph.nowrap;
         let known_width = known.width.filter(|_| self.flow.wraps_at_known_width());
         let constraint = match (known_width, available.width) {
+            _ if !wraps => None,
             (Some(w), _) if w > 0.0 => Some(ceil_constraint(w)),
             (_, AvailableSpace::Definite(w)) if w > 0.0 && w.is_finite() => {
                 Some(ceil_constraint(w))
@@ -442,11 +449,12 @@ impl PreparedText {
             .checked_sub(1)
             .and_then(|last| self.line_bottoms().nth(last))
             .unwrap_or(0) as f32;
-        let width = if constraint.is_none() && available.width == AvailableSpace::MinContent {
-            self.min_content_width()
-        } else {
-            self.max_line_width(&lines, limit)
-        };
+        let width =
+            if wraps && constraint.is_none() && available.width == AvailableSpace::MinContent {
+                self.min_content_width()
+            } else {
+                self.max_line_width(&lines, limit)
+            };
         Size {
             width,
             height: height.max(self.metrics.min_height),
@@ -479,8 +487,19 @@ mod tests {
         let text: Vec<u16> = text.encode_utf16().collect();
         let paragraph = Paragraph {
             first_line_indent_px: indent,
+            ..Paragraph::default()
         };
         PreparedText::new(&text, advances, breaks, METRICS, flow, paragraph)
+    }
+
+    fn unwrapped(text: &str, advance: f32, breaks: &[u32], flow: Flow) -> PreparedText {
+        let text_utf16: Vec<u16> = text.encode_utf16().collect();
+        let advances = vec![advance; text_utf16.len()];
+        let paragraph = Paragraph {
+            nowrap: true,
+            ..Paragraph::default()
+        };
+        PreparedText::new(&text_utf16, advances, breaks, METRICS, flow, paragraph)
     }
 
     fn ten_words_indented(indent: i32) -> PreparedText {
@@ -740,6 +759,38 @@ mod tests {
             46.203125,
             "inline text with no break: the width of its one indented line"
         );
+    }
+
+    #[test]
+    fn unwrapped_text_stays_on_one_line_at_any_width() {
+        let text = unwrapped("ab cde fg", 10.0, &[3, 7, 9], Flow::Block);
+        assert_eq!(lines(&text, 25.0), [(0, 9, 90.0)]);
+        assert_eq!(lines(&text, 0.0), [], "no lines in a box with no width");
+        let size = measure(&text, AvailableSpace::Definite(25.0));
+        assert_eq!((size.width, size.height), (90.0, 43.0));
+        let known = text.measure(
+            Size {
+                width: Some(25.0),
+                height: None,
+            },
+            Size {
+                width: AvailableSpace::Definite(25.0),
+                height: AvailableSpace::MaxContent,
+            },
+        );
+        assert_eq!(known.width, 90.0, "a known width doesn't wrap it either");
+    }
+
+    #[test]
+    fn unwrapped_texts_min_content_is_its_line() {
+        for flow in [Flow::Block, Flow::Inline] {
+            let text = unwrapped("ab cde fg", 10.3, &[3, 7, 9], flow);
+            assert_eq!(
+                measure(&text, AvailableSpace::MinContent).width,
+                93.0,
+                "{flow:?}"
+            );
+        }
     }
 
     #[test]

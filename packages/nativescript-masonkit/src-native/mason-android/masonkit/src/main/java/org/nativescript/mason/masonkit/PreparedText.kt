@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.os.Build
 import android.text.Layout
 import android.text.TextPaint
+import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 
@@ -41,7 +42,7 @@ object PreparedText {
     paragraph: PreparedParagraph,
   ): Boolean = nativePrepare(
     node.mason.nativePtr, node.nativePtr, text, locale, advances, ascent, descent, lineHeight, fixedLineHeight,
-    minLineHeight, inline, paragraph.indentPx
+    minLineHeight, inline, paragraph.indentPx, paragraph.nowrap
   )
 
   internal fun clear(node: Node) = nativeClear(node.mason.nativePtr, node.nativePtr)
@@ -63,6 +64,7 @@ object PreparedText {
     minLineHeight: Float,
     inline: Boolean,
     firstLineIndentPx: Int,
+    nowrap: Boolean,
   ): Boolean
 
   @JvmStatic
@@ -72,21 +74,22 @@ object PreparedText {
   private external fun nativeLines(mason: Long, node: Long, width: Float): FloatArray?
 }
 
-internal data class PreparedParagraph(val alignment: Layout.Alignment, val indentPx: Int) {
+internal data class PreparedParagraph(val alignment: Layout.Alignment, val indentPx: Int, val nowrap: Boolean) {
   val drawnAtViewWidth: Boolean
-    get() = alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0
+    get() = alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0 || nowrap
 
   /**
    * Layout.drawText's line starts. It truncates an aligned line's extent to whole pixels, even
    * ones when centred. TextLine shapes the line alone, so a line broken inside a word loses its
    * kerning and the extent isn't a sum of the paragraph's advances.
    */
-  fun lineLefts(lines: PreparedLines, text: String, paint: TextPaint, layoutWidth: Int): FloatArray {
+  fun lineLefts(lines: PreparedLines, text: String, paint: TextPaint, contentWidth: Int): FloatArray {
     val lefts = FloatArray(lines.lineCount)
     if (alignment == Layout.Alignment.ALIGN_NORMAL) {
       if (lefts.isNotEmpty()) lefts[0] = indentPx.toFloat()
       return lefts
     }
+    val layoutWidth = if (nowrap) UNWRAPPED_LAYOUT_WIDTH else contentWidth
     for (i in lefts.indices) {
       val start = lines.lineStart(i)
       val end = lines.lineVisibleEnd(i)
@@ -100,10 +103,23 @@ internal data class PreparedParagraph(val alignment: Layout.Alignment, val inden
     return lefts
   }
 
+  fun unconstrainedAlignmentShift(contentWidth: Int): Float {
+    if (!nowrap || alignment == Layout.Alignment.ALIGN_NORMAL || contentWidth <= 0 || UNWRAPPED_LAYOUT_WIDTH <= contentWidth) {
+      return 0f
+    }
+    val slack = (UNWRAPPED_LAYOUT_WIDTH - contentWidth).toFloat()
+    return if (alignment == Layout.Alignment.ALIGN_OPPOSITE) -slack else -slack / 2f
+  }
+
   companion object {
     fun preparableOrNull(engine: TextEngine, attributes: TextDefaultAttributes): PreparedParagraph? {
       val style = engine.style
       if (style.resolvedTextAlign == TextAlign.Justify) return null
+      val whiteSpace = if (style.isValueInitialized) style.resolvedWhiteSpace else Styles.WhiteSpace.Normal
+      if (whiteSpace != Styles.WhiteSpace.Normal && whiteSpace != Styles.WhiteSpace.NoWrap) return null
+      val textWrap = style.resolvedTextWrap
+      if (textWrap != TextWrap.Wrap && textWrap != TextWrap.NoWrap) return null
+      val nowrap = style.isValueInitialized && (whiteSpace == Styles.WhiteSpace.NoWrap || textWrap == TextWrap.NoWrap)
       if (engine.percentTextIndent) return null
       val alignment = engine.getLayoutAlignment()
       // StaticLayout aligns by the text's AlignmentSpan; a one-line text's plain-String BoringLayout
@@ -111,8 +127,10 @@ internal data class PreparedParagraph(val alignment: Layout.Alignment, val inden
       if (attributes.textAlign.let { it != null && it != alignment }) return null
       val indentPx = engine.textIndentPx(0f)
       if ((alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0) && isFlexOrGridContainer(style)) return null
-      return PreparedParagraph(alignment, indentPx)
+      return PreparedParagraph(alignment, indentPx, nowrap)
     }
+
+    private const val UNWRAPPED_LAYOUT_WIDTH = 1_000_000
 
     private fun isFlexOrGridContainer(style: Style): Boolean = style.isValueInitialized && when (style.display) {
       Display.Flex, Display.InlineFlex, Display.Grid, Display.InlineGrid -> true

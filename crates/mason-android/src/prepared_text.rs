@@ -41,6 +41,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     min_line_height: jfloat,
     inline: jboolean,
     first_line_indent_px: jint,
+    nowrap: jboolean,
 ) -> jboolean {
     let Some((mason, id)) = (unsafe { node_of(mason, node) }) else {
         return JNI_FALSE;
@@ -100,6 +101,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
             flow,
             Paragraph {
                 first_line_indent_px,
+                nowrap: nowrap == JNI_TRUE,
             },
         )),
     );

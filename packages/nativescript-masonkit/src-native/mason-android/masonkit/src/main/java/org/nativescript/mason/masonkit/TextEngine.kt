@@ -2074,8 +2074,6 @@ class TextEngine(val container: TextContainer) {
     val child = node.children.singleOrNull() as? TextNode ?: return null
     if (child.verbatim != null || isVerticalWritingMode) return null
     if (style.resolvedUnicodeBidi.toInt() != 0 || style.direction == Direction.RTL) return null
-    if (style.isValueInitialized && style.resolvedWhiteSpace != Styles.WhiteSpace.Normal) return null
-    if (style.resolvedTextWrap != TextWrap.Wrap) return null
     val a = child.attributes
     if ((a.letterSpacing ?: 0f) != 0f || style.resolvedWordSpacing != 0f) return null
     if (a.decorationLine.let { it != null && it != Styles.DecorationLine.None } || !a.textShadow.isNullOrEmpty()) {

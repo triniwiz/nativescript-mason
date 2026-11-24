@@ -129,13 +129,17 @@ open class TextView @JvmOverloads constructor(
     val drawn = drawnLines(prepared, paint) ?: return false
     val lines = drawn.lines
     val contentWidth = width - paddingLeft - paddingRight
-    val x = paddingLeft + (containerAlignmentShift(lines, contentWidth) ?: 0f)
-    val y = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
+    val dx = paddingLeft + (containerAlignmentShift(lines, contentWidth) ?: prepared.paragraph.unconstrainedAlignmentShift(contentWidth))
+    val dy = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
     val text = prepared.text
-    for (i in 0 until lines.lineCount) {
-      val start = lines.lineStart(i)
-      val end = lines.lineVisibleEnd(i)
-      c.drawTextRun(text, start, end, start, end, x + drawn.lefts[i], y + lines.lineBaseline(i), false, paint)
+    // Translate rather than add dx to lefts: an aligned nowrap line sits up to a million px right,
+    // where floats are coarse, and StaticLayout's glyphs round there.
+    c.withTranslation(dx, dy) {
+      for (i in 0 until lines.lineCount) {
+        val start = lines.lineStart(i)
+        val end = lines.lineVisibleEnd(i)
+        drawTextRun(text, start, end, start, end, drawn.lefts[i], lines.lineBaseline(i).toFloat(), false, paint)
+      }
     }
     return true
   }

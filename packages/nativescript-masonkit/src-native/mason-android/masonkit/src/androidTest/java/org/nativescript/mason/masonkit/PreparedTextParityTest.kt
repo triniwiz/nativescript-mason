@@ -22,6 +22,7 @@ import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import kotlin.math.abs
@@ -237,6 +238,38 @@ class PreparedTextParityTest {
     root.addView(text(mason, "Indented flex text", 15f, prepares = false) {
       it.display = Display.Flex
       it.setTextIndent(13.7f, false)
+    })
+    root
+  }
+
+  @Test
+  fun unwrappedTextIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    val nowraps = listOf<Pair<String, (Style) -> Unit>>(
+      "white-space" to { it.whiteSpace = Styles.WhiteSpace.NoWrap },
+      "text-wrap" to { it.textWrap = TextWrap.NoWrap },
+    )
+    for ((name, nowrap) in nowraps) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center, TextAlign.Right)) {
+        for (indent in floatArrayOf(0f, 13.7f)) {
+          root.addView(text(mason, "An unwrapped $name line, $align, that overflows the narrower widths", 15f) {
+            nowrap(it)
+            it.display = Display.Block
+            it.textAlign = align
+            if (indent != 0f) it.setTextIndent(indent, false)
+          })
+        }
+      }
+      val row = View.createFlexView(mason, context).apply {
+        flexDirection = FlexDirection.Row
+        style.setSizeWidth(120f, Dimension.Kind.Points.value)
+      }
+      for (value in listOf("Short", "An unwrapped label ")) row.addView(text(mason, value, 14.3f) { nowrap(it) })
+      root.addView(row)
+    }
+    root.addView(text(mason, "An unwrapped line with an ellipsis", 15f, prepares = false) {
+      it.whiteSpace = Styles.WhiteSpace.NoWrap
+      it.textOverflow = Styles.TextOverflow.Ellipse
     })
     root
   }
@@ -565,7 +598,7 @@ class PreparedTextParityTest {
     private val NON_NORMAL_WHITE_SPACE = listOf(
       Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap, Styles.WhiteSpace.BreakSpaces,
     ).map {
-      Sample("$it with  doubled  spaces and a line long enough to wrap", prepares = false, whiteSpace = it)
+      Sample("$it with  doubled  spaces and a line long enough to wrap", prepares = it == Styles.WhiteSpace.NoWrap, whiteSpace = it)
     }
 
     private val MIN_CONTENT_SAMPLES = listOf(

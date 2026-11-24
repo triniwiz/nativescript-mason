@@ -477,6 +477,13 @@ class PreparedTextInstrumentedTest {
     }
 
   @Test
+  fun whiteSpaceWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("white-space: nowrap", StateKeys.WHITE_SPACE) {
+      it.put(StyleKeys.WHITE_SPACE, Styles.WhiteSpace.NoWrap.value)
+      it.put(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
+    }
+
+  @Test
   fun lineHeightWrittenAfterPreparationIsDrawnAsWithStaticLayout() = assertRestyledAsWithStaticLayout(
     "line-height: 24.6px", StateKeys.LINE_HEIGHT,
     text = "A paragraph long enough to wrap onto several lines, so that a taller line height moves each of them"
