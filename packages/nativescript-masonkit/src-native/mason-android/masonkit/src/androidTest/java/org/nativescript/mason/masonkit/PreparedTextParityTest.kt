@@ -144,6 +144,19 @@ class PreparedTextParityTest {
     root
   }
 
+  @Test
+  fun textWithCharactersWiderThanItsBoxIsDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (boxWidth in floatArrayOf(20f, 30f, 45.5f)) {
+      for (value in listOf("W b c", "Wa b c", "aaaaW b c", "W  b c", "ab W c", "ab W ", "W")) {
+        val box = mason.createView(context).apply { style.setSizeWidth(boxWidth, Dimension.Kind.Points.value) }
+        box.addView(text(mason, value, 15f) { it.display = Display.Block })
+        root.addView(box)
+      }
+    }
+    root
+  }
+
   private val expectPrepared = mutableMapOf<TextView, Boolean>()
 
   private fun column(mason: Mason) = View.createFlexView(mason, context).apply {

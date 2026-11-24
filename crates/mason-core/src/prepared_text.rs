@@ -166,14 +166,25 @@ impl PreparedText {
                 }
                 _ => {
                     lines.extend(current.take());
-                    current = Some(if segment.visible_width > limit {
+                    let line = if segment.visible_width > limit {
                         self.break_inside_segment(segment, limit, &mut lines)
                     } else {
                         Line {
                             start: segment.start,
                             width: segment.visible_width,
                         }
-                    });
+                    };
+                    current = if line.width > limit {
+                        // Minikin breaks right after a character wider than the line, so the
+                        // spaces after it start the next line instead of hanging.
+                        lines.push(line);
+                        (segment.hanging_space_width > 0.0).then_some(Line {
+                            start: segment.visible_end,
+                            width: 0.0,
+                        })
+                    } else {
+                        Some(line)
+                    };
                 }
             }
             pending_space = segment.hanging_space_width;
@@ -485,5 +496,37 @@ mod tests {
             "the last line's two spaces count"
         );
         assert_eq!(measure(&text, AvailableSpace::Definite(75.0)).width, 70.0);
+    }
+
+    fn with_a_wide_w(value: &str, breaks: &[u32]) -> PreparedText {
+        let advances = value
+            .chars()
+            .map(|c| if c == 'W' { 35.0 } else { 10.0 })
+            .collect();
+        prepared(value, advances, breaks, Flow::Block)
+    }
+
+    #[test]
+    fn spaces_after_a_character_wider_than_the_line_start_the_next_line() {
+        let w_b_c = with_a_wide_w("W b c", &[2, 4, 5]);
+        assert_eq!(
+            lines(&w_b_c, 30.0),
+            [(0, 1, 35.0), (1, 4, 20.0), (4, 5, 10.0)],
+            "the space leads the next word's line"
+        );
+        assert_eq!(
+            lines(&w_b_c, 15.0),
+            [(0, 1, 35.0), (1, 2, 0.0), (2, 4, 10.0), (4, 5, 10.0)],
+            "a line of its own when the next word doesn't fit after it"
+        );
+        assert_eq!(
+            lines(&with_a_wide_w("ab W", &[3, 4]), 30.0),
+            [(0, 3, 20.0), (3, 4, 35.0)]
+        );
+        assert_eq!(
+            lines(&with_a_wide_w("ab W ", &[3, 5]), 30.0),
+            [(0, 3, 20.0), (3, 4, 35.0), (4, 5, 10.0)],
+            "a last line of just the trailing space"
+        );
     }
 }
