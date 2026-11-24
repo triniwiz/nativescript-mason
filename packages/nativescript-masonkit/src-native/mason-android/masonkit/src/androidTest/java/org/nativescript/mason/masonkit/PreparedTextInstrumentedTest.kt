@@ -154,6 +154,39 @@ class PreparedTextInstrumentedTest {
   }
 
   @Test
+  fun aParagraphPreparedBeforePreparedTextWasTurnedOffWrapsAroundALaterFloat() {
+    fun floated(preparedTextBefore: Boolean) = withPreparedText(preparedTextBefore) {
+      val mason = Mason()
+      val root = mason.createView(context)
+      val box = mason.createView(context).apply {
+        style.setSizeWidth(200f, Dimension.Kind.Points.value)
+        style.setSizeHeight(120f, Dimension.Kind.Points.value)
+        style.background = "red"
+      }
+      val p = mason.createTextView(context, TextType.P).apply { textContent = LONG }
+      root.addView(box)
+      root.addView(p)
+      layOutAndDraw(root, 600)
+      Assert.assertEquals("prepared before the switch", preparedTextBefore, p.engine.preparedText != null)
+      val unfloatedHeight = p.node.computedHeight
+      PreparedText.enabled = false
+      box.writeStyleThenSync(StateKeys.FLOAT) { it.put(StyleKeys.FLOAT, CSSFloat.Left.value) }
+      layOutAndDraw(root, 600)
+      // A text drawn around a float it was not measured beside posts this relayout, and a
+      // detached view never runs what it posts.
+      p.invalidateLayout()
+      val drawn = layOutAndDraw(root, 600)
+      if (!preparedTextBefore) Assert.assertTrue("the float wrapped the text", p.node.computedHeight > unfloatedHeight)
+      Triple("${p.node.size()} at ${p.node.computedX},${p.node.computedY}", drawn, p.engine.preparedText != null)
+    }
+    val (offBox, offDrawn) = floated(false)
+    val (box, drawn, prepared) = floated(true)
+    Assert.assertEquals("paragraph box", offBox, box)
+    Assert.assertTrue("drawn as with prepared text off from the start", drawn.sameAs(offDrawn))
+    Assert.assertFalse("prepared after prepared text was turned off", prepared)
+  }
+
+  @Test
   fun aSpanWhoseRowBecameABlockIsLaidOutAsWithStaticLayout() {
     fun drawn(preparedText: Boolean) = withPreparedText(preparedText) {
       val mason = Mason()

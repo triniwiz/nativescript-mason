@@ -82,18 +82,16 @@ class PreparedTextParityTest {
   }
 
   private fun compare(prepared: Fixture, laidOut: Fixture): Triple<Int, Int, List<String>> {
+    // Turning prepared text off lays every prepared text out again, so the fixtures take turns.
+    val on = WIDTHS.map(prepared::layOut)
+    val preparedCount = prepared.texts.count { it.view.engine.preparedText != null }
+    val off = WIDTHS.map(laidOut::layOut)
+    assertEquals("texts prepared with it off", 0, laidOut.texts.count { it.view.engine.preparedText != null })
     val mismatches = mutableListOf<String>()
-    var preparedCount = 0
     var lineBreaks = 0
-    for (width in WIDTHS) {
-      val on = prepared.layOut(width)
-      val off = laidOut.layOut(width)
-      if (width == WIDTHS.first()) {
-        preparedCount = prepared.texts.count { it.view.engine.preparedText != null }
-        assertEquals("texts prepared with it off", 0, laidOut.texts.count { it.view.engine.preparedText != null })
-      }
-      for (i in on.indices) {
-        val (a, b) = on[i] to off[i]
+    for ((w, width) in WIDTHS.withIndex()) {
+      for (i in on[w].indices) {
+        val (a, b) = on[w][i] to off[w][i]
         val text = prepared.texts[i].text.take(40)
         if (abs(a.width - b.width) >= 0.01f || abs(a.height - b.height) >= 0.01f) {
           mismatches += "at $width, '$text' box ${a.width}x${a.height}, StaticLayout's ${b.width}x${b.height}"

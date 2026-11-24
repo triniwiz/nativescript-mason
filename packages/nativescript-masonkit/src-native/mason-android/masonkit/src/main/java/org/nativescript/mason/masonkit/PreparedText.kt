@@ -7,13 +7,16 @@ object PreparedText {
   /**
    * Whether qualifying texts are prepared. Always false below Android 13 (API 33), which added the
    * Paint.getFontMetricsInt overload for a text range that preparing reads line metrics with.
-   * Starts false when the `debug.mason.preparedtext` system property is `0`. A text already
-   * prepared keeps its lines until its text or style changes.
+   * Starts false when the `debug.mason.preparedtext` system property is `0`. Turning it off lays
+   * every prepared text out again with a StaticLayout. Turning it on again prepares a qualifying
+   * text the next time it changes.
    */
   @JvmStatic
   var enabled = supported && NativeHelpers.nativeSystemProperty("debug.mason.preparedtext") != "0"
     set(value) {
+      val wasEnabled = field
       field = value && supported
+      if (wasEnabled && !field) TextEngine.dropPreparedTexts()
     }
 
   private val supported: Boolean

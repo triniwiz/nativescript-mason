@@ -2125,6 +2125,7 @@ class TextEngine(val container: TextContainer) {
     )
     if (!prepared) return false
     this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline)
+    preparedEngines[this] = true
     if (appliedTextVersion != segmentsInvalidateVersion) {
       view.setTextDeferred(text, BufferType.NORMAL)
       appliedTextVersion = segmentsInvalidateVersion
@@ -2139,6 +2140,7 @@ class TextEngine(val container: TextContainer) {
       return
     }
     deferredClears.remove(this)
+    preparedEngines.remove(this)
     prepared = null
     PreparedText.clear(node)
   }
@@ -3139,7 +3141,15 @@ class TextEngine(val container: TextContainer) {
 
     internal fun runDeferredClears() {
       if (deferredClears.isEmpty()) return
-      for (engine in deferredClears.keys.toList()) engine.clearPreparedText()
+      for (engine in deferredClears.keys.toMutableList()) engine.clearPreparedText()
+    }
+
+    // Texts Rust measures. The rechecks that would drop them do nothing while prepared text is off.
+    private val preparedEngines = java.util.WeakHashMap<TextEngine, Boolean>()
+
+    internal fun dropPreparedTexts() {
+      // toList() calls next() unchecked when size() is 1, and the GC can clear that key first.
+      for (engine in preparedEngines.keys.toMutableList()) engine.invalidateInlineSegments()
     }
 
     private fun recheckTextOf(node: Node) {
