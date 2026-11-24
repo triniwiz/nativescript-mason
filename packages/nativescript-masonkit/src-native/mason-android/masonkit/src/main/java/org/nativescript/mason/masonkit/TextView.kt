@@ -420,7 +420,7 @@ open class TextView @JvmOverloads constructor(
     return alignmentShift(factor, left, right, contentWidth)
   }
 
-  // PreparedParagraph.preparableOrNull rejects aligned text in a flex or grid container, so
+  // PreparedParagraph.preparableOrNull rejects aligned and indented text in a flex or grid container, so
   // these lines start at 0.
   private fun containerAlignmentShift(lines: PreparedLines, contentWidth: Int): Float? {
     val factor = containerAlignmentFactor()

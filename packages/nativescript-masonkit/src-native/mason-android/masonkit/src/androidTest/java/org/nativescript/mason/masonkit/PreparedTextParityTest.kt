@@ -206,6 +206,42 @@ class PreparedTextParityTest {
   }
 
   @Test
+  fun indentedTextIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (indent in INDENTS_CSS_PX) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center, TextAlign.Right)) {
+        root.addView(text(mason, ALIGNED_SAMPLES.last(), 15f) {
+          it.display = Display.Block
+          it.setTextIndent(indent, false)
+          it.textAlign = align
+        })
+      }
+      root.addView(text(mason, "Indented line", 15f) {
+        it.display = Display.Block
+        it.setTextIndent(indent, false)
+      })
+      val narrow = View.createFlexView(mason, context).apply {
+        flexDirection = FlexDirection.Row
+        style.setSizeWidth(40f, Dimension.Kind.Points.value)
+      }
+      narrow.addView(text(mason, "ab well-known words", 15f) {
+        it.display = Display.Block
+        it.setTextIndent(indent, false)
+      })
+      root.addView(narrow)
+    }
+    root.addView(text(mason, "A percentage indent resolves against each line length", 15f, prepares = false) {
+      it.display = Display.Block
+      it.setTextIndent(10f, true)
+    })
+    root.addView(text(mason, "Indented flex text", 15f, prepares = false) {
+      it.display = Display.Flex
+      it.setTextIndent(13.7f, false)
+    })
+    root
+  }
+
+  @Test
   fun segmentsBrokenAfterASpaceAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(400f)) { mason ->
     val root = mason.createView(context)
     for (value in SEGMENTS_WITH_SPACES) {
@@ -483,6 +519,8 @@ class PreparedTextParityTest {
 
     private val LINE_HEIGHTS_AROUND_16_DIP_TEXT =
       listOf(10f to false, 19.5f to false, 24.6f to false, 31.7f to false, 0.8f to true, 1.5f to true)
+
+    private val INDENTS_CSS_PX = floatArrayOf(2f, 13.7f, 48f, -10f, 300f)
 
     private val SEGMENTS_WITH_SPACES = listOf("( barbazqux", "(( b barbazqux", "« bonjour »", "Yes / No")
 

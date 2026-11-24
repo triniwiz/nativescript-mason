@@ -440,6 +440,43 @@ class PreparedTextInstrumentedTest {
     }
 
   @Test
+  fun anIndentedInlineBlockThatBecomesInlineIsDrawnWithNoIndentAsWithStaticLayout() {
+    fun drawn(preparedText: Boolean, display: Display) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val span = mason.createTextView(context, TextType.Span).apply {
+          textContent = "Words that wrap onto several lines after the indent of the first one"
+          style.display = display
+          style.setTextIndent(90f, false)
+        }
+        val row = mason.createView(context).apply {
+          style.display = Display.Flex
+          addView(span)
+        }
+        layOutAndDraw(row, 601)
+        span.writeStyleThenSync(StateKeys.DISPLAY or StateKeys.DISPLAY_MODE) {
+          it.put(StyleKeys.DISPLAY, Display.Block.value)
+          it.put(StyleKeys.DISPLAY_MODE, DisplayMode.Inline.value)
+        }
+        layOutAndDraw(row, 401).also {
+          Assert.assertEquals("prepared as an inline", preparedText, span.engine.preparedText != null)
+        }
+      }
+    }
+    val inline = drawn(false, Display.Inline)
+    Assert.assertTrue("StaticLayout drops the indent", drawn(false, Display.InlineBlock).sameAs(inline))
+    Assert.assertTrue("prepared text drops the indent", drawn(true, Display.InlineBlock).sameAs(inline))
+  }
+
+  @Test
+  fun textIndentWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("text-indent: 36 device px", StateKeys.TEXT_INDENT) {
+      it.putFloat(StyleKeys.TEXT_INDENT, 36f)
+      it.put(StyleKeys.TEXT_INDENT_TYPE, 0.toByte())
+      it.put(StyleKeys.TEXT_INDENT_STATE, StyleState.SET)
+    }
+
+  @Test
   fun lineHeightWrittenAfterPreparationIsDrawnAsWithStaticLayout() = assertRestyledAsWithStaticLayout(
     "line-height: 24.6px", StateKeys.LINE_HEIGHT,
     text = "A paragraph long enough to wrap onto several lines, so that a taller line height moves each of them"

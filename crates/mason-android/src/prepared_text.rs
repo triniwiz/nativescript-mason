@@ -1,7 +1,7 @@
 use jni::objects::{JClass, JFloatArray, JString};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
-use mason_core::prepared_text::{Flow, LineBox, LineHeight, LineMetrics, PreparedText};
+use mason_core::prepared_text::{Flow, LineBox, LineHeight, LineMetrics, Paragraph, PreparedText};
 use mason_core::{Id, Mason, NodeRef};
 use std::ffi::{c_char, CStr, CString};
 
@@ -40,6 +40,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     fixed_line_height: jboolean,
     min_line_height: jfloat,
     inline: jboolean,
+    first_line_indent_px: jint,
 ) -> jboolean {
     let Some((mason, id)) = (unsafe { node_of(mason, node) }) else {
         return JNI_FALSE;
@@ -91,7 +92,16 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     };
     mason.set_prepared_text(
         id,
-        Some(PreparedText::new(&chars, widths, &breaks, metrics, flow)),
+        Some(PreparedText::new(
+            &chars,
+            widths,
+            &breaks,
+            metrics,
+            flow,
+            Paragraph {
+                first_line_indent_px,
+            },
+        )),
     );
     JNI_TRUE
 }

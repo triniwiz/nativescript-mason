@@ -38,9 +38,10 @@ object PreparedText {
     fixedLineHeight: Boolean,
     minLineHeight: Float,
     inline: Boolean,
+    paragraph: PreparedParagraph,
   ): Boolean = nativePrepare(
     node.mason.nativePtr, node.nativePtr, text, locale, advances, ascent, descent, lineHeight, fixedLineHeight,
-    minLineHeight, inline
+    minLineHeight, inline, paragraph.indentPx
   )
 
   internal fun clear(node: Node) = nativeClear(node.mason.nativePtr, node.nativePtr)
@@ -61,6 +62,7 @@ object PreparedText {
     fixedLineHeight: Boolean,
     minLineHeight: Float,
     inline: Boolean,
+    firstLineIndentPx: Int,
   ): Boolean
 
   @JvmStatic
@@ -70,9 +72,9 @@ object PreparedText {
   private external fun nativeLines(mason: Long, node: Long, width: Float): FloatArray?
 }
 
-internal data class PreparedParagraph(val alignment: Layout.Alignment) {
+internal data class PreparedParagraph(val alignment: Layout.Alignment, val indentPx: Int) {
   val drawnAtViewWidth: Boolean
-    get() = alignment != Layout.Alignment.ALIGN_NORMAL
+    get() = alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0
 
   /**
    * Layout.drawText's line starts. It truncates an aligned line's extent to whole pixels, even
@@ -81,13 +83,17 @@ internal data class PreparedParagraph(val alignment: Layout.Alignment) {
    */
   fun lineLefts(lines: PreparedLines, text: String, paint: TextPaint, layoutWidth: Int): FloatArray {
     val lefts = FloatArray(lines.lineCount)
-    if (alignment == Layout.Alignment.ALIGN_NORMAL) return lefts
+    if (alignment == Layout.Alignment.ALIGN_NORMAL) {
+      if (lefts.isNotEmpty()) lefts[0] = indentPx.toFloat()
+      return lefts
+    }
     for (i in lefts.indices) {
       val start = lines.lineStart(i)
       val end = lines.lineVisibleEnd(i)
       val extent = paint.getRunAdvance(text, start, end, start, end, false, end).toInt()
+      val indentShift = if (i == 0) indentPx shr 1 else 0
       lefts[i] = when (alignment) {
-        Layout.Alignment.ALIGN_CENTER -> (layoutWidth - (extent and 1.inv())) shr 1
+        Layout.Alignment.ALIGN_CENTER -> ((layoutWidth - (extent and 1.inv())) shr 1) + indentShift
         else -> layoutWidth - extent
       }.toFloat()
     }
@@ -98,12 +104,14 @@ internal data class PreparedParagraph(val alignment: Layout.Alignment) {
     fun preparableOrNull(engine: TextEngine, attributes: TextDefaultAttributes): PreparedParagraph? {
       val style = engine.style
       if (style.resolvedTextAlign == TextAlign.Justify) return null
+      if (engine.percentTextIndent) return null
       val alignment = engine.getLayoutAlignment()
       // StaticLayout aligns by the text's AlignmentSpan; a one-line text's plain-String BoringLayout
       // has no spans and uses its own alignment.
       if (attributes.textAlign.let { it != null && it != alignment }) return null
-      if (alignment != Layout.Alignment.ALIGN_NORMAL && isFlexOrGridContainer(style)) return null
-      return PreparedParagraph(alignment)
+      val indentPx = engine.textIndentPx(0f)
+      if ((alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0) && isFlexOrGridContainer(style)) return null
+      return PreparedParagraph(alignment, indentPx)
     }
 
     private fun isFlexOrGridContainer(style: Style): Boolean = style.isValueInitialized && when (style.display) {

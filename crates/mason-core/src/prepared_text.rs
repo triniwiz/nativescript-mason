@@ -46,6 +46,11 @@ impl Flow {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Paragraph {
+    pub first_line_indent_px: i32,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct LineBox {
     pub start: u32,
@@ -86,8 +91,10 @@ pub struct PreparedText {
     segments: Vec<Segment>,
     metrics: LineMetrics,
     flow: Flow,
+    paragraph: Paragraph,
     one_line_width: f32,
     widest_piece: f32,
+    first_piece: f32,
 }
 
 fn ceil_fine(v: f32) -> f32 {
@@ -137,10 +144,12 @@ impl PreparedText {
         breaks: &[u32],
         metrics: LineMetrics,
         flow: Flow,
+        paragraph: Paragraph,
     ) -> Self {
         let width = |from: usize, to: usize| -> f32 { advances[from..to].iter().sum() };
         let mut segments = Vec::new();
         let mut widest_piece = 0f32;
+        let mut first_piece = 0f32;
         let mut start = 0usize;
         for &end in breaks {
             let end = end as usize;
@@ -152,7 +161,11 @@ impl PreparedText {
             while piece_end > start && is_kotlin_whitespace(text[piece_end - 1]) {
                 piece_end -= 1;
             }
-            widest_piece = widest_piece.max(width(start, piece_end));
+            let piece = width(start, piece_end);
+            widest_piece = widest_piece.max(piece);
+            if start == 0 && piece_end > 0 {
+                first_piece = piece;
+            }
             segments.push(Segment {
                 start: start as u32,
                 visible_end: visible_end as u32,
@@ -168,27 +181,65 @@ impl PreparedText {
             segments,
             metrics,
             flow,
+            paragraph,
             one_line_width,
             widest_piece,
+            first_piece,
         }
     }
 
     /// TextEngine.singleLineLayout lays text that fits out as a BoringLayout, whose width is
     /// whole pixels.
     fn fits_one_line(&self, limit: f32) -> bool {
-        self.one_line_width <= limit - 0.5
+        self.paragraph.first_line_indent_px == 0 && self.one_line_width <= limit - 0.5
     }
 
     fn drawn_as_boring_layout(&self, lines: &[Line], limit: f32) -> bool {
-        lines.len() == 1 && self.one_line_width.ceil() <= limit
+        self.paragraph.first_line_indent_px == 0
+            && lines.len() == 1
+            && self.one_line_width.ceil() <= limit
     }
 
     /// TextEngine.measureLayout's min-content width.
     fn min_content_width(&self) -> f32 {
+        let piece = self
+            .widest_piece
+            .max(self.first_piece + self.paragraph.first_line_indent_px as f32);
         match self.flow {
-            Flow::Inline if self.segments.len() <= 1 => self.one_line_width.ceil(),
-            Flow::Inline => ceil_fine(self.widest_piece),
-            Flow::Block => self.widest_piece.ceil(),
+            Flow::Inline if self.segments.len() <= 1 => {
+                self.max_line_width(&self.lines(UNBOUNDED), UNBOUNDED)
+            }
+            Flow::Inline => ceil_fine(piece),
+            Flow::Block => piece.ceil(),
+        }
+    }
+
+    /// StaticLayoutCacheEntry.maxLineWidth (TextEngine).
+    fn max_line_width(&self, lines: &[Line], limit: f32) -> f32 {
+        if self.fits_one_line(limit) {
+            return self.one_line_width.ceil();
+        }
+        let last = lines.len().saturating_sub(1);
+        let indent = self.paragraph.first_line_indent_px as f32;
+        lines
+            .iter()
+            .enumerate()
+            .map(|(i, line)| {
+                let width = ceil_fine(self.line_max(line, i == last));
+                if i == 0 && indent != 0.0 {
+                    (width + indent).max(0.0)
+                } else {
+                    width
+                }
+            })
+            .fold(0.0, f32::max)
+    }
+
+    fn line_length(&self, limit: f32, line_index: usize) -> f32 {
+        if line_index == 0 {
+            limit - self.paragraph.first_line_indent_px as f32
+        } else {
+            limit
         }
     }
 
@@ -198,12 +249,15 @@ impl PreparedText {
         let mut pending_space = 0f32;
         for segment in &self.segments {
             match current.as_mut() {
-                Some(line) if line.width + pending_space + segment.visible_width <= limit => {
+                Some(line)
+                    if line.width + pending_space + segment.visible_width
+                        <= self.line_length(limit, lines.len()) =>
+                {
                     line.width += pending_space + segment.visible_width;
                 }
                 _ => {
                     lines.extend(current.take());
-                    let line = if segment.visible_width > limit {
+                    let line = if segment.visible_width > self.line_length(limit, lines.len()) {
                         self.break_inside_segment(segment, limit, &mut lines)
                     } else {
                         Line {
@@ -211,7 +265,7 @@ impl PreparedText {
                             width: segment.visible_width,
                         }
                     };
-                    current = if line.width > limit {
+                    current = if line.width > self.line_length(limit, lines.len()) {
                         // Minikin breaks right after a character wider than the line, so the
                         // spaces after it start the next line instead of hanging.
                         lines.push(line);
@@ -239,7 +293,10 @@ impl PreparedText {
         };
         for i in segment.start as usize..segment.visible_end as usize {
             let advance = self.advances[i];
-            if line.width > 0.0 && line.width + advance > limit && advance > 0.0 {
+            if line.width > 0.0
+                && line.width + advance > self.line_length(limit, lines.len())
+                && advance > 0.0
+            {
                 let visible = line.start as usize..visible_end(&self.text, line.start as usize, i);
                 line.width = self.advances[visible].iter().sum();
                 lines.push(line);
@@ -387,15 +444,8 @@ impl PreparedText {
             .unwrap_or(0) as f32;
         let width = if constraint.is_none() && available.width == AvailableSpace::MinContent {
             self.min_content_width()
-        } else if self.fits_one_line(limit) {
-            self.one_line_width.ceil()
         } else {
-            let last = lines.len().saturating_sub(1);
-            lines
-                .iter()
-                .enumerate()
-                .map(|(i, line)| ceil_fine(self.line_max(line, i == last)))
-                .fold(0.0, f32::max)
+            self.max_line_width(&lines, limit)
         };
         Size {
             width,
@@ -416,8 +466,34 @@ mod tests {
     };
 
     fn prepared(text: &str, advances: Vec<f32>, breaks: &[u32], flow: Flow) -> PreparedText {
+        indented(text, advances, breaks, flow, 0)
+    }
+
+    fn indented(
+        text: &str,
+        advances: Vec<f32>,
+        breaks: &[u32],
+        flow: Flow,
+        indent: i32,
+    ) -> PreparedText {
         let text: Vec<u16> = text.encode_utf16().collect();
-        PreparedText::new(&text, advances, breaks, METRICS, flow)
+        let paragraph = Paragraph {
+            first_line_indent_px: indent,
+        };
+        PreparedText::new(&text, advances, breaks, METRICS, flow, paragraph)
+    }
+
+    fn ten_words_indented(indent: i32) -> PreparedText {
+        let text = "a b c d e f g h i j";
+        let breaks = [2, 4, 6, 8, 10, 12, 14, 16, 18, 19];
+        indented(text, vec![10.0; 19], &breaks, Flow::Block, indent)
+    }
+
+    fn starts(text: &PreparedText, width: f32) -> Vec<u32> {
+        text.line_boxes(width)
+            .iter()
+            .map(|line| line.start)
+            .collect()
     }
 
     fn evenly(text: &str, advance: f32, breaks: &[u32], flow: Flow) -> PreparedText {
@@ -574,11 +650,19 @@ mod tests {
             line_height,
             ..METRICS
         };
-        PreparedText::new(&text, vec![10.0; 7], &[2, 4, 6, 7], metrics, Flow::Block)
-            .line_boxes(15.0)
-            .iter()
-            .map(|line| line.baseline)
-            .collect()
+        let paragraph = Paragraph::default();
+        PreparedText::new(
+            &text,
+            vec![10.0; 7],
+            &[2, 4, 6, 7],
+            metrics,
+            Flow::Block,
+            paragraph,
+        )
+        .line_boxes(15.0)
+        .iter()
+        .map(|line| line.baseline)
+        .collect()
     }
 
     #[test]
@@ -594,6 +678,68 @@ mod tests {
     #[test]
     fn an_explicit_line_height_below_the_fonts_is_split_from_the_texts_metrics() {
         assert_eq!(baselines(LineHeight::Fixed(20.4)), [21, 42, 62, 83]);
+    }
+
+    #[test]
+    fn an_indent_narrows_the_first_line() {
+        assert_eq!(starts(&ten_words_indented(0), 45.0), [0, 4, 8, 12, 16]);
+        assert_eq!(starts(&ten_words_indented(20), 45.0), [0, 2, 6, 10, 14, 18]);
+        assert_eq!(
+            starts(&ten_words_indented(-10), 45.0),
+            [0, 6, 10, 14, 18],
+            "a negative indent widens it"
+        );
+        assert_eq!(
+            starts(&ten_words_indented(60), 45.0),
+            [0, 1, 6, 10, 14, 18],
+            "an indent wider than the line leaves its first character alone on it"
+        );
+    }
+
+    #[test]
+    fn an_indented_texts_width_counts_the_indent_on_its_first_line() {
+        let width = |indent: i32| {
+            measure(&ten_words_indented(indent), AvailableSpace::Definite(45.0)).width
+        };
+        assert_eq!(width(30), 40.0, "a 10 px first line after a 30 px indent");
+        assert_eq!(width(-10), 40.0, "a 50 px first line after a -10 px indent");
+        let one_word = indented("W", vec![10.0], &[1], Flow::Block, -100);
+        assert_eq!(
+            measure(&one_word, AvailableSpace::MaxContent).width,
+            0.0,
+            "a line pulled further left than it is wide is no width"
+        );
+    }
+
+    #[test]
+    fn an_indented_line_is_never_measured_as_a_boring_layout() {
+        let text = |indent| indented("ab", vec![15.25, 15.25], &[2], Flow::Block, indent);
+        let definite = AvailableSpace::Definite(40.0);
+        assert_eq!(measure(&text(0), definite).width, 31.0);
+        assert_eq!(measure(&text(1), definite).width, 31.5);
+    }
+
+    #[test]
+    fn min_content_counts_the_indent_before_the_first_piece() {
+        let min_content = |text: &PreparedText| measure(text, AvailableSpace::MinContent).width;
+        let text = |flow, indent| indented("ab cde", vec![10.3; 6], &[3, 6], flow, indent);
+        assert_eq!(
+            min_content(&text(Flow::Block, 15)),
+            36.0,
+            "20.6 + 15 beats 30.9"
+        );
+        assert_eq!(
+            min_content(&text(Flow::Block, 5)),
+            31.0,
+            "20.6 + 5 does not"
+        );
+        assert_eq!(min_content(&text(Flow::Inline, 15)), 35.609375);
+        let word = indented("word", vec![10.3; 4], &[4], Flow::Inline, 5);
+        assert_eq!(
+            min_content(&word),
+            46.203125,
+            "inline text with no break: the width of its one indented line"
+        );
     }
 
     #[test]

@@ -574,7 +574,7 @@ class TextEngine(val container: TextContainer) {
 
   // text-indent in device px for a line length (a percentage resolves against it, 0 when
   // unconstrained). Inline boxes don't start a block, nor do anonymous runs after the first child.
-  private fun textIndentPx(lineLength: Float): Int {
+  internal fun textIndentPx(lineLength: Float): Int {
     val raw = style.resolvedTextIndent
     if (raw == 0f) return 0
     if (style.isValueInitialized && style.display == Display.Inline) return 0
@@ -587,7 +587,7 @@ class TextEngine(val container: TextContainer) {
     return kotlin.math.round(raw / 100f * lineLength).toInt()
   }
 
-  private val percentTextIndent: Boolean
+  internal val percentTextIndent: Boolean
     get() = style.resolvedTextIndentIsPercent && style.resolvedTextIndent != 0f
 
   // line-clamp: max visible lines, 0 for none. Inline boxes are not clamped.
@@ -2082,7 +2082,7 @@ class TextEngine(val container: TextContainer) {
       return null
     }
     val paragraph = PreparedParagraph.preparableOrNull(this, a) ?: return null
-    if (style.resolvedTextIndent != 0f || style.resolvedHyphens.toInt() == 2) return null
+    if (style.resolvedHyphens.toInt() == 2) return null
     if (includePadding || lineClamp > 0 || style.textOverflowEllipsis) return null
     // The JVM measure wraps at a max-width in points even for a max-content size.
     if (style.maxWidth.let { it is Dimension.Points && it.points > 0f }) return null
@@ -2165,6 +2165,7 @@ class TextEngine(val container: TextContainer) {
       fixedLineHeight = fixedLineHeight != null,
       minLineHeight = runMetrics(view.paint, lastViewMetrics).minLineHeight,
       inline = inline,
+      paragraph = child.paragraph,
     )
     if (!prepared) return false
     this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
@@ -2196,7 +2197,7 @@ class TextEngine(val container: TextContainer) {
     val run = prepared
     if (run == null) {
       if (!warmMeasuresWillCheck && preparableChild() != null) staleMeasures[this] = true
-    } else if (preparableChild() == null || run.inline != NodeUtils.isInlineLike(node)) {
+    } else if (preparableChild()?.paragraph != run.paragraph || run.inline != NodeUtils.isInlineLike(node)) {
       invalidateInlineSegments(requestLayout = false)
     }
   }
