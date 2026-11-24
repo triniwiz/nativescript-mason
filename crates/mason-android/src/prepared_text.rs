@@ -42,6 +42,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     inline: jboolean,
     first_line_indent_px: jint,
     nowrap: jboolean,
+    centers_vertically: jboolean,
 ) -> jboolean {
     let Some((mason, id)) = (unsafe { node_of(mason, node) }) else {
         return JNI_FALSE;
@@ -102,6 +103,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
             Paragraph {
                 first_line_indent_px,
                 nowrap: nowrap == JNI_TRUE,
+                centers_vertically: centers_vertically == JNI_TRUE,
             },
         )),
     );

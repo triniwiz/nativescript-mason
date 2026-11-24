@@ -2065,9 +2065,9 @@ class TextEngine(val container: TextContainer) {
 
   private fun preparableChild(): PreparableChild? {
     val view = container as? TextView ?: return null
-    if (view.javaClass != TextView::class.java) return null
+    if (view.javaClass != TextView::class.java && view.javaClass != Button::class.java) return null
     when (view.type) {
-      TextType.Li, TextType.Blockquote, TextType.Pre -> return null
+      TextType.Blockquote, TextType.Pre -> return null
       else -> {}
     }
     if (ListMarkers.insideMarker(view).isNotEmpty()) return null

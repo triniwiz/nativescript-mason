@@ -42,7 +42,7 @@ object PreparedText {
     paragraph: PreparedParagraph,
   ): Boolean = nativePrepare(
     node.mason.nativePtr, node.nativePtr, text, locale, advances, ascent, descent, lineHeight, fixedLineHeight,
-    minLineHeight, inline, paragraph.indentPx, paragraph.nowrap
+    minLineHeight, inline, paragraph.indentPx, paragraph.nowrap, paragraph.centersVertically
   )
 
   internal fun clear(node: Node) = nativeClear(node.mason.nativePtr, node.nativePtr)
@@ -65,6 +65,7 @@ object PreparedText {
     inline: Boolean,
     firstLineIndentPx: Int,
     nowrap: Boolean,
+    centersVertically: Boolean,
   ): Boolean
 
   @JvmStatic
@@ -74,7 +75,12 @@ object PreparedText {
   private external fun nativeLines(mason: Long, node: Long, width: Float): FloatArray?
 }
 
-internal data class PreparedParagraph(val alignment: Layout.Alignment, val indentPx: Int, val nowrap: Boolean) {
+internal data class PreparedParagraph(
+  val alignment: Layout.Alignment,
+  val indentPx: Int,
+  val nowrap: Boolean,
+  val centersVertically: Boolean,
+) {
   val drawnAtViewWidth: Boolean
     get() = alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0 || nowrap
 
@@ -127,7 +133,8 @@ internal data class PreparedParagraph(val alignment: Layout.Alignment, val inden
       if (attributes.textAlign.let { it != null && it != alignment }) return null
       val indentPx = engine.textIndentPx(0f)
       if ((alignment != Layout.Alignment.ALIGN_NORMAL || indentPx != 0) && isFlexOrGridContainer(style)) return null
-      return PreparedParagraph(alignment, indentPx, nowrap)
+      val centersVertically = (engine.container as? TextView)?.centersVertically == true
+      return PreparedParagraph(alignment, indentPx, nowrap, centersVertically)
     }
 
     private const val UNWRAPPED_LAYOUT_WIDTH = 1_000_000

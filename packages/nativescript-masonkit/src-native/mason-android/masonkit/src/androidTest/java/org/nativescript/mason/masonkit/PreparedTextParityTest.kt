@@ -22,6 +22,8 @@ import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.ListStylePosition
+import org.nativescript.mason.masonkit.enums.ListStyleType
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
@@ -275,6 +277,57 @@ class PreparedTextParityTest {
   }
 
   @Test
+  fun listItemsWithAnOutsideMarkerAreDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (type in listOf(ListStyleType.Disc, ListStyleType.Decimal, ListStyleType.Square)) {
+      val list = mason.createView(context).apply {
+        style.listStyleType = type
+        setPadding(40.3f, 0f, 0f, 0f)
+      }
+      for (value in listOf("First item", ALIGNED_SAMPLES.last())) {
+        list.addView(text(mason, value, 15f, type = TextType.Li))
+      }
+      list.addView(text(mason, "Centred item", 15f, type = TextType.Li) { it.textAlign = TextAlign.Center })
+      root.addView(list)
+    }
+    val inside = mason.createView(context).apply { style.listStylePosition = ListStylePosition.Inside }
+    inside.addView(text(mason, "An item with its marker inside", 15f, prepares = false, type = TextType.Li))
+    root.addView(inside)
+    root
+  }
+
+  @Test
+  fun buttonsAreDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    val row = View.createFlexView(mason, context).apply {
+      flexDirection = FlexDirection.Row
+      flexWrap = FlexWrap.Wrap
+      setGap(3.3f, 3.3f)
+    }
+    for (value in listOf("OK", "Cancel", "A longer button label that wraps")) row.addView(button(mason, value))
+    row.addView(button(mason, "Wide button", style = { it.setSizeWidth(190.5f, Dimension.Kind.Points.value) }))
+    row.addView(button(mason, "A tall button whose label takes several lines") {
+      it.setSizeWidth(150.5f, Dimension.Kind.Points.value)
+      it.setSizeHeight(260.7f, Dimension.Kind.Points.value)
+    })
+    root.addView(row)
+    val baseline = View.createFlexView(mason, context).apply {
+      flexDirection = FlexDirection.Row
+      style.alignItems = AlignItems.Baseline
+    }
+    baseline.addView(button(mason, "Two lines in a tall button") {
+      it.setSizeWidth(120.5f, Dimension.Kind.Points.value)
+      it.setSizeHeight(300f, Dimension.Kind.Points.value)
+    })
+    baseline.addView(text(mason, "Beside it", 15f))
+    root.addView(baseline)
+    val block = mason.createView(context)
+    block.addView(button(mason, "In a block's line", prepares = false))
+    root.addView(block)
+    root
+  }
+
+  @Test
   fun segmentsBrokenAfterASpaceAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(400f)) { mason ->
     val root = mason.createView(context)
     for (value in SEGMENTS_WITH_SPACES) {
@@ -353,11 +406,24 @@ class PreparedTextParityTest {
     setGap(6.7f, 6.7f)
   }
 
-  private fun text(mason: Mason, value: String, size: Float, prepares: Boolean = true, style: (Style) -> Unit = {}) =
-    TextView(context, mason, TextType.None).also {
+  private fun text(
+    mason: Mason,
+    value: String,
+    size: Float,
+    prepares: Boolean = true,
+    type: TextType = TextType.None,
+    style: (Style) -> Unit = {},
+  ) = TextView(context, mason, type).also {
+    style(it.style)
+    it.textContent = value
+    it.setTextSize(size)
+    expectPrepared[it] = prepares
+  }
+
+  private fun button(mason: Mason, value: String, prepares: Boolean = true, style: (Style) -> Unit = {}) =
+    Button(context, mason).also {
       style(it.style)
       it.textContent = value
-      it.setTextSize(size)
       expectPrepared[it] = prepares
     }
 

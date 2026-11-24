@@ -50,6 +50,7 @@ impl Flow {
 pub struct Paragraph {
     pub first_line_indent_px: i32,
     pub nowrap: bool,
+    pub centers_vertically: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -415,10 +416,14 @@ impl PreparedText {
             .unwrap_or(UNBOUNDED);
         let lines = self.line_boxes(width);
         let content_height = content.height.unwrap_or(0.0) as i32;
+        let text_height = lines.last().map_or(0, |line| line.baseline + line.descent);
         let centring = match lines.as_slice() {
             [line] if content_height > 0 => {
                 content_height as f32 / 2.0
                     - (line.baseline as f32 + (line.ascent + line.descent) as f32 / 2.0)
+            }
+            _ if self.paragraph.centers_vertically && content_height > text_height => {
+                (content_height - text_height) as f32 / 2.0
             }
             _ => 0.0,
         };
@@ -791,6 +796,46 @@ mod tests {
                 "{flow:?}"
             );
         }
+    }
+
+    fn baseline_in(text: &PreparedText, width: f32, height: f32) -> f32 {
+        let size = text.measure(
+            Size {
+                width: Some(width),
+                height: Some(height),
+            },
+            Size {
+                width: AvailableSpace::Definite(BASELINE_QUERY),
+                height: AvailableSpace::MaxContent,
+            },
+        );
+        size.width
+    }
+
+    #[test]
+    fn a_button_centres_several_lines_in_its_box() {
+        let lines = |centers_vertically| {
+            let text: Vec<u16> = "a b".encode_utf16().collect();
+            let paragraph = Paragraph {
+                centers_vertically,
+                ..Paragraph::default()
+            };
+            PreparedText::new(
+                &text,
+                vec![10.0; 3],
+                &[2, 3],
+                METRICS,
+                Flow::Block,
+                paragraph,
+            )
+        };
+        assert_eq!(baseline_in(&lines(false), 15.0, 120.0), 75.0);
+        assert_eq!(baseline_in(&lines(true), 15.0, 120.0), 92.0);
+        assert_eq!(
+            baseline_in(&lines(true), 15.0, 80.3),
+            75.0,
+            "no centring in a box shorter than the lines"
+        );
     }
 
     #[test]
