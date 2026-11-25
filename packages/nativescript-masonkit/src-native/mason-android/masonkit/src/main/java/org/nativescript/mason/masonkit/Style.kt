@@ -4439,15 +4439,18 @@ class Style internal constructor(@Transient internal var node: Node) {
 
     val stateKeys = StateKeys(isDirty, isDirtyHigh)
     // A first sync counts too: until then display reads as unset, whatever its value.
-    if (firstSync || stateKeys.hasFlag(StateKeys.DISPLAY) || stateKeys.hasFlag(StateKeys.DISPLAY_MODE) ||
+    val flowChanged = firstSync || stateKeys.hasFlag(StateKeys.DISPLAY) || stateKeys.hasFlag(StateKeys.DISPLAY_MODE) ||
       stateKeys.hasFlag(StateKeys.POSITION) || stateKeys.hasFlag(StateKeys.FLOAT)
-    ) {
+    if (flowChanged) {
       node.onFlowTypeChanged(firstSync)
     }
     val directionDirty = stateKeys.hasFlag(StateKeys.DIRECTION)
     if (directionDirty) {
       val androidView = node.view as? android.view.View
       androidView?.layoutDirection = toAndroidLayoutDirection(direction)
+    }
+    if (flowChanged || directionDirty || stateKeys.hasFlag(StateKeys.MAX_SIZE)) {
+      TextEngine.recheckPreparedTextAround(node, stateKeys.hasFlag(StateKeys.FLOAT))
     }
 
     val borderState = (isDirty and StateKeys.BORDER.low) or (isDirtyHigh and StateKeys.BORDER.high)

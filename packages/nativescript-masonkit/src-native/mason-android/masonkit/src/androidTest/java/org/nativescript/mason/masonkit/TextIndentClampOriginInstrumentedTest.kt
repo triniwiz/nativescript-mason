@@ -4,9 +4,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.AlignItems
@@ -21,6 +23,17 @@ class TextIndentClampOriginInstrumentedTest {
 
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
   private val density = context.resources.displayMetrics.density
+  private val preparedText = PreparedText.enabled
+
+  @Before
+  fun useStaticLayout() {
+    PreparedText.enabled = false
+  }
+
+  @After
+  fun restore() {
+    PreparedText.enabled = preparedText
+  }
 
   private val longText = "The quick brown fox jumps over the lazy dog. ".repeat(8).trim()
 

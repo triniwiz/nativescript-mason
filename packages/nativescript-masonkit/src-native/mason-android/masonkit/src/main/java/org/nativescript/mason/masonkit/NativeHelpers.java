@@ -219,6 +219,8 @@ public class NativeHelpers {
   @FastNative
   static native int nativeGetStateBuffer(long mason, long node);
 
+  static native String nativeSystemProperty(String name);
+
 
   /* Node */
 

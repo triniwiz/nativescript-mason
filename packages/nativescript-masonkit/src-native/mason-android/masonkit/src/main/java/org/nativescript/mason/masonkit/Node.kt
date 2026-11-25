@@ -102,6 +102,8 @@ open class Node internal constructor(
   // every child on every text-style write.
   internal var hasTextDescendant = false
 
+  internal var everParentOfCheckedText = false
+
   internal var lastTextAttachParent: Node? = null
   internal var detachTextEpoch = -1
   var computeCache: SizeF = UNSET_COMPUTE_CACHE
@@ -467,6 +469,10 @@ open class Node internal constructor(
   internal val children = ChildList(4)
   internal val style = Style(this)
 
+  internal val isFloated: Boolean
+    get() = type == NodeType.Element && style.isValueInitialized &&
+      style.float != org.nativescript.mason.masonkit.enums.Float.None
+
   // Floated children as of the last scan; rescanned when the list or any style changes.
   private var floatScanChildren = -1
   private var floatScanStyles = -1L
@@ -480,8 +486,7 @@ open class Node internal constructor(
       var count = 0
       var first: Node? = null
       for (child in children) {
-        if (child.type != NodeType.Element || !child.style.isValueInitialized) continue
-        if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) {
+        if (child.isFloated) {
           if (count == 0) first = child
           count++
         }
@@ -1261,6 +1266,7 @@ open class Node internal constructor(
       val last = children.lastOrNull()
       if (joinsInlineRun(child, last != null && isRunContainer(last))) {
         appendToRun(child)
+        TextEngine.recheckPreparedTextOnAttach(this, child)
         return
       }
     }
@@ -1315,6 +1321,7 @@ open class Node internal constructor(
 
       onNodeAttached?.let { it() }
     }
+    TextEngine.recheckPreparedTextOnAttach(this, child)
   }
 
   fun appendChild(view: View) {
@@ -1336,7 +1343,12 @@ open class Node internal constructor(
     if (reference == child) {
       return
     }
+    replaceAuthorChild(nodes, index, reference, child)
+    TextEngine.recheckPreparedTextOnDetach(this, reference)
+    TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
 
+  private fun replaceAuthorChild(nodes: List<Node>, index: Int, reference: Node, child: Node) {
     if (establishesInlineRuns()) {
       val author = nodes.toMutableList()
       detachForRebuild(reference)
@@ -1566,6 +1578,11 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
+    insertAuthorChild(child, index)
+    TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
+
+  private fun insertAuthorChild(child: Node, index: Int) {
     val authorChildren = getChildren()
 
     if (establishesInlineRuns()) {
@@ -1805,6 +1822,7 @@ open class Node internal constructor(
       val removed = author.removeAt(index)
       detachForRebuild(removed)
       normalizeInlineRuns(author)
+      TextEngine.recheckPreparedTextOnDetach(this, removed)
       return removed
     }
     return removeAuthorChild(children[index])
@@ -1844,6 +1862,7 @@ open class Node internal constructor(
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
       NodeUtils.invalidateLayout(this)
     }
+    TextEngine.recheckPreparedTextOnDetach(this, removed)
     return removed
   }
 

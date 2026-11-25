@@ -22,6 +22,13 @@ class ContentCaptureStructureTest {
 
   @Test
   fun textReportsItsStructure() {
+    val laidOut = withPreparedText(false) { capture() }
+    val prepared = withPreparedText(true) { capture() }
+    assertEquals("structure with prepared text", laidOut, prepared)
+  }
+
+  private fun capture(): List<List<String>> {
+    val captured = mutableListOf<List<String>>()
     ActivityScenario.launch(BenchmarkActivity::class.java).use { scenario ->
       lateinit var texts: List<TextView>
       val drawn = CountDownLatch(1)
@@ -60,14 +67,22 @@ class ContentCaptureStructureTest {
           assertTrue("text$i class", masonKit.calls.contains("setClassName(android.widget.TextView)"))
           val firstWord = tv.textContent.substringBefore(' ')
           assertTrue("text$i text", masonKit.calls.any { it.startsWith("setText(") && it.contains(firstWord) })
-          masonKit.calls.firstOrNull { it.startsWith("setTextLines") }?.let { lines ->
+          val lines = masonKit.calls.firstOrNull { it.startsWith("setTextLines") }
+          assertEquals("text$i reports its lines", i in MULTI_LINE, lines != null)
+          if (lines != null && tv.engine.preparedText == null) {
             val layout = tv.floatAwareStaticLayout ?: tv.cachedStaticLayout!!
             val starts = Regex("""\d+""").findAll(lines.substringBefore("], [")).map { it.value.toInt() }.toList()
             val expected = starts.map { layout.getLineBaseline(layout.getLineForOffset(it)) + tv.paddingTop }
             assertEquals("text$i baselines", "setTextLines($starts, $expected)", lines)
           }
+          captured.add(masonKit.calls.toList())
         }
       }
     }
+    return captured
+  }
+
+  private companion object {
+    val MULTI_LINE = setOf(1, 3)
   }
 }

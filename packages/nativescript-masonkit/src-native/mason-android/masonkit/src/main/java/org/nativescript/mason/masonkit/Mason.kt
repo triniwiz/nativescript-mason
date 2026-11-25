@@ -55,9 +55,14 @@ class Mason {
   internal var computeEpoch = 0
     private set
 
+  internal fun beginCompute() {
+    inCompute = true
+  }
+
   internal fun endCompute() {
     inCompute = false
     computeFinished()
+    TextEngine.runDeferredClears()
   }
 
   internal fun computeFinished() {
@@ -226,6 +231,7 @@ class Mason {
   }
 
   fun clear() {
+    TextEngine.forgetPreparedTexts(this)
     nativeClear(nativePtr)
   }
 
