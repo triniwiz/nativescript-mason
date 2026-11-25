@@ -3181,6 +3181,11 @@ class TextEngine(val container: TextContainer) {
       for (engine in preparedEngines.keys.toMutableList()) engine.invalidateInlineSegments()
     }
 
+    // A cleared tree's nodes are gone, and touching one aborts the process.
+    internal fun forgetPreparedTexts(mason: Mason) {
+      preparedEngines.keys.removeAll { it.node.mason === mason }
+    }
+
     private fun recheckTextOf(node: Node) {
       (node.view as? TextView)?.engine?.recheckPreparedText()
     }

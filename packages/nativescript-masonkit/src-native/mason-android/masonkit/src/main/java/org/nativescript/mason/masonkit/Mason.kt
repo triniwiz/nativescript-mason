@@ -231,6 +231,7 @@ class Mason {
   }
 
   fun clear() {
+    TextEngine.forgetPreparedTexts(this)
     nativeClear(nativePtr)
   }
 

@@ -187,6 +187,18 @@ class PreparedTextInstrumentedTest {
   }
 
   @Test
+  fun aClearedTreeIsDrawnAsBeforeAfterPreparedTextIsTurnedOff() = withPreparedText(true) {
+    val mason = Mason()
+    val p = mason.createTextView(context, TextType.P).apply { textContent = LONG }
+    val root = mason.createView(context).apply { addView(p) }
+    val before = layOutAndDraw(root, 600)
+    Assert.assertNotNull("prepared", p.engine.preparedText)
+    mason.clear()
+    PreparedText.enabled = false
+    Assert.assertTrue(drawn(root).sameAs(before))
+  }
+
+  @Test
   fun aSpanWhoseRowBecameABlockIsLaidOutAsWithStaticLayout() {
     fun drawn(preparedText: Boolean) = withPreparedText(preparedText) {
       val mason = Mason()
