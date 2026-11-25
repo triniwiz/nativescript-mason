@@ -1,0 +1,28 @@
+<demo-page title="Dashboard - MasonKit">
+  <main class="dash">
+    <div class="toolbar">
+      <div class="tool" (tap)="bump(nextStep())">
+        <span class="tool-text">Bump</span>
+      </div>
+      <div class="tool" (tap)="rotate()">
+        <span class="tool-text">Rotate</span>
+      </div>
+      <div class="tool" (tap)="toggleWide()">
+        <span class="tool-text" [text]="wide() ? '3 columns' : '2 columns'"></span>
+      </div>
+    </div>
+    <div class="grid" [class.wide]="wide()">
+      @for (tile of tiles(); track tile.id) {
+        <div class="tile">
+          <span class="label" [text]="tile.label"></span>
+          <span class="value" text="{{ tile.value }}" [color]="tile.color"></span>
+          <div class="bars">
+            @for (h of tile.bars; track $index) {
+              <div class="bar" [height]="h" [backgroundColor]="tile.color"></div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </main>
+</demo-page>

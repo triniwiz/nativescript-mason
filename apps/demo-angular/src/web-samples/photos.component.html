@@ -1,0 +1,63 @@
+<demo-page title="Photos" background="#101014">
+  <main class="gallery page-body">
+    <header class="head">
+      <div class="head-text">
+        <span class="title">Coastal light</span>
+        <span class="subtitle">{{ photos.length }} remote images via MasonKit Img · masonry columns</span>
+      </div>
+      <div class="seg">
+        @for (n of [2, 3]; track n) {
+          <div class="seg-btn" [class.seg-btn-active]="columns() === n" (tap)="columns.set(n)">
+            <span class="seg-text" [class.seg-text-active]="columns() === n">{{ n }} col</span>
+          </div>
+        }
+      </div>
+    </header>
+    <!-- Featured -->
+    <div class="hero">
+      <img [src]="featured.src" class="hero-img" stretch="aspectFill" />
+      <div class="hero-caption">
+        <span class="chip-featured">Featured</span>
+        <span class="hero-title">{{ featured.title }}</span>
+        <span class="hero-loc">{{ featured.loc }} · {{ featured.year }}</span>
+      </div>
+    </div>
+    <!-- Filmstrip -->
+    <section class="strip-wrap">
+      <span class="section-title">Recent</span>
+      <div class="strip">
+        <div class="strip-row">
+          @for (p of recent; track p.seed) {
+            <div class="thumb">
+              <img [src]="thumb(p)" class="thumb-img" stretch="aspectFill" />
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+    <!-- Masonry -->
+    <section class="masonry-wrap">
+      <span class="section-title">All photos</span>
+      <div class="columns">
+        @for (col of masonry(); track col) {
+          <div class="col">
+            @for (p of col; track p.seed) {
+              <div class="cell" [style.height]="cellHeight(p)">
+                <img [src]="p.src" class="cell-img" stretch="aspectFill" />
+                <div class="caption">
+                  <span class="caption-title">{{ p.title }}</span>
+                  @if (columns() === 2) {
+                    <span class="caption-loc">{{ p.loc }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+    <footer class="foot">
+      <span class="foot-text">Images from picsum.photos · seeded so the set is stable between runs</span>
+    </footer>
+  </main>
+</demo-page>

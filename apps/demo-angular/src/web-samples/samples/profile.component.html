@@ -1,0 +1,48 @@
+<demo-page title="Profile">
+  <main class="page-body">
+    <section class="profile-header">
+      <div class="avatar">
+        <span class="avatar-initials">AR</span>
+      </div>
+      <h1>Amelia Reyes</h1>
+      <p class="handle">&#64;amelia.builds · Product Designer, Lisbon</p>
+      <p class="bio">Designing calm interfaces for busy products. Previously at two startups you have never heard of. Coffee first, wireframes second.</p>
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat-value">248</span>
+          <span class="stat-label">Posts</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">12.4k</span>
+          <span class="stat-label">Followers</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">380</span>
+          <span class="stat-label">Following</span>
+        </div>
+      </div>
+      <button class="follow-button" (tap)="following.set(!following())">{{ following() ? 'Following ✓' : 'Follow' }}</button>
+    </section>
+    <nav class="tab-row">
+      <button class="tab" [class.active]="tab() === 'grid'" (tap)="tab.set('grid')">Grid</button>
+      <button class="tab" [class.active]="tab() === 'about'" (tap)="tab.set('about')">About</button>
+    </nav>
+    @if (tab() === 'grid') {
+      <section class="post-grid">
+        @for (post of posts; track post.title) {
+          <div class="post-cell" [style.backgroundColor]="post.color">
+            <span class="post-glyph">{{ post.glyph }}</span>
+            <span class="post-title">{{ post.title }}</span>
+          </div>
+        }
+      </section>
+    } @else {
+      <section class="about-card">
+        <h2>About</h2>
+        <p>Seven years designing mobile products. I write about design systems, motion, and the occasional side project.</p>
+        <h2>Links</h2>
+        <p>ameliareyes.design · dribbble/amelia · hello&#64;ameliareyes.design</p>
+      </section>
+    }
+  </main>
+</demo-page>

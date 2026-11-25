@@ -1,0 +1,82 @@
+<demo-page title="Grid Layout">
+  <main class="stack page-body">
+    <!-- Basic Grid -->
+    <section class="block">
+      <span class="h1">Basic Grid</span>
+      <span class="muted">3 columns, auto rows</span>
+      <div class="grid" style="gap: 4">
+        @for (c of basic; track $index; let i = $index) {
+          <div class="cell" [class.cell-dark]="c.dark" [style.backgroundColor]="c.color">
+            <span class="cell-label">{{ i + 1 }}</span>
+          </div>
+        }
+      </div>
+    </section>
+    <!-- Grid with Gap -->
+    <section class="block">
+      <span class="h1">Grid Gap</span>
+      <span class="muted">12px gap between cells</span>
+      <div class="grid" style="gap: 12">
+        @for (c of gap; track c.label) {
+          <div class="cell cell-round" [class.cell-dark]="c.dark" [style.backgroundColor]="c.color">
+            <span class="cell-label">{{ c.label }}</span>
+          </div>
+        }
+      </div>
+    </section>
+    <!-- Named Grid Areas -->
+    <section class="block">
+      <span class="h1">Grid Areas</span>
+      <span class="muted">Dashboard-style layout</span>
+      <div class="dashboard">
+        <div class="cell dash-header">
+          <span class="cell-label">Header</span>
+        </div>
+        <div class="cell dash-sidebar">
+          <span class="cell-label cell-label-sm">Nav</span>
+        </div>
+        <div class="cell dash-main">
+          <span class="cell-label">Main Content</span>
+        </div>
+        <div class="cell dash-footer">
+          <span class="cell-label cell-label-sm">Footer</span>
+        </div>
+      </div>
+    </section>
+    <!-- Spanning Cells -->
+    <section class="block">
+      <span class="h1">Column Span</span>
+      <span class="muted">Items spanning multiple columns</span>
+      <div class="grid" style="gap: 6">
+        <div class="cell cell-sm" style="grid-column: 1 / 3; background-color: #0984e3">
+          <span class="cell-label cell-label-sm">Spans 2 columns</span>
+        </div>
+        <div class="cell cell-sm" style="background-color: #a29bfe">
+          <span class="cell-label">1</span>
+        </div>
+        <div class="cell cell-sm" style="background-color: #ff6b6b">
+          <span class="cell-label">2</span>
+        </div>
+        <div class="cell cell-sm" style="grid-column: 2 / 4; background-color: #00b894">
+          <span class="cell-label cell-label-sm">Spans 2 columns</span>
+        </div>
+      </div>
+    </section>
+    <!-- Mixed Sizing -->
+    <section class="block">
+      <span class="h1">Mixed Sizing</span>
+      <span class="muted">Fixed + fractional units</span>
+      <div class="grid" style="grid-template-columns: 80 1fr 2fr; gap: 6">
+        <div class="cell cell-xs" style="background-color: #ff6b6b">
+          <span class="cell-label cell-label-sm">80</span>
+        </div>
+        <div class="cell cell-xs" style="background-color: #4ecdc4">
+          <span class="cell-label cell-label-sm">1fr</span>
+        </div>
+        <div class="cell cell-xs cell-dark" style="background-color: #ffd93d">
+          <span class="cell-label cell-label-sm">2fr</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</demo-page>

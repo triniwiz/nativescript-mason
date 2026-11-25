@@ -1,0 +1,52 @@
+<demo-page title="Checkout">
+  <main class="page-body">
+    <h1 class="heading">Your cart</h1>
+    <section class="cart">
+      @for (item of cart(); track item.name) {
+        <article class="line-item">
+          <div class="thumb" [style.backgroundColor]="item.color">
+            <span class="thumb-glyph">{{ item.glyph }}</span>
+          </div>
+          <div class="item-body">
+            <p class="item-name">{{ item.name }}</p>
+            <p class="item-meta">{{ item.detail }}</p>
+            <div class="stepper">
+              <button class="stepper-button" (tap)="bump(item, -1)">−</button>
+              <span class="qty">{{ item.qty }}</span>
+              <button class="stepper-button" (tap)="bump(item, 1)">+</button>
+            </div>
+          </div>
+          <p class="line-total">{{ (item.price * item.qty).toFixed(2) }}</p>
+        </article>
+      }
+    </section>
+    <section class="promo-row">
+      <input [(ngModel)]="promo" class="promo-input" placeholder="Promo code (try MASON10)" />
+      <button class="promo-button" (tap)="applyPromo()">Apply</button>
+    </section>
+    @if (promoMessage()) {
+      <p class="promo-message">{{ promoMessage() }}</p>
+    }
+    <section class="summary">
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span>{{ subtotal().toFixed(2) }}</span>
+      </div>
+      @if (discount() > 0) {
+        <div class="summary-row discount">
+          <span>Discount (MASON10)</span>
+          <span>−{{ discount().toFixed(2) }}</span>
+        </div>
+      }
+      <div class="summary-row">
+        <span>Shipping</span>
+        <span>{{ shipping().toFixed(2) }}</span>
+      </div>
+      <div class="summary-row total">
+        <span>Total</span>
+        <span>{{ total().toFixed(2) }}</span>
+      </div>
+    </section>
+    <button class="place-order">Place order</button>
+  </main>
+</demo-page>

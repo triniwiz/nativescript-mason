@@ -1,0 +1,67 @@
+.dash {
+  display: flex;
+  flex-direction: column;
+  gap: 10;
+  padding: 12;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6;
+}
+
+.tool {
+  padding: 6 10;
+  background-color: var(--primary);
+  border-radius: 6;
+}
+
+.tool-text {
+  font-size: 12;
+  color: var(--on-primary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8;
+}
+
+.grid.wide {
+  grid-template-columns: 1fr 1fr;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+  padding: 10;
+  background-color: var(--surface);
+  border-radius: 10;
+}
+
+.label {
+  font-size: 11;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.value {
+  font-size: 20;
+  font-weight: bold;
+}
+
+.bars {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 3;
+  height: 32;
+}
+
+.bar {
+  flex-grow: 1;
+  border-radius: 2;
+}

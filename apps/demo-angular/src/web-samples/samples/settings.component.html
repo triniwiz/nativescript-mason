@@ -1,0 +1,65 @@
+<demo-page title="Settings">
+  <main class="page-body">
+    <section class="settings-group">
+      <h2>Account</h2>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Display name</p>
+          <p class="row-desc">Shown on your public profile</p>
+        </div>
+        <input [(ngModel)]="profile.name" class="row-input" />
+      </div>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Email</p>
+          <p class="row-desc">Used for sign-in and receipts</p>
+        </div>
+        <input [(ngModel)]="profile.email" class="row-input" keyboardType="email" />
+      </div>
+    </section>
+    <section class="settings-group">
+      <h2>Preferences</h2>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Dark mode</p>
+          <p class="row-desc">Easier on the eyes at night</p>
+        </div>
+        <Switch [(ngModel)]="prefs.darkMode"></Switch>
+      </div>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Push notifications</p>
+          <p class="row-desc">Mentions, replies, and digests</p>
+        </div>
+        <Switch [(ngModel)]="prefs.notifications"></Switch>
+      </div>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Compact layout</p>
+          <p class="row-desc">Denser lists, smaller cards</p>
+        </div>
+        <Switch [(ngModel)]="prefs.compact"></Switch>
+      </div>
+    </section>
+    <section class="settings-group">
+      <h2>About</h2>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Version</p>
+          <p class="row-desc">MasonKit demo build</p>
+        </div>
+        <p class="row-value">2.4.1</p>
+      </div>
+      <div class="settings-row">
+        <div class="row-body">
+          <p class="row-title">Reset demo data</p>
+          <p class="row-desc">Restore all preferences</p>
+        </div>
+        <button class="reset-button" (tap)="reset()">Reset</button>
+      </div>
+    </section>
+    @if (savedNote()) {
+      <p class="saved-note">{{ savedNote() }}</p>
+    }
+  </main>
+</demo-page>

@@ -1,0 +1,62 @@
+<demo-page title="Position">
+  <main class="page-body">
+    <!-- Sticky section headers -->
+    <div class="section-title">
+      <p class="tk-text" style="font-size: 22; font-weight: bold">Sticky section headers</p>
+    </div>
+    <span class="tk-muted">Each letter header is `position: sticky; top: 0`. It pins to the top of the page scroll while its group is in view and is pushed off by the next header.</span>
+    @for (group of groups; track group.letter) {
+      <section>
+        <div class="sticky-header">
+          <span class="sticky-header-text">{{ group.letter }}</span>
+        </div>
+        @for (name of group.names; track name) {
+          <div class="row">
+            <span class="tk-text">{{ name }}</span>
+          </div>
+        }
+      </section>
+    }
+    <!-- Sticky inside a nested scroll container -->
+    <div class="section-title">
+      <p class="tk-text" style="font-size: 22; font-weight: bold">Sticky in a nested scroll</p>
+    </div>
+    <span class="tk-muted">Sticky is scoped to the nearest scrolling ancestor. This header sticks inside the 180-tall box, not the page.</span>
+    <Scroll style="height: 180; border-radius: 12" class="tk-surface-2">
+      <div class="sticky-header">
+        <span class="sticky-header-text">Sticks inside this box</span>
+      </div>
+      @for (n of range(10); track n) {
+        <div class="row">
+          <span class="tk-text">Filler row {{ n }}</span>
+        </div>
+      }
+    </Scroll>
+    <!-- Fixed escapes overflow clipping -->
+    <div class="section-title">
+      <p class="tk-text" style="font-size: 22; font-weight: bold">Fixed escapes clipping</p>
+    </div>
+    <span class="tk-muted">The parent below is relative and clips overflow. The absolute child stays clipped, like the web. The fixed child resolves its insets against the page viewport and is reparented there, so it escapes the clip and holds still when the page scrolls.</span>
+    <div class="clip-box">
+      <div class="absolute-box">
+        <span class="pin-text">absolute 8,8</span>
+      </div>
+      <div class="fixed-box">
+        <span class="pin-text">fixed 8,8</span>
+      </div>
+    </div>
+    <!-- Fixed bottom banner -->
+    <div class="section-title">
+      <p class="tk-text" style="font-size: 22; font-weight: bold">Fixed bottom banner</p>
+    </div>
+    <span class="tk-muted">A banner pinned to the bottom of the page with `position: fixed`, independent of scroll position.</span>
+    <button class="btn-primary" (tap)="bannerVisible.set(!bannerVisible())">{{ bannerVisible() ? 'Hide banner' : 'Show banner' }}</button>
+    <div class="spacer"></div>
+    <!-- last in DOM order so it paints above everything else on the page -->
+    @if (bannerVisible()) {
+      <div class="banner">
+        <span style="color: white; font-weight: bold">position: fixed · bottom: 24</span>
+      </div>
+    }
+  </main>
+</demo-page>

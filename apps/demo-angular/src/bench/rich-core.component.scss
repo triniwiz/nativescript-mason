@@ -1,0 +1,59 @@
+.rich {
+  padding: 12;
+}
+
+.toolbar {
+  margin-bottom: 8;
+}
+
+.tool {
+  padding: 6 10;
+  margin: 0 6 6 0;
+  font-size: 12;
+  color: var(--on-primary);
+  background-color: var(--primary);
+  border-radius: 6;
+}
+
+.count {
+  font-size: 11;
+  color: var(--muted);
+  margin-bottom: 8;
+}
+
+.root {
+  width: 100%;
+  horizontal-alignment: left;
+}
+
+.root.narrow {
+  width: 60%;
+}
+
+.card {
+  border-width: 1;
+  border-radius: 8;
+  margin-bottom: 8;
+}
+
+.card-body {
+  padding: 10;
+}
+
+.title {
+  font-size: 15;
+  font-weight: bold;
+  margin-bottom: 4;
+}
+
+.para {
+  font-size: 13;
+  line-height: 18;
+  color: var(--text-2);
+  margin-bottom: 4;
+}
+
+.meta {
+  font-size: 11;
+  color: var(--muted);
+}

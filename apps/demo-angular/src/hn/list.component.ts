@@ -1,5 +1,5 @@
-import { Component, NO_ERRORS_SCHEMA } from '@angular/core';
-import { NativeScriptCommonModule } from '@nativescript/angular';
+import { Component, inject, NO_ERRORS_SCHEMA } from '@angular/core';
+import { NativeScriptCommonModule, RouterExtensions } from '@nativescript/angular';
 
 import { STORIES } from './fixtures';
 import { Story } from './models';
@@ -16,5 +16,6 @@ import { Story } from './models';
  */
 @Component({ selector: 'hn-list', templateUrl: 'list.component.html', imports: [NativeScriptCommonModule], schemas: [NO_ERRORS_SCHEMA] })
 export class ListComponent {
+  protected readonly router = inject(RouterExtensions);
   stories: Story[] = STORIES;
 }

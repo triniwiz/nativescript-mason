@@ -1,4 +1,6 @@
-// MasonKit demo app styles.
+@use 'theme';
+
+// Styles of the Hacker News and layout stress screens.
 //
 // Almost every rule here is a Taffy (flex/grid) rule applied to a MasonKit
 // element or, more interestingly, to a *component host element* — `hn-comment`,
@@ -33,7 +35,7 @@ $dim: #828282;
   color: #ffffff;
 }
 
-.page {
+.hn-page {
   display: flex;
   flex-direction: column;
   background-color: $bg;
@@ -43,357 +45,8 @@ $dim: #828282;
   width: 100%;
 }
 
-// ---------------------------------------------------------------- feed
-
-.sort-row {
-  display: flex;
-  flex-direction: row;
-  gap: 8;
-}
-
-.sort-btn {
-  padding: 6 12;
-  font-size: 13;
-  color: $dim;
-  background-color: $surface;
-  border-radius: 6;
-}
-
-.sort-btn-active {
-  color: #ffffff;
-  background-color: $accent;
-}
-
-.feed {
-  display: flex;
-  flex-direction: column;
-  gap: 8;
-}
-
-// The component host element itself. This is the rule that proves hosts are
-// real boxes — turn component-host mode off and every card loses its card-ness.
-hn-story-card,
-.card {
-  display: flex;
-  flex-direction: column;
-  background-color: $surface;
-  border-radius: 8;
-  padding: 10;
-}
-
-.card-row {
-  display: flex;
-  flex-direction: row;
-  gap: 10;
-}
-
-.rank-gutter {
-  display: flex;
-  width: 28;
-  justify-content: center;
-}
-
-.rank {
-  font-size: 16;
-  color: $dim;
-}
-
-// flex-grow against an auto-width row — the case that misrenders when children
-// are appended in the wrong order.
-.card-body {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  flex-shrink: 1;
-  gap: 4;
-}
-
-.story-title {
-  font-size: 15;
-  color: $ink;
-}
-
-.story-title-lg {
-  font-size: 19;
-  color: $ink;
-}
-
-.story-domain {
-  font-size: 11;
-  color: $dim;
-}
-
-.meta-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 8;
-}
-
-.meta-score {
-  font-size: 12;
-  color: $accent;
-}
-
-.meta-dim {
-  font-size: 12;
-  color: $dim;
-}
-
-.tag-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6;
-}
-
-.tag {
-  background-color: #eeeee4;
-  border-radius: 4;
-  padding: 2 6;
-}
-
-.tag-text {
-  font-size: 10;
-  color: $dim;
-}
-
-.feed-footer {
-  display: flex;
-  justify-content: center;
-  padding: 8;
-}
-
-// ---------------------------------------------------------------- item
-
-.story-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6;
-  background-color: $surface;
-  border-radius: 8;
-  padding: 12;
-}
-
-.comment-bar {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.section-title {
-  font-size: 15;
-  color: $ink;
-}
-
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8;
-}
-
-// The recursive host. Each `hn-comment` inside `.replies` is indented purely by
-// the host-element rule below, so the indent staircase in a deep thread is a
-// direct visual read-out of whether nested hosts actually nest.
-hn-comment {
-  display: flex;
-  flex-direction: column;
-}
-
-.comment {
-  display: flex;
-  flex-direction: column;
-  gap: 4;
-  background-color: $surface;
-  border-radius: 6;
-  padding: 8;
-}
-
-.comment-head {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8;
-}
-
-.comment-by {
-  font-size: 12;
-  color: $accent;
-}
-
-.depth-badge {
-  font-size: 10;
-  color: $dim;
-}
-
-.comment-text {
-  font-size: 13;
-  color: $ink;
-}
-
-.collapse-btn {
-  font-size: 12;
-  color: $dim;
-  padding: 2 6;
-  border-radius: 0;
-  background-color: transparent;
-}
-
-.replies {
-  display: flex;
-  flex-direction: column;
-  gap: 6;
-  margin-left: 12;
-  margin-top: 6;
-}
-
-.empty {
-  display: flex;
-  justify-content: center;
-  padding: 16;
-}
-
-// ---------------------------------------------------------------- listview
-
-.list {
+.hn-list {
   background-color: $bg;
-}
-
-.list-item {
-  display: flex;
-  flex-direction: row;
-  gap: 10;
-  padding: 10;
-  background-color: $surface;
-}
-
-// ---------------------------------------------------------------- stress
-
-.case {
-  display: flex;
-  flex-direction: column;
-  gap: 8;
-  background-color: $surface;
-  border-radius: 8;
-  padding: 12;
-}
-
-.case-note {
-  font-size: 11;
-  color: $dim;
-}
-
-.expected-row {
-  display: flex;
-  flex-direction: row;
-  gap: 6;
-}
-
-.expected-label {
-  font-size: 12;
-  color: $dim;
-}
-
-.expected-value {
-  font-size: 12;
-  color: $accent;
-}
-
-.chip-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6;
-  padding: 6;
-  background-color: #f0f0e8;
-  border-radius: 6;
-}
-
-// Host-element styling for components with no wrapper of their own.
-stress-chip,
-stress-chip-alt,
-.chip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6 10;
-  background-color: #dddddd;
-  border-radius: 4;
-}
-
-.chip-accent {
-  background-color: $accent;
-}
-
-stress-chip.host-color-1 {
-  background: #ffb58a;
-}
-stress-chip.host-color-2 {
-  background: #a8d5be;
-}
-stress-chip.host-color-3 {
-  background: #b6c9ef;
-}
-
-.chip-text {
-  font-size: 12;
-  color: $ink;
-}
-
-.btn-row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6;
-}
-
-.btn {
-  font-size: 13;
-  padding: 6 10;
-  color: #ffffff;
-  background-color: #444444;
-  border-radius: 6;
-}
-
-// Grid of component hosts: cells must land on the grid, not stack.
-.grid-cases {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6;
-}
-
-.grid-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10;
-  background-color: #eeeee4;
-  border-radius: 4;
-}
-
-.basic-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4;
-}
-
-.basic-grid-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 56;
-  border-radius: 6;
-}
-
-.basic-grid-label {
-  color: #ffffff;
-  font-weight: bold;
-  font-size: 14;
-}
-
-.basic-grid-cell-dark .basic-grid-label {
-  color: #1a1a2e;
 }
 
 $dark-bg: #14140f;
@@ -411,141 +64,496 @@ $dark-btn: #5a5a5a;
   color: #14140f;
 }
 
-.ns-dark .page {
+.ns-dark .hn-page {
   background-color: $dark-bg;
 }
 
-// feed
-
-.ns-dark .sort-btn {
-  color: $dark-dim;
-  background-color: $dark-surface;
-}
-
-.ns-dark .sort-btn-active {
-  color: #14140f;
-  background-color: $dark-accent;
-}
-
-.ns-dark hn-story-card,
-.ns-dark .card {
-  background-color: $dark-surface;
-}
-
-.ns-dark .rank {
-  color: $dark-dim;
-}
-
-.ns-dark .story-title,
-.ns-dark .story-title-lg {
-  color: $dark-ink;
-}
-
-.ns-dark .story-domain {
-  color: $dark-dim;
-}
-
-.ns-dark .meta-score {
-  color: $dark-accent;
-}
-
-.ns-dark .meta-dim {
-  color: $dark-dim;
-}
-
-.ns-dark .tag {
-  background-color: $dark-tag;
-}
-
-.ns-dark .tag-text {
-  color: $dark-dim;
-}
-
-// item
-
-.ns-dark .story-header {
-  background-color: $dark-surface;
-}
-
-.ns-dark .section-title {
-  color: $dark-ink;
-}
-
-.ns-dark .comment {
-  background-color: $dark-surface;
-}
-
-.ns-dark .comment-by {
-  color: $dark-accent;
-}
-
-.ns-dark .depth-badge,
-.ns-dark .collapse-btn {
-  color: $dark-dim;
-}
-
-.ns-dark .comment-text {
-  color: $dark-ink;
-}
-
-// listview
-
-.ns-dark .list {
+.ns-dark .hn-list {
   background-color: $dark-bg;
 }
 
-.ns-dark .list-item {
-  background-color: $dark-surface;
+.hn-page,
+.hn-list {
+  // ---------------------------------------------------------------- feed
+
+  .sort-row {
+    display: flex;
+    flex-direction: row;
+    gap: 8;
+  }
+
+  .sort-btn {
+    padding: 6 12;
+    font-size: 13;
+    color: $dim;
+    background-color: $surface;
+    border-radius: 6;
+  }
+
+  .sort-btn-active {
+    color: #ffffff;
+    background-color: $accent;
+  }
+
+  .feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8;
+  }
+
+  // The component host element itself. This is the rule that proves hosts are
+  // real boxes — turn component-host mode off and every card loses its card-ness.
+  hn-story-card,
+  .hn-card {
+    display: flex;
+    flex-direction: column;
+    background-color: $surface;
+    border-radius: 8;
+    padding: 10;
+  }
+
+  .card-row {
+    display: flex;
+    flex-direction: row;
+    gap: 10;
+  }
+
+  .rank-gutter {
+    display: flex;
+    width: 28;
+    justify-content: center;
+  }
+
+  .rank {
+    font-size: 16;
+    color: $dim;
+  }
+
+  // flex-grow against an auto-width row — the case that misrenders when children
+  // are appended in the wrong order.
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 1;
+    gap: 4;
+  }
+
+  .story-title {
+    font-size: 15;
+    color: $ink;
+  }
+
+  .story-title-lg {
+    font-size: 19;
+    color: $ink;
+  }
+
+  .story-domain {
+    font-size: 11;
+    color: $dim;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8;
+  }
+
+  .meta-score {
+    font-size: 12;
+    color: $accent;
+  }
+
+  .meta-dim {
+    font-size: 12;
+    color: $dim;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6;
+  }
+
+  .tag {
+    background-color: #eeeee4;
+    border-radius: 4;
+    padding: 2 6;
+  }
+
+  .tag-text {
+    font-size: 10;
+    color: $dim;
+  }
+
+  .feed-footer {
+    display: flex;
+    justify-content: center;
+    padding: 8;
+  }
+
+  // ---------------------------------------------------------------- item
+
+  .story-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6;
+    background-color: $surface;
+    border-radius: 8;
+    padding: 12;
+  }
+
+  .comment-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .section-title {
+    font-size: 15;
+    color: $ink;
+  }
+
+  .comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8;
+  }
+
+  // The recursive host. Each `hn-comment` inside `.replies` is indented purely by
+  // the host-element rule below, so the indent staircase in a deep thread is a
+  // direct visual read-out of whether nested hosts actually nest.
+  hn-comment {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .comment {
+    display: flex;
+    flex-direction: column;
+    gap: 4;
+    background-color: $surface;
+    border-radius: 6;
+    padding: 8;
+  }
+
+  .comment-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8;
+  }
+
+  .comment-by {
+    font-size: 12;
+    color: $accent;
+  }
+
+  .depth-badge {
+    font-size: 10;
+    color: $dim;
+  }
+
+  .comment-text {
+    font-size: 13;
+    color: $ink;
+  }
+
+  .collapse-btn {
+    font-size: 12;
+    color: $dim;
+    padding: 2 6;
+    border-radius: 0;
+    background-color: transparent;
+  }
+
+  .replies {
+    display: flex;
+    flex-direction: column;
+    gap: 6;
+    margin-left: 12;
+    margin-top: 6;
+  }
+
+  .empty {
+    display: flex;
+    justify-content: center;
+    padding: 16;
+  }
+
+  // ---------------------------------------------------------------- listview
+
+  .list-item {
+    display: flex;
+    flex-direction: row;
+    gap: 10;
+    padding: 10;
+    background-color: $surface;
+  }
+
+  // ---------------------------------------------------------------- stress
+
+  .case {
+    display: flex;
+    flex-direction: column;
+    gap: 8;
+    background-color: $surface;
+    border-radius: 8;
+    padding: 12;
+  }
+
+  .case-note {
+    font-size: 11;
+    color: $dim;
+  }
+
+  .expected-row {
+    display: flex;
+    flex-direction: row;
+    gap: 6;
+  }
+
+  .expected-label {
+    font-size: 12;
+    color: $dim;
+  }
+
+  .expected-value {
+    font-size: 12;
+    color: $accent;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6;
+    padding: 6;
+    background-color: #f0f0e8;
+    border-radius: 6;
+  }
+
+  // Host-element styling for components with no wrapper of their own.
+  stress-chip,
+  stress-chip-alt,
+  .case-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6 10;
+    background-color: #dddddd;
+    border-radius: 4;
+  }
+
+  .case-chip-accent {
+    background-color: $accent;
+  }
+
+  stress-chip.host-color-1 {
+    background: #ffb58a;
+  }
+  stress-chip.host-color-2 {
+    background: #a8d5be;
+  }
+  stress-chip.host-color-3 {
+    background: #b6c9ef;
+  }
+
+  .chip-text {
+    font-size: 12;
+    color: $ink;
+  }
+
+  .btn-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6;
+  }
+
+  .case-btn {
+    font-size: 13;
+    padding: 6 10;
+    color: #ffffff;
+    background-color: #444444;
+    border-radius: 6;
+  }
+
+  // Grid of component hosts: cells must land on the grid, not stack.
+  .grid-cases {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6;
+  }
+
+  .grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10;
+    background-color: #eeeee4;
+    border-radius: 4;
+  }
+
+  .basic-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4;
+  }
+
+  .basic-grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 56;
+    border-radius: 6;
+  }
+
+  .basic-grid-label {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 14;
+  }
+
+  .basic-grid-cell-dark .basic-grid-label {
+    color: #1a1a2e;
+  }
 }
 
-// stress
+.ns-dark .hn-page,
+.ns-dark .hn-list {
+  // feed
 
-.ns-dark .case {
-  background-color: $dark-surface;
-}
+  .sort-btn {
+    color: $dark-dim;
+    background-color: $dark-surface;
+  }
 
-.ns-dark .case-note,
-.ns-dark .expected-label {
-  color: $dark-dim;
-}
+  .sort-btn-active {
+    color: #14140f;
+    background-color: $dark-accent;
+  }
 
-.ns-dark .expected-value {
-  color: $dark-accent;
-}
+  hn-story-card,
+  .hn-card {
+    background-color: $dark-surface;
+  }
 
-.ns-dark .chip-row {
-  background-color: $dark-chip-row;
-}
+  .rank {
+    color: $dark-dim;
+  }
 
-.ns-dark stress-chip,
-.ns-dark stress-chip-alt,
-.ns-dark .chip {
-  background-color: $dark-chip;
-}
+  .story-title,
+  .story-title-lg {
+    color: $dark-ink;
+  }
 
-.ns-dark .chip-accent {
-  background-color: $dark-accent;
-}
+  .story-domain {
+    color: $dark-dim;
+  }
 
-.ns-dark stress-chip.host-color-1 {
-  background-color: #7a3f24;
-}
-.ns-dark stress-chip.host-color-2 {
-  background-color: #235f50;
-}
-.ns-dark stress-chip.host-color-3 {
-  background-color: #354b83;
-}
+  .meta-score {
+    color: $dark-accent;
+  }
 
-.ns-dark .chip-text {
-  color: $dark-ink;
-}
+  .meta-dim {
+    color: $dark-dim;
+  }
 
-.ns-dark .btn {
-  color: $dark-ink;
-  background-color: $dark-btn;
-}
+  .tag {
+    background-color: $dark-tag;
+  }
 
-.ns-dark .grid-cell {
-  background-color: $dark-tag;
+  .tag-text {
+    color: $dark-dim;
+  }
+
+  // item
+
+  .story-header {
+    background-color: $dark-surface;
+  }
+
+  .section-title {
+    color: $dark-ink;
+  }
+
+  .comment {
+    background-color: $dark-surface;
+  }
+
+  .comment-by {
+    color: $dark-accent;
+  }
+
+  .depth-badge,
+  .collapse-btn {
+    color: $dark-dim;
+  }
+
+  .comment-text {
+    color: $dark-ink;
+  }
+
+  // listview
+
+  .list-item {
+    background-color: $dark-surface;
+  }
+
+  // stress
+
+  .case {
+    background-color: $dark-surface;
+  }
+
+  .case-note,
+  .expected-label {
+    color: $dark-dim;
+  }
+
+  .expected-value {
+    color: $dark-accent;
+  }
+
+  .chip-row {
+    background-color: $dark-chip-row;
+  }
+
+  stress-chip,
+  stress-chip-alt,
+  .case-chip {
+    background-color: $dark-chip;
+  }
+
+  .case-chip-accent {
+    background-color: $dark-accent;
+  }
+
+  stress-chip.host-color-1 {
+    background-color: #7a3f24;
+  }
+  stress-chip.host-color-2 {
+    background-color: #235f50;
+  }
+  stress-chip.host-color-3 {
+    background-color: #354b83;
+  }
+
+  .chip-text {
+    color: $dark-ink;
+  }
+
+  .case-btn {
+    color: $dark-ink;
+    background-color: $dark-btn;
+  }
+
+  .grid-cell {
+    background-color: $dark-tag;
+  }
 }

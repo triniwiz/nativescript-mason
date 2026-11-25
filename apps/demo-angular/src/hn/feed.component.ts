@@ -39,6 +39,10 @@ export class FeedComponent {
     }
   }
 
+  back(): void {
+    this.router.back();
+  }
+
   setSort(mode: SortMode): void {
     this.sort = mode;
   }

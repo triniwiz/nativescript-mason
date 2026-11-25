@@ -1,0 +1,219 @@
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 14;
+}
+
+.lead {
+  font-size: 12;
+  color: var(--muted);
+}
+
+.card {
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.card h2 {
+  font-size: 12;
+  font-weight: bold;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4;
+}
+
+.field-label {
+  font-size: 12;
+  color: var(--text);
+}
+
+.field {
+  font-size: 14;
+  color: var(--text);
+  padding: 8;
+  border: 1 solid var(--border);
+  border-radius: 8;
+  background-color: var(--bg);
+  width: 100%;
+}
+
+/* Core (non-Mason) children are leaf nodes measured natively; give them an
+ * explicit width to fill the track instead of their intrinsic size. */
+.stretch {
+  width: 100%;
+}
+
+.bio {
+  height: 90;
+}
+
+.notes {
+  height: 70;
+}
+
+.readout {
+  font-size: 11;
+  color: var(--muted);
+}
+
+.setting-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12;
+  padding-top: 6;
+  padding-bottom: 6;
+}
+
+.row-title {
+  font-size: 14;
+  color: var(--text);
+  flex-grow: 1;
+}
+
+.segmented {
+  width: 220;
+}
+
+.small-btn {
+  background-color: var(--primary);
+  color: #ffffff;
+  padding: 7 14;
+  border-radius: 8;
+  font-size: 12;
+  font-weight: 600;
+  border-style: none;
+  align-self: flex-start;
+}
+
+.grid {
+  display: grid;
+  /* minmax(0, 1fr): a bare 1fr is minmax(auto, 1fr) and lets the ListPicker's
+   * intrinsic width blow the track past the card, exactly as on the web. */
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12;
+  align-items: center;
+}
+
+.grid-label {
+  font-size: 14;
+  color: var(--text);
+}
+
+/* A grid item's automatic minimum is its min-content width, and the
+ * ListPicker's is enormous. Hosting it in a Mason box with min-width: 0 lets
+ * the track win, and the picker stretches to the box. */
+.picker-cell {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.nested {
+  padding: 10;
+  background-color: var(--surface-2);
+  border-radius: 10;
+}
+
+.nested-inner {
+  padding: 8;
+  background-color: var(--surface-2);
+  border-radius: 8;
+}
+
+/* Core layouts hosting Mason roots. NativeScript width CSS is not forwarded
+ * to the foreign leaf, so the card's flex column stretches them instead. */
+.core-host {
+  background-color: var(--surface-2);
+  border-radius: 10;
+  padding: 8;
+}
+
+.inner-host {
+  background-color: var(--surface);
+}
+
+.core-label {
+  font-size: 14;
+  color: var(--text);
+  padding: 4 10;
+}
+
+.nested-p {
+  font-size: 14;
+  color: var(--text);
+  padding: 4;
+}
+
+.nested-p.extra {
+  color: var(--muted);
+  font-size: 12;
+}
+
+.chip-row {
+  display: flex;
+  flex-direction: row;
+  gap: 6;
+  padding: 4;
+}
+
+.btn-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
+}
+
+.chip {
+  font-size: 12;
+  color: #ffffff;
+  padding: 4 10;
+  margin: 3;
+  border-radius: 999;
+}
+
+/* A Mason root fills the width its core host offers (AT_MOST maps to a
+ * definite available space), so shrink-wrap chips that are roots. */
+.wrap-chip {
+  width: fit-content;
+}
+
+.chip-a {
+  background-color: var(--primary);
+}
+
+.chip-b {
+  background-color: var(--success);
+}
+
+.chip-c {
+  background-color: var(--info);
+}
+
+.cell {
+  height: 44;
+  margin: 4;
+  border-radius: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-a {
+  background-color: var(--primary-soft);
+}
+
+.cell-b {
+  background-color: var(--warning);
+}
+
+.cell-text {
+  font-size: 12;
+  color: var(--ink);
+}

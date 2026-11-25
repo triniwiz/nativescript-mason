@@ -1,0 +1,26 @@
+<ActionBar title="Dashboard - core">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="back()"></NavigationButton>
+</ActionBar>
+
+<ScrollView class="page">
+  <StackLayout class="dash">
+    <WrapLayout class="toolbar">
+      <Label class="tool" text="Bump" (tap)="bump(nextStep())"></Label>
+      <Label class="tool" text="Rotate" (tap)="rotate()"></Label>
+      <Label class="tool" [text]="wide() ? '3 columns' : '2 columns'" (tap)="toggleWide()"></Label>
+    </WrapLayout>
+    <GridLayout class="grid" [columns]="columns()" [rows]="rows()">
+      @for (tile of tiles(); track tile.id; let i = $index) {
+        <StackLayout class="tile" [row]="rowOf(i)" [col]="i % cols()">
+          <Label class="label" [text]="tile.label"></Label>
+          <Label class="value" [text]="tile.value" [color]="tile.color"></Label>
+          <GridLayout class="bars" columns="*, *, *, *, *">
+            @for (h of tile.bars; track $index; let j = $index) {
+              <StackLayout class="bar" [col]="j" [height]="h" verticalAlignment="bottom" [backgroundColor]="tile.color"></StackLayout>
+            }
+          </GridLayout>
+        </StackLayout>
+      }
+    </GridLayout>
+  </StackLayout>
+</ScrollView>

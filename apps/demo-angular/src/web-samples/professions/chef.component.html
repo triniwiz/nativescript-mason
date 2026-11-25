@@ -1,0 +1,37 @@
+<demo-page title="Chef — Kitchen">
+  <main class="page-body">
+    <section class="special-hero">
+      <p class="hero-kicker">Today's special</p>
+      <h1>Pan-seared salmon</h1>
+      <p class="hero-sub">Lemon beurre blanc · 84 orders so far</p>
+    </section>
+    <h2>On the menu tonight</h2>
+    <section class="menu-list">
+      @for (dish of menu; track dish.name) {
+        <article class="dish-card">
+          <div class="dish-head">
+            <p class="dish-name">{{ dish.name }}</p>
+            <p class="dish-price">{{ dish.price }}</p>
+          </div>
+          <p class="dish-desc">{{ dish.desc }}</p>
+          <div class="dish-foot">
+            <span class="orders">{{ dish.orders }} orders</span>
+            <span class="badge" [class]="dish.tagClass">{{ dish.tag }}</span>
+          </div>
+        </article>
+      }
+    </section>
+    <h2>Kitchen load</h2>
+    <section class="load-card">
+      @for (station of stations; track station.name) {
+        <div class="load-row">
+          <span class="load-name">{{ station.name }}</span>
+          <div class="track">
+            <div class="fill" [style.width]="station.load + '%'" [style.backgroundColor]="station.color"></div>
+          </div>
+          <span class="load-pct">{{ station.load }}%</span>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

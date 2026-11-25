@@ -1,0 +1,43 @@
+<ActionBar title="Rich Text - core">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="back()"></NavigationButton>
+</ActionBar>
+
+<ScrollView class="page">
+  <StackLayout class="rich">
+    <WrapLayout class="toolbar">
+      <Label class="tool" text="Retext" (tap)="retext(nextStep())"></Label>
+      <Label class="tool" text="Restyle" (tap)="restyle()"></Label>
+      <Label class="tool" text="+10" (tap)="append()"></Label>
+      <Label class="tool" [text]="narrow() ? 'Widen' : 'Narrow'" (tap)="toggleNarrow()"></Label>
+    </WrapLayout>
+    <Label class="count" [text]="`${cards().length} cards · ${spanCount()} spans`"></Label>
+    <StackLayout class="root" [class.narrow]="narrow()">
+      @for (card of cards(); track card.id) {
+        <StackLayout class="card" [borderColor]="card.color">
+          <StackLayout class="card-body">
+            <Label class="title" textWrap="true">
+              <FormattedString>
+                <Span [text]="`#${card.id} `" [color]="card.color" fontWeight="bold"></Span>
+                <Span [text]="' ' + card.title" fontWeight="bold"></Span>
+              </FormattedString>
+            </Label>
+            <Label class="para" textWrap="true">
+              <FormattedString>
+                @for (r of card.runs; track $index) {
+                  <Span [text]="r.text" [style.fontWeight]="r.bold ? 'bold' : null" [style.fontStyle]="r.italic ? 'italic' : null" [style.color]="r.color ?? null"></Span>
+                }
+              </FormattedString>
+            </Label>
+            <Label class="meta" textWrap="true">
+              <FormattedString>
+                @for (r of card.meta; track $index) {
+                  <Span [text]="r.text" [style.fontWeight]="r.bold ? 'bold' : null" [style.fontStyle]="r.italic ? 'italic' : null" [style.color]="r.color ?? null"></Span>
+                }
+              </FormattedString>
+            </Label>
+          </StackLayout>
+        </StackLayout>
+      }
+    </StackLayout>
+  </StackLayout>
+</ScrollView>

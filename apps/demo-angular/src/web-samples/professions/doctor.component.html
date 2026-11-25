@@ -1,0 +1,46 @@
+<demo-page title="Doctor — Schedule">
+  <main class="page-body">
+    <section class="doctor-head">
+      <div class="avatar">
+        <span>ES</span>
+      </div>
+      <div class="doctor-body">
+        <h1>Dr. Elena Strauss</h1>
+        <p class="spec">Cardiology · St. Aurelia Hospital</p>
+      </div>
+    </section>
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">18</span>
+        <span class="stat-label">Today</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">6</span>
+        <span class="stat-label">Done</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">2</span>
+        <span class="stat-label">Waiting</span>
+      </div>
+    </section>
+    <h2>Appointments</h2>
+    <section class="appt-list">
+      @for (a of appointments; track a.time) {
+        <article class="appt-card">
+          <div class="time-col">
+            <span class="time">{{ a.time }}</span>
+            <span class="dur">{{ a.dur }} min</span>
+          </div>
+          <div class="pavatar" [style.backgroundColor]="a.color">
+            <span>{{ a.initials }}</span>
+          </div>
+          <div class="appt-body">
+            <p class="pname">{{ a.patient }}</p>
+            <p class="reason">{{ a.reason }}</p>
+          </div>
+          <span class="badge" [class]="a.statusClass">{{ a.status }}</span>
+        </article>
+      }
+    </section>
+  </main>
+</demo-page>

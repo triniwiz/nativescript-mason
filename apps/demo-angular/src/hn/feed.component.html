@@ -1,5 +1,6 @@
 <!-- Core NativeScript ActionBar above a MasonKit tree: the mixed-view case. -->
 <ActionBar title="MasonKit News" class="action-bar">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="back()"></NavigationButton>
   <ActionItem text="Stress" ios.position="right" android.position="actionBar" [nsRouterLink]="['/stress']"></ActionItem>
 </ActionBar>
 
@@ -9,7 +10,7 @@
   filling horizontally.
 -->
 <ScrollView>
-  <main class="page">
+  <main class="hn-page">
     <nav class="sort-row">
       <button class="sort-btn" [class.sort-btn-active]="sort === 'top'" (tap)="setSort('top')">Top</button>
       <button class="sort-btn" [class.sort-btn-active]="sort === 'new'" (tap)="setSort('new')">New</button>
@@ -23,7 +24,7 @@
     -->
     <section class="feed">
       @for (story of stories; track story.id; let i = $index) {
-        <hn-story-card class="card" [story]="story" [rank]="i + 1" (tap)="open(story)"></hn-story-card>
+        <hn-story-card class="hn-card" [story]="story" [rank]="i + 1" (tap)="open(story)"></hn-story-card>
       }
     </section>
 

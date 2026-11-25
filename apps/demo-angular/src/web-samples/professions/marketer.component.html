@@ -1,0 +1,51 @@
+<demo-page title="Marketer — Campaigns">
+  <main class="page-body">
+    <section class="kpi-row">
+      <div class="kpi">
+        <span class="kpi-value">48.2k</span>
+        <span class="kpi-label">Reach</span>
+        <span class="kpi-delta up">+12%</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-value">3.1%</span>
+        <span class="kpi-label">CTR</span>
+        <span class="kpi-delta up">+0.4</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-value">$1.20</span>
+        <span class="kpi-label">CPC</span>
+        <span class="kpi-delta down">−$0.08</span>
+      </div>
+    </section>
+    <h2>Active campaigns</h2>
+    <section class="campaign-list">
+      @for (c of campaigns; track c.name) {
+        <article class="campaign-card">
+          <div class="camp-head">
+            <p class="camp-name">{{ c.name }}</p>
+            <span class="badge" [class]="c.statusClass">{{ c.status }}</span>
+          </div>
+          <p class="camp-channel">{{ c.channel }} · ends {{ c.ends }}</p>
+          <div class="camp-stats">
+            <div class="camp-stat">
+              <span class="cs-value">{{ c.ctr }}</span>
+              <span class="cs-label">CTR</span>
+            </div>
+            <div class="camp-stat">
+              <span class="cs-value">{{ c.spend }}</span>
+              <span class="cs-label">Spend</span>
+            </div>
+            <div class="camp-stat">
+              <span class="cs-value">{{ c.roas }}</span>
+              <span class="cs-label">ROAS</span>
+            </div>
+          </div>
+          <div class="track">
+            <div class="fill" [style.width]="c.budgetUsed + '%'"></div>
+          </div>
+          <p class="budget-note">{{ c.budgetUsed }}% of budget used</p>
+        </article>
+      }
+    </section>
+  </main>
+</demo-page>
