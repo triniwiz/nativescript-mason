@@ -1,7 +1,9 @@
 use jni::objects::{JClass, JFloatArray, JString};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
-use mason_core::prepared_text::{Flow, LineBox, LineMetrics, PreparedText};
+use mason_core::prepared_text::{
+    Alignment, Flow, LineBox, LineHeight, LineMetrics, Paragraph, PreparedText,
+};
 use mason_core::{Id, Mason, NodeRef};
 use std::ffi::{c_char, CStr, CString};
 
@@ -12,11 +14,16 @@ unsafe fn node_of<'a>(mason: jlong, node: jlong) -> Option<(&'a mut Mason, Id)> 
     Some((&mut *(mason as *mut Mason), (*(node as *mut NodeRef)).id()))
 }
 
+/// Layout.Alignment's ordinals.
+const LAYOUT_ALIGN_OPPOSITE: jint = 1;
+const LAYOUT_ALIGN_CENTER: jint = 2;
+
 /// One line as PreparedLines (PreparedText.kt) reads it.
-fn packed(line: &LineBox) -> [f32; 6] {
+fn packed(line: &LineBox) -> [f32; 7] {
     [
         line.start as f32,
         line.end as f32,
+        line.visible_end as f32,
         line.width,
         line.baseline as f32,
         line.ascent as f32,
@@ -36,8 +43,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     ascent: jint,
     descent: jint,
     line_height: jfloat,
+    fixed_line_height: jboolean,
     min_line_height: jfloat,
     inline: jboolean,
+    alignment: jint,
+    first_line_indent_px: jint,
+    nowrap: jboolean,
+    centers_vertically: jboolean,
 ) -> jboolean {
     let Some((mason, id)) = (unsafe { node_of(mason, node) }) else {
         return JNI_FALSE;
@@ -75,7 +87,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     let metrics = LineMetrics {
         ascent,
         descent,
-        height: line_height,
+        line_height: if fixed_line_height == JNI_TRUE {
+            LineHeight::Fixed(line_height)
+        } else {
+            LineHeight::Normal(line_height)
+        },
         min_height: min_line_height,
     };
     let flow = if inline == JNI_TRUE {
@@ -85,7 +101,23 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeP
     };
     mason.set_prepared_text(
         id,
-        Some(PreparedText::new(&chars, widths, &breaks, metrics, flow)),
+        Some(PreparedText::new(
+            &chars,
+            widths,
+            &breaks,
+            metrics,
+            flow,
+            Paragraph {
+                alignment: match alignment {
+                    LAYOUT_ALIGN_OPPOSITE => Alignment::Opposite,
+                    LAYOUT_ALIGN_CENTER => Alignment::Center,
+                    _ => Alignment::Normal,
+                },
+                first_line_indent_px,
+                nowrap: nowrap == JNI_TRUE,
+                centers_vertically: centers_vertically == JNI_TRUE,
+            },
+        )),
     );
     JNI_TRUE
 }
@@ -108,15 +140,24 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_PreparedText_nativeL
     _: JClass,
     mason: jlong,
     node: jlong,
-    width: jfloat,
+    content_width: jfloat,
+    view_width: jint,
+    width_from_parent: jboolean,
 ) -> jfloatArray {
     let Some((mason, id)) = (unsafe { node_of(mason, node) }) else {
         return std::ptr::null_mut();
     };
-    let Some(lines) = mason.prepared_text_lines(id, width) else {
+    let Some(layout) = mason.prepared_text_drawn_layout(
+        id,
+        content_width,
+        view_width as f32,
+        width_from_parent == JNI_TRUE,
+    ) else {
         return std::ptr::null_mut();
     };
-    let packed: Vec<f32> = lines.iter().flat_map(packed).collect();
+    let packed: Vec<f32> = std::iter::once(layout.width)
+        .chain(layout.lines.iter().flat_map(packed))
+        .collect();
     let Ok(array) = env.new_float_array(packed.len() as i32) else {
         return std::ptr::null_mut();
     };

@@ -20,6 +20,7 @@ import org.nativescript.mason.masonkit.enums.DisplayMode
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.Float as CSSFloat
 
@@ -400,6 +401,120 @@ class PreparedTextInstrumentedTest {
       }
       Assert.assertTrue("'$label': drawn as with StaticLayout", badge(true).sameAs(badge(false)))
     }
+  }
+
+  private fun <T> onMainThread(block: () -> T): T {
+    var result: Result<T>? = null
+    InstrumentationRegistry.getInstrumentation().runOnMainSync { result = runCatching(block) }
+    return result!!.getOrThrow()
+  }
+
+  private fun assertRestyledAsWithStaticLayout(
+    name: String,
+    changed: StateKeys,
+    text: String = "Words drawn before and after a style change that moves them",
+    write: (java.nio.ByteBuffer) -> Unit,
+  ) {
+    fun drawn(preparedText: Boolean) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val p = mason.createTextView(context, TextType.P).apply { textContent = text }
+        val root = mason.createView(context).apply { addView(p) }
+        val before = layOutAndDraw(root, 601)
+        Assert.assertEquals("$name: prepared before", preparedText, p.engine.preparedText != null)
+        p.writeStyleThenSync(changed, write)
+        layOutAndDraw(root, 601).also {
+          Assert.assertEquals("$name: prepared after", preparedText, p.engine.preparedText != null)
+          Assert.assertFalse("$name moved the text, prepared text $preparedText", it.sameAs(before))
+        }
+      }
+    }
+    Assert.assertTrue("$name: drawn as with StaticLayout", drawn(true).sameAs(drawn(false)))
+  }
+
+  @Test
+  fun textAlignWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("text-align: center", StateKeys.TEXT_ALIGN) {
+      it.put(StyleKeys.TEXT_ALIGN, TextAlign.Center.value)
+      it.put(StyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
+    }
+
+  @Test
+  fun centredTextWhoseViewBecomesAFlexContainerIsLaidOutByStaticLayout() {
+    fun drawn(preparedText: Boolean) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val p = mason.createTextView(context, TextType.P).apply {
+          textContent = "Centred words"
+          style.textAlign = TextAlign.Center
+        }
+        val root = mason.createView(context).apply { addView(p) }
+        layOutAndDraw(root, 601)
+        Assert.assertEquals("prepared as a block", preparedText, p.engine.preparedText != null)
+        p.writeStyleThenSync(StateKeys.DISPLAY or StateKeys.DISPLAY_MODE) {
+          it.put(StyleKeys.DISPLAY, Display.Flex.value)
+          it.put(StyleKeys.DISPLAY_MODE, DisplayMode.None.value)
+        }
+        layOutAndDraw(root, 601).also {
+          Assert.assertNull("prepared as a flex container", p.engine.preparedText)
+        }
+      }
+    }
+    Assert.assertTrue("drawn as with StaticLayout", drawn(true).sameAs(drawn(false)))
+  }
+
+  @Test
+  fun anIndentedInlineBlockThatBecomesInlineIsDrawnWithNoIndentAsWithStaticLayout() {
+    fun drawn(preparedText: Boolean, display: Display) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val span = mason.createTextView(context, TextType.Span).apply {
+          textContent = "Words that wrap onto several lines after the indent of the first one"
+          style.display = display
+          style.setTextIndent(90f, false)
+        }
+        val row = mason.createView(context).apply {
+          style.display = Display.Flex
+          addView(span)
+        }
+        layOutAndDraw(row, 601)
+        span.writeStyleThenSync(StateKeys.DISPLAY or StateKeys.DISPLAY_MODE) {
+          it.put(StyleKeys.DISPLAY, Display.Block.value)
+          it.put(StyleKeys.DISPLAY_MODE, DisplayMode.Inline.value)
+        }
+        layOutAndDraw(row, 401).also {
+          Assert.assertEquals("prepared as an inline", preparedText, span.engine.preparedText != null)
+        }
+      }
+    }
+    val inline = drawn(false, Display.Inline)
+    Assert.assertTrue("StaticLayout drops the indent", drawn(false, Display.InlineBlock).sameAs(inline))
+    Assert.assertTrue("prepared text drops the indent", drawn(true, Display.InlineBlock).sameAs(inline))
+  }
+
+  @Test
+  fun textIndentWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("text-indent: 36 device px", StateKeys.TEXT_INDENT) {
+      it.putFloat(StyleKeys.TEXT_INDENT, 36f)
+      it.put(StyleKeys.TEXT_INDENT_TYPE, 0.toByte())
+      it.put(StyleKeys.TEXT_INDENT_STATE, StyleState.SET)
+    }
+
+  @Test
+  fun whiteSpaceWrittenAfterPreparationIsDrawnAsWithStaticLayout() =
+    assertRestyledAsWithStaticLayout("white-space: nowrap", StateKeys.WHITE_SPACE) {
+      it.put(StyleKeys.WHITE_SPACE, Styles.WhiteSpace.NoWrap.value)
+      it.put(StyleKeys.WHITE_SPACE_STATE, StyleState.SET)
+    }
+
+  @Test
+  fun lineHeightWrittenAfterPreparationIsDrawnAsWithStaticLayout() = assertRestyledAsWithStaticLayout(
+    "line-height: 24.6px", StateKeys.LINE_HEIGHT,
+    text = "A paragraph long enough to wrap onto several lines, so that a taller line height moves each of them"
+  ) {
+    it.putFloat(StyleKeys.LINE_HEIGHT, 24.6f)
+    it.put(StyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
+    it.put(StyleKeys.LINE_HEIGHT_TYPE, StyleState.SET)
   }
 
   @Test

@@ -574,7 +574,7 @@ class TextEngine(val container: TextContainer) {
 
   // text-indent in device px for a line length (a percentage resolves against it, 0 when
   // unconstrained). Inline boxes don't start a block, nor do anonymous runs after the first child.
-  private fun textIndentPx(lineLength: Float): Int {
+  internal fun textIndentPx(lineLength: Float): Int {
     val raw = style.resolvedTextIndent
     if (raw == 0f) return 0
     if (style.isValueInitialized && style.display == Display.Inline) return 0
@@ -587,7 +587,7 @@ class TextEngine(val container: TextContainer) {
     return kotlin.math.round(raw / 100f * lineLength).toInt()
   }
 
-  private val percentTextIndent: Boolean
+  internal val percentTextIndent: Boolean
     get() = style.resolvedTextIndentIsPercent && style.resolvedTextIndent != 0f
 
   // line-clamp: max visible lines, 0 for none. Inline boxes are not clamped.
@@ -2054,38 +2054,33 @@ class TextEngine(val container: TextContainer) {
       node.parent?.everParentOfCheckedText = true
       if (preparedRun != null) return true
       val child = preparableChild()
-      val text = child?.let(::preparableText)
-      if (child != null && text != null && prepare(text, TextNode.runStyleSpan(child.attributes))) return true
+      val text = child?.let { preparableText(it.node) }
+      if (child != null && text != null && prepare(text, child)) return true
     }
     clearPreparedText()
     return false
   }
 
-  private fun preparableChild(): TextNode? {
+  private class PreparableChild(val node: TextNode, val paragraph: PreparedParagraph)
+
+  private fun preparableChild(): PreparableChild? {
     val view = container as? TextView ?: return null
-    if (view.javaClass != TextView::class.java) return null
+    if (view.javaClass != TextView::class.java && view.javaClass != Button::class.java) return null
     when (view.type) {
-      TextType.Li, TextType.Blockquote, TextType.Pre -> return null
+      TextType.Blockquote, TextType.Pre -> return null
       else -> {}
     }
     if (ListMarkers.insideMarker(view).isNotEmpty()) return null
     val child = node.children.singleOrNull() as? TextNode ?: return null
     if (child.verbatim != null || isVerticalWritingMode) return null
     if (style.resolvedUnicodeBidi.toInt() != 0 || style.direction == Direction.RTL) return null
-    if (style.isValueInitialized && style.resolvedWhiteSpace != Styles.WhiteSpace.Normal) return null
-    if (style.resolvedTextWrap != TextWrap.Wrap) return null
     val a = child.attributes
     if ((a.letterSpacing ?: 0f) != 0f || style.resolvedWordSpacing != 0f) return null
-    if ((a.lineHeight ?: 0f) > 0f) return null
     if (a.decorationLine.let { it != null && it != Styles.DecorationLine.None } || !a.textShadow.isNullOrEmpty()) {
       return null
     }
-    if (a.textAlign.let { it != null && it != Layout.Alignment.ALIGN_NORMAL } ||
-      style.resolvedTextAlign == TextAlign.Justify
-    ) {
-      return null
-    }
-    if (style.resolvedTextIndent != 0f || style.resolvedHyphens.toInt() == 2) return null
+    val paragraph = PreparedParagraph.preparableOrNull(this, a) ?: return null
+    if (style.resolvedHyphens.toInt() == 2) return null
     if (includePadding || lineClamp > 0 || style.textOverflowEllipsis) return null
     // The JVM measure wraps at a max-width in points even for a max-content size.
     if (style.maxWidth.let { it is Dimension.Points && it.points > 0f }) return null
@@ -2096,7 +2091,7 @@ class TextEngine(val container: TextContainer) {
       true
     }
     if (parentFloats || hasFloatedSibling() || inBlockLineBoxes()) return null
-    return child
+    return PreparableChild(child, paragraph)
   }
 
   // Its block lays an inline text out from the segments its JVM measure sends.
@@ -2127,15 +2122,17 @@ class TextEngine(val container: TextContainer) {
     return text
   }
 
-  private fun prepare(text: String, runStyle: Spans.RunStyleSpan?): Boolean {
+  private fun prepare(text: String, child: PreparableChild): Boolean {
     if (node.mason.inCompute) return false
     val view = container as TextView
+    val runStyle = TextNode.runStyleSpan(child.node.attributes)
     val paint = view.preparedPaint(runStyle)
     val n = text.length
     val font = runMetrics(paint, lastRunMetrics)
     var ascent = font.ascent
     var descent = font.descent
-    if (!(font.asciiInPrimaryFont && text.all { it in ' '..'~' })) {
+    val usesOnlyPrimaryFont = font.asciiInPrimaryFont && text.all { it in ' '..'~' }
+    if (!usesOnlyPrimaryFont) {
       val fmi = scratchFontMetricsInt
       paint.getFontMetricsInt(text, 0, n, 0, n, false, fmi)
       if (fmi.ascent < ascent || fmi.descent > descent) {
@@ -2148,6 +2145,12 @@ class TextEngine(val container: TextContainer) {
         if (minOf(fmi.ascent, font.ascent) != ascent || maxOf(fmi.descent, font.descent) != descent) return false
       }
     }
+    val fixedLineHeight = TextNode.fixedLineHeightDip(child.node.attributes)?.let { it * paint.density }
+    // StaticLayout grows a line's carried metrics to the fonts that line uses, Rust to the whole
+    // text's. They differ only when a line height no taller than the text meets a fallback font.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) <= descent - ascent && !usesOnlyPrimaryFont) return false
+    // Layout.draw skips a layout with no height.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) == 0) return false
     val advances = FloatArray(n)
     paint.getTextWidths(text, advances)
     val inline = NodeUtils.isInlineLike(node)
@@ -2155,12 +2158,15 @@ class TextEngine(val container: TextContainer) {
       node, text, icuLocale(paint.textLocale), advances,
       ascent = ascent,
       descent = descent,
-      lineHeight = TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
+      lineHeight = fixedLineHeight
+        ?: TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
+      fixedLineHeight = fixedLineHeight != null,
       minLineHeight = runMetrics(view.paint, lastViewMetrics).minLineHeight,
       inline = inline,
+      paragraph = child.paragraph,
     )
     if (!prepared) return false
-    this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline)
+    this.prepared = PreparedRun(this, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
     preparedEngines[this] = true
     if (appliedTextVersion != segmentsInvalidateVersion) {
       view.setTextDeferred(text, BufferType.NORMAL)
@@ -2189,7 +2195,7 @@ class TextEngine(val container: TextContainer) {
     val run = prepared
     if (run == null) {
       if (!warmMeasuresWillCheck && preparableChild() != null) staleMeasures[this] = true
-    } else if (preparableChild() == null || run.inline != NodeUtils.isInlineLike(node)) {
+    } else if (preparableChild()?.paragraph != run.paragraph || run.inline != NodeUtils.isInlineLike(node)) {
       invalidateInlineSegments(requestLayout = false)
     }
   }
@@ -3022,7 +3028,7 @@ class TextEngine(val container: TextContainer) {
   // Block flow and a stretching flex column size a box at its container's width. When that holds
   // from the text up to the root (or a fixed width), taffy never asks the text for min- or
   // max-content, so warming those would be wasted.
-  private fun widthFromParent(): Boolean {
+  internal fun widthFromParent(): Boolean {
     var child = node
     var isText = true
     for (depth in 0 until 64) {

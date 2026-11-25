@@ -118,16 +118,26 @@ open class TextView @JvmOverloads constructor(
   private val layoutContentWidth: Float
     get() = node.run { computedWidth - computedPaddingLeft - computedPaddingRight - computedBorderLeft - computedBorderRight }
 
+  internal fun drawnLines(prepared: PreparedRun, paint: TextPaint = preparedPaint(prepared.runStyle)): DrawnLines? =
+    prepared.drawnLines(layoutContentWidth, width - paddingLeft - paddingRight, paint)
+
   private fun drawPreparedLines(c: Canvas, prepared: PreparedRun): Boolean {
-    val lines = prepared.lines(layoutContentWidth) ?: return false
     val paint = preparedPaint(prepared.runStyle)
-    val x = paddingLeft + (containerAlignmentShift(lines, width - paddingLeft - paddingRight) ?: 0f)
-    val y = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
+    val drawn = drawnLines(prepared, paint) ?: return false
+    val lines = drawn.lines
+    val contentWidth = width - paddingLeft - paddingRight
+    val dx = paddingLeft + (containerAlignmentShift(lines, contentWidth)
+      ?: prepared.paragraph.unconstrainedAlignmentShift(lines.layoutWidth, contentWidth))
+    val dy = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
     val text = prepared.text
-    for (i in 0 until lines.lineCount) {
-      val start = lines.lineStart(i)
-      val end = lines.lineEnd(i)
-      c.drawTextRun(text, start, end, start, end, x, y + lines.lineBaseline(i), false, paint)
+    // Translate rather than add dx to lefts: an aligned nowrap line sits up to a million px right,
+    // where floats are coarse, and StaticLayout's glyphs round there.
+    c.withTranslation(dx, dy) {
+      for (i in 0 until lines.lineCount) {
+        val start = lines.lineStart(i)
+        val end = lines.lineVisibleEnd(i)
+        drawTextRun(text, start, end, start, end, drawn.lefts[i], lines.lineBaseline(i).toFloat(), false, paint)
+      }
     }
     return true
   }
@@ -412,7 +422,8 @@ open class TextView @JvmOverloads constructor(
     return alignmentShift(factor, left, right, contentWidth)
   }
 
-  // Prepared lines are start-aligned and left to right, so they start at 0.
+  // PreparedParagraph.preparableOrNull rejects aligned and indented text in a flex or grid container, so
+  // these lines start at 0.
   private fun containerAlignmentShift(lines: PreparedLines, contentWidth: Int): Float? {
     val factor = containerAlignmentFactor()
     if (factor == 0f || contentWidth <= 0) return null
@@ -928,7 +939,7 @@ open class TextView @JvmOverloads constructor(
   private fun provideTextStructure(structure: ViewStructure, text: CharSequence) {
     provideViewStructure(structure)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) structure.setReceiveContentMimeTypes(receiveContentMimeTypes)
-    val lines = engine.preparedRun?.lines(layoutContentWidth)
+    val lines = engine.preparedRun?.let { drawnLines(it)?.lines }
       ?: (floatAwareStaticLayout ?: cachedStaticLayout)?.takeIf { it.text.length == text.length }?.let(::LayoutLines)
     if (lines == null || lines.lineCount <= 1 || engine.isVerticalWritingMode) {
       structure.setText(text, -1, -1)

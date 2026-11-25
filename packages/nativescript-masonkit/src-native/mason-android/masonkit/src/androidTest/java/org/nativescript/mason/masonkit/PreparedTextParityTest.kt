@@ -22,6 +22,10 @@ import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.ListStylePosition
+import org.nativescript.mason.masonkit.enums.ListStyleType
+import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -136,6 +140,274 @@ class PreparedTextParityTest {
   }
 
   @Test
+  fun alignedParagraphsAreDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (align in listOf(TextAlign.Center, TextAlign.Right, TextAlign.End, TextAlign.Left)) {
+      for (size in floatArrayOf(13f, 16.5f)) {
+        for (value in ALIGNED_SAMPLES) root.addView(text(mason, value, size) { it.textAlign = align })
+      }
+    }
+    root
+  }
+
+  @Test
+  fun alignedTextInContentSizedAndFractionalBoxesIsDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    val row = View.createFlexView(mason, context).apply {
+      flexDirection = FlexDirection.Row
+      flexWrap = FlexWrap.Wrap
+      setPadding(1.7f, 1.7f, 1.7f, 1.7f)
+      setGap(3.3f, 3.3f)
+    }
+    for (align in listOf(TextAlign.Center, TextAlign.End)) {
+      for (value in listOf("Hi", "New", "Sale", "Odd width", "W", "Wide label text")) {
+        row.addView(text(mason, value, 14.3f) { it.textAlign = align })
+      }
+    }
+    root.addView(row)
+    for (boxWidth in floatArrayOf(100.5f, 77.25f, 61.5f, 33.75f)) {
+      for (align in listOf(TextAlign.Center, TextAlign.Right)) {
+        val box = mason.createView(context).apply { style.setSizeWidth(boxWidth, Dimension.Kind.Points.value) }
+        box.addView(text(mason, "Centred words that wrap in a narrow box", 15f) {
+          it.textAlign = align
+          it.display = Display.Block
+        })
+        root.addView(box)
+      }
+    }
+    root
+  }
+
+  @Test
+  fun lineHeightsUnderAPixelAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(361f)) { mason ->
+    val root = column(mason)
+    for ((lineHeight, relative) in listOf(0.012f to true, 0.3f to false, 0.02f to true, 0.01f to true)) {
+      for (value in listOf("One line", ALIGNED_SAMPLES.last())) {
+        root.addView(text(mason, value, 16f, prepares = lineHeight != 0.01f) { it.setLineHeight(lineHeight, relative) })
+      }
+    }
+    root
+  }
+
+  @Test
+  fun anAlignedLineAboutAsWideAsItsBoxIsDrawnAsWithStaticLayout() {
+    for (text in listOf("Odd width", "Two words", "A button")) assertAlignedTextInBoxesAboutAsWideAsMatches(text, text)
+  }
+
+  @Test
+  fun alignedLinesEachAboutAsWideAsTheirBoxAreDrawnAsWithStaticLayout() =
+    assertAlignedTextInBoxesAboutAsWideAsMatches("nnn nnn", text = "nnn nnn nnn nnn")
+
+  private fun assertAlignedTextInBoxesAboutAsWideAsMatches(line: String, text: String) {
+    val paint = TextView(context, Mason(), TextType.None).apply { setTextSize(15f) }.paint
+    val lineWidth = paint.getRunAdvance(line, 0, line.length, 0, line.length, false, line.length)
+    assertSceneMatches(floatArrayOf(400f)) { mason ->
+      val root = mason.createView(context)
+      for (align in listOf(TextAlign.Center, TextAlign.Right)) for (widthIsTheTexts in listOf(true, false)) {
+        for (step in -5..15) for (left in floatArrayOf(0f, 0.3f, 0.6f, 0.9f)) {
+          val width = lineWidth + step * 0.2f
+          val box = mason.createView(context).apply { setPadding(left, 0f, 0f, 0f) }
+          if (!widthIsTheTexts) box.style.setSizeWidth(width + left, Dimension.Kind.Points.value)
+          box.addView(text(mason, text, 15f) {
+            it.display = Display.Block
+            it.textAlign = align
+            if (widthIsTheTexts) it.setSizeWidth(width, Dimension.Kind.Points.value)
+          })
+          root.addView(box)
+        }
+      }
+      root
+    }
+  }
+
+  @Test
+  fun textWithAnExplicitLineHeightIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for ((lineHeight, relative) in LINE_HEIGHTS_AROUND_16_DIP_TEXT) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center)) {
+        root.addView(text(mason, ALIGNED_SAMPLES.last(), 16f) {
+          it.setLineHeight(lineHeight, relative)
+          it.textAlign = align
+        })
+      }
+      root.addView(text(mason, "One line", 16f) { it.setLineHeight(lineHeight, relative) })
+    }
+    root.addView(text(mason, "Status ✅ shipped, with a taller line height", 16f) { it.setLineHeight(31.7f, false) })
+    for (value in listOf("Café, naïve and Ελληνικά", "Status ✅ shipped")) {
+      root.addView(text(mason, "$value, with a shorter line height", 16f, prepares = false) { it.setLineHeight(10f, false) })
+    }
+    root
+  }
+
+  @Test
+  fun indentedTextIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (indent in INDENTS_CSS_PX) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center, TextAlign.Right)) {
+        root.addView(text(mason, ALIGNED_SAMPLES.last(), 15f) {
+          it.display = Display.Block
+          it.setTextIndent(indent, false)
+          it.textAlign = align
+        })
+      }
+      root.addView(text(mason, "Indented line", 15f) {
+        it.display = Display.Block
+        it.setTextIndent(indent, false)
+      })
+      val narrow = View.createFlexView(mason, context).apply {
+        flexDirection = FlexDirection.Row
+        style.setSizeWidth(40f, Dimension.Kind.Points.value)
+      }
+      narrow.addView(text(mason, "ab well-known words", 15f) {
+        it.display = Display.Block
+        it.setTextIndent(indent, false)
+      })
+      root.addView(narrow)
+    }
+    root.addView(text(mason, "A percentage indent resolves against each line length", 15f, prepares = false) {
+      it.display = Display.Block
+      it.setTextIndent(10f, true)
+    })
+    root.addView(text(mason, "Indented flex text", 15f, prepares = false) {
+      it.display = Display.Flex
+      it.setTextIndent(13.7f, false)
+    })
+    root
+  }
+
+  @Test
+  fun unwrappedTextIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    val nowraps = listOf<Pair<String, (Style) -> Unit>>(
+      "white-space" to { it.whiteSpace = Styles.WhiteSpace.NoWrap },
+      "text-wrap" to { it.textWrap = TextWrap.NoWrap },
+    )
+    for ((name, nowrap) in nowraps) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center, TextAlign.Right)) {
+        for (indent in floatArrayOf(0f, 13.7f)) {
+          root.addView(text(mason, "An unwrapped $name line, $align, that overflows the narrower widths", 15f) {
+            nowrap(it)
+            it.display = Display.Block
+            it.textAlign = align
+            if (indent != 0f) it.setTextIndent(indent, false)
+          })
+        }
+      }
+      val row = View.createFlexView(mason, context).apply {
+        flexDirection = FlexDirection.Row
+        style.setSizeWidth(120f, Dimension.Kind.Points.value)
+      }
+      for (value in listOf("Short", "An unwrapped label ")) row.addView(text(mason, value, 14.3f) { nowrap(it) })
+      root.addView(row)
+    }
+    root.addView(text(mason, "An unwrapped line with an ellipsis", 15f, prepares = false) {
+      it.whiteSpace = Styles.WhiteSpace.NoWrap
+      it.textOverflow = Styles.TextOverflow.Ellipse
+    })
+    root
+  }
+
+  @Test
+  fun listItemsWithAnOutsideMarkerAreDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    for (type in listOf(ListStyleType.Disc, ListStyleType.Decimal, ListStyleType.Square)) {
+      val list = mason.createView(context).apply {
+        style.listStyleType = type
+        setPadding(40.3f, 0f, 0f, 0f)
+      }
+      for (value in listOf("First item", ALIGNED_SAMPLES.last())) {
+        list.addView(text(mason, value, 15f, type = TextType.Li))
+      }
+      list.addView(text(mason, "Centred item", 15f, type = TextType.Li) { it.textAlign = TextAlign.Center })
+      root.addView(list)
+    }
+    val inside = mason.createView(context).apply { style.listStylePosition = ListStylePosition.Inside }
+    inside.addView(text(mason, "An item with its marker inside", 15f, prepares = false, type = TextType.Li))
+    root.addView(inside)
+    root
+  }
+
+  @Test
+  fun buttonsAreDrawnAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    val row = View.createFlexView(mason, context).apply {
+      flexDirection = FlexDirection.Row
+      flexWrap = FlexWrap.Wrap
+      setGap(3.3f, 3.3f)
+    }
+    for (value in listOf("OK", "Cancel", "A longer button label that wraps")) row.addView(button(mason, value))
+    row.addView(button(mason, "Wide button", style = { it.setSizeWidth(190.5f, Dimension.Kind.Points.value) }))
+    row.addView(button(mason, "A tall button whose label takes several lines") {
+      it.setSizeWidth(150.5f, Dimension.Kind.Points.value)
+      it.setSizeHeight(260.7f, Dimension.Kind.Points.value)
+    })
+    root.addView(row)
+    val baseline = View.createFlexView(mason, context).apply {
+      flexDirection = FlexDirection.Row
+      style.alignItems = AlignItems.Baseline
+    }
+    baseline.addView(button(mason, "Two lines in a tall button") {
+      it.setSizeWidth(120.5f, Dimension.Kind.Points.value)
+      it.setSizeHeight(300f, Dimension.Kind.Points.value)
+    })
+    baseline.addView(text(mason, "Beside it", 15f))
+    root.addView(baseline)
+    val block = mason.createView(context)
+    block.addView(button(mason, "In a block's line", prepares = false))
+    root.addView(block)
+    root
+  }
+
+  @Test
+  fun segmentsBrokenAfterASpaceAreDrawnAsWithStaticLayout() = assertSceneMatches(floatArrayOf(400f)) { mason ->
+    val root = mason.createView(context)
+    for (value in SEGMENTS_WITH_SPACES) {
+      for (align in listOf(TextAlign.Left, TextAlign.Center, TextAlign.Right)) {
+        for (width in 12..100 step 3) {
+          val box = mason.createView(context).apply { style.setSizeWidth(width.toFloat(), Dimension.Kind.Points.value) }
+          box.addView(text(mason, value, 15f) {
+            it.display = Display.Block
+            it.textAlign = align
+          })
+          root.addView(box)
+        }
+      }
+    }
+    root
+  }
+
+  @Test
+  fun segmentsBrokenAfterASpaceAreSizedAsWithStaticLayout() {
+    fun sizes(preparedText: Boolean) = withPreparedText(preparedText) {
+      SEGMENTS_WITH_SPACES.flatMap { value ->
+        (12..100 step 3).map { width ->
+          val column = column(Mason()).apply { style.alignItems = AlignItems.FlexStart }
+          val text = text(column.node.mason, value, 15f)
+          column.addView(text)
+          column.applyLayoutFlat(column.node, column.computeAndLayout(width + 24.6f, -1f))
+          assertEquals("prepared", preparedText, text.engine.preparedText != null)
+          "'$value' in $width px: ${text.node.size()}"
+        }
+      }
+    }
+    assertEquals(sizes(false), sizes(true))
+  }
+
+  @Test
+  fun justifiedTextAndTextAlignedInsideItsOwnFlexOrGridStayOnStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
+    val root = column(mason)
+    root.addView(text(mason, ALIGNED_SAMPLES.last(), 16f, prepares = false) { it.textAlign = TextAlign.Justify })
+    for (display in listOf(Display.Flex, Display.Grid)) {
+      root.addView(text(mason, "Centred badge", 16f, prepares = false) {
+        it.textAlign = TextAlign.Center
+        it.display = display
+      })
+    }
+    root.addView(text(mason, "Start-aligned flex text", 16f) { it.display = Display.Flex })
+    root
+  }
+
+  @Test
   fun shrinkToFitParagraphsEndingInASpaceAreSizedAsWithStaticLayout() = assertSceneMatches(ODD_WIDTHS) { mason ->
     val root = column(mason).apply { style.alignItems = AlignItems.FlexStart }
     for (value in listOf("ab cd efghijklmnop ", "Short words then a much longer final word ", "x yyyyyyyyyyyyyyyyyyyyy  ")) {
@@ -165,19 +437,44 @@ class PreparedTextParityTest {
     setGap(6.7f, 6.7f)
   }
 
-  private fun text(mason: Mason, value: String, size: Float, prepares: Boolean = true, style: (Style) -> Unit = {}) =
-    TextView(context, mason, TextType.None).also {
+  private fun text(
+    mason: Mason,
+    value: String,
+    size: Float,
+    prepares: Boolean = true,
+    type: TextType = TextType.None,
+    style: (Style) -> Unit = {},
+  ) = TextView(context, mason, type).also {
+    style(it.style)
+    it.textContent = value
+    it.setTextSize(size)
+    expectPrepared[it] = prepares
+  }
+
+  private fun button(mason: Mason, value: String, prepares: Boolean = true, style: (Style) -> Unit = {}) =
+    Button(context, mason).also {
       style(it.style)
       it.textContent = value
-      it.setTextSize(size)
       expectPrepared[it] = prepares
     }
 
-  private class Drawn(val sizes: List<String>, val prepared: List<Boolean>, val bitmap: Bitmap)
+  private class Drawn(
+    val sizes: List<String>,
+    val lineStarts: List<List<Int>>,
+    val prepared: List<Boolean>,
+    val bitmap: Bitmap,
+  )
+
+  private fun lineStarts(view: TextView): List<Int> {
+    val lines = view.engine.preparedRun?.let { view.drawnLines(it)?.lines }
+    if (lines != null) return List(lines.lineCount) { lines.lineStart(it) }
+    val layout = view.cachedStaticLayout ?: return emptyList()
+    return List(layout.lineCount) { layout.getLineStart(it) }
+  }
 
   /**
    * Lays out the scene [build] makes at each width, with prepared text on and then off, and checks
-   * every text gets the same box and the root draws the same pixels.
+   * every text gets the same box and line starts and the root draws the same pixels.
    */
   private fun assertSceneMatches(widths: FloatArray, build: (Mason) -> View) {
     expectPrepared.clear()
@@ -187,7 +484,7 @@ class PreparedTextParityTest {
       val texts = expectPrepared.keys.filter { it !in before }
       texts to widths.map { width ->
         val bitmap = drawnAt(root, width)
-        Drawn(texts.map { it.node.size() }, texts.map { it.engine.preparedText != null }, bitmap)
+        Drawn(texts.map { it.node.size() }, texts.map(::lineStarts), texts.map { it.engine.preparedText != null }, bitmap)
       }
     }
     val (texts, on) = drawAll(true)
@@ -199,6 +496,9 @@ class PreparedTextParityTest {
         if (on[i].prepared[j] != expectPrepared[text]) mismatches += "$name prepared ${on[i].prepared[j]}"
         if (off[i].prepared[j]) mismatches += "$name prepared with prepared text off"
         if (on[i].sizes[j] != off[i].sizes[j]) mismatches += "$name box ${on[i].sizes[j]}, StaticLayout's ${off[i].sizes[j]}"
+        if (on[i].lineStarts[j] != off[i].lineStarts[j]) {
+          mismatches += "$name lines start at ${on[i].lineStarts[j]}, StaticLayout's at ${off[i].lineStarts[j]}"
+        }
       }
       firstDifference(on[i].bitmap, off[i].bitmap)?.let { (x, y) ->
         val at = texts.firstOrNull { bounds(it).contains(x, y) }?.textContent?.take(30)
@@ -296,7 +596,7 @@ class PreparedTextParityTest {
       val contentWidth = n.computedWidth - n.computedPaddingLeft - n.computedPaddingRight -
         n.computedBorderLeft - n.computedBorderRight
       view.engine.preparedRun?.let { prepared ->
-        val lines = prepared.lines(contentWidth)!!
+        val lines = view.drawnLines(prepared)!!.lines
         return Measured(n.computedWidth, n.computedHeight, IntArray(lines.lineCount) { lines.lineStart(it) })
       }
       val text = view.engine.applyTextIfNeeded()
@@ -347,6 +647,20 @@ class PreparedTextParityTest {
     val WIDTHS = floatArrayOf(1080f, 936f, 808f, 680f, 552f, 424f, 360f, 240f, 120f)
     val ODD_WIDTHS = floatArrayOf(1080f, 937f, 808.5f, 681.25f, 551f, 424.75f, 361f, 240.5f, 121.3f)
 
+    private val LINE_HEIGHTS_AROUND_16_DIP_TEXT =
+      listOf(10f to false, 19.5f to false, 24.6f to false, 31.7f to false, 0.8f to true, 1.5f to true)
+
+    private val INDENTS_CSS_PX = floatArrayOf(2f, 13.7f, 48f, -10f, 300f)
+
+    private val SEGMENTS_WITH_SPACES = listOf("( barbazqux", "(( b barbazqux", "« bonjour »", "Yes / No")
+
+    private val ALIGNED_SAMPLES = listOf(
+      "Hi", "New", "Odd width", "W", "Ends with a space ",
+      "A centred sentence that wraps onto a second line at the narrower widths",
+      "A longer paragraph of centred or end-aligned text, long enough to wrap onto several lines at most " +
+        "of the widths, with short and long words, so that each line leaves a different amount of space.",
+    )
+
     private val WORDS = ("the of and to in is it layout measure text android rust native kotlin bridge mason taffy " +
       "flex grid wrap line break shaping glyph font weight style paragraph container width height pixel cache " +
       "crossing upcall budget frame render paint canvas window surface thread queue latency throughput benchmark " +
@@ -381,7 +695,7 @@ class PreparedTextParityTest {
     private val NON_NORMAL_WHITE_SPACE = listOf(
       Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.Pre, Styles.WhiteSpace.PreWrap, Styles.WhiteSpace.BreakSpaces,
     ).map {
-      Sample("$it with  doubled  spaces and a line long enough to wrap", prepares = false, whiteSpace = it)
+      Sample("$it with  doubled  spaces and a line long enough to wrap", prepares = it == Styles.WhiteSpace.NoWrap, whiteSpace = it)
     }
 
     private val MIN_CONTENT_SAMPLES = listOf(
