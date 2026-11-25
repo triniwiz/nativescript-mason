@@ -56,16 +56,8 @@ class DateInput(context: Context) : FrameLayout(context) {
     return "$yrStr-$monthStr-$dayStr"
   }
 
-  private val locale = Locale.getDefault()
-  private val pattern = DateFormat.getBestDateTimePattern(locale, "yMd") // e.g., "MM/dd/yyyy"
-  private val order = pattern.map {
-    when (it) {
-      'y' -> "Y"
-      'M' -> "M"
-      'd' -> "D"
-      else -> null
-    }
-  }.filterNotNull() // ["M","d","Y"] etc.
+  // Each of 'y', 'M' and 'd' once; a locale's date pattern can repeat them, as in "dd/MM/y".
+  private val order = DateFormat.getDateFormatOrder(context)
 
   internal val yearInput = createField(4).apply {
     hint = "yyyy"
@@ -106,7 +98,7 @@ class DateInput(context: Context) : FrameLayout(context) {
     // Add fields to layout in correct order
     order.forEachIndexed { index, it ->
       when (it) {
-        "Y" -> {
+        'y' -> {
           addView(
             yearInput, LayoutParams(
               LayoutParams.WRAP_CONTENT,
@@ -115,7 +107,7 @@ class DateInput(context: Context) : FrameLayout(context) {
           ); fields.add(yearInput)
         }
 
-        "M" -> {
+        'M' -> {
           addView(
             monthInput, LayoutParams(
               LayoutParams.WRAP_CONTENT,
@@ -124,7 +116,7 @@ class DateInput(context: Context) : FrameLayout(context) {
           ); fields.add(monthInput)
         }
 
-        "D" -> {
+        'd' -> {
           addView(
             dayInput, LayoutParams(
               LayoutParams.WRAP_CONTENT,

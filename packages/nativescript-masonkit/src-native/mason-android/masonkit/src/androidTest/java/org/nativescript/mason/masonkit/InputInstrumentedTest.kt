@@ -1,5 +1,8 @@
 package org.nativescript.mason.masonkit
 
+import android.content.res.Configuration
+import android.widget.EditText
+import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -9,6 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
+import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class InputInstrumentedTest {
@@ -250,6 +254,35 @@ class InputInstrumentedTest {
       assertEquals("$type border", 0f, nv.borderLeft)
       val widget = input.getChildAt(0)
       assertEquals("$type widget is not inset", 0, widget.left)
+    }
+  }
+
+  @Test
+  fun dateFieldsFollowTheLocalesOrder() {
+    val base = InstrumentationRegistry.getInstrumentation().targetContext
+    val expected = mapOf(
+      "en-US" to listOf("mm", "dd", "yyyy"),
+      "en-AU" to listOf("dd", "mm", "yyyy"),
+      "de-DE" to listOf("dd", "mm", "yyyy"),
+      "ja-JP" to listOf("yyyy", "mm", "dd"),
+      "bg-BG" to listOf("dd", "mm", "yyyy"),
+    )
+    val default = Locale.getDefault()
+    try {
+      for ((tag, hints) in expected) {
+        val locale = Locale.forLanguageTag(tag)
+        Locale.setDefault(locale)
+        val context = base.createConfigurationContext(
+          Configuration(base.resources.configuration).apply { setLocale(locale) }
+        )
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+          val dateInput = Mason().createInput(context, Input.Type.Date).getChildAt(0) as FrameLayout
+          val fields = (0 until dateInput.childCount).mapNotNull { dateInput.getChildAt(it) as? EditText }
+          assertEquals(tag, hints, fields.map { it.hint.toString() })
+        }
+      }
+    } finally {
+      Locale.setDefault(default)
     }
   }
 
