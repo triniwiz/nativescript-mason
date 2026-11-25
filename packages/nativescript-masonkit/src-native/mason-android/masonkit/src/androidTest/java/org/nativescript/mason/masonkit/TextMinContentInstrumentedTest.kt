@@ -2,8 +2,10 @@ package org.nativescript.mason.masonkit
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
@@ -15,6 +17,17 @@ class TextMinContentInstrumentedTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
   private val density = context.resources.displayMetrics.density
   private val rowWidth = (200 * density).toInt()
+  private val preparedText = PreparedText.enabled
+
+  @Before
+  fun useStaticLayout() {
+    PreparedText.enabled = false
+  }
+
+  @After
+  fun restore() {
+    PreparedText.enabled = preparedText
+  }
 
   private fun inNarrowRow(content: String, whiteSpace: Styles.WhiteSpace): TextView {
     val mason = Mason().apply { setDeviceScale(density) }

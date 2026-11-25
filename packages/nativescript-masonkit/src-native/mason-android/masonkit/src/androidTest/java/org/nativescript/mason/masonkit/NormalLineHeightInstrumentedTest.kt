@@ -4,7 +4,9 @@ import android.text.TextPaint
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.nativescript.mason.masonkit.enums.Display
@@ -28,9 +30,7 @@ class NormalLineHeightInstrumentedTest {
     return size
   }
 
-  @Test
-  fun lineTopsOfALongParagraphAreTheRoundedRunningFloatSum() {
-    val size = sizeWithFloatLineTallerThanInt()
+  private fun longParagraph(size: Float): TextView {
     val mason = Mason().apply { setDeviceScale(density) }
     val root = mason.createView(context)
     val text = mason.createTextView(context, TextType.Span).apply {
@@ -45,6 +45,15 @@ class NormalLineHeightInstrumentedTest {
       val tree = root.computeAndLayout(width, -1f)
       if (tree.nodeCount > 0) root.applyLayoutFlat(root.node, tree)
     }
+    return text
+  }
+
+  private fun runningSum(line: Float, lines: Int) = (0..lines).map { (it * line).roundToInt() }
+
+  @Test
+  fun lineTopsOfALongParagraphAreTheRoundedRunningFloatSum() {
+    val size = sizeWithFloatLineTallerThanInt()
+    val text = withPreparedText(false) { longParagraph(size) }
 
     val layout = text.cachedStaticLayout!!
     val paint = probe(size)
@@ -52,8 +61,27 @@ class NormalLineHeightInstrumentedTest {
     assertTrue("the paragraph wraps to many lines (${layout.lineCount})", layout.lineCount >= 12)
 
     val line = floatLineHeight(paint)
-    val expected = (0..layout.lineCount).map { (it * line).roundToInt() }
+    val expected = runningSum(line, layout.lineCount)
     val tops = (0..layout.lineCount).map { layout.getLineTop(it) }
+    assertEquals("line tops for a ${line}px line", expected, tops)
+    assertEquals("the text's height", expected.last(), text.height)
+  }
+
+  @Test
+  fun preparedLineTopsOfALongParagraphAreTheRoundedRunningFloatSum() {
+    assumeTrue("prepared text is off on this device", PreparedText.enabled)
+    val size = sizeWithFloatLineTallerThanInt()
+    val text = withPreparedText(true) { longParagraph(size) }
+
+    val n = text.node
+    val prepared = text.engine.preparedRun
+    assertNotNull("the paragraph is prepared", prepared)
+    val lines = prepared!!.lines(n.computedWidth - n.computedPaddingLeft - n.computedPaddingRight)!!
+    assertTrue("the paragraph wraps to many lines (${lines.lineCount})", lines.lineCount >= 12)
+
+    val line = floatLineHeight(probe(size))
+    val expected = runningSum(line, lines.lineCount)
+    val tops = (0 until lines.lineCount).map { lines.lineTop(it) } + lines.height
     assertEquals("line tops for a ${line}px line", expected, tops)
     assertEquals("the text's height", expected.last(), text.height)
   }

@@ -1,10 +1,10 @@
 <ActionBar [title]="story?.title || 'Story'" class="action-bar">
-  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="router.back()"></NavigationButton>
 </ActionBar>
 
 <ScrollView>
   @if (story; as s) {
-    <main class="page">
+    <main class="hn-page">
       <header class="story-header">
         <h1 class="story-title-lg">{{ s.title }}</h1>
         <span class="story-domain">{{ s.domain }}</span>

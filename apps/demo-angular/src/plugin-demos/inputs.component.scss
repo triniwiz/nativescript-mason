@@ -1,0 +1,143 @@
+.page-body {
+  padding: 16;
+}
+.note {
+  font-size: 12;
+  color: var(--muted);
+}
+.section {
+  margin-top: 20;
+  margin-bottom: 8;
+  font-size: 18;
+  font-weight: bold;
+  color: var(--text);
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8;
+}
+.grow {
+  flex-grow: 1;
+  min-width: 0;
+}
+.label {
+  font-size: 14;
+  color: var(--text);
+}
+.btn {
+  padding: 8 14;
+  border-radius: 6;
+  background-color: var(--primary);
+  color: white;
+}
+
+.field {
+  padding: 8 12;
+  border: 1 solid var(--border);
+  border-radius: 6;
+  color: var(--text);
+}
+.pad-0 {
+  padding: 0;
+  border: 1 solid var(--border);
+}
+.pad-8 {
+  padding: 8;
+  border: 1 solid var(--border);
+}
+.pad-12-16 {
+  padding: 12 16;
+  border: 1 solid var(--border);
+}
+.border-2 {
+  padding: 8;
+  border: 2 solid var(--primary);
+}
+.no-border {
+  padding: 8;
+  border: none;
+  background-color: var(--surface-2);
+}
+.round-0 {
+  border-radius: 0;
+}
+.round-8 {
+  border-radius: 8;
+}
+.pill {
+  border-radius: 999;
+  padding: 8 16;
+}
+.filled {
+  background-color: var(--surface-2);
+}
+.fs-12 {
+  font-size: 12;
+}
+.fs-18 {
+  font-size: 18;
+}
+.bold {
+  font-weight: bold;
+  color: var(--primary);
+}
+.centered {
+  text-align: center;
+}
+.right {
+  text-align: right;
+}
+.c-border-lit {
+  border: 2 solid #ff0000;
+}
+.c-border-var {
+  border: 2 solid var(--primary);
+}
+.c-border-long {
+  border: 2 solid;
+  border-color: #00aa00;
+}
+.c-text-lit {
+  color: #ff0000;
+}
+.c-text-var {
+  color: var(--primary);
+}
+.d-t {
+  color: #000000;
+  font-size: 12;
+}
+.d-a {
+  background-color: #ffffff;
+  border: 2 solid #ff0000;
+}
+.d-b {
+  background-color: #ffffff;
+  border: 2 solid red;
+}
+.d-c {
+  background-color: #ffffff;
+  border-width: 2;
+  border-style: solid;
+  border-color: #ff0000;
+}
+.d-d {
+  background-color: #ffffff;
+  border: 2px solid #ff0000;
+}
+.c-ph::placeholder {
+  color: #ff0000;
+}
+.c-div {
+  padding: 8;
+}
+.w-half {
+  width: 50%;
+}

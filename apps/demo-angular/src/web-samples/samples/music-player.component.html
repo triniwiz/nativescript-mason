@@ -1,0 +1,41 @@
+<demo-page title="Music Player" background="#12121c">
+  <main class="page-body">
+    <div class="artwork">
+      <span class="artwork-glyph">♫</span>
+    </div>
+    <div class="track-info">
+      <h1>Midnight Circuit</h1>
+      <p class="artist">Neon Coastline — After Hours</p>
+    </div>
+    <div class="progress-block">
+      <div class="progress-track">
+        <div class="progress-fill" [style.width]="progress() + '%'"></div>
+      </div>
+      <div class="time-row">
+        <span class="time">{{ elapsed() }}</span>
+        <span class="time">{{ duration() }}</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="control-button" (tap)="skip(-10)">⏪</button>
+      <button class="play-button" (tap)="playing.set(!playing())">{{ playing() ? '⏸' : '▶' }}</button>
+      <button class="control-button" (tap)="skip(10)">⏩</button>
+    </div>
+    <div class="extra-row">
+      <button class="extra-button" [class.active]="shuffle()" (tap)="shuffle.set(!shuffle())">Shuffle</button>
+      <button class="extra-button" [class.active]="repeat()" (tap)="repeat.set(!repeat())">Repeat</button>
+    </div>
+    <section class="up-next">
+      <h2>Up next</h2>
+      @for (track of upNext; track track.title) {
+        <div class="up-next-row">
+          <div class="up-next-body">
+            <p class="up-next-title">{{ track.title }}</p>
+            <p class="up-next-artist">{{ track.artist }}</p>
+          </div>
+          <span class="up-next-time">{{ track.time }}</span>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

@@ -1,0 +1,50 @@
+<demo-page title="Photographer — Studio" background="#101014">
+  <main class="page-body">
+    <section class="studio-head">
+      <div class="avatar">
+        <span>RQ</span>
+      </div>
+      <div class="studio-body">
+        <h1>Rui Quintela</h1>
+        <p class="tagline">Documentary & landscape photographer</p>
+      </div>
+    </section>
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">312</span>
+        <span class="stat-label">Shoots</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">41k</span>
+        <span class="stat-label">Followers</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">7</span>
+        <span class="stat-label">Exhibits</span>
+      </div>
+    </section>
+    <h2>Recent frames</h2>
+    <section class="frame-grid">
+      @for (f of frames; track f.title) {
+        <article class="frame-card">
+          <div class="frame" [style.backgroundColor]="f.color">
+            <span class="frame-glyph">▣</span>
+          </div>
+          <div class="frame-body">
+            <p class="frame-title">{{ f.title }}</p>
+            <p class="frame-meta">{{ f.loc }} · {{ f.year }}</p>
+          </div>
+        </article>
+      }
+    </section>
+    <h2>Gear bag</h2>
+    <section class="gear-card">
+      @for (g of gear; track g) {
+        <div class="gear-row">
+          <span class="gear-dot"></span>
+          <p class="gear-item">{{ g }}</p>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

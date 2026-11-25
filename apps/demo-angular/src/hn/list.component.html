@@ -1,5 +1,5 @@
 <ActionBar title="ListView + MasonKit" class="action-bar">
-  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="router.back()"></NavigationButton>
 </ActionBar>
 
 <!--
@@ -10,7 +10,7 @@
   ListView still takes an ng-template — @for is for content, not for a
   virtualising list's item template.
 -->
-<ListView [items]="stories" class="list">
+<ListView [items]="stories" class="hn-list">
   <ng-template let-story="item" let-i="index">
     <div class="list-item">
       <div class="rank-gutter">

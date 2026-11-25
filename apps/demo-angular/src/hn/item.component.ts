@@ -1,5 +1,5 @@
-import { Component, NO_ERRORS_SCHEMA, OnInit } from '@angular/core';
-import { NativeScriptCommonModule } from '@nativescript/angular';
+import { Component, inject, NO_ERRORS_SCHEMA, OnInit } from '@angular/core';
+import { NativeScriptCommonModule, RouterExtensions } from '@nativescript/angular';
 import { ActivatedRoute } from '@angular/router';
 
 import { findStory } from './fixtures';
@@ -12,6 +12,7 @@ import { CommentComponent } from './comment.component';
  */
 @Component({ selector: 'hn-item', templateUrl: 'item.component.html', imports: [NativeScriptCommonModule, CommentComponent], schemas: [NO_ERRORS_SCHEMA] })
 export class ItemComponent implements OnInit {
+  protected readonly router = inject(RouterExtensions);
   story?: Story;
   showComments = true;
 

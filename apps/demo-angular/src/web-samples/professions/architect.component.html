@@ -1,0 +1,40 @@
+<demo-page title="Architect — Studio">
+  <main class="page-body">
+    <section class="studio-head">
+      <h1>Studio Verne</h1>
+      <p class="tagline">Residential & civic architecture — Porto</p>
+      <div class="stat-row">
+        <div class="stat">
+          <span class="stat-value">26</span>
+          <span class="stat-label">Built</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">9</span>
+          <span class="stat-label">In design</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">4</span>
+          <span class="stat-label">Awards</span>
+        </div>
+      </div>
+    </section>
+    <h2>Projects</h2>
+    <section class="project-list">
+      @for (p of projects; track p.name) {
+        <article class="project-card">
+          <div class="plan" [style.backgroundColor]="p.color">
+            <div class="plan-block"></div>
+            <div class="plan-block small"></div>
+          </div>
+          <div class="project-body">
+            <div class="project-head">
+              <p class="project-name">{{ p.name }}</p>
+              <span class="badge" [class]="p.stageClass">{{ p.stage }}</span>
+            </div>
+            <p class="project-meta">{{ p.type }} · {{ p.year }} · {{ p.area }}</p>
+          </div>
+        </article>
+      }
+    </section>
+  </main>
+</demo-page>

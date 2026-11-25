@@ -1,0 +1,24 @@
+<demo-page title="Display Demo">
+  <main class="page-body">
+    <p class="lead">Port of <code>apps/display-demo.html</code>. Tap the button to toggle <code>display: flex</code> / <code>display: none</code> on the styled box below.</p>
+    <section class="stage">
+      @if (visible()) {
+        <div class="demo-box"></div>
+      } @else {
+        <p class="hidden-note">Box is hidden — display: none removes it from layout entirely.</p>
+      }
+    </section>
+    <div class="status-row">
+      <span class="status-label">computed display</span>
+      <code class="status-value">{{ visible() ? 'flex' : 'none' }}</code>
+    </div>
+    <button class="toggle-button" (tap)="toggle()">{{ visible() ? 'Hide' : 'Show' }}</button>
+    <section class="notes">
+      <h3>What to look for</h3>
+      <ul>
+        <li>The box keeps its decorations while visible: asymmetric border-radius, dotted left border, dashed top border, and a drop shadow.</li>
+        <li>When hidden, the stage collapses — siblings reflow as if the box never existed.</li>
+      </ul>
+    </section>
+  </main>
+</demo-page>

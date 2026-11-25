@@ -1,0 +1,70 @@
+<demo-page title="Flexbox Layout">
+  <main class="page-body stack">
+    <!-- Flex Direction -->
+    <section class="block">
+      <span class="h1">Flex Direction</span>
+      @for (dir of directions; track dir) {
+        <span class="label">{{ dir }}</span>
+        <div class="track" [class.track-tall]="dir.startsWith('column')" [style.flexDirection]="dir">
+          @for (c of three; track $index; let i = $index) {
+            <div class="cell" [class.cell-dark]="c.dark" [class.cell-fixed]="dir.startsWith('row')" [style.backgroundColor]="c.color">
+              <span class="cell-label">{{ i + 1 }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+    <!-- Justify Content -->
+    <section class="block">
+      <span class="h1">Justify Content</span>
+      @for (j of justify; track j) {
+        <span class="label">{{ j }}</span>
+        <div class="track" [style.justifyContent]="j" [style.gap]="j === 'center' ? 8 : 0">
+          @for (l of ['A', 'B', 'C']; track l) {
+            <div class="cell cell-square" style="background-color: #6c5ce7">
+              <span class="cell-label">{{ l }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+    <!-- Align Items -->
+    <section class="block">
+      <span class="h1">Align Items</span>
+      @for (a of align; track a) {
+        <span class="label">{{ a }}</span>
+        <div class="track track-align" [style.alignItems]="a">
+          @for (c of three; track $index; let i = $index) {
+            <div class="cell cell-narrow" [class.cell-dark]="c.dark" [style.backgroundColor]="c.color" [style.height]="[30, 50, 40][i]">
+              <span class="cell-label cell-label-sm">{{ [30, 50, 40][i] }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+    <!-- Flex Wrap -->
+    <section class="block">
+      <span class="h1">Flex Wrap</span>
+      <span class="label">wrap · 7 items</span>
+      <div class="track" style="flex-wrap: wrap; gap: 6">
+        @for (c of wrapColors; track $index; let i = $index) {
+          <div class="cell cell-wrap" [class.cell-dark]="c.dark" [style.backgroundColor]="c.color">
+            <span class="cell-label cell-label-sm">{{ i + 1 }}</span>
+          </div>
+        }
+      </div>
+    </section>
+    <!-- Flex Grow -->
+    <section class="block">
+      <span class="h1">Flex Grow</span>
+      <span class="label">1 : 2 : 1 ratio</span>
+      <div class="track" style="gap: 6">
+        @for (c of three; track $index; let i = $index) {
+          <div class="cell cell-grow" [class.cell-dark]="c.dark" [style.backgroundColor]="c.color" [style.flexGrow]="[1, 2, 1][i]">
+            <span class="cell-label">{{ [1, 2, 1][i] }}</span>
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+</demo-page>

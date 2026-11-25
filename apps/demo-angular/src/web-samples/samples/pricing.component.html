@@ -1,0 +1,31 @@
+<demo-page title="Pricing">
+  <main class="page-body">
+    <header class="header">
+      <h1>Choose your plan</h1>
+      <p class="subtitle">Start free, upgrade when your team grows.</p>
+    </header>
+    <div class="billing-toggle">
+      <button class="toggle-option" [class.active]="billing() === 'monthly'" (tap)="billing.set('monthly')">Monthly</button>
+      <button class="toggle-option" [class.active]="billing() === 'annual'" (tap)="billing.set('annual')">Annual −20%</button>
+    </div>
+    <section class="tier-grid">
+      @for (tier of tiers; track tier.name) {
+        <article class="tier-card" [class.featured]="tier.featured">
+          <p class="tier-name">{{ tier.name }}</p>
+          <div class="price-row">
+            <span class="price">{{ price(tier) }}</span>
+            <span class="per">/ mo</span>
+          </div>
+          <p class="tier-blurb">{{ tier.blurb }}</p>
+          <ul class="feature-list">
+            @for (f of tier.features; track f) {
+              <li>{{ f }}</li>
+            }
+          </ul>
+          <button class="tier-button" [class.primary]="tier.featured">{{ tier.featured ? 'Start trial' : 'Choose' }}</button>
+        </article>
+      }
+    </section>
+    <footer class="footnote">Prices in USD. Annual billing charged yearly.</footer>
+  </main>
+</demo-page>

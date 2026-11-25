@@ -1,0 +1,141 @@
+.page-body {
+  padding: 16;
+  padding-top: 0;
+}
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 12;
+}
+h2 {
+  font-size: 14;
+  font-weight: bold;
+  color: var(--text);
+}
+.special-hero {
+  background-color: #3d2b1f;
+  border-radius: 16;
+  padding: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+  box-shadow: 0 8px 22px rgba(61, 43, 31, 0.3);
+}
+.hero-kicker {
+  font-size: 11;
+  font-weight: bold;
+  color: #fdcb6e;
+  text-transform: uppercase;
+}
+.special-hero h1 {
+  font-size: 24;
+  font-weight: bold;
+  color: #ffffff;
+}
+.hero-sub {
+  font-size: 12;
+  color: rgba(255, 255, 255, 0.7);
+}
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+.dish-card {
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 5;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.dish-head {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.dish-name {
+  font-size: 15;
+  font-weight: bold;
+  color: var(--text);
+}
+.dish-price {
+  font-size: 13;
+  font-weight: bold;
+  color: #e17055;
+}
+.dish-desc {
+  font-size: 12;
+  color: var(--muted);
+}
+.dish-foot {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 3;
+}
+.orders {
+  font-size: 11;
+  color: var(--muted);
+}
+.badge {
+  font-size: 10;
+  font-weight: bold;
+  padding: 2 8;
+  border-radius: 10;
+}
+.badge.special {
+  background-color: #fff3d6;
+  color: #c98a12;
+}
+.badge.veggie {
+  background-color: #e7f9f2;
+  color: #00b894;
+}
+.badge.hearty {
+  background-color: #fdecec;
+  color: #e17055;
+}
+.badge.dessert {
+  background-color: #f3e8ff;
+  color: #6c5ce7;
+}
+.load-card {
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 10;
+}
+.load-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10;
+}
+.load-name {
+  font-size: 12;
+  color: var(--text-2);
+  width: 52;
+}
+.track {
+  flex-grow: 1;
+  height: 8;
+  border-radius: 4;
+  background-color: var(--surface-2);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: 4;
+}
+.load-pct {
+  font-size: 11;
+  color: var(--muted);
+  width: 32;
+  text-align: right;
+}

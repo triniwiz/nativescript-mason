@@ -4,6 +4,7 @@
     "paths": {
       "~/*": ["src/*"],
       "@demo/shared": ["tools/demo/index.ts"],
+      "@demo/shared/*": ["tools/demo/*"],
       "@triniwiz/*": ["../../dist/packages/*"],
       "@triniwiz/nativescript-masonkit": ["../../packages/nativescript-masonkit/index.d.ts"],
       "@triniwiz/nativescript-masonkit/angular": ["../../packages/nativescript-masonkit/angular/index.ts"],

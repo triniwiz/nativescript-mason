@@ -1,0 +1,49 @@
+<demo-page title="Nested scroll">
+  <div class="page-body stack">
+    <span class="body">Horizontal rows inside a vertical page. Swipe a row sideways with some up-and-down wobble: only the row should move. Swipe up or down starting on a row: only the page should move. Tap a card: the tap should count without scrolling anything.</span>
+    @for (row of rows; track row.title) {
+      <div class="block">
+        <span class="section-label">{{ row.title }}</span>
+        <div class="carousel">
+          @for (n of range(row.count); track n) {
+            <div class="tile" [class]="row.size" [style.backgroundColor]="color(n)" (tap)="tap(row.title, n)">
+              <span class="tile-text">{{ n }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+    <div class="block">
+      <span class="section-label">Vertical list</span>
+      <span class="muted">Scrolls the same way as the page. A swipe that starts here moves the list first; once the list reaches its end, the rest of the swipe moves the page.</span>
+      <div class="vertical tk-surface">
+        @for (n of range(20); track n) {
+          <div class="list-row" (tap)="tap('Vertical list', n)">
+            <div class="dot" [style.backgroundColor]="color(n)"></div>
+            <span class="list-text tk-text">Item {{ n }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <span class="muted">Last tap: {{ lastTap() || 'none' }} · taps {{ taps() }}</span>
+    <div class="block">
+      <span class="section-label">Both axes</span>
+      <span class="muted">Straight swipes lock to one axis; a diagonal one moves both.</span>
+      <div class="both">
+        <div class="grid">
+          @for (n of range(64); track n) {
+            <div class="cell" [style.backgroundColor]="color(n)">
+              <span class="tile-text">{{ n }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    @for (n of range(12); track 'filler' + n) {
+      <div class="card filler">
+        <span class="h2">Filler {{ n }}</span>
+        <span class="muted">More page to scroll through.</span>
+      </div>
+    }
+  </div>
+</demo-page>

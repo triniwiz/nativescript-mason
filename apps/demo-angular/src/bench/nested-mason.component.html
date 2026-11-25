@@ -1,0 +1,19 @@
+<demo-page title="Nested - MasonKit">
+  <main class="nested">
+    <div class="toolbar">
+      <div class="tool" (tap)="retext(nextStep())">
+        <span class="tool-text">Retext</span>
+      </div>
+      <div class="tool" (tap)="toggleOdd()">
+        <span class="tool-text" [text]="showOdd() ? 'Hide row text' : 'Show row text'"></span>
+      </div>
+      <div class="tool" (tap)="toggleNarrow()">
+        <span class="tool-text" [text]="narrow() ? 'Widen' : 'Narrow'"></span>
+      </div>
+    </div>
+    <span class="count" [text]="`depth ${tree().depth} · ${boxCount()} boxes`"></span>
+    <div class="root" [class.narrow]="narrow()">
+      <div [benchBox]="tree()" [showOdd]="showOdd()"></div>
+    </div>
+  </main>
+</demo-page>

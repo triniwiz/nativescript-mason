@@ -1,0 +1,82 @@
+.note {
+  margin: 0;
+  font-size: 13;
+  margin-bottom: 12;
+}
+
+.heading {
+  margin: 0;
+  font-size: 18;
+  font-weight: bold;
+  margin-bottom: 8;
+}
+
+.card {
+  border-radius: 10;
+  padding: 14;
+  margin-bottom: 16;
+  border-width: 1;
+  border-color: #dddddd;
+}
+
+.row {
+  font-size: 16;
+  margin: 0 0 14 0;
+}
+
+.chip {
+  display: inline-block;
+  padding: 6 10;
+  border-radius: 6;
+  background-color: #dfe6fd;
+  color: #1e3799;
+}
+
+.tall {
+  padding: 14 12;
+}
+
+.lopsided {
+  padding: 18 10 2 10;
+}
+
+.narrow {
+  width: 90;
+}
+
+.clipped {
+  overflow: hidden;
+}
+
+.wrapper {
+  display: inline;
+}
+
+.boxed {
+  background-color: #ffeaa7;
+  padding: 6;
+}
+
+.link {
+  color: #0984e3;
+  text-decoration: underline;
+}
+
+.swatch {
+  display: inline-block;
+  width: 28;
+  height: 28;
+  background-color: #e17055;
+}
+
+.scroller {
+  overflow-x: auto;
+}
+
+.code-block {
+  white-space: pre;
+  font-size: 13;
+  padding: 10;
+  background-color: #2d3436;
+  color: #dfe6e9;
+}

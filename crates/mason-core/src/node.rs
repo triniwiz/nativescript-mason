@@ -109,6 +109,8 @@ pub struct NodeMeasure {
     pub(crate) data: *mut std::os::raw::c_void,
     #[cfg(target_os = "android")]
     pub(crate) measure: jni::sys::jint,
+    #[cfg(target_os = "android")]
+    pub(crate) prepared_text: Option<std::sync::Arc<crate::prepared_text::PreparedText>>,
     #[cfg(not(target_os = "android"))]
     pub(crate) measure: Option<
         extern "C" fn(
@@ -139,6 +141,9 @@ impl NodeMeasure {
         known_dimensions: taffy::Size<Option<f32>>,
         available_space: taffy::Size<AvailableSpace>,
     ) -> taffy::geometry::Size<f32> {
+        if let Some(text) = &self.prepared_text {
+            return text.measure(known_dimensions, available_space);
+        }
         // If no JVM measure context is registered (measure == -1), avoid calling
         // into Java and return the known dimensions or zero fallback.
         if self.measure < 0 {
@@ -251,6 +256,8 @@ pub struct NodeData {
     pub(crate) android_data: Option<AndroidNode>,
     #[cfg(target_os = "android")]
     pub(crate) measure: jni::sys::jint,
+    #[cfg(target_os = "android")]
+    pub(crate) prepared_text: Option<std::sync::Arc<crate::prepared_text::PreparedText>>,
     #[cfg(not(target_os = "android"))]
     pub(crate) measure: Option<
         extern "C" fn(
@@ -277,6 +284,7 @@ impl NodeData {
         unsafe {
             Self {
                 measure: -1,
+                prepared_text: None,
                 android_data: None,
                 inline_segments: Mutex::new(vec![]),
             }
@@ -303,6 +311,8 @@ impl NodeData {
             measure: self.measure,
             #[cfg(target_os = "android")]
             measure: self.measure,
+            #[cfg(target_os = "android")]
+            prepared_text: self.prepared_text.clone(),
         }
     }
 }

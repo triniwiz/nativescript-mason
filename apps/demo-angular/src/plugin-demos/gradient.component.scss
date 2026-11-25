@@ -1,0 +1,50 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12;
+}
+
+.sample {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+}
+
+.swatch {
+  height: 72;
+  border-radius: 10;
+  margin-bottom: 4;
+}
+
+.code {
+  font-family: monospace;
+  font-size: 12;
+  color: var(--primary);
+}
+
+.even {
+  background: linear-gradient(to right, red, blue, green);
+}
+.neighbours {
+  background: linear-gradient(to right, red, blue 80%, green, white);
+}
+.backwards {
+  background: linear-gradient(to right, red 50%, blue 20%, green);
+}
+.halves {
+  background: linear-gradient(to right, red 0% 50%, blue 50% 100%);
+}
+.stripes {
+  background: linear-gradient(to right, red 0 25%, white 25% 50%, blue 50% 75%, black 75%);
+}
+.progress {
+  height: 16;
+  border-radius: 8;
+  background: linear-gradient(to right, #00b894 0 64%, #dfe6e9 64% 100%);
+}
+.sunset {
+  background: linear-gradient(160deg, #fd9644, #fc5c65 45%, #4b0082);
+}
+.glow {
+  background: radial-gradient(circle, #ffeaa7, #fdcb6e 30%, #2d3436);
+}

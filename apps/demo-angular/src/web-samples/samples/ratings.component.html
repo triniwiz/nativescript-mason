@@ -1,0 +1,44 @@
+<demo-page title="Ratings">
+  <main class="page-body">
+    <section class="summary-card">
+      <div class="score-block">
+        <span class="big-score">{{ average() }}</span>
+        <div class="stars-row">
+          @for (n of [1, 2, 3, 4, 5]; track n) {
+            <button class="star" [class.filled]="n <= filled()" (tap)="rate(n)">★</button>
+          }
+        </div>
+        <p class="review-count">{{ totalReviews }} reviews</p>
+      </div>
+      <div class="breakdown">
+        @for (row of breakdown; track row.stars) {
+          <div class="breakdown-row">
+            <span class="breakdown-label">{{ row.stars }}</span>
+            <div class="track">
+              <div class="fill" [style.width]="row.pct + '%'"></div>
+            </div>
+            <span class="breakdown-pct">{{ row.pct }}%</span>
+          </div>
+        }
+      </div>
+    </section>
+    <p class="your-rating">Your rating: {{ mine() ? mine() + ' / 5' : 'tap a star above' }}</p>
+    <section class="review-list">
+      @for (review of reviews(); track review.author) {
+        <article class="review-card">
+          <div class="review-head">
+            <div class="mini-avatar" [style.backgroundColor]="review.color">
+              <span class="mini-initials">{{ review.author.slice(0, 1) }}</span>
+            </div>
+            <div class="review-who">
+              <p class="review-author">{{ review.author }}</p>
+              <p class="review-stars">{{ '★'.repeat(review.stars) }}{{ '☆'.repeat(5 - review.stars) }}</p>
+            </div>
+            <span class="review-date">{{ review.date }}</span>
+          </div>
+          <p class="review-text">{{ review.text }}</p>
+        </article>
+      }
+    </section>
+  </main>
+</demo-page>
