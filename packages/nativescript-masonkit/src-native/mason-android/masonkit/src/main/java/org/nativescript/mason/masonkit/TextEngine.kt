@@ -518,6 +518,7 @@ class TextEngine(val container: TextContainer) {
     maxLines: Int,
     widthSlack: Int = 0
   ): StaticLayoutCacheEntry? {
+    val staticLayoutCache = layoutState.staticLayoutCache
     for (entry in staticLayoutCache) {
       if (entry != null &&
         entry.version == segmentsInvalidateVersion &&
@@ -731,6 +732,7 @@ class TextEngine(val container: TextContainer) {
       indent = indent,
       maxLines = maxLines
     )
+    val staticLayoutCache = layoutState.staticLayoutCache
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
 
@@ -1081,14 +1083,15 @@ class TextEngine(val container: TextContainer) {
         lastDefiniteAvailableHeight = availableHeight
       }
       val ver = segmentsInvalidateVersion.toLong()
+      val keys = layoutState.measureCacheKeys
       for (probe in 0 until MEASURE_CACHE_SIZE) {
         val i = (measureCacheNext - 1 - probe + MEASURE_CACHE_SIZE) % MEASURE_CACHE_SIZE
         val b = i * 3
-        if (measureCacheKeys[b] == ver && measureCacheKeys[b + 1] == mcWKey &&
-          measureCacheKeys[b + 2] == mcWMode
+        if (keys[b] == ver && keys[b + 1] == mcWKey &&
+          keys[b + 2] == mcWMode
         ) {
           style.syncFontMetrics()
-          return measureCacheVals[i]
+          return layoutState.measureCacheVals[i]
         }
       }
       if (mcWMode == 2L && !percentIndent && exclusions == null && maxContentVersion == ver &&
@@ -1286,8 +1289,9 @@ class TextEngine(val container: TextContainer) {
     val textIndent = textIndentPx(width.toFloat())
     val rtl = startsRtl(text, heuristic)
     val maxLines = lineClamp
-    paint.getFontMetrics(scratchFontMetrics)
-    val lineH = (scratchFontMetrics.descent - scratchFontMetrics.ascent).coerceAtLeast(1f)
+    val fm = layoutState.scratchFontMetrics
+    paint.getFontMetrics(fm)
+    val lineH = (fm.descent - fm.ascent).coerceAtLeast(1f)
     var floatsBottom = 0f
     for (b in exclusions.indices step 5) floatsBottom = maxOf(floatsBottom, exclusions[b + 3])
     val estimated = (ceil(floatsBottom / lineH).toInt() + 1).coerceIn(1, 1000)
@@ -1388,6 +1392,8 @@ class TextEngine(val container: TextContainer) {
   ) {
     // Nothing relevant changed since the segments already sent for this
     // exact layout — skip the full spannable walk + JNI push.
+    val segmentsCacheLayouts = layoutState.segmentsCacheLayouts
+    val segmentsCacheVersions = layoutState.segmentsCacheVersions
     for (i in segmentsCacheLayouts.indices) {
       if (segmentsCacheLayouts[i] === layout && segmentsCacheVersions[i] == segmentsInvalidateVersion) {
         return
@@ -1397,7 +1403,7 @@ class TextEngine(val container: TextContainer) {
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint by lazy(LazyThreadSafetyMode.NONE) { scratchSegmentPaint.apply { set(paint) } }
+    val textPaint by lazy(LazyThreadSafetyMode.NONE) { layoutState.scratchSegmentPaint.apply { set(paint) } }
 
     // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position
     // in a single O(spans) pass; subsequent lookups are O(1) via index cursor.
@@ -1555,15 +1561,16 @@ class TextEngine(val container: TextContainer) {
           } else {
             // Apply character style spans to a single reused TextPaint (avoids a
             // TextPaint allocation per run). Paint.set() copies all fields cheaply.
-            val runPaint = scratchRunPaint
+            val runPaint = layoutState.scratchRunPaint
             runPaint.set(textPaint)
             val spans =
               attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
             for (span in spans) {
               span.updateDrawState(runPaint)
             }
-            runPaint.getFontMetrics(scratchFontMetrics)
-            scratchFontMetrics
+            val fm = layoutState.scratchFontMetrics
+            runPaint.getFontMetrics(fm)
+            fm
           }
           segments.add(
             InlineSegment.Text(
@@ -1972,17 +1979,46 @@ class TextEngine(val container: TextContainer) {
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
 
-  // (version, widthKey, widthMode) per entry.
-  private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 3)
-  private val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
+  // What only the StaticLayout path needs. A prepared text never creates it.
+  private class LayoutState {
+    // (version, widthKey, widthMode) per entry.
+    val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 3)
+    val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
+    val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
+    val segmentsCacheVersions = IntArray(4) { -1 }
+    val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
+    val singleLineMetrics = BoringLayout.Metrics()
+    val singleLineTextMetrics = Paint.FontMetricsInt()
+    val uniformMetrics = Paint.FontMetrics()
+    val uniformMetricsInt = Paint.FontMetricsInt()
+
+    // Reused across paint.getFontMetrics() call sites instead of the allocating
+    // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
+    // fields immediately and text measurement/draw all happen on the UI thread.
+    val scratchFontMetrics = Paint.FontMetrics()
+
+    val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+
+    // Reused per text-run in collectAndCacheSegments() instead of a fresh
+    // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
+    // Nothing retains this instance across runs.
+    val scratchRunPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+
+    // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
+    val scratchSegmentPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+  }
+
+  private val layoutState by lazy(LazyThreadSafetyMode.NONE) { LayoutState() }
+
   private var measureCacheNext = 0
 
   private fun storeMeasure(version: Long, widthKey: Long, widthMode: Long, out: Long) {
+    val keys = layoutState.measureCacheKeys
     val b = measureCacheNext * 3
-    measureCacheKeys[b] = version
-    measureCacheKeys[b + 1] = widthKey
-    measureCacheKeys[b + 2] = widthMode
-    measureCacheVals[measureCacheNext] = out
+    keys[b] = version
+    keys[b + 1] = widthKey
+    keys[b + 2] = widthMode
+    layoutState.measureCacheVals[measureCacheNext] = out
     measureCacheNext = (measureCacheNext + 1) % MEASURE_CACHE_SIZE
   }
 
@@ -2096,7 +2132,7 @@ class TextEngine(val container: TextContainer) {
     val view = container as TextView
     val paint = view.preparedPaint(runStyle)
     val n = text.length
-    val font = runMetrics(paint)
+    val font = runMetrics(paint, lastRunMetrics)
     var ascent = font.ascent
     var descent = font.descent
     if (!(font.asciiInPrimaryFont && text.all { it in ' '..'~' })) {
@@ -2120,7 +2156,7 @@ class TextEngine(val container: TextContainer) {
       ascent = ascent,
       descent = descent,
       lineHeight = TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
-      minLineHeight = minLineHeight(view.paint),
+      minLineHeight = runMetrics(view.paint, lastViewMetrics).minLineHeight,
       inline = inline,
     )
     if (!prepared) return false
@@ -2136,10 +2172,11 @@ class TextEngine(val container: TextContainer) {
   private fun clearPreparedText() {
     if (prepared == null) return
     if (node.mason.inCompute) {
-      deferredClears[this] = true
+      val clears = deferredClears ?: java.util.WeakHashMap<TextEngine, Boolean>().also { deferredClears = it }
+      clears[this] = true
       return
     }
-    deferredClears.remove(this)
+    deferredClears?.remove(this)
     preparedEngines.remove(this)
     prepared = null
     PreparedText.clear(node)
@@ -2171,8 +2208,6 @@ class TextEngine(val container: TextContainer) {
   private var cachedAttributedStringNested = false
   private var isBuilding = false
 
-  private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
-  private val segmentsCacheVersions = IntArray(4) { -1 }
   private var segmentsCacheNextIdx = 0
 
   private var minMeasuredTextWidth: Float = 0f
@@ -2241,7 +2276,6 @@ class TextEngine(val container: TextContainer) {
   private var advancesVersion = -1
   private var advancesLength = -1
   private var cachedAdvances: FloatArray? = null
-  private val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   internal var plainTextPaintOrNull: TextPaint? = null
     private set
@@ -2269,9 +2303,6 @@ class TextEngine(val container: TextContainer) {
     return run
   }
 
-  private val singleLineMetrics = BoringLayout.Metrics()
-  private val singleLineTextMetrics = Paint.FontMetricsInt()
-
   private fun singleLineLayout(
     text: CharSequence,
     paint: TextPaint,
@@ -2291,14 +2322,14 @@ class TextEngine(val container: TextContainer) {
     val visibleWidth = advanceSum(advances, 0, visibleEnd)
     if (visibleWidth > width - 0.5f) return null
 
-    val p = advancesPaint
+    val p = layoutState.advancesPaint
     uniformFontMetrics()
-    val primary = uniformMetricsInt
+    val primary = layoutState.uniformMetricsInt
     var top = primary.top
     var ascent = primary.ascent
     var descent = primary.descent
     var bottom = primary.bottom
-    val fm = singleLineTextMetrics
+    val fm = layoutState.singleLineTextMetrics
     fm.leading = primary.leading
     if (oneLineLayoutsGetFallbackExtents) {
       p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
@@ -2307,7 +2338,7 @@ class TextEngine(val container: TextContainer) {
       descent = maxOf(descent, fm.descent)
       bottom = maxOf(bottom, fm.bottom)
     }
-    val m = singleLineMetrics
+    val m = layoutState.singleLineMetrics
     m.top = top
     m.ascent = ascent
     m.descent = descent
@@ -2333,34 +2364,31 @@ class TextEngine(val container: TextContainer) {
   private var uniformMetricsTypeface: Typeface? = null
   private var uniformMetricsSize = -1f
   private var uniformMetricsVariation: String? = null
-  private val uniformMetrics = Paint.FontMetrics()
-  private val uniformMetricsInt = Paint.FontMetricsInt()
 
   private fun uniformFontMetrics(): Paint.FontMetrics {
-    val p = advancesPaint
+    val p = layoutState.advancesPaint
     val variation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.fontVariationSettings else null
     if (p.typeface !== uniformMetricsTypeface || p.textSize != uniformMetricsSize ||
       variation != uniformMetricsVariation
     ) {
-      p.getFontMetrics(uniformMetrics)
-      p.getFontMetricsInt(uniformMetricsInt)
+      p.getFontMetrics(layoutState.uniformMetrics)
+      p.getFontMetricsInt(layoutState.uniformMetricsInt)
       uniformMetricsTypeface = p.typeface
       uniformMetricsSize = p.textSize
       uniformMetricsVariation = variation
     }
-    return uniformMetrics
+    return layoutState.uniformMetrics
   }
 
   private fun advancesFor(text: CharSequence, paint: TextPaint): FloatArray? {
     if (advancesVersion != segmentsInvalidateVersion || advancesLength != text.length) {
-      cachedAdvances = uniformAdvances(text, paint, advancesPaint)
+      cachedAdvances = uniformAdvances(text, paint, layoutState.advancesPaint)
       advancesVersion = segmentsInvalidateVersion
       advancesLength = text.length
     }
     return cachedAdvances
   }
 
-  private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
   private var staticLayoutCacheNextIdx = 0
 
   private var minLineHeightTypeface: Typeface? = null
@@ -2369,27 +2397,14 @@ class TextEngine(val container: TextContainer) {
 
   private fun minLineHeight(paint: TextPaint): Float {
     if (paint.typeface !== minLineHeightTypeface || paint.textSize != minLineHeightTextSize) {
-      paint.getFontMetrics(scratchFontMetrics)
-      val fm = scratchFontMetrics
+      val fm = layoutState.scratchFontMetrics
+      paint.getFontMetrics(fm)
       minLineHeightValue = -fm.ascent + fm.descent + fm.leading
       minLineHeightTypeface = paint.typeface
       minLineHeightTextSize = paint.textSize
     }
     return minLineHeightValue
   }
-
-  // Reused across paint.getFontMetrics() call sites instead of the allocating
-  // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
-  // fields immediately and text measurement/draw all happen on the UI thread.
-  private val scratchFontMetrics = android.graphics.Paint.FontMetrics()
-
-  // Reused per text-run in collectAndCacheSegments() instead of a fresh
-  // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
-  // Nothing retains this instance across runs.
-  private val scratchRunPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
-
-  // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
-  private val scratchSegmentPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
@@ -3078,6 +3093,7 @@ class TextEngine(val container: TextContainer) {
       val ascent: Int,
       val descent: Int,
       val floatHeight: Float,
+      val minLineHeight: Float,
       val asciiInPrimaryFont: Boolean,
     )
 
@@ -3085,21 +3101,29 @@ class TextEngine(val container: TextContainer) {
 
     private const val RUN_METRICS_CACHE_SIZE = 16
 
-    private val runMetricsCache =
+    private val runMetricsCache by lazy(LazyThreadSafetyMode.NONE) {
       object : LinkedHashMap<RunMetricsKey, RunMetrics>(RUN_METRICS_CACHE_SIZE, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<RunMetricsKey, RunMetrics>) =
           size > RUN_METRICS_CACHE_SIZE
       }
-    private val scratchFontMetricsInt = Paint.FontMetricsInt()
-    private val scratchFontMetrics = Paint.FontMetrics()
-    private val PRINTABLE_ASCII = String(CharArray(95) { (' '.code + it).toChar() })
+    }
+    private val scratchFontMetricsInt by lazy(LazyThreadSafetyMode.NONE) { Paint.FontMetricsInt() }
+    private val scratchFontMetrics by lazy(LazyThreadSafetyMode.NONE) { Paint.FontMetrics() }
+    private val PRINTABLE_ASCII by lazy(LazyThreadSafetyMode.NONE) { String(CharArray(95) { (' '.code + it).toChar() }) }
 
-    private var lastRunMetrics: Pair<RunMetricsKey, RunMetrics>? = null
+    private class LastMetrics {
+      var key: RunMetricsKey? = null
+      lateinit var metrics: RunMetrics
+    }
 
-    private fun runMetrics(paint: TextPaint): RunMetrics {
-      lastRunMetrics?.let { (key, metrics) ->
+    // Most texts draw with another size than their view's own paint, so each keeps its last metrics.
+    private val lastRunMetrics by lazy(LazyThreadSafetyMode.NONE) { LastMetrics() }
+    private val lastViewMetrics by lazy(LazyThreadSafetyMode.NONE) { LastMetrics() }
+
+    private fun runMetrics(paint: TextPaint, last: LastMetrics): RunMetrics {
+      last.key?.let { key ->
         if (key.typeface === paint.typeface && key.size == paint.textSize && key.variations == paint.fontVariationSettings) {
-          return metrics
+          return last.metrics
         }
       }
       val key = RunMetricsKey(paint.typeface, paint.textSize, paint.fontVariationSettings)
@@ -3114,9 +3138,13 @@ class TextEngine(val container: TextContainer) {
         RunMetrics(
           ascent, descent,
           floatHeight = fm.descent - fm.ascent,
+          minLineHeight = -fm.ascent + fm.descent + fm.leading,
           asciiInPrimaryFont = fmi.ascent == ascent && fmi.descent == descent,
         )
-      }.also { lastRunMetrics = key to it }
+      }.also {
+        last.key = key
+        last.metrics = it
+      }
     }
 
     private var lastLocale: java.util.Locale? = null
@@ -3137,15 +3165,16 @@ class TextEngine(val container: TextContainer) {
     private const val KNOWN_NONE = -3f
 
     // Prepared texts invalidated during a compute, which writes no Rust node data.
-    private val deferredClears = java.util.WeakHashMap<TextEngine, Boolean>()
+    private var deferredClears: java.util.WeakHashMap<TextEngine, Boolean>? = null
 
     internal fun runDeferredClears() {
-      if (deferredClears.isEmpty()) return
-      for (engine in deferredClears.keys.toMutableList()) engine.clearPreparedText()
+      val engines = deferredClears ?: return
+      deferredClears = null
+      for (engine in engines.keys.toMutableList()) engine.clearPreparedText()
     }
 
     // Texts Rust measures. The rechecks that would drop them do nothing while prepared text is off.
-    private val preparedEngines = java.util.WeakHashMap<TextEngine, Boolean>()
+    private val preparedEngines by lazy(LazyThreadSafetyMode.NONE) { java.util.WeakHashMap<TextEngine, Boolean>() }
 
     internal fun dropPreparedTexts() {
       // toList() calls next() unchecked when size() is 1, and the GC can clear that key first.
