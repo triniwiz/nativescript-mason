@@ -1891,7 +1891,7 @@ impl Tree {
                     let measure_known = if is_inline {
                         Size::NONE
                     } else {
-                        known_dimensions
+                        crate::tree::known_content_box(known_dimensions, available_space)
                     };
                     // debug prints removed
 
@@ -2623,7 +2623,7 @@ impl Tree {
                     let measure_known = if is_inline {
                         Size::NONE
                     } else {
-                        known_dimensions
+                        crate::tree::known_content_box(known_dimensions, available_space)
                     };
                     // Measure callback must be invoked outside of long-held
                     // tree locks; we copy the measure earlier to enforce this.
