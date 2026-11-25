@@ -160,6 +160,7 @@ class Input @JvmOverloads constructor(
       textSize = style.fontSize.toFloat()
       setHorizontallyScrolling(true)
       setPadding(0, 0, 0, 0)
+      includeFontPadding = false
       background = null
       ellipsize = null
       inputType =
@@ -1291,8 +1292,8 @@ class Input @JvmOverloads constructor(
       }
 
       else -> {
-        // style.paint is fixed at the default size for non-text views.
-        fontScale = style.resolvedFontSize.toFloat() / Constants.DEFAULT_FONT_SIZE
+        // style.paint keeps the default size for non-text views, scaled by the system font scale.
+        fontScale = style.resolvedFontSize.toFloat() * resources.displayMetrics.density / style.paint.textSize
         ch = style.paint.measureText("0") * fontScale
       }
     }
