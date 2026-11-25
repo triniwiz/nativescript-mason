@@ -314,6 +314,21 @@ pub(crate) fn leaf_layout_style(style: &Style) -> LeafStyle {
     }
 }
 
+/// The content-box size of a leaf with a `known` border-box size. compute_leaf_layout gives the
+/// measure the border box as `known` and the content box as `available`.
+pub(crate) fn known_content_box(
+    known: Size<Option<f32>>,
+    available: Size<AvailableSpace>,
+) -> Size<Option<f32>> {
+    let content = |known: Option<f32>, available: AvailableSpace| {
+        known.and(available.into_option()).map(|size| size.max(0.0))
+    };
+    Size {
+        width: content(known.width, available.width),
+        height: content(known.height, available.height),
+    }
+}
+
 fn quantize_available(space: AvailableSpace) -> AvailableSpace {
     match space {
         AvailableSpace::Definite(w) => AvailableSpace::Definite(quantize_key(w)),
@@ -3176,6 +3191,11 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
+                                    let final_known = if is_text_container {
+                                        known_content_box(final_known, available_space)
+                                    } else {
+                                        final_known
+                                    };
                                     // Vertical text runs its lines along the height: measure in
                                     // the platform's horizontal frame, then turn the result back.
                                     let (final_known, available_space, known_dimensions) =
