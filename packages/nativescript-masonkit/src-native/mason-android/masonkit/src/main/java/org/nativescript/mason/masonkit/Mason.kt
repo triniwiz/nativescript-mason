@@ -439,12 +439,18 @@ class Mason {
     return node
   }
 
-  fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
-    val func = MeasureFuncImpl(WeakReference(measure))
+  fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node =
+    createTextNode(isAnonymous = isAnonymous).apply {
+      this.isAnonymous = isAnonymous
+      setMeasureFunction(measure)
+    }
+
+  internal fun createTextEngineNode(textView: TextView, isAnonymous: Boolean): Node {
+    val func = MeasureFuncImpl(WeakReference(textView))
     val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func.objectId, isAnonymous)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = WeakReference(this)
-      measureFunc = measure
+      measureFunc = textView
       measureFuncImpl = func
       this.isAnonymous = isAnonymous
     }
@@ -473,11 +479,24 @@ class Mason {
   }
 
   fun createButtonNode(measure: MeasureFunc): Node {
-    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr = NativeHelpers.nativeNodeNewButton(nativePtr)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = WeakReference(this)
+      setMeasureFunction(measure)
+    }
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
+
+    return node
+  }
+
+  internal fun createTextEngineButtonNode(button: Button): Node {
+    val func = MeasureFuncImpl(WeakReference(button))
     val nodePtr = NativeHelpers.nativeNodeNewButtonWithContext(nativePtr, func.objectId)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = WeakReference(this)
-      measureFunc = measure
+      measureFunc = button
       measureFuncImpl = func
     }
     NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)

@@ -935,7 +935,7 @@ open class TextView @JvmOverloads constructor(
   }
 
   internal open fun createOwnNode(mason: Mason, isAnonymous: Boolean): Node =
-    mason.createTextNode(this, isAnonymous)
+    mason.createTextEngineNode(this, isAnonymous)
 
   // A button centres its label, several lines included.
   internal open val centersVertically: Boolean

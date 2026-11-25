@@ -5,12 +5,11 @@ use crate::MeasureOutput;
 use std::fmt::Debug;
 
 /// Maps `AvailableSpace` to the float sentinel encoding used at FFI boundaries.
-/// `MinContent` → `-1.0`, `MaxContent` → `-2.0`, `Definite(v)` → `v`.
 #[inline]
 fn available_space_to_f32(space: AvailableSpace) -> f32 {
     match space {
-        AvailableSpace::MinContent => -1.0,
-        AvailableSpace::MaxContent => -2.0,
+        AvailableSpace::MinContent => MIN_CONTENT_QUERY,
+        AvailableSpace::MaxContent => MAX_CONTENT_QUERY,
         AvailableSpace::Definite(v) => v,
     }
 }
@@ -156,20 +155,12 @@ impl NodeMeasure {
                     let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
                     // Trace inputs to the JVM measure call for auditing.
                     let packed_known = MeasureOutput::make_bits(
-                        known_dimensions.width.unwrap_or(-3.0).to_bits(),
-                        known_dimensions.height.unwrap_or(-3.0).to_bits(),
+                        known_dimensions.width.unwrap_or(KNOWN_NONE).to_bits(),
+                        known_dimensions.height.unwrap_or(KNOWN_NONE).to_bits(),
                     );
                     let packed_avail = MeasureOutput::make_bits(
-                        match available_space.width {
-                            AvailableSpace::MinContent => (-1f32).to_bits(),
-                            AvailableSpace::MaxContent => (-2f32).to_bits(),
-                            AvailableSpace::Definite(value) => value.to_bits(),
-                        },
-                        match available_space.height {
-                            AvailableSpace::MinContent => (-1f32).to_bits(),
-                            AvailableSpace::MaxContent => (-2f32).to_bits(),
-                            AvailableSpace::Definite(value) => value.to_bits(),
-                        },
+                        available_space_to_f32(available_space.width).to_bits(),
+                        available_space_to_f32(available_space.height).to_bits(),
                     );
 
                     let result = unsafe {
@@ -450,6 +441,9 @@ pub enum NodeStateKeys {
 
 pub const NODE_STATE_BUFFER_SIZE: usize = 12;
 
+pub const MIN_CONTENT_QUERY: f32 = -1.0;
+pub const MAX_CONTENT_QUERY: f32 = -2.0;
+pub const KNOWN_NONE: f32 = -3.0;
 /// `available_width` of a measure call that asks a text leaf for its last line's baseline, from
 /// the top of a content box the known size; it answers in the width.
 pub const BASELINE_QUERY: f32 = -4.0;
@@ -610,6 +604,7 @@ pub struct Node {
     pub(crate) final_layout: Layout,
     pub(crate) guard: Arc<()>,
     pub(crate) has_measure: bool,
+    pub(crate) measures_with_text_engine: bool,
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
     // Boxed because platform code maps this buffer as a raw pointer and caches it;
@@ -637,6 +632,7 @@ impl Node {
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
+            measures_with_text_engine: false,
             type_: NodeType::Normal,
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
@@ -661,6 +657,7 @@ impl Node {
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
+            measures_with_text_engine: false,
             type_: NodeType::Normal,
             is_anonymous: false,
             state: Box::new([0u8; NODE_STATE_BUFFER_SIZE]),
