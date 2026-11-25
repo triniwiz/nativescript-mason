@@ -212,7 +212,7 @@ fn native_new_text_node_with_context(taffy: jlong, measure: jint, is_anonymous: 
             mason.create_text_node()
         };
 
-        mason.setup(node.id(), measure);
+        mason.set_text_engine_measure(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
     }
@@ -1542,7 +1542,7 @@ fn native_new_button_node_with_context(taffy: jlong, measure: jint) -> jlong {
 
         let node = mason.create_button_node();
 
-        mason.setup(node.id(), measure);
+        mason.set_text_engine_measure(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
     }

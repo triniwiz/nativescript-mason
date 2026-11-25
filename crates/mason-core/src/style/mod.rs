@@ -762,6 +762,11 @@ pub const TRANSFORM_FLAG_HAS_MATRIX: u8 = 0x01;
 pub const TRANSFORM_FLAG_IS_3D: u8 = 0x02;
 pub const VISIBILITY_COLLAPSE: u8 = 2;
 
+pub const STYLE_STATE_INHERIT: u8 = 0;
+pub const STYLE_STATE_SET: u8 = 1;
+pub const TEXT_INDENT_TYPE_LENGTH: u8 = 0;
+pub const TEXT_INDENT_TYPE_PERCENT: u8 = 1;
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TransformOpType {

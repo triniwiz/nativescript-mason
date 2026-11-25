@@ -329,11 +329,46 @@ pub(crate) fn known_content_box(
     }
 }
 
-fn quantize_available(space: AvailableSpace) -> AvailableSpace {
+pub(crate) fn key_available(space: AvailableSpace, key: fn(f32) -> f32) -> AvailableSpace {
     match space {
-        AvailableSpace::Definite(w) => AvailableSpace::Definite(quantize_key(w)),
+        AvailableSpace::Definite(w) => AvailableSpace::Definite(key(w)),
         other => other,
     }
+}
+
+/// See `ceilConstraint` in TextEngine.kt.
+pub(crate) fn ceil_constraint(w: f32) -> f32 {
+    let kotlin_wraps_at_w = w > 1.0 / 64.0;
+    if kotlin_wraps_at_w {
+        (w - 1.0 / 64.0).ceil()
+    } else {
+        w
+    }
+}
+
+pub(crate) fn keys_by_wrap_width(tree: &TreeInner, id: Id) -> bool {
+    cfg!(target_os = "android")
+        && tree
+            .nodes
+            .get(id)
+            .is_some_and(|node| node.measures_with_text_engine)
+        && !indent_resolves_against_exact_width(tree, id)
+}
+
+/// See `resolveTextIndent` in Style.kt.
+fn indent_resolves_against_exact_width(tree: &TreeInner, id: Id) -> bool {
+    use crate::style::{StyleKeys, STYLE_STATE_INHERIT, TEXT_INDENT_TYPE_PERCENT};
+    let mut current = id;
+    while let Some(node) = tree.nodes.get(current) {
+        let data = node.style().data();
+        match tree.parents.get(current).copied().flatten() {
+            Some(parent) if data[StyleKeys::TEXT_INDENT_STATE as usize] == STYLE_STATE_INHERIT => {
+                current = parent
+            }
+            _ => return data[StyleKeys::TEXT_INDENT_TYPE as usize] == TEXT_INDENT_TYPE_PERCENT,
+        }
+    }
+    false
 }
 
 /// Platforms whose text measure breaks greedily and reports the widest line,
@@ -3067,6 +3102,7 @@ impl LayoutBlockContainer for Tree {
                             style_size,
                             measure,
                             is_text_container,
+                            wrap_width_keys,
                             tree_uid,
                             vertical,
                             viewport_height,
@@ -3079,6 +3115,7 @@ impl LayoutBlockContainer for Tree {
                             let style = leaf_layout_style(node.style());
                             let style_size = node.style().get_size();
                             let is_text_container = node.is_text_container();
+                            let wrap_width_keys = keys_by_wrap_width(&inner, id);
                             let vertical =
                                 is_text_container && is_vertical_writing_mode(&inner, id);
                             let orthogonal = vertical && !crate::writing_mode::is_parallel_flow(id);
@@ -3095,6 +3132,7 @@ impl LayoutBlockContainer for Tree {
                                 style_size,
                                 measure,
                                 is_text_container,
+                                wrap_width_keys,
                                 tree_uid,
                                 vertical,
                                 viewport_height,
@@ -3221,25 +3259,41 @@ impl LayoutBlockContainer for Tree {
                                             available_space
                                         };
 
-                                    let q_known = Size {
+                                    let offered_known = Size {
                                         width: final_known.width.map(quantize_key),
                                         height: final_known.height.map(quantize_key),
                                     };
-                                    let key_avail = Size {
-                                        width: quantize_available(canonical_avail.width),
-                                        height: quantize_available(canonical_avail.height),
+                                    let offered_avail = Size {
+                                        width: key_available(canonical_avail.width, quantize_key),
+                                        height: key_available(canonical_avail.height, quantize_key),
+                                    };
+                                    let width_key: fn(f32) -> f32 = if wrap_width_keys {
+                                        ceil_constraint
+                                    } else {
+                                        quantize_key
+                                    };
+                                    let wrap_width_known = Size {
+                                        width: final_known.width.map(width_key),
+                                        ..offered_known
+                                    };
+                                    let wrap_width_avail = Size {
+                                        width: key_available(canonical_avail.width, width_key),
+                                        ..offered_avail
                                     };
 
                                     let cache_key = block_key(tree_uid, id);
                                     let cached = block_measure_cache()
                                         .get(&cache_key)
-                                        .and_then(|c| c.get(q_known, key_avail));
+                                        .and_then(|c| c.get(wrap_width_known, wrap_width_avail));
                                     let fit = if TEXT_FIT_FROM_MAX_CONTENT
                                         && is_text_container
                                         && cached.is_none()
                                     {
                                         block_measure_cache().get(&cache_key).and_then(|c| {
-                                            c.text_fit_from_max_content(q_known, key_avail)
+                                            c.text_fit_from_max_content(
+                                                offered_known,
+                                                offered_avail,
+                                            )
                                         })
                                     } else {
                                         None
@@ -3255,7 +3309,7 @@ impl LayoutBlockContainer for Tree {
                                         block_measure_cache()
                                             .entry(cache_key)
                                             .or_insert_with(InlineMeasureCache::new)
-                                            .store(q_known, key_avail, meas);
+                                            .store(wrap_width_known, wrap_width_avail, meas);
                                         meas
                                     };
                                     if vertical {
@@ -3950,6 +4004,107 @@ mod print_tree_tests {
         let analysis = tree.analyze_subtree(parent.id());
         assert!(analysis.all_inline);
         assert!(!analysis.has_mixed_content);
+    }
+}
+
+#[cfg(test)]
+mod wrap_width_key_tests {
+    use super::*;
+    use crate::node::{BASELINE_QUERY, KNOWN_NONE, MAX_CONTENT_QUERY, MIN_CONTENT_QUERY};
+    use crate::style::{
+        StyleKeys, STYLE_STATE_SET, TEXT_INDENT_TYPE_LENGTH, TEXT_INDENT_TYPE_PERCENT,
+    };
+
+    fn kotlin_ceil_constraint(w: f32) -> f32 {
+        (w - 1.0 / 64.0).ceil()
+    }
+
+    #[test]
+    fn a_width_keys_on_the_whole_pixel_kotlin_wraps_at() {
+        let edge: f32 = 100.0 + 1.0 / 64.0;
+        let cases = [
+            (99.5, 100.0),
+            (99.99, 100.0),
+            (100.0, 100.0),
+            (100.001, 100.0),
+            (edge, 100.0),
+            (f32::from_bits(edge.to_bits() + 1), 101.0),
+            (100.25, 101.0),
+            (100.5, 101.0),
+            (100.999, 101.0),
+            (0.02, 1.0),
+            (1079.63, 1080.0),
+        ];
+        for (width, key) in cases {
+            assert_eq!(ceil_constraint(width), key, "{width}");
+            assert_eq!(
+                ceil_constraint(width),
+                kotlin_ceil_constraint(width),
+                "{width}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_width_kotlin_does_not_wrap_at_keeps_its_exact_key() {
+        let exact = [
+            0.0,
+            -0.0,
+            1.0 / 128.0,
+            1.0 / 64.0,
+            -0.5,
+            MIN_CONTENT_QUERY,
+            MAX_CONTENT_QUERY,
+            KNOWN_NONE,
+            BASELINE_QUERY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+        ];
+        for width in exact {
+            assert_eq!(ceil_constraint(width).to_bits(), width.to_bits(), "{width}");
+        }
+        assert!(ceil_constraint(f32::NAN).is_nan());
+    }
+
+    #[test]
+    fn intrinsic_sizes_keep_their_keys() {
+        let key = |space| key_available(space, ceil_constraint);
+        assert_eq!(key(AvailableSpace::MinContent), AvailableSpace::MinContent);
+        assert_eq!(key(AvailableSpace::MaxContent), AvailableSpace::MaxContent);
+        assert_eq!(
+            key(AvailableSpace::Definite(200.25)),
+            AvailableSpace::Definite(201.0)
+        );
+    }
+
+    #[test]
+    fn a_percentage_text_indent_resolves_from_the_nearest_set_style() {
+        fn set_indent(tree: &mut Tree, id: Id, percent: bool) {
+            tree.with_style_mut(id, |style| {
+                let data = style.data_mut();
+                data[StyleKeys::TEXT_INDENT_TYPE as usize] = if percent {
+                    TEXT_INDENT_TYPE_PERCENT
+                } else {
+                    TEXT_INDENT_TYPE_LENGTH
+                };
+                data[StyleKeys::TEXT_INDENT_STATE as usize] = STYLE_STATE_SET;
+            });
+        }
+        let mut tree = Tree::new();
+        let root = tree.create_node();
+        let div = tree.create_node();
+        let text = tree.create_text_node();
+        tree.append(root.id(), div.id());
+        tree.append(div.id(), text.id());
+        let percent = |tree: &Tree| indent_resolves_against_exact_width(&tree.inner(), text.id());
+
+        assert!(!percent(&tree));
+        set_indent(&mut tree, root.id(), true);
+        assert!(percent(&tree), "inherited from the root");
+        set_indent(&mut tree, div.id(), false);
+        assert!(!percent(&tree), "the nearest set ancestor wins");
+        set_indent(&mut tree, text.id(), true);
+        assert!(percent(&tree), "its own wins");
     }
 }
 

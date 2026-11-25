@@ -1477,10 +1477,24 @@ impl Tree {
             } else {
                 available_space
             };
+        let wrap_width_keys = crate::tree::keys_by_wrap_width(&self.inner(), child_id);
+        let width_key: fn(f32) -> f32 = if wrap_width_keys {
+            crate::tree::ceil_constraint
+        } else {
+            |w| w
+        };
+        let wrap_width_known = Size {
+            width: known_dimensions.width.map(width_key),
+            ..known_dimensions
+        };
+        let wrap_width_available = Size {
+            width: crate::tree::key_available(available_space.width, width_key),
+            ..available_space
+        };
         {
             let node = &self.nodes()[child_id];
             let cache = &node.inline_measure_cache;
-            if let Some(cached) = cache.get(known_dimensions, available_space) {
+            if let Some(cached) = cache.get(wrap_width_known, wrap_width_available) {
                 return cached;
             }
             if crate::tree::TEXT_FIT_FROM_MAX_CONTENT && node.is_text_container() {
@@ -1493,8 +1507,8 @@ impl Tree {
         }
         let result = measure.measure(known_dimensions, available_space);
         self.nodes_mut()[child_id].inline_measure_cache.store(
-            known_dimensions,
-            available_space,
+            wrap_width_known,
+            wrap_width_available,
             result,
         );
         result

@@ -571,9 +571,19 @@ impl Mason {
         }
         if let Some(n) = self.0.nodes_mut().get_mut(node) {
             n.has_measure = has_measure;
+            n.measures_with_text_engine = false;
         }
         // measure fn changed; invalidate cached layout
         self.0.mark_dirty(node);
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn set_text_engine_measure(&mut self, node: Id, measure: jni::sys::jint) {
+        self.set_measure(node, measure);
+        if let Some(n) = self.0.nodes_mut().get_mut(node) {
+            n.measures_with_text_engine = true;
+        }
     }
 
     /// Measures the node from `text` instead of its JVM measure, or from the JVM measure again
