@@ -190,6 +190,37 @@ class PreparedTextParityTest {
   }
 
   @Test
+  fun anAlignedLineAboutAsWideAsItsBoxIsDrawnAsWithStaticLayout() {
+    for (text in listOf("Odd width", "Two words", "A button")) assertAlignedTextInBoxesAboutAsWideAsMatches(text, text)
+  }
+
+  @Test
+  fun alignedLinesEachAboutAsWideAsTheirBoxAreDrawnAsWithStaticLayout() =
+    assertAlignedTextInBoxesAboutAsWideAsMatches("nnn nnn", text = "nnn nnn nnn nnn")
+
+  private fun assertAlignedTextInBoxesAboutAsWideAsMatches(line: String, text: String) {
+    val paint = TextView(context, Mason(), TextType.None).apply { setTextSize(15f) }.paint
+    val lineWidth = paint.getRunAdvance(line, 0, line.length, 0, line.length, false, line.length)
+    assertSceneMatches(floatArrayOf(400f)) { mason ->
+      val root = mason.createView(context)
+      for (align in listOf(TextAlign.Center, TextAlign.Right)) for (widthIsTheTexts in listOf(true, false)) {
+        for (step in -5..15) for (left in floatArrayOf(0f, 0.3f, 0.6f, 0.9f)) {
+          val width = lineWidth + step * 0.2f
+          val box = mason.createView(context).apply { setPadding(left, 0f, 0f, 0f) }
+          if (!widthIsTheTexts) box.style.setSizeWidth(width + left, Dimension.Kind.Points.value)
+          box.addView(text(mason, text, 15f) {
+            it.display = Display.Block
+            it.textAlign = align
+            if (widthIsTheTexts) it.setSizeWidth(width, Dimension.Kind.Points.value)
+          })
+          root.addView(box)
+        }
+      }
+      root
+    }
+  }
+
+  @Test
   fun textWithAnExplicitLineHeightIsDrawnAsWithStaticLayoutAtEveryWidth() = assertSceneMatches(ODD_WIDTHS) { mason ->
     val root = column(mason)
     for ((lineHeight, relative) in LINE_HEIGHTS_AROUND_16_DIP_TEXT) {

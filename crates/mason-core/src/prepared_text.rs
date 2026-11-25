@@ -3,6 +3,9 @@ use taffy::{AvailableSpace, Size};
 
 const UNBOUNDED: f32 = 1_000_000.0;
 
+/// TextEngine.DRAW_WIDTH_SLACK.
+const DRAW_WIDTH_SLACK: f32 = 2.0;
+
 #[derive(Debug, Clone, Copy)]
 pub enum LineHeight {
     Normal(f32),
@@ -46,8 +49,17 @@ impl Flow {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Alignment {
+    #[default]
+    Normal,
+    Opposite,
+    Center,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Paragraph {
+    pub alignment: Alignment,
     pub first_line_indent_px: i32,
     pub nowrap: bool,
     pub centers_vertically: bool,
@@ -64,6 +76,12 @@ pub struct LineBox {
     pub baseline: i32,
     pub ascent: i32,
     pub descent: i32,
+}
+
+#[derive(Debug)]
+pub struct DrawnLayout {
+    pub width: f32,
+    pub lines: Vec<LineBox>,
 }
 
 /// The text from one line-break opportunity to the next.
@@ -328,16 +346,85 @@ impl PreparedText {
         })
     }
 
+    fn layout_width(&self, width: f32) -> f32 {
+        if self.paragraph.nowrap {
+            UNBOUNDED
+        } else {
+            ceil_constraint(width)
+        }
+    }
+
+    /// The layout TextView draws in a view `view_width` px wide inside its padding: the one measured
+    /// at `content_width`, or one laid out again at the view's width.
+    pub fn drawn_layout(
+        &self,
+        content_width: f32,
+        view_width: f32,
+        width_from_parent: bool,
+    ) -> DrawnLayout {
+        let Paragraph {
+            alignment,
+            first_line_indent_px,
+            nowrap,
+            ..
+        } = self.paragraph;
+        let width = if nowrap || first_line_indent_px != 0 {
+            view_width
+        } else if alignment == Alignment::Normal
+            || self.measured_layout_fits_view(content_width, view_width, width_from_parent)
+        {
+            content_width
+        } else {
+            view_width
+        };
+        DrawnLayout {
+            width: self.layout_width(width),
+            lines: self.line_boxes(width),
+        }
+    }
+
+    /// TextView.cachedStaticLayoutFits for the layout measured at `content_width`. TextEngine builds
+    /// none where it answers with the max-content, which TextEngine.warmMeasures measures first for
+    /// a text whose width isn't its parent's.
+    fn measured_layout_fits_view(
+        &self,
+        content_width: f32,
+        view_width: f32,
+        width_from_parent: bool,
+    ) -> bool {
+        let limit = ceil_constraint(content_width);
+        if !width_from_parent && self.one_line_width.ceil() <= limit {
+            return false;
+        }
+        let lines = self.lines(limit);
+        let narrowest = self.max_line_width(&lines, limit).floor();
+        (narrowest..=limit + DRAW_WIDTH_SLACK).contains(&view_width)
+            && self.starts_at_left_edge(&lines, limit)
+    }
+
+    fn starts_at_left_edge(&self, lines: &[Line], limit: f32) -> bool {
+        let boring_layout = self.fits_one_line(limit);
+        let last = lines.len().saturating_sub(1);
+        lines.iter().enumerate().all(|(i, line)| {
+            let line_max = if boring_layout {
+                self.one_line_width.ceil()
+            } else {
+                self.line_max(line, i == last)
+            };
+            match self.paragraph.alignment {
+                Alignment::Normal => true,
+                Alignment::Opposite => limit == line_max,
+                Alignment::Center => ((limit - line_max) / 2.0).floor() == 0.0,
+            }
+        })
+    }
+
     pub fn line_boxes(&self, width: f32) -> Vec<LineBox> {
         // TextView builds no StaticLayout to draw in a box with no width.
         if !(width > 0.0 && width.is_finite()) {
             return Vec::new();
         }
-        let limit = if self.paragraph.nowrap {
-            UNBOUNDED
-        } else {
-            ceil_constraint(width)
-        };
+        let limit = self.layout_width(width);
         let lines = self.lines(limit);
         let boring_layout = self.drawn_as_boring_layout(&lines, limit);
         lines
@@ -796,6 +883,76 @@ mod tests {
                 "{flow:?}"
             );
         }
+    }
+
+    fn aligned(text: &str, advance: f32, breaks: &[u32], alignment: Alignment) -> PreparedText {
+        let text: Vec<u16> = text.encode_utf16().collect();
+        let paragraph = Paragraph {
+            alignment,
+            ..Paragraph::default()
+        };
+        let advances = vec![advance; text.len()];
+        PreparedText::new(&text, advances, breaks, METRICS, Flow::Block, paragraph)
+    }
+
+    fn drawn(text: &PreparedText, content_width: f32, view_width: f32) -> (f32, Vec<u32>) {
+        let layout = text.drawn_layout(content_width, view_width, true);
+        let starts = layout.lines.iter().map(|line| line.start).collect();
+        (layout.width, starts)
+    }
+
+    #[test]
+    fn an_aligned_line_that_fills_its_measured_layout_is_drawn_in_it() {
+        let centred = aligned("ab cd", 11.54, &[3, 5], Alignment::Center);
+        assert_eq!(drawn(&centred, 57.75, 57.0), (58.0, vec![0]), "57.7 px");
+        assert_eq!(drawn(&centred, 57.75, 60.0), (58.0, vec![0]));
+        assert_eq!(drawn(&centred, 57.75, 61.0), (61.0, vec![0]));
+        assert_eq!(drawn(&centred, 57.75, 56.0), (56.0, vec![0, 3]));
+        assert_eq!(
+            drawn(&centred, 59.9, 61.0),
+            (61.0, vec![0]),
+            "2.3 px short of filling it"
+        );
+        let end = aligned("ab cd", 11.54, &[3, 5], Alignment::Opposite);
+        assert_eq!(
+            drawn(&end, 57.75, 59.0),
+            (59.0, vec![0]),
+            "0.3 px from the left edge"
+        );
+    }
+
+    #[test]
+    fn an_end_aligned_boring_layout_as_wide_as_its_line_is_drawn_in_wider_views() {
+        let text = aligned("ab cd", 11.46, &[3, 5], Alignment::Opposite);
+        assert_eq!(drawn(&text, 57.9, 59.0), (58.0, vec![0]), "57.3 px, so 58");
+        assert_eq!(drawn(&text, 57.9, 57.0), (57.0, vec![0, 3]));
+    }
+
+    #[test]
+    fn centred_lines_that_all_fill_their_measured_layout_are_drawn_in_it() {
+        let text = aligned("ab cd ab cd", 10.0, &[3, 6, 9, 11], Alignment::Center);
+        assert_eq!(drawn(&text, 50.4, 50.0), (51.0, vec![0, 6]));
+        assert_eq!(drawn(&text, 50.4, 53.0), (51.0, vec![0, 6]));
+        assert_eq!(drawn(&text, 50.4, 49.0), (49.0, vec![0, 3, 6, 9]));
+        let uneven = aligned("ab cd ab c", 10.0, &[3, 6, 9, 10], Alignment::Center);
+        assert_eq!(drawn(&uneven, 50.4, 50.0), (50.0, vec![0, 6]));
+    }
+
+    #[test]
+    fn a_line_its_max_content_answered_for_is_laid_out_at_the_views_width() {
+        let text = aligned("ab cd", 11.46, &[3, 5], Alignment::Center);
+        assert_eq!(text.drawn_layout(58.0, 60.0, true).width, 58.0);
+        assert_eq!(text.drawn_layout(58.0, 60.0, false).width, 60.0);
+        let wrapped = aligned("ab cd ab cd", 10.0, &[3, 6, 9, 11], Alignment::Center);
+        assert_eq!(wrapped.drawn_layout(50.4, 50.0, false).width, 51.0);
+    }
+
+    #[test]
+    fn indented_and_unwrapped_text_is_laid_out_again_to_draw_it() {
+        let text = indented("ab cd", vec![11.54; 5], &[3, 5], Flow::Block, 1);
+        assert_eq!(drawn(&text, 57.75, 57.0), (57.0, vec![0, 3]));
+        let text = unwrapped("ab cd", 11.54, &[3, 5], Flow::Block);
+        assert_eq!(drawn(&text, 57.75, 57.0), (UNBOUNDED, vec![0]));
     }
 
     fn baseline_in(text: &PreparedText, width: f32, height: f32) -> f32 {

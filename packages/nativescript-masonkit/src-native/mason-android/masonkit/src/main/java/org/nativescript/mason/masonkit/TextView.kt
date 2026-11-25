@@ -118,18 +118,16 @@ open class TextView @JvmOverloads constructor(
   private val layoutContentWidth: Float
     get() = node.run { computedWidth - computedPaddingLeft - computedPaddingRight - computedBorderLeft - computedBorderRight }
 
-  internal fun drawnLines(prepared: PreparedRun, paint: TextPaint = preparedPaint(prepared.runStyle)): DrawnLines? {
-    val contentWidth = width - paddingLeft - paddingRight
-    val linesWidth = if (prepared.paragraph.drawnAtViewWidth) contentWidth.toFloat() else layoutContentWidth
-    return prepared.drawnLines(linesWidth, contentWidth, paint)
-  }
+  internal fun drawnLines(prepared: PreparedRun, paint: TextPaint = preparedPaint(prepared.runStyle)): DrawnLines? =
+    prepared.drawnLines(layoutContentWidth, width - paddingLeft - paddingRight, paint)
 
   private fun drawPreparedLines(c: Canvas, prepared: PreparedRun): Boolean {
     val paint = preparedPaint(prepared.runStyle)
     val drawn = drawnLines(prepared, paint) ?: return false
     val lines = drawn.lines
     val contentWidth = width - paddingLeft - paddingRight
-    val dx = paddingLeft + (containerAlignmentShift(lines, contentWidth) ?: prepared.paragraph.unconstrainedAlignmentShift(contentWidth))
+    val dx = paddingLeft + (containerAlignmentShift(lines, contentWidth)
+      ?: prepared.paragraph.unconstrainedAlignmentShift(lines.layoutWidth, contentWidth))
     val dy = paddingTop + verticalOffset(lines, height - paddingTop - paddingBottom)
     val text = prepared.text
     // Translate rather than add dx to lefts: an aligned nowrap line sits up to a million px right,

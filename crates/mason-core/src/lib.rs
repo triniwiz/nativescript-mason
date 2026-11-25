@@ -592,8 +592,16 @@ impl Mason {
     }
 
     #[cfg(target_os = "android")]
-    pub fn prepared_text_lines(&self, node: Id, width: f32) -> Option<Vec<prepared_text::LineBox>> {
-        Some(self.0.node_data().get(node)?.prepared_text.as_ref()?.line_boxes(width))
+    pub fn prepared_text_drawn_layout(
+        &self,
+        node: Id,
+        content_width: f32,
+        view_width: f32,
+        width_from_parent: bool,
+    ) -> Option<prepared_text::DrawnLayout> {
+        let nodes = self.0.node_data();
+        let text = nodes.get(node)?.prepared_text.as_ref()?;
+        Some(text.drawn_layout(content_width, view_width, width_from_parent))
     }
 
     /// Alias for [`set_measure`]; kept for ABI compatibility.

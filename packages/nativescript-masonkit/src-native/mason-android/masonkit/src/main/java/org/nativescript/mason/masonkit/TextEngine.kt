@@ -2166,7 +2166,7 @@ class TextEngine(val container: TextContainer) {
       paragraph = child.paragraph,
     )
     if (!prepared) return false
-    this.prepared = PreparedRun(node, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
+    this.prepared = PreparedRun(this, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
     preparedEngines[this] = true
     if (appliedTextVersion != segmentsInvalidateVersion) {
       view.setTextDeferred(text, BufferType.NORMAL)
@@ -3028,7 +3028,7 @@ class TextEngine(val container: TextContainer) {
   // Block flow and a stretching flex column size a box at its container's width. When that holds
   // from the text up to the root (or a fixed width), taffy never asks the text for min- or
   // max-content, so warming those would be wasted.
-  private fun widthFromParent(): Boolean {
+  internal fun widthFromParent(): Boolean {
     var child = node
     var isText = true
     for (depth in 0 until 64) {
