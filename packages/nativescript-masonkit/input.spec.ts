@@ -53,6 +53,29 @@ describe('placeholder', () => {
 
     expect(setPlaceholder.mock.calls).toEqual([[''], ['']]);
   });
+
+  describe.each([
+    ['input', Input],
+    ['textarea', TextArea],
+  ])('on %s', (_name, Element) => {
+    it.each<[unknown, string]>([
+      [5, '5'],
+      [0, '0'],
+      [false, 'false'],
+      [null, ''],
+      [undefined, ''],
+    ])('is a string: %j becomes %j', (value, text) => {
+      const setPlaceholder = vi.fn();
+      const element = new Element() as any;
+      element[native_] = { setPlaceholder };
+      element._resumeNativeUpdates(element._suspendNativeUpdatesCount);
+      element.placeholder = 'before';
+      element.placeholder = value;
+
+      expect(setPlaceholder.mock.calls).toEqual([['before'], [text]]);
+      expect(element.placeholder).toBe(text);
+    });
+  });
 });
 
 describe('Input.checked', () => {

@@ -9,6 +9,7 @@ import {
   ViewBase as NSViewBase,
   getViewById,
   Property,
+  CoercibleProperty,
   widthProperty,
   heightProperty,
   View,
@@ -287,10 +288,11 @@ function findOwnerForNativeView(owner: any, nativeView: any): ViewBase | NSViewB
   return null;
 }
 
-export const textContentProperty = new Property<ViewBase, string>({
+export const textContentProperty = new CoercibleProperty<ViewBase, string>({
   name: 'textContent',
   affectsLayout: true,
   defaultValue: '',
+  coerceValue: (_target, value) => (value == null ? '' : String(value)),
 });
 
 declare module '@nativescript/core/ui/styling/style' {

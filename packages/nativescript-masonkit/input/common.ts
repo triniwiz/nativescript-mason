@@ -1,4 +1,4 @@
-import { booleanConverter, CssProperty, Property, Style } from '@nativescript/core';
+import { booleanConverter, CoercibleProperty, CssProperty, Property, Style } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { InputType } from '..';
 import { native_ } from '../symbols';
@@ -268,9 +268,10 @@ export const nameProperty = new Property<InputElementBase, string>({
 
 nameProperty.register(InputElementBase);
 
-export const placeholderProperty = new Property<InputBase, string>({
+export const placeholderProperty = new CoercibleProperty<InputBase, string>({
   name: 'placeholder',
   defaultValue: '',
+  coerceValue: (_target, value) => (value == null ? '' : String(value)),
 });
 
 placeholderProperty.register(InputBase);
