@@ -1,0 +1,39 @@
+<demo-page title="Feed - MasonKit">
+  <main class="feed">
+    <div class="toolbar">
+      <div class="tool" (tap)="append()">
+        <span class="tool-text">+20</span>
+      </div>
+      <div class="tool" (tap)="prepend()">
+        <span class="tool-text">Prepend</span>
+      </div>
+      <div class="tool" (tap)="shuffle()">
+        <span class="tool-text">Shuffle</span>
+      </div>
+      <div class="tool" (tap)="retitle(nextStep())">
+        <span class="tool-text">Retitle</span>
+      </div>
+      <div class="tool" (tap)="clear()">
+        <span class="tool-text">Clear</span>
+      </div>
+      <div class="tool" (tap)="refill()">
+        <span class="tool-text">Refill</span>
+      </div>
+    </div>
+    <span class="count" [text]="`${items().length} rows`"></span>
+    @for (item of items(); track item.id) {
+      <div class="row">
+        <div class="avatar" [backgroundColor]="item.color">
+          <span class="avatar-text" text="{{ item.id % 100 }}"></span>
+        </div>
+        <div class="body">
+          <span class="title" [text]="item.title"></span>
+          <span class="subtitle" [text]="item.subtitle"></span>
+        </div>
+        <div class="badge">
+          <span class="badge-text" [text]="item.badge"></span>
+        </div>
+      </div>
+    }
+  </main>
+</demo-page>

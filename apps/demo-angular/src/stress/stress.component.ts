@@ -1,5 +1,5 @@
-import { Component, NO_ERRORS_SCHEMA } from '@angular/core';
-import { NativeScriptCommonModule, NativeScriptRouterModule } from '@nativescript/angular';
+import { Component, inject, NO_ERRORS_SCHEMA } from '@angular/core';
+import { NativeScriptCommonModule, NativeScriptRouterModule, RouterExtensions } from '@nativescript/angular';
 import { ChipAltComponent, ChipComponent } from './chip.component';
 
 interface Item {
@@ -16,8 +16,9 @@ interface Item {
  * `ViewUtil` that a MasonKit container hits when it is registered without the
  * child-bookkeeping meta.
  */
-@Component({ selector: 'stress-root', templateUrl: 'stress.component.html', imports: [NativeScriptCommonModule, NativeScriptRouterModule, ChipComponent, ChipAltComponent], schemas: [NO_ERRORS_SCHEMA] })
+@Component({ selector: 'stress-root', templateUrl: 'stress.component.html', styleUrl: 'stress.component.scss', imports: [NativeScriptCommonModule, NativeScriptRouterModule, ChipComponent, ChipAltComponent], schemas: [NO_ERRORS_SCHEMA] })
 export class StressComponent {
+  protected readonly router = inject(RouterExtensions);
   private nextId = 4;
 
   /** Case 1 & 2: insertion into, and removal from, the middle of a container. */
@@ -44,6 +45,9 @@ export class StressComponent {
   /** View-host control flow: each branch must stay between its static siblings. */
   viewBranch = 0;
   viewMode: 'first' | 'second' | 'other' = 'first';
+
+  /** A percentage radius must resolve again when its box is resized. */
+  wideBorderBox = false;
 
   get expectedOrder(): string {
     return this.items.map((item) => item.label).join(', ');
@@ -101,6 +105,7 @@ export class StressComponent {
     this.useAlternate = false;
     this.viewBranch = 0;
     this.viewMode = 'first';
+    this.wideBorderBox = false;
   }
 
   toggleMiddle(): void {
@@ -109,6 +114,10 @@ export class StressComponent {
 
   toggleAlternate(): void {
     this.useAlternate = !this.useAlternate;
+  }
+
+  toggleBorderBoxWidth(): void {
+    this.wideBorderBox = !this.wideBorderBox;
   }
 
   nextViewBranch(): void {

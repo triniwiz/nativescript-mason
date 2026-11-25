@@ -1,5 +1,5 @@
 <ActionBar title="Layout stress" class="action-bar">
-  <NavigationButton text="Back" android.systemIcon="ic_menu_back"></NavigationButton>
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="router.back()"></NavigationButton>
 </ActionBar>
 
 <!--
@@ -8,7 +8,7 @@
   exercised.
 -->
 <ScrollView>
-  <View class="page">
+  <View class="hn-page">
     <View class="case">
       <Text class="section-title">1. Insert / remove in the middle</Text>
       <Text class="case-note">Without a meta, ViewUtil falls back to _addChildFromBuilder (append, ignores next) and core _removeView (skips MasonKit's removeChild). Rendered order below must match Expected.</Text>
@@ -20,20 +20,20 @@
 
       <View class="chip-row">
         @for (item of items; track item.id) {
-          <stress-chip class="chip" [label]="item.label"></stress-chip>
+          <stress-chip class="case-chip" [label]="item.label"></stress-chip>
         }
       </View>
 
       <View class="btn-row">
-        <button class="btn" (tap)="insertMiddle()">Insert mid</button>
-        <button class="btn" (tap)="removeMiddle()">Remove mid</button>
-        <button class="btn" (tap)="prepend()">Prepend</button>
+        <button class="case-btn" (tap)="insertMiddle()">Insert mid</button>
+        <button class="case-btn" (tap)="removeMiddle()">Remove mid</button>
+        <button class="case-btn" (tap)="prepend()">Prepend</button>
       </View>
       <View class="btn-row">
-        <button class="btn" (tap)="reverse()">Reverse</button>
-        <button class="btn" (tap)="shuffle()">Shuffle</button>
-        <button class="btn" (tap)="clearItems()">Clear</button>
-        <button class="btn" (tap)="reset()">Reset</button>
+        <button class="case-btn" (tap)="reverse()">Reverse</button>
+        <button class="case-btn" (tap)="shuffle()">Shuffle</button>
+        <button class="case-btn" (tap)="clearItems()">Clear</button>
+        <button class="case-btn" (tap)="reset()">Reset</button>
       </View>
     </View>
 
@@ -42,15 +42,15 @@
       <Text class="case-note">Toggling must put the middle chip back between first and last, not at the end.</Text>
 
       <View class="chip-row">
-        <stress-chip class="chip" label="first"></stress-chip>
+        <stress-chip class="case-chip" label="first"></stress-chip>
         @if (showMiddle) {
-          <stress-chip class="chip chip-accent" label="middle"></stress-chip>
+          <stress-chip class="case-chip case-chip-accent" label="middle"></stress-chip>
         }
-        <stress-chip class="chip" label="last"></stress-chip>
+        <stress-chip class="case-chip" label="last"></stress-chip>
       </View>
 
       <View class="btn-row">
-        <button class="btn" (tap)="toggleMiddle()">{{ showMiddle ? 'Hide middle' : 'Show middle' }}</button>
+        <button class="case-btn" (tap)="toggleMiddle()">{{ showMiddle ? 'Hide middle' : 'Show middle' }}</button>
       </View>
     </View>
 
@@ -60,7 +60,7 @@
 
       <View class="chip-row">
         @for (n of hostBoxes; track n; let i = $index) {
-          <stress-chip [class]="'chip host-color-' + (i + 1)" [label]="'host ' + n" />
+          <stress-chip [class]="'case-chip host-color-' + (i + 1)" [label]="'host ' + n" />
         }
       </View>
     </View>
@@ -70,17 +70,17 @@
       <Text class="case-note">Removes one host and inserts a different one at the same index. The swapped chip must stay in the middle.</Text>
 
       <View class="chip-row">
-        <stress-chip class="chip" label="before"></stress-chip>
+        <stress-chip class="case-chip" label="before"></stress-chip>
         @if (useAlternate) {
-          <stress-chip-alt class="chip chip-accent" label="swapped"></stress-chip-alt>
+          <stress-chip-alt class="case-chip case-chip-accent" label="swapped"></stress-chip-alt>
         } @else {
-          <stress-chip class="chip chip-accent" label="original"></stress-chip>
+          <stress-chip class="case-chip case-chip-accent" label="original"></stress-chip>
         }
-        <stress-chip class="chip" label="after"></stress-chip>
+        <stress-chip class="case-chip" label="after"></stress-chip>
       </View>
 
       <View class="btn-row">
-        <button class="btn" (tap)="toggleAlternate()">Swap</button>
+        <button class="case-btn" (tap)="toggleAlternate()">Swap</button>
       </View>
     </View>
 
@@ -115,21 +115,21 @@
         <Text class="expected-value">{{ expectedViewOrder }}</Text>
       </View>
       <View class="chip-row">
-        <View class="chip"><Text class="chip-text">first</Text></View>
+        <View class="case-chip"><Text class="chip-text">first</Text></View>
         @for (item of items; track item.id) {
           @if (item.id % 2 === 0) {
-            <View class="chip chip-accent"
+            <View class="case-chip case-chip-accent"
               ><Text class="chip-text">{{ item.label }}</Text></View
             >
           } @else {
-            <View class="chip"
+            <View class="case-chip"
               ><Text class="chip-text">{{ item.label }}</Text></View
             >
           }
         } @empty {
-          <View class="chip chip-accent"><Text class="chip-text">empty</Text></View>
+          <View class="case-chip case-chip-accent"><Text class="chip-text">empty</Text></View>
         }
-        <View class="chip"><Text class="chip-text">last</Text></View>
+        <View class="case-chip"><Text class="chip-text">last</Text></View>
       </View>
     </View>
 
@@ -141,18 +141,18 @@
         <Text class="expected-value">first, {{ viewBranch === 0 ? 'if' : viewBranch === 1 ? 'else if' : 'else' }}, last</Text>
       </View>
       <View class="chip-row">
-        <View class="chip"><Text class="chip-text">first</Text></View>
+        <View class="case-chip"><Text class="chip-text">first</Text></View>
         @if (viewBranch === 0) {
-          <View class="chip chip-accent"><Text class="chip-text">if</Text></View>
+          <View class="case-chip case-chip-accent"><Text class="chip-text">if</Text></View>
         } @else if (viewBranch === 1) {
-          <View class="chip chip-accent"><Text class="chip-text">else if</Text></View>
+          <View class="case-chip case-chip-accent"><Text class="chip-text">else if</Text></View>
         } @else {
-          <View class="chip chip-accent"><Text class="chip-text">else</Text></View>
+          <View class="case-chip case-chip-accent"><Text class="chip-text">else</Text></View>
         }
-        <View class="chip"><Text class="chip-text">last</Text></View>
+        <View class="case-chip"><Text class="chip-text">last</Text></View>
       </View>
       <View class="btn-row">
-        <button class="btn" (tap)="nextViewBranch()">Next branch</button>
+        <button class="case-btn" (tap)="nextViewBranch()">Next branch</button>
       </View>
     </View>
 
@@ -164,31 +164,166 @@
         <Text class="expected-value">first, {{ viewMode === 'first' ? 'case 1' : viewMode === 'second' ? 'case 2' : 'default' }}, last</Text>
       </View>
       <View class="chip-row">
-        <View class="chip"><Text class="chip-text">first</Text></View>
+        <View class="case-chip"><Text class="chip-text">first</Text></View>
         @switch (viewMode) {
           @case ('first') {
-            <View class="chip chip-accent"><Text class="chip-text">case 1</Text></View>
+            <View class="case-chip case-chip-accent"><Text class="chip-text">case 1</Text></View>
           }
           @case ('second') {
-            <View class="chip chip-accent"><Text class="chip-text">case 2</Text></View>
+            <View class="case-chip case-chip-accent"><Text class="chip-text">case 2</Text></View>
           }
           @default {
-            <View class="chip chip-accent"><Text class="chip-text">default</Text></View>
+            <View class="case-chip case-chip-accent"><Text class="chip-text">default</Text></View>
           }
         }
-        <View class="chip"><Text class="chip-text">last</Text></View>
+        <View class="case-chip"><Text class="chip-text">last</Text></View>
       </View>
       <View class="btn-row">
-        <button class="btn" (tap)="nextViewMode()">Next case</button>
+        <button class="case-btn" (tap)="nextViewMode()">Next case</button>
+      </View>
+    </View>
+
+    <View class="case">
+      <Text class="section-title">10. Border: uniform solid (even-odd ring)</Text>
+      <Text class="case-note">The band must be even all the way around and unbroken through the corners. A filled centre means the inner contour did not cancel.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-solid" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">square</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-solid-r" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">rounded</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-solid-pill" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">pill</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-corners" style="border: 12 solid #7a3ea3"></View>
+          <Text class="b-cap">per-corner</Text>
+        </View>
+      </View>
+    </View>
+    <View class="case">
+      <Text class="section-title">10b. Border: superellipse corners</Text>
+      <Text class="case-note">Non-round corners use polyline contours. A bite taken out of a corner here points to the fill rule rather than the geometry.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-sq" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">squircle</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-notch" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">notch</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-bevel" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">bevel</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-se-mixed" style="border: 12 solid #7a3ea3"></View>
+          <Text class="b-cap">4 shapes</Text>
+        </View>
+      </View>
+      <Text class="case-note">The same shapes with a thick border and large radius exercise the crowded inner contour.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-sq-thick" style="border: 40 solid #2d6cdf"></View>
+          <Text class="b-cap">squircle thick</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-notch-thick" style="border: 40 solid #2d6cdf"></View>
+          <Text class="b-cap">notch thick</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-bevel-thick" style="border: 40 solid #2d6cdf"></View>
+          <Text class="b-cap">bevel thick</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-sq-alpha" style="border: 20 solid rgba(20, 110, 220, 0.45)"></View>
+          <Text class="b-cap">squircle 45%</Text>
+        </View>
+      </View>
+    </View>
+    <View class="case">
+      <Text class="section-title">11. Border: degenerate inner contour</Text>
+      <Text class="case-note">The border is wider than half the box, so the inner contour collapses. Expected: a solid filled block.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-thick" style="border: 90 solid #2d6cdf"></View>
+          <Text class="b-cap">w &gt; box/2</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-thick-r" style="border: 90 solid #2d6cdf"></View>
+          <Text class="b-cap">+ radius</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-huge-radius" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">radius &gt; box</Text>
+        </View>
+      </View>
+    </View>
+    <View class="case">
+      <Text class="section-title">12. Border: translucent</Text>
+      <Text class="case-note">The band must be one flat tone over the page background. A darker ring means the shape is being painted twice.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-alpha" style="border: 16 solid rgba(20, 110, 220, 0.45)"></View>
+          <Text class="b-cap">45% square</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-alpha-r" style="border: 16 solid rgba(20, 110, 220, 0.45)"></View>
+          <Text class="b-cap">45% rounded</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-alpha-on-fill" style="border: 16 solid rgba(20, 110, 220, 0.45)"></View>
+          <Text class="b-cap">over fill</Text>
+        </View>
+      </View>
+    </View>
+    <View class="case">
+      <Text class="section-title">13. Border: per-side and non-solid (control)</Text>
+      <Text class="case-note">These use the per-side and stroke branches rather than the ring and act as controls.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-sides" style="border-top: 12 solid #d1495b; border-right: 12 solid #2d6cdf; border-bottom: 12 solid #3f9b3f; border-left: 12 solid #e0a800"></View>
+          <Text class="b-cap">4 colours</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-widths" style="border-top: 6 solid #444444; border-right: 20 solid #444444; border-bottom: 6 solid #444444; border-left: 20 solid #444444"></View>
+          <Text class="b-cap">4 widths</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-dashed" style="border: 8 dashed #2d6cdf"></View>
+          <Text class="b-cap">dashed</Text>
+        </View>
+        <View class="b-cell">
+          <View class="b-box b-dotted" style="border: 8 dotted #2d6cdf"></View>
+          <Text class="b-cap">dotted</Text>
+        </View>
+      </View>
+    </View>
+    <View class="case">
+      <Text class="section-title">14. Border: percentage radius survives a resize</Text>
+      <Text class="case-note">The 50% radius must resolve again after resizing. Corners that keep their old curve indicate a stale renderer cache.</Text>
+      <View class="b-row">
+        <View class="b-cell">
+          <View class="b-box b-pct" [class.b-wide]="wideBorderBox" style="border: 12 solid #2d6cdf"></View>
+          <Text class="b-cap">{{ wideBorderBox ? 'wide' : 'narrow' }}</Text>
+        </View>
+      </View>
+      <View class="btn-row">
+        <button class="case-btn" (tap)="toggleBorderBoxWidth()">Resize</button>
       </View>
     </View>
 
     <View class="case">
       <Text class="section-title">Elsewhere</Text>
       <View class="btn-row">
-        <button class="btn" [nsRouterLink]="['/hn']">Feed</button>
-        <button class="btn" [nsRouterLink]="['/hn/list']">ListView items</button>
-        <button class="btn" [nsRouterLink]="['/nativescript-masonkit']">Plugin demo</button>
+        <button class="case-btn" [nsRouterLink]="['/hn']">Feed</button>
+        <button class="case-btn" [nsRouterLink]="['/hn/list']">ListView items</button>
+        <button class="case-btn" [nsRouterLink]="['/nativescript-masonkit']">Plugin demo</button>
       </View>
     </View>
   </View>

@@ -1,0 +1,17 @@
+<demo-page title="Gradients">
+  <main class="page-body stack">
+    @for (section of sections; track section.title) {
+      <section class="stack">
+        <span class="section-label">{{ section.title }}</span>
+        @for (sample of section.samples; track sample.cls) {
+          <div class="card sample">
+            <div [class]="['swatch', sample.cls]"></div>
+            <span class="h2">{{ sample.title }}</span>
+            <span class="code">{{ sample.css }}</span>
+            <span class="body">{{ sample.note }}</span>
+          </div>
+        }
+      </section>
+    }
+  </main>
+</demo-page>

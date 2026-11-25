@@ -1,0 +1,40 @@
+.section-title {
+  margin-top: 16;
+  margin-bottom: 8;
+}
+
+.inner-box {
+  background-color: var(--surface);
+  border-radius: 6;
+  padding: 6;
+}
+
+.inner-text {
+  font-size: 12;
+  color: var(--text);
+  text-align: center;
+}
+
+.margin-text {
+  font-size: 12;
+  color: white;
+  text-align: center;
+  font-weight: 600;
+}
+
+.radius-text {
+  font-size: 14;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+}
+
+.gap-item {
+  width: 30;
+  height: 30;
+  border-radius: 4;
+}
+
+.purple {
+  background-color: #6c5ce7;
+}

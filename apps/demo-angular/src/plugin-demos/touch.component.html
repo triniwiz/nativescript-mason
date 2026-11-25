@@ -1,0 +1,71 @@
+<demo-page title="Touch animations">
+  <main class="page-body stack">
+    <span class="body">&#64;nativescript/core's TouchManager works on MasonKit views like any other NativeScript view. Press and hold the cards.</span>
+    <!-- Per-view animation definitions -->
+    <section class="block">
+      <span class="section-label">touchAnimation per view</span>
+      <div class="card press" [touchAnimation]="pressScale" (tap)="tapped('scale')">
+        <div class="press-icon" style="background-color: #6c5ce7">
+          <span class="press-glyph">S</span>
+        </div>
+        <div class="press-body">
+          <span class="h2">Scale</span>
+          <span class="muted">down: scale 0.96 · up: spring back · tapped {{ count().scale }}×</span>
+        </div>
+      </div>
+      <div class="card press" [touchAnimation]="pressFade" (tap)="tapped('fade')">
+        <div class="press-icon" style="background-color: #00b894">
+          <span class="press-glyph">O</span>
+        </div>
+        <div class="press-body">
+          <span class="h2">Opacity</span>
+          <span class="muted">down: 0.6 · up: 1 · tapped {{ count().fade }}×</span>
+        </div>
+      </div>
+      <div class="card press" [touchAnimation]="pressLift" (tap)="tapped('lift')">
+        <div class="press-icon" style="background-color: #e17055">
+          <span class="press-glyph">L</span>
+        </div>
+        <div class="press-body">
+          <span class="h2">Lift (function form)</span>
+          <span class="muted">down: translate −4 + scale 1.02 · up: settle · tapped {{ count().lift }}×</span>
+        </div>
+      </div>
+    </section>
+    <!-- Global tap animations -->
+    <section class="block">
+      <span class="section-label">TouchManager.enableGlobalTapAnimations</span>
+      <div class="card">
+        <div class="row">
+          <div class="press-body">
+            <span class="h2">Global tap animation</span>
+            <span class="muted">Every view with a tap handler animates, no per-view config.</span>
+          </div>
+          <Switch [checked]="globalOn()" (checkedChange)="toggleGlobal($event)"></Switch>
+        </div>
+        <span class="muted note">Applies to views created after the toggle — the row below is re-created on each change.</span>
+        <div class="chips">
+          @for (c of chips; track c + globalOn()) {
+            <div class="chip-btn" (tap)="lastChip.set(c)">
+              <span class="chip-text">{{ c }}</span>
+            </div>
+          }
+        </div>
+        <span class="muted">last tapped: {{ lastChip() || '—' }} · global {{ globalOn() ? 'on' : 'off' }}</span>
+      </div>
+    </section>
+    <!-- Opt out -->
+    <section class="block">
+      <span class="section-label">ignoreTouchAnimation</span>
+      <div class="card press" ignoreTouchAnimation="true" (tap)="tapped('ignored')">
+        <div class="press-icon" style="background-color: #636e72">
+          <span class="press-glyph">×</span>
+        </div>
+        <div class="press-body">
+          <span class="h2">Opted out</span>
+          <span class="muted">Tappable, but never animates even with global on · tapped {{ count().ignored }}×</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</demo-page>

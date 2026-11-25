@@ -1,0 +1,99 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.carousel {
+  display: flex;
+  flex-direction: row;
+  gap: 12;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.tile {
+  flex-shrink: 0;
+  border-radius: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.small {
+  width: 80;
+  height: 80;
+}
+
+.wide {
+  width: 260;
+  height: 140;
+}
+
+.tall {
+  width: 120;
+  height: 220;
+}
+
+.tile-text {
+  font-size: 20;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.vertical {
+  height: 240;
+  overflow-y: auto;
+  border-radius: 12;
+}
+
+.list-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+  height: 48;
+  padding: 0 12;
+}
+
+.dot {
+  width: 24;
+  height: 24;
+  border-radius: 12;
+}
+
+.list-text {
+  font-size: 16;
+}
+
+.both {
+  height: 260;
+  overflow: scroll;
+  border-radius: 12;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(8, 110);
+  gap: 8;
+}
+
+.cell {
+  height: 110;
+  border-radius: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filler {
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+}

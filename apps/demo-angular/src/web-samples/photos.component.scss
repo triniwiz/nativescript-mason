@@ -1,0 +1,218 @@
+/* Deliberately dark in both appearances - a photo wall reads best on near-black. */
+/* Also set inline on <Page>: MasonKit Scroll paints its background on the
+ * scrolled content, so the Page shows through once the content moves. */
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 16;
+}
+
+.head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+}
+
+.head-text {
+  flex-grow: 1;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2;
+}
+
+.title {
+  font-size: 22;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.subtitle {
+  font-size: 11;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.seg {
+  display: flex;
+  flex-direction: row;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 10;
+  padding: 3;
+  gap: 3;
+}
+
+.seg-btn {
+  padding: 6 10;
+  border-radius: 8;
+  background-color: transparent;
+}
+
+.seg-btn-active {
+  background-color: #ffffff;
+}
+
+.seg-text {
+  font-size: 11;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.seg-text-active {
+  color: #101014;
+}
+
+.section-title {
+  font-size: 12;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.08;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Featured */
+.hero {
+  position: relative;
+  height: 200;
+  border-radius: 16;
+  overflow: hidden;
+  background-color: #1d1d24;
+}
+
+.hero-img {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2;
+}
+
+.chip-featured {
+  font-size: 10;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #fdcb6e;
+}
+
+.hero-title {
+  font-size: 18;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.hero-loc {
+  font-size: 11;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Filmstrip */
+.strip-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.strip {
+  height: 84;
+  overflow-x: scroll;
+  overflow-y: hidden;
+}
+
+.strip-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
+}
+
+.thumb {
+  width: 84;
+  height: 84;
+  border-radius: 10;
+  overflow: hidden;
+  background-color: #1d1d24;
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Masonry */
+.masonry-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.columns {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8;
+}
+
+.col {
+  flex-grow: 1;
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.cell {
+  position: relative;
+  width: 100%;
+  border-radius: 12;
+  overflow: hidden;
+  background-color: #1d1d24;
+}
+
+.cell-img {
+  width: 100%;
+  height: 100%;
+}
+
+.caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8 10;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1;
+}
+
+.caption-title {
+  font-size: 12;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.caption-loc {
+  font-size: 10;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.foot {
+  padding: 8 0 24;
+  display: flex;
+  align-items: center;
+}
+
+.foot-text {
+  font-size: 10;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+}

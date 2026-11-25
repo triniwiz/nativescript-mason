@@ -1,0 +1,73 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.press {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+}
+
+.press-icon {
+  width: 40;
+  height: 40;
+  border-radius: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.press-glyph {
+  font-size: 16;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.press-body {
+  flex-grow: 1;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+}
+
+.note {
+  margin-top: 8;
+}
+
+.chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8;
+  margin-top: 8;
+  margin-bottom: 8;
+}
+
+.chip-btn {
+  padding: 8 14;
+  border-radius: 16;
+  background-color: var(--primary-soft);
+}
+
+.chip-text {
+  font-size: 12;
+  font-weight: 600;
+  color: var(--primary);
+}

@@ -1,0 +1,59 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 14;
+}
+
+.hero {
+  background-color: var(--ink);
+  border-radius: 18;
+  padding: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.hero-kicker {
+  font-size: 11;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.08;
+  color: #fdcb6e;
+}
+
+.hero-title {
+  font-size: 28;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.hero-sub {
+  font-size: 13;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-note {
+  margin-top: 10;
+  font-size: 11;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+}
+
+.fib {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  padding: 12 0 24;
+}

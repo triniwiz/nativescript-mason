@@ -1,0 +1,48 @@
+<demo-page title="Developer — Repos">
+  <main class="page-body">
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">42</span>
+        <span class="stat-label">Repos</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">1.8k</span>
+        <span class="stat-label">Stars</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">317</span>
+        <span class="stat-label">PRs</span>
+      </div>
+    </section>
+    <h2>Repositories</h2>
+    <section class="repo-list">
+      @for (repo of repos; track repo.name) {
+        <article class="repo-card">
+          <div class="repo-head">
+            <p class="repo-name">{{ repo.name }}</p>
+            <span class="badge" [class]="repo.status">{{ repo.ci }}</span>
+          </div>
+          <p class="repo-desc">{{ repo.desc }}</p>
+          <div class="repo-meta">
+            <span class="lang"><span class="dot" [style.backgroundColor]="repo.color"></span>{{ repo.lang }}</span>
+            <span class="meta-dim">★ {{ repo.stars }}</span>
+            <span class="meta-dim">⑂ {{ repo.forks }}</span>
+          </div>
+        </article>
+      }
+    </section>
+    <h2>CI status</h2>
+    <section class="ci-list">
+      @for (run of ciRuns; track run.branch) {
+        <div class="ci-row">
+          <span class="dot" [style.backgroundColor]="run.color"></span>
+          <div class="ci-body">
+            <p class="ci-branch">{{ run.branch }}</p>
+            <p class="ci-msg">{{ run.msg }}</p>
+          </div>
+          <span class="ci-time">{{ run.time }}</span>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

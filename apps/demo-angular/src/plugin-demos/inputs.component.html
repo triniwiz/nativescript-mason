@@ -1,0 +1,124 @@
+<demo-page title="Inputs">
+  <main class="page-body">
+    <p class="note">Each block mirrors plain HTML. Compare with the same markup in a browser.</p>
+    <p class="section">Bound value</p>
+    <div class="stack">
+      <input class="field" [(ngModel)]="live" placeholder="type here" />
+      <span class="note">value: {{ live() }}</span>
+      <div class="row">
+        <input [(ngModel)]="agree" type="checkbox" />
+        <span class="note">checkbox: {{ show(agree()) }}</span>
+      </div>
+      <div class="row">
+        <input type="radio" value="s" [(ngModel)]="size" />
+        <span class="label">small</span>
+        <input type="radio" value="m" [(ngModel)]="size" />
+        <span class="label">medium</span>
+        <span class="note">radio: {{ show(size()) }}</span>
+      </div>
+      <input type="range" [(ngModel)]="volume" />
+      <span class="note">range: {{ show(volume()) }}</span>
+      <input type="date" [(ngModel)]="day" />
+      <span class="note">date: {{ show(day()) }}</span>
+      <input type="color" [(ngModel)]="tint" />
+      <span class="note">color: {{ show(tint()) }}</span>
+      <button class="btn" (tap)="setBound()">Set from code</button>
+    </div>
+    <p class="section">Unstyled (UA defaults)</p>
+    <div class="stack">
+      <input placeholder="type=text" />
+      <input type="email" placeholder="type=email" />
+      <input type="password" placeholder="type=password" />
+      <input type="tel" placeholder="type=tel" />
+      <input type="url" placeholder="type=url" />
+      <input type="number" placeholder="type=number" />
+      <input type="search" placeholder="type=search" />
+      <input [(ngModel)]="prefilled" />
+    </div>
+    <p class="section">Border and padding</p>
+    <div class="stack">
+      <input class="pad-0" placeholder="padding: 0, border 1" />
+      <input class="pad-8" placeholder="padding: 8, border 1" />
+      <input class="pad-12-16" placeholder="padding: 12 16, border 1" />
+      <input class="border-2" placeholder="border: 2 solid, padding 8" />
+      <input class="no-border" placeholder="border: none, padding 8" />
+    </div>
+    <p class="section">Inside text</p>
+    <div class="stack">
+      <label class="label">Name <input class="pad-12-16" placeholder="padding 12 16 in a label" /></label>
+      <p class="label">Inline <input class="border-2" placeholder="border 2, padding 8" /> in a paragraph</p>
+    </div>
+    <p class="section">Textarea</p>
+    <div class="stack">
+      <textarea placeholder="UA defaults"></textarea>
+      <textarea class="pad-12-16" placeholder="padding 12 16, border 1"></textarea>
+      <label class="label">Note <textarea class="pad-12-16" placeholder="padding 12 16 in a label"></textarea></label>
+    </div>
+    <p class="section">Radius and background</p>
+    <div class="stack">
+      <input class="field round-0" placeholder="radius 0" />
+      <input class="field round-8" placeholder="radius 8" />
+      <input class="field pill" placeholder="radius 999 (pill)" />
+      <input class="field filled" placeholder="filled background" />
+    </div>
+    <p class="section">Typography</p>
+    <div class="stack">
+      <input class="field fs-12" [(ngModel)]="small" placeholder="font-size 12" />
+      <input class="field fs-18" [(ngModel)]="large" placeholder="font-size 18" />
+      <input class="field bold" [(ngModel)]="bold" placeholder="bold, colored text" />
+      <input class="field centered" [(ngModel)]="centered" placeholder="text-align: center" />
+      <input class="field right" [(ngModel)]="right" placeholder="text-align: right" />
+    </div>
+    <p class="section">Colors</p>
+    <div class="stack">
+      <input class="field c-border-lit" value="border literal red" />
+      <input class="field c-border-var" value="border var(--primary)" />
+      <input class="field c-border-long" value="border-color longhand green" />
+      <input class="field c-text-lit" value="text literal red" />
+      <input class="field c-text-var" value="text var(--primary)" />
+      <input class="field" placeholder="placeholder (theme color)" />
+      <input class="field c-ph" placeholder="::placeholder &#123; color: red &#125;" />
+      <div class="c-div d-a">
+        <span class="d-t">A: border: 2 solid #ff0000</span>
+      </div>
+      <div class="c-div d-b">
+        <span class="d-t">B: border: 2 solid red</span>
+      </div>
+      <div class="c-div d-c">
+        <span class="d-t">C: width+style+color longhands</span>
+      </div>
+      <div class="c-div d-d">
+        <span class="d-t">D: border: 2px solid #ff0000</span>
+      </div>
+    </div>
+    <p class="section">Width and layout</p>
+    <div class="stack">
+      <input class="field w-half" placeholder="width: 50%" />
+      <div class="row">
+        <input class="field grow" placeholder="flex: 1" />
+        <button class="btn" (tap)="noop()">Go</button>
+      </div>
+      <div class="row">
+        <input class="field grow" placeholder="first" />
+        <input class="field grow" placeholder="second" />
+      </div>
+    </div>
+    <p class="section">Other types</p>
+    <div class="stack">
+      <div class="row">
+        <input type="checkbox" />
+        <span class="label">checkbox</span>
+      </div>
+      <div class="row">
+        <input type="radio" />
+        <span class="label">radio</span>
+      </div>
+      <input type="range" />
+      <input type="date" />
+      <input type="color" />
+      <input type="file" />
+      <input type="button" value="type=button" />
+      <input type="submit" value="type=submit" />
+    </div>
+  </main>
+</demo-page>

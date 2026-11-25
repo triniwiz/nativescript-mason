@@ -1,0 +1,36 @@
+<demo-page title="Designer — Portfolio">
+  <main class="page-body">
+    <section class="intro">
+      <h1>Ines Marques</h1>
+      <p class="role">Product & brand designer</p>
+      <p class="blurb">I help early teams find a visual voice — systems, not one-off screens.</p>
+      <button class="cta" (tap)="contacted.set(!contacted())">{{ contacted() ? 'Message sent ✓' : 'Work with me' }}</button>
+    </section>
+    <nav class="filter-row">
+      @for (f of filters; track f) {
+        <button class="filter" [class.active]="filter() === f" (tap)="filter.set(f)">{{ f }}</button>
+      }
+    </nav>
+    <section class="work-grid">
+      @for (w of filtered(); track w.title) {
+        <article class="work-card">
+          <div class="thumb" [style.backgroundColor]="w.color">
+            <span class="glyph">{{ w.glyph }}</span>
+          </div>
+          <div class="work-body">
+            <p class="work-title">{{ w.title }}</p>
+            <p class="work-year">{{ w.year }} · {{ w.kind }}</p>
+          </div>
+        </article>
+      }
+    </section>
+    <section class="services">
+      <h2>Services</h2>
+      <ul>
+        <li>Design systems & component libraries</li>
+        <li>Brand identity refreshes</li>
+        <li>Design engineering (CSS layout, motion)</li>
+      </ul>
+    </section>
+  </main>
+</demo-page>

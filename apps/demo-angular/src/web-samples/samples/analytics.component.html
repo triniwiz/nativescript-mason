@@ -1,0 +1,43 @@
+<demo-page title="Analytics">
+  <main class="page-body">
+    <header class="header-row">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">Last 7 days · all channels</p>
+      </div>
+      <span class="live-badge">Live</span>
+    </header>
+    <section class="stat-row">
+      @for (stat of stats; track stat.label) {
+        <div class="stat-card">
+          <p class="stat-value" [style.color]="stat.color">{{ stat.value }}</p>
+          <p class="stat-label">{{ stat.label }}</p>
+          <p class="stat-delta" [class.down]="stat.delta < 0">{{ stat.delta > 0 ? '+' : '' }}{{ stat.delta }}%</p>
+        </div>
+      }
+    </section>
+    <section class="chart-card">
+      <h2>Daily signups</h2>
+      <div class="chart">
+        @for (day of chart; track $index) {
+          <div class="chart-column">
+            <div class="bar" [style.height]="day.value * 1.6" [style.backgroundColor]="day.color"></div>
+            <span class="bar-label">{{ day.label }}</span>
+          </div>
+        }
+      </div>
+    </section>
+    <section class="activity-card">
+      <h2>Recent activity</h2>
+      <div class="activity-list">
+        @for (event of activity; track event.text) {
+          <div class="activity-row">
+            <span class="dot" [style.backgroundColor]="event.color"></span>
+            <p class="activity-text">{{ event.text }}</p>
+            <span class="activity-time">{{ event.time }}</span>
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+</demo-page>

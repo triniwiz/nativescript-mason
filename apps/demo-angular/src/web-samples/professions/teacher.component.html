@@ -1,0 +1,53 @@
+<demo-page title="Teacher — Class">
+  <main class="page-body">
+    <section class="class-hero">
+      <h1>Mathematics 8B</h1>
+      <p class="hero-sub">Room 204 · 28 students · Ms. Okafor</p>
+    </section>
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">28</span>
+        <span class="stat-label">Students</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">86%</span>
+        <span class="stat-label">Avg score</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">4</span>
+        <span class="stat-label">Due soon</span>
+      </div>
+    </section>
+    <h2>Today's lessons</h2>
+    <section class="lesson-list">
+      @for (l of lessons; track l.topic) {
+        <article class="lesson-card">
+          <div class="period">
+            <span class="period-num">{{ l.period }}</span>
+            <span class="period-time">{{ l.time }}</span>
+          </div>
+          <div class="lesson-body">
+            <p class="lesson-topic">{{ l.topic }}</p>
+            <p class="lesson-desc">{{ l.desc }}</p>
+          </div>
+          <span class="badge" [class]="l.statusClass">{{ l.status }}</span>
+        </article>
+      }
+    </section>
+    <h2>Homework due</h2>
+    <section class="hw-card">
+      @for (h of homework; track h.title) {
+        <div class="hw-row">
+          <div class="hw-body">
+            <p class="hw-title">{{ h.title }}</p>
+            <p class="hw-meta">{{ h.meta }}</p>
+          </div>
+          <div class="track">
+            <div class="fill" [style.width]="h.turnedIn + '%'"></div>
+          </div>
+          <span class="hw-pct">{{ h.turnedIn }}%</span>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

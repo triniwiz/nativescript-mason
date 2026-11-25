@@ -1,0 +1,164 @@
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 14;
+}
+
+.heading {
+  font-size: 22;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.cart {
+  display: flex;
+  flex-direction: column;
+  gap: 10;
+}
+
+.line-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 12;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.thumb {
+  width: 52;
+  height: 52;
+  border-radius: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb-glyph {
+  color: #ffffff;
+  font-size: 20;
+  font-weight: bold;
+}
+
+.item-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3;
+}
+
+.item-name {
+  font-size: 14;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.item-meta {
+  font-size: 11;
+  color: var(--muted);
+}
+
+.stepper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10;
+  margin-top: 4;
+}
+
+.stepper-button {
+  width: 26;
+  height: 26;
+  border-radius: 13;
+  background-color: var(--surface-2);
+  color: var(--text);
+  font-size: 16;
+  border-style: none;
+  text-align: center;
+}
+
+.qty {
+  font-size: 14;
+  font-weight: bold;
+  color: var(--text);
+  min-width: 16;
+  text-align: center;
+}
+
+.line-total {
+  font-size: 14;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.promo-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
+}
+
+.promo-input {
+  flex-grow: 1;
+  padding: 8 10;
+  border: 1 solid var(--border);
+  border-radius: 8;
+  background-color: var(--surface);
+  font-size: 13;
+}
+
+.promo-button {
+  padding: 8 16;
+  border-radius: 8;
+  background-color: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  border-style: none;
+}
+
+.promo-message {
+  font-size: 12;
+  color: #00b894;
+}
+
+.summary {
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.summary-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  font-size: 13;
+  color: var(--text-2);
+}
+
+.summary-row.discount {
+  color: #00b894;
+}
+
+.summary-row.total {
+  border-top: 1 solid var(--border);
+  padding-top: 8;
+  font-size: 15;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.place-order {
+  background-color: var(--primary);
+  color: #ffffff;
+  padding: 12 18;
+  border-radius: 10;
+  font-weight: 600;
+  font-size: 14;
+  border-style: none;
+  text-align: center;
+}
