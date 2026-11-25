@@ -440,6 +440,30 @@ class PreparedTextInstrumentedTest {
     }
 
   @Test
+  fun centredTextWhoseViewBecomesAFlexContainerIsLaidOutByStaticLayout() {
+    fun drawn(preparedText: Boolean) = onMainThread {
+      withPreparedText(preparedText) {
+        val mason = Mason()
+        val p = mason.createTextView(context, TextType.P).apply {
+          textContent = "Centred words"
+          style.textAlign = TextAlign.Center
+        }
+        val root = mason.createView(context).apply { addView(p) }
+        layOutAndDraw(root, 601)
+        Assert.assertEquals("prepared as a block", preparedText, p.engine.preparedText != null)
+        p.writeStyleThenSync(StateKeys.DISPLAY or StateKeys.DISPLAY_MODE) {
+          it.put(StyleKeys.DISPLAY, Display.Flex.value)
+          it.put(StyleKeys.DISPLAY_MODE, DisplayMode.None.value)
+        }
+        layOutAndDraw(root, 601).also {
+          Assert.assertNull("prepared as a flex container", p.engine.preparedText)
+        }
+      }
+    }
+    Assert.assertTrue("drawn as with StaticLayout", drawn(true).sameAs(drawn(false)))
+  }
+
+  @Test
   fun anIndentedInlineBlockThatBecomesInlineIsDrawnWithNoIndentAsWithStaticLayout() {
     fun drawn(preparedText: Boolean, display: Display) = onMainThread {
       withPreparedText(preparedText) {
