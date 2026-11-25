@@ -205,6 +205,17 @@ function isPassthrough(elementName: string): boolean {
 }
 
 /**
+ * The `cssType` core's type selectors look an element up by.
+ *
+ * Core's selector parser drops the first hyphen of a type selector - and only
+ * the first - so that `stack-layout {}` finds `StackLayout`. `app-story-card {}`
+ * is therefore looked up as `appstory-card`.
+ */
+function toCssType(elementName: string): string {
+  return elementName.replace('-', '');
+}
+
+/**
  * Recognise routed components at creation time, so the very first render of a
  * route is correct rather than being repaired afterwards.
  *
@@ -362,21 +373,25 @@ export function enableMasonComponentHosts(options: ComponentHostOptions = {}): v
       // Known element, or one we deliberately keep as a transparent
       // ProxyViewContainer. `originalCreateView` substitutes the proxy for
       // unregistered names but does not record the original tag (the renderer
-      // normally does that), so stamp it here to keep CSS type selectors and
-      // debugging output working on this path too.
+      // normally does that), so stamp it here.
       const view = originalCreateView.call(this, name);
       if (unregistered) {
         view.customCSSName = name;
+        // Type selectors match on `cssType`, not on `customCSSName`. With
+        // component hosts off the proxy keeps its stock type.
+        if (config.enabled) {
+          view.cssType = toCssType(name);
+        }
       }
       return view;
     }
 
     const host = originalCreateView.call(this, COMPONENT_HOST_TAG) as MasonComponentHost & { nodeName: string; tagName: string; cssType: string; customCSSName: string };
-    // Preserve the original tag for CSS type selectors, for debugging, and for
-    // Angular's `rootElement.tagName.toLowerCase()` bootstrap check.
+    // Preserve the original tag for debugging and for Angular's
+    // `rootElement.tagName.toLowerCase()` bootstrap check.
     host.nodeName = name;
     host.tagName = name;
-    host.cssType = name;
+    host.cssType = toCssType(name);
     host.customCSSName = name;
     host.masonHostElementName = name;
     return host;
