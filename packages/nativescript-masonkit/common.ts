@@ -4228,7 +4228,7 @@ export class Event {
 
   get isComposing() {
     if (__ANDROID__) {
-      return this[native_]?.getIsComposing();
+      return this[native_]?.isComposing();
     }
 
     if (__APPLE__) {
