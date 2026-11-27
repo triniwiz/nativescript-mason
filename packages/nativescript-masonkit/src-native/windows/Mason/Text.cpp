@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Text.h"
 #include "Text.g.cpp"
+#pragma comment(lib, "icu.lib")
 #include "TextNode.h"
 #include "StyleKeys.h"
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <icu.h>
 #include <winrt/NativeScript.Mason.h>
 #include <winrt/Windows.UI.Text.h>
 #include <winrt/Microsoft.UI.Xaml.Documents.h>
@@ -67,9 +69,79 @@ namespace
         return scale > 0.0f ? 1.0f / scale : 1.0f;
     }
 
+    // White space a line can end on: it hangs past the line's end, so it doesn't widen min-content.
     bool IsBreakOpportunity(wchar_t c)
     {
         return c == L' ' || c == L'\t' || c == L'\n' || c == L'\r' || c == 0x200B;
+    }
+
+    // Where a line may start in `text`, by UAX #14 (Windows' ICU line break iterator), the end
+    // included: between ideographs, kana and Hangul syllables, after `/` and hyphens, around an em
+    // dash, after spaces and U+200B. Without ICU, after white space and hyphens.
+    std::vector<size_t> LineBreaks(std::wstring_view text)
+    {
+        std::vector<size_t> out;
+        if (text.empty()) return out;
+        UErrorCode status = U_ZERO_ERROR;
+        UBreakIterator* it = ubrk_open(UBRK_LINE, nullptr, reinterpret_cast<const UChar*>(text.data()), static_cast<int32_t>(text.size()), &status);
+        if (U_SUCCESS(status) && it)
+        {
+            for (int32_t b = ubrk_next(it); b != UBRK_DONE; b = ubrk_next(it)) out.push_back(static_cast<size_t>(b));
+            ubrk_close(it);
+        }
+        else
+        {
+            if (it) ubrk_close(it);
+            for (size_t i = 0; i + 1 < text.size(); ++i)
+            {
+                if ((IsBreakOpportunity(text[i]) || text[i] == L'-') && !IsBreakOpportunity(text[i + 1])) out.push_back(i + 1);
+            }
+        }
+        if (out.empty() || out.back() != text.size()) out.push_back(text.size());
+        return out;
+    }
+
+    // The runs between forced breaks, joined: where each run starts in `text`, and which run.
+    struct JoinedRuns
+    {
+        std::wstring text;
+        std::vector<size_t> starts;
+        std::vector<size_t> runs;
+    };
+
+    std::vector<JoinedRuns> JoinRuns(std::vector<winrt::NativeScript::Mason::implementation::MinContentRun> const& runs)
+    {
+        std::vector<JoinedRuns> out(1);
+        for (size_t r = 0; r < runs.size(); ++r)
+        {
+            if (runs[r].isBreak)
+            {
+                if (!out.back().text.empty()) out.emplace_back();
+                continue;
+            }
+            const std::wstring_view chars{ runs[r].text };
+            if (chars.empty()) continue;
+            out.back().starts.push_back(out.back().text.size());
+            out.back().runs.push_back(r);
+            out.back().text.append(chars);
+        }
+        if (out.back().text.empty()) out.pop_back();
+        return out;
+    }
+
+    // Calls `piece(start, stop)` for each piece of `text` between line breaks, its hanging white
+    // space left off.
+    template <typename Piece>
+    void ForEachPiece(std::wstring_view text, Piece&& piece)
+    {
+        size_t start = 0;
+        for (size_t stop : LineBreaks(text))
+        {
+            size_t end = stop;
+            while (end > start && IsBreakOpportunity(text[end - 1])) --end;
+            if (end > start) piece(start, end);
+            start = stop;
+        }
     }
 
     bool HasBreakOpportunity(std::vector<winrt::NativeScript::Mason::implementation::MinContentRun> const& runs)
@@ -77,10 +149,12 @@ namespace
         for (auto const& run : runs)
         {
             if (run.isBreak) return true;
-            for (wchar_t c : std::wstring_view{ run.text })
-            {
-                if (IsBreakOpportunity(c) || c == L'-') return true;
-            }
+        }
+        for (auto const& joined : JoinRuns(runs))
+        {
+            size_t pieces = 0;
+            ForEachPiece(joined.text, [&](size_t, size_t) { ++pieces; });
+            if (pieces > 1) return true;
         }
         return false;
     }
@@ -334,28 +408,29 @@ namespace
             lineHasText = false;
         };
 
-        for (auto const& inl : text.Inlines())
+        // Consecutive runs are one text for line breaking; anything else ends it.
+        std::vector<muxd::Run> group;
+        auto layOutGroup = [&]()
         {
-            auto run = inl.try_as<muxd::Run>();
-            if (!run)
+            if (group.empty()) return;
+            std::wstring joined;
+            std::vector<size_t> starts;
+            for (auto const& run : group)
             {
-                flush();
-                continue;
+                starts.push_back(joined.size());
+                joined.append(std::wstring_view{ run.Text() });
             }
-            const winrt::hstring content = run.Text();
-            const std::wstring_view chars{ content };
-            size_t start = 0;
-            for (size_t i = 0; i <= chars.size(); ++i)
+            ForEachPiece(joined, [&](size_t start, size_t stop)
             {
-                const bool end = i == chars.size();
-                const bool space = !end && IsBreakOpportunity(chars[i]);
-                const bool hyphen = !end && chars[i] == L'-';
-                if (!end && !space && !hyphen) continue;
-                const size_t stop = hyphen ? i + 1 : i;
-                if (stop > start)
+                for (size_t r = 0; r < group.size(); ++r)
                 {
+                    const size_t runStart = starts[r];
+                    const size_t runEnd = r + 1 < starts.size() ? starts[r + 1] : joined.size();
+                    const size_t from = (std::max)(start, runStart), to = (std::min)(stop, runEnd);
+                    if (to <= from) continue;
+                    auto const& run = group[r];
                     muxd::Run piece;
-                    piece.Text(winrt::hstring{ chars.substr(start, stop - start) });
+                    piece.Text(winrt::hstring{ std::wstring_view{ joined }.substr(from, to - from) });
                     piece.FontFamily(run.FontFamily());
                     piece.FontSize(run.FontSize());
                     piece.FontWeight(run.FontWeight());
@@ -364,10 +439,22 @@ namespace
                     pieces.Append(piece);
                     lineHasText = true;
                 }
-                if (!end) flush();
-                start = i + 1;
+                flush();
+            });
+            group.clear();
+        };
+
+        for (auto const& inl : text.Inlines())
+        {
+            if (auto run = inl.try_as<muxd::Run>())
+            {
+                group.push_back(run);
+                continue;
             }
+            layOutGroup();
+            flush();
         }
+        layOutGroup();
         if (pieces.Size() == 0) return 0.0f;
         probe->Measure(Size{ inf, inf });
         const float widest = probe->DesiredSize().Width;
@@ -384,64 +471,51 @@ namespace
         thread_local std::wstring key;
         if (widths.size() > 8192) widths.clear();
 
-        bool openSegment = false;
-        for (auto const& run : runs)
-        {
-            if (run.isBreak)
-            {
-                openSegment = false;
-                continue;
-            }
-            const std::wstring_view chars{ run.text };
-            if (chars.empty()) continue;
-            if (openSegment && !IsBreakOpportunity(chars.front()))
-            {
-                probeFormat.clear();
-                return LaidOutMinContentWidth(text);
-            }
-            openSegment = !IsBreakOpportunity(chars.back());
-        }
-
         muxc::TextBlock* probe = ProbeBlock();
         const float inf = std::numeric_limits<float>::infinity();
         float widest = 0.0f;
-        for (auto const& piece : runs)
+        for (auto const& joined : JoinRuns(runs))
         {
-            if (piece.isBreak) continue;
-            const std::wstring_view chars{ piece.text };
-            size_t start = 0;
-            for (size_t i = 0; i <= chars.size(); ++i)
+            bool crossesRuns = false;
+            ForEachPiece(joined.text, [&](size_t start, size_t stop)
             {
-                const bool end = i == chars.size();
-                const bool space = !end && IsBreakOpportunity(chars[i]);
-                const bool hyphen = !end && chars[i] == L'-';
-                if (!end && !space && !hyphen) continue;
-                const size_t stop = hyphen ? i + 1 : i;
-                if (stop > start)
+                if (crossesRuns) return;
+                // the run the piece starts in; a piece that runs on into the next is laid out whole
+                const size_t r = static_cast<size_t>(std::upper_bound(joined.starts.begin(), joined.starts.end(), start) - joined.starts.begin()) - 1;
+                const size_t runEnd = r + 1 < joined.starts.size() ? joined.starts[r + 1] : joined.text.size();
+                if (stop > runEnd)
                 {
-                    key.assign(piece.format);
-                    key += L'\x1f';
-                    key.append(chars.substr(start, stop - start));
-                    auto it = widths.find(key);
-                    if (it == widths.end())
-                    {
-                        if (probeFormat != piece.format)
-                        {
-                            using winrt::Windows::UI::Text::FontStyle;
-                            probe->FontFamily(muxm::FontFamily(piece.family));
-                            probe->FontSize(piece.fontSize);
-                            probe->FontWeight(winrt::Windows::UI::Text::FontWeight{ piece.fontWeight });
-                            probe->FontStyle(piece.fontStyle == 1 ? FontStyle::Italic : piece.fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
-                            probe->CharacterSpacing(piece.characterSpacing);
-                            probeFormat = piece.format;
-                        }
-                        probe->Text(winrt::hstring{ chars.substr(start, stop - start) });
-                        probe->Measure(Size{ inf, inf });
-                        it = widths.emplace(key, probe->DesiredSize().Width).first;
-                    }
-                    widest = (std::max)(widest, it->second);
+                    crossesRuns = true;
+                    return;
                 }
-                start = i + 1;
+                auto const& piece = runs[joined.runs[r]];
+                const std::wstring_view chars = std::wstring_view{ joined.text }.substr(start, stop - start);
+                key.assign(piece.format);
+                key += L'\x1f';
+                key.append(chars);
+                auto it = widths.find(key);
+                if (it == widths.end())
+                {
+                    if (probeFormat != piece.format)
+                    {
+                        using winrt::Windows::UI::Text::FontStyle;
+                        probe->FontFamily(muxm::FontFamily(piece.family));
+                        probe->FontSize(piece.fontSize);
+                        probe->FontWeight(winrt::Windows::UI::Text::FontWeight{ piece.fontWeight });
+                        probe->FontStyle(piece.fontStyle == 1 ? FontStyle::Italic : piece.fontStyle == 2 ? FontStyle::Oblique : FontStyle::Normal);
+                        probe->CharacterSpacing(piece.characterSpacing);
+                        probeFormat = piece.format;
+                    }
+                    probe->Text(winrt::hstring{ chars });
+                    probe->Measure(Size{ inf, inf });
+                    it = widths.emplace(key, probe->DesiredSize().Width).first;
+                }
+                widest = (std::max)(widest, it->second);
+            });
+            if (crossesRuns)
+            {
+                probeFormat.clear();
+                return LaidOutMinContentWidth(text);
             }
         }
         return widest;
@@ -1351,24 +1425,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Text::SetTextShadow(hstring const& shadows)
     {
-        std::vector<mason_dwrite::Shadow> parsed;
-        const std::wstring_view spec = shadows;
-        size_t pos = 0;
-        while (pos < spec.size())
-        {
-            size_t end = spec.find(L';', pos);
-            if (end == std::wstring_view::npos) end = spec.size();
-            const std::wstring part(spec.substr(pos, end - pos));
-            float inset = 0.0f, spread = 0.0f;
-            double argb = 0.0;
-            mason_dwrite::Shadow s;
-            if (swscanf_s(part.c_str(), L"%f,%f,%f,%f,%f,%lf", &inset, &s.x, &s.y, &s.blur, &spread, &argb) == 6)
-            {
-                s.color = static_cast<uint32_t>(argb);
-                if ((s.color >> 24) != 0) parsed.push_back(s);
-            }
-            pos = end + 1;
-        }
+        auto parsed = mason_dwrite::ParseShadows(shadows);
         if (parsed == m_shadows) return;
         m_shadows = std::move(parsed);
         m_paragraphDirty = true;

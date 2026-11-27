@@ -1,0 +1,85 @@
+<demo-page title="Transform Playground">
+  <main class="page-body">
+    <p class="lead">Port of <code>apps/transform-demo.html</code>. Pick a preset or type a transform and apply it live.</p>
+    <!-- Preview -->
+    <section class="preview">
+      <div class="box" [style.transform]="current()">
+        <p class="box-text">Transformed</p>
+      </div>
+    </section>
+    <p class="current-label">transform: {{ current() }}</p>
+    <!-- Presets -->
+    <section class="presets">
+      @for (p of presets; track p.value) {
+        <button class="preset-button" [class.preset-active]="current() === p.value" (tap)="apply(p.value)">{{ p.label }}</button>
+      }
+    </section>
+    <!-- Custom input -->
+    <section class="input-row">
+      <input [(ngModel)]="custom" class="transform-input" placeholder="translate(24,12) rotate(8deg) scale(1.02)" />
+      <button class="apply-button" (tap)="apply(custom())">Apply</button>
+    </section>
+    <!-- Static gallery -->
+    <h2 class="section-title">Rotate</h2>
+    <div class="demo-row">
+      <div class="transform-card" style="background-color: #ff6b6b; transform: rotate(0deg)">
+        <p class="card-text">0</p>
+      </div>
+      <div class="transform-card" style="background-color: #e84393; transform: rotate(15deg)">
+        <p class="card-text">15</p>
+      </div>
+      <div class="transform-card" style="background-color: #6c5ce7; transform: rotate(45deg)">
+        <p class="card-text">45</p>
+      </div>
+      <div class="transform-card" style="background-color: #0984e3; transform: rotate(90deg)">
+        <p class="card-text">90</p>
+      </div>
+    </div>
+    <h2 class="section-title">Scale</h2>
+    <div class="demo-row-spaced">
+      <div class="scale-wrapper">
+        <div class="transform-card-sm" style="background-color: #fdcb6e; transform: scale(0.5, 0.5)">
+          <p class="card-text-sm">0.5</p>
+        </div>
+      </div>
+      <div class="scale-wrapper">
+        <div class="transform-card-sm" style="background-color: #e17055; transform: scale(0.75, 0.75)">
+          <p class="card-text-sm">0.75</p>
+        </div>
+      </div>
+      <div class="scale-wrapper">
+        <div class="transform-card-sm" style="background-color: #d63031; transform: scale(1, 1)">
+          <p class="card-text-sm">1.0</p>
+        </div>
+      </div>
+      <div class="scale-wrapper">
+        <div class="transform-card-sm" style="background-color: #e84393; transform: scale(1.25, 1.25)">
+          <p class="card-text-sm">1.25</p>
+        </div>
+      </div>
+    </div>
+    <h2 class="section-title">Skew</h2>
+    <div class="demo-row-spaced">
+      <div class="skew-wrapper">
+        <div class="transform-card-sm" style="background-color: #00cec9; transform: skewX(0deg)">
+          <p class="card-text-sm">0</p>
+        </div>
+      </div>
+      <div class="skew-wrapper">
+        <div class="transform-card-sm" style="background-color: #0984e3; transform: skewX(10deg)">
+          <p class="card-text-sm">X 10</p>
+        </div>
+      </div>
+      <div class="skew-wrapper">
+        <div class="transform-card-sm" style="background-color: #6c5ce7; transform: skewX(20deg)">
+          <p class="card-text-sm">X 20</p>
+        </div>
+      </div>
+      <div class="skew-wrapper">
+        <div class="transform-card-sm" style="background-color: #e84393; transform: skewY(15deg)">
+          <p class="card-text-sm">Y 15</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</demo-page>

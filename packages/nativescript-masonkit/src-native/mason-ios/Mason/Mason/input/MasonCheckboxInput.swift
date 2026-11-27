@@ -5,9 +5,13 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
-class MasonCheckboxInput: UIControl {
+class MasonCheckboxInput: MasonControlBase {
 
   internal var owner: MasonElement?
   /// Reports a tap, so the owner's checked state follows the user.

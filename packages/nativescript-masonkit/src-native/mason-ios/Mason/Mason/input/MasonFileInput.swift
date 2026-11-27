@@ -5,10 +5,14 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import UniformTypeIdentifiers
 
-private func utTypes(from accept: String?) -> [UTType] {
+func utTypes(from accept: String?) -> [UTType] {
   guard let accept = accept, !accept.isEmpty else {
     return [.data]
   }
@@ -42,7 +46,8 @@ private func utTypes(from accept: String?) -> [UTType] {
   return types.isEmpty ? [.data] : types
 }
 
-class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerDelegate  {
+#if canImport(UIKit)
+class MasonFileInput: MasonViewBase, UIDocumentPickerDelegate, UIImagePickerControllerDelegate  {
   internal var owner: MasonInput?
   private let fileBtn = UIButton(type: .system)
   private let fileLabel = UILabel()
@@ -206,3 +211,4 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
     }
   }
 }
+#endif

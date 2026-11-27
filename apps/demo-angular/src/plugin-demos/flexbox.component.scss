@@ -1,0 +1,80 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+}
+
+.label {
+  font-size: 13;
+  font-weight: bold;
+  color: var(--text-2);
+  margin-top: 6;
+}
+
+.track {
+  display: flex;
+  flex-direction: row;
+  background-color: var(--surface-2);
+  border-radius: 8;
+  padding: 8;
+}
+
+.track-tall {
+  height: 130;
+}
+
+.track-align {
+  height: 90;
+  gap: 8;
+}
+
+/* Every cell centres its label both ways instead of relying on text-align. */
+.cell {
+  height: 50;
+  border-radius: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-fixed {
+  width: 80;
+}
+
+.cell-square {
+  width: 50;
+}
+
+.cell-narrow {
+  width: 48;
+}
+
+.cell-wrap {
+  width: 56;
+  height: 44;
+}
+
+.cell-grow {
+  flex-basis: 0;
+}
+
+.cell-label {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 14;
+}
+
+.cell-label-sm {
+  font-size: 11;
+}
+
+/* Yellow cells keep dark text in both appearances. */
+.cell-dark .cell-label {
+  color: #1a1a2e;
+}

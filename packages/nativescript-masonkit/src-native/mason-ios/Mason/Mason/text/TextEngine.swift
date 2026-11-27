@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 02/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 enum DrawState: BitwiseCopyable {
   case idle
@@ -33,8 +37,10 @@ internal func inlineBoxSize(_ node: MasonNode) -> CGSize {
   let scale = CGFloat(NSCMason.scale)
   let layout = node.computedLayout
   let laidOut = !layout.width.isNaN && !layout.height.isNaN && (layout.width > 0 || layout.height > 0)
-  let width = laidOut ? CGFloat(layout.width) : CGFloat(node.cachedWidth)
-  let height = laidOut ? CGFloat(layout.height) : CGFloat(node.cachedHeight)
+  let reported = node.reportedSize
+  let fallback = reported != .zero ? reported : CGSize(width: node.cachedWidth, height: node.cachedHeight)
+  let width = laidOut ? CGFloat(layout.width) : fallback.width
+  let height = laidOut ? CGFloat(layout.height) : fallback.height
   return CGSize(width: width / scale, height: height / scale)
 }
 
@@ -189,16 +195,16 @@ public class TextEngine: NSObject {
 
     func add(_ node: MasonNode?, _ label: String, _ traits: UIAccessibilityTraits, _ rect: CGRect) {
       let frame = rect.applying(drawnTransform)
-      if let last = elements.last as? InlineAccessibilityElement, last.node === node, last.accessibilityTraits == traits, node != nil || traits == .staticText {
-        last.accessibilityLabel = (last.accessibilityLabel ?? "") + label
-        last.accessibilityFrameInContainerSpace = last.accessibilityFrameInContainerSpace.union(frame)
+      if let last = elements.last as? InlineAccessibilityElement, last.node === node, last.traits == traits, node != nil || traits == .staticText {
+        last.label += label
+        last.frameInContainer = last.frameInContainer.union(frame)
         return
       }
-      let element = InlineAccessibilityElement(accessibilityContainer: view)
+      let element = InlineAccessibilityElement(container: view)
       element.node = node
-      element.accessibilityLabel = label
-      element.accessibilityTraits = traits
-      element.accessibilityFrameInContainerSpace = frame
+      element.label = label
+      element.traits = traits
+      element.frameInContainer = frame
       elements.append(element)
     }
 
@@ -371,10 +377,6 @@ public class TextEngine: NSObject {
   
 
   private static let whitespaceRegex = try! NSRegularExpression(pattern: "\\s+")
-  // Soft wrap opportunities for min-content, which is wider than `\s`: U+200B
-  // ZERO WIDTH SPACE breaks a line without being whitespace, so splitting on
-  // whitespace alone reported a whole ZWSP-joined run as one unbreakable word.
-  private static let softWrapRegex = try! NSRegularExpression(pattern: "[\\s\\x{200B}]+")
   private static let horizontalWsRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "[ \\t]+", options: [])
 
   private static func splitByWhitespace(
@@ -425,12 +427,40 @@ public class TextEngine: NSObject {
     return ceil(widest)
   }
 
+  /// The pieces of `string` between line-break opportunities, each with its trailing white space:
+  /// UAX #14 (ICU) line-break units from CFStringTokenizer, which is where CoreText breaks lines.
+  /// So text breaks between ideographs, kana and Hangul syllables, after `/` and around an em
+  /// dash, as well as at spaces and U+200B.
+  internal static func lineBreakPieces(_ string: String) -> [NSRange] {
+    let cf = string as CFString
+    let length = CFStringGetLength(cf)
+    guard length > 0 else { return [] }
+    guard let tokenizer = CFStringTokenizerCreate(kCFAllocatorDefault, cf, CFRange(location: 0, length: length),
+                                                  kCFStringTokenizerUnitLineBreak, CFLocaleCopyCurrent()) else {
+      return [NSRange(location: 0, length: length)]
+    }
+    var starts = Set<Int>([0])
+    while CFStringTokenizerAdvanceToNextToken(tokenizer) != [] {
+      let range = CFStringTokenizerGetCurrentTokenRange(tokenizer)
+      if range.location != kCFNotFound, range.location < length { starts.insert(range.location) }
+    }
+    let sorted = starts.sorted()
+    return sorted.enumerated().map { i, start in
+      NSRange(location: start, length: (i + 1 < sorted.count ? sorted[i + 1] : length) - start)
+    }
+  }
+
+  /// White space after the last word of a line hangs: it doesn't widen min-content.
+  private static func hangs(_ unit: unichar) -> Bool {
+    unit == 0x200B || (UnicodeScalar(unit).map { CharacterSet.whitespacesAndNewlines.contains($0) } ?? false)
+  }
+
   /// `firstLineIndent` (text-indent) widens the first word, which starts the first line.
   internal static func minContentWidth(for text: NSAttributedString, firstLineIndent: CGFloat = 0) -> CGFloat {
     let nsText = text.string as NSString
     let length = nsText.length
-    let matches = softWrapRegex.matches(in: text.string, range: NSRange(location: 0, length: length))
-    if matches.isEmpty { return max(0, desiredWidth(text) + firstLineIndent) }
+    let pieces = lineBreakPieces(text.string)
+    if pieces.count <= 1 { return max(0, desiredWidth(text) + firstLineIndent) }
 
     // One line for the whole string: a word's width is the caret distance across
     // it. Mixed-direction text has no such distance, so it measures word by word.
@@ -454,12 +484,11 @@ public class TextEngine: NSObject {
       }
       maxWidth = max(maxWidth, width)
     }
-    var last = 0
-    for match in matches {
-      word(last, match.range.location)
-      last = match.range.location + match.range.length
+    for piece in pieces {
+      var end = piece.location + piece.length
+      while end > piece.location, hangs(nsText.character(at: end - 1)) { end -= 1 }
+      word(piece.location, end)
     }
-    word(last, length)
 
     if maxWidth == 0, text.length > 0 {
       return max(0, desiredWidth(text) + firstLineIndent)
@@ -958,7 +987,11 @@ public class TextEngine: NSObject {
 
   /// `style` as a CTParagraphStyle whose maximum line spacing is its own line spacing.
   private static func coreTextStyle(_ style: NSParagraphStyle) -> CTParagraphStyle {
+#if canImport(UIKit)
     var alignment = CTTextAlignment(style.alignment)
+#else
+    var alignment = CTTextAlignment(rawValue: UInt8(style.alignment.rawValue)) ?? .natural
+#endif
     var lineBreak = CTLineBreakMode(rawValue: UInt8(style.lineBreakMode.rawValue)) ?? .byWordWrapping
     var direction = CTWritingDirection(rawValue: Int8(style.baseWritingDirection.rawValue)) ?? .natural
     var floats: [CGFloat] = [
@@ -1308,7 +1341,12 @@ public class TextEngine: NSObject {
     let hasBackgroundImage: Bool = {
       let bgString = container.node.style.background.trimmingCharacters(in: .whitespacesAndNewlines)
       if !bgString.isEmpty { return true }
-      if let alpha = container.node.view?.backgroundColor?.cgColor.alpha, alpha > 0 { return true }
+#if canImport(UIKit)
+      let viewBackground = container.node.view?.backgroundColor
+#else
+      let viewBackground = (container.node.view as? MasonViewBase)?.backgroundColor
+#endif
+      if let alpha = viewBackground?.cgColor.alpha, alpha > 0 { return true }
       return false
     }()
     let hasBackground = hasBackgroundImage || container.node.style.backgroundColor != 0
@@ -2476,7 +2514,7 @@ public class TextEngine: NSObject {
     defer { isBuilding = false }
     
     // build `composed` from child fragments using HTML-like whitespace collapsing
-    // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
+    // Text nodes already folded collapsible line breaks into spaces; a "\n" left is a <br> or pre-line.
     let wsSet = TextEngine.collapsibleWhitespace
     // pre, pre-wrap and break-spaces keep every space; only their wrapping differs. white-space
     // inherits, so a span with no value of its own follows its <p>.
@@ -2945,8 +2983,28 @@ final class TextLayoutCache {
 
 
 /// An accessibility element for a piece of a text view: plain text, a link or an inline box.
+#if canImport(UIKit)
 final class InlineAccessibilityElement: UIAccessibilityElement {
   weak var node: MasonNode?
+
+  init(container: MasonText) {
+    super.init(accessibilityContainer: container)
+  }
+
+  var label: String {
+    get { accessibilityLabel ?? "" }
+    set { accessibilityLabel = newValue }
+  }
+
+  var traits: UIAccessibilityTraits {
+    get { accessibilityTraits }
+    set { accessibilityTraits = newValue }
+  }
+
+  var frameInContainer: CGRect {
+    get { accessibilityFrameInContainerSpace }
+    set { accessibilityFrameInContainerSpace = newValue }
+  }
 
   override func accessibilityActivate() -> Bool {
     guard let node = node, let text = accessibilityContainer as? MasonText else { return false }
@@ -2955,6 +3013,39 @@ final class InlineAccessibilityElement: UIAccessibilityElement {
     return true
   }
 }
+#else
+final class InlineAccessibilityElement: NSAccessibilityElement {
+  weak var node: MasonNode?
+  private weak var container: MasonText?
+
+  init(container: MasonText) {
+    self.container = container
+    super.init()
+    setAccessibilityParent(container)
+  }
+
+  var label: String {
+    get { accessibilityLabel() ?? "" }
+    set { setAccessibilityLabel(newValue) }
+  }
+
+  var traits: UIAccessibilityTraits = .staticText {
+    didSet { setAccessibilityRole(traits.role) }
+  }
+
+  var frameInContainer: CGRect {
+    get { accessibilityFrameInParentSpace() }
+    set { setAccessibilityFrameInParentSpace(newValue) }
+  }
+
+  override func accessibilityPerformPress() -> Bool {
+    guard let node = node, let text = container else { return false }
+    let frame = frameInContainer
+    text.dispatchInlineClick(node, at: CGPoint(x: frame.midX, y: frame.midY))
+    return true
+  }
+}
+#endif
 
 /// A weak reference to the element that produced a range of flattened text. Equal when it
 /// names the same node, so rebuilt strings still match layout caches.

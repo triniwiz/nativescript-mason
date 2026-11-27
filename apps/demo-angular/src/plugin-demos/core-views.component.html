@@ -1,0 +1,155 @@
+<demo-page title="Core Views">
+  <main class="page-body">
+    <p class="lead">Plain &#64;nativescript/core views hosted inside MasonKit flex/grid containers — the interop path where a non-Mason child is attached as a leaf Taffy node and measured natively — and the reverse: Mason roots hosted inside core StackLayout / GridLayout / WrapLayout that are themselves leaves of a Mason tree.</p>
+    <!--
+          Intrinsic sizing note: core views need NO explicit width/height to be visible here.
+          MasonKit attaches each non-Mason child (Switch, TextField, TextView, Slider, Progress,
+          ActivityIndicator, SegmentedBar, ListPicker) as a leaf Taffy node with a default measure
+          function (Android: View.measure, iOS: sizeThatFits), so they report their intrinsic size.
+          The widths set in CSS below (Slider/Progress/ListPicker stretch, TextField/TextView stretch)
+          are only there for fill behavior, not to make them visible.
+        -->
+    <section class="card">
+      <h2>Form — flex column</h2>
+      <label class="field-label" text="Name"></label>
+      <TextField [(ngModel)]="name" class="field" hint="Your name" returnKeyType="done" [isEnabled]="!allDisabled()" (returnPress)="lastReturn.set('name')"></TextField>
+      <label class="field-label" text="Bio"></label>
+      <TextView [(ngModel)]="bio" class="field bio" hint="A few lines about you…" [isEnabled]="!allDisabled()"></TextView>
+      <p class="readout">name: {{ name() || '—' }} · bio: {{ bio().length }} chars</p>
+      @if (lastReturn()) {
+        <p class="readout">return pressed on: {{ lastReturn() }}</p>
+      }
+    </section>
+    <section class="card">
+      <h2>Rows — space-between</h2>
+      <div class="setting-row">
+        <label text="Airplane mode" class="row-title"></label>
+        <Switch [(ngModel)]="airplane" [isEnabled]="!allDisabled()"></Switch>
+      </div>
+      <div class="setting-row">
+        <label text="Sync on Wi-Fi only" class="row-title"></label>
+        <Switch [(ngModel)]="wifiOnly" [isEnabled]="!allDisabled()"></Switch>
+      </div>
+      <p class="readout">airplane: {{ airplane() ? 'on' : 'off' }} · wifi-only: {{ wifiOnly() ? 'on' : 'off' }}</p>
+      <div class="setting-row">
+        <label text="Spinner" class="row-title"></label>
+        <ActivityIndicator [busy]="spinning()"></ActivityIndicator>
+        <button class="small-btn" (tap)="spinning.set(!spinning())">{{ spinning() ? 'Stop' : 'Start' }}</button>
+      </div>
+      <div class="setting-row">
+        <label text="View" class="row-title"></label>
+        <SegmentedBar class="segmented" [isEnabled]="!allDisabled()" [(ngModel)]="viewIndex">
+          <SegmentedBarItem title="List"></SegmentedBarItem>
+          <SegmentedBarItem title="Grid"></SegmentedBarItem>
+          <SegmentedBarItem title="Map"></SegmentedBarItem>
+        </SegmentedBar>
+      </div>
+      <p class="readout">selected view: {{ views[viewIndex()] }}</p>
+    </section>
+    <section class="card">
+      <h2>Grid — auto 1fr</h2>
+      <div class="grid">
+        <label text="Volume" class="grid-label"></label>
+        <Slider class="stretch" [(ngModel)]="volume" minValue="0" maxValue="100" [isEnabled]="!allDisabled()"></Slider>
+        <label text="Download" class="grid-label"></label>
+        <Progress class="stretch" [value]="volume()" maxValue="100"></Progress>
+        <label text="Planet" class="grid-label"></label>
+        <div class="picker-cell">
+          <ListPicker class="stretch" [items]="planets" [(ngModel)]="planetIndex" [isEnabled]="!allDisabled()"></ListPicker>
+        </div>
+      </div>
+      <p class="readout">volume: {{ volume() }} / 100 · Progress mirrors the Slider</p>
+      <button class="small-btn" (tap)="bump()">Bump +10</button>
+    </section>
+    <section class="card">
+      <h2>Nested — core view in a div in a Scroll</h2>
+      <div class="nested">
+        <div class="nested-inner">
+          <TextView [(ngModel)]="notes" class="field notes" hint="Scratch notes…" [isEnabled]="!allDisabled()"></TextView>
+        </div>
+      </div>
+      <p class="readout">notes: {{ notes().length }} chars</p>
+    </section>
+    <!--
+          Reverse interop: Mason roots inside core layouts inside Mason. The outer
+          compute holds the Rust tree lock while the core ViewGroup measures its
+          Mason children, so each nested root reports its last size and defers a
+          compute (Element.computeNestedRootLater); the foreign leaf is then
+          dirtied so the outer tree picks up the real height. Before the fix every
+          block below collapsed to 0.
+        -->
+    <section class="card">
+      <h2>StackLayout hosting Mason</h2>
+      <StackLayout class="core-host" #stackHost>
+        <p class="nested-p">Mason text inside a classic vertical StackLayout should wrap onto several lines and stay visible instead of collapsing to zero height.</p>
+        <div class="chip-row">
+          <span class="chip chip-a">flex row</span>
+          <span class="chip chip-b">inside</span>
+          <span class="chip chip-c">StackLayout</span>
+        </div>
+        <button class="small-btn" (tap)="addLine()">Mason button — add a line ({{ extraLines() }})</button>
+        @for (n of range(extraLines()); track n) {
+          <p class="nested-p extra">Appended line {{ n }} — a content-only change that must reach the host.</p>
+        }
+      </StackLayout>
+      <p class="readout">stack height: {{ sizes().stack }} dp · grows when lines are added</p>
+    </section>
+    <section class="card">
+      <h2>GridLayout hosting Mason</h2>
+      <GridLayout class="core-host" columns="*, *" rows="auto, auto" #gridHost>
+        <p class="nested-p" row="0" col="0">Mason p — r0 c0</p>
+        <Label class="core-label" text="core Label — r0 c1" row="0" col="1"></Label>
+        <div class="cell cell-a" row="1" col="0">
+          <span class="cell-text">Mason div — r1 c0</span>
+        </div>
+        <div class="cell cell-b" row="1" col="1">
+          <span class="cell-text">Mason div — r1 c1</span>
+        </div>
+      </GridLayout>
+      <p class="readout">grid height: {{ sizes().grid }} dp · both Mason cells should show a colour</p>
+    </section>
+    <section class="card">
+      <h2>Horizontal StackLayout keeps Mason's width</h2>
+      <StackLayout orientation="horizontal" class="core-host core-row" #rowHost>
+        <Label class="core-label" text="A"></Label>
+        <Label class="core-label" text="B"></Label>
+        <Label class="core-label" text="C"></Label>
+      </StackLayout>
+      <p class="readout">row: {{ sizes().rowWidth }} × {{ sizes().row }} dp · width should equal the card's content width, not A+B+C</p>
+    </section>
+    <section class="card">
+      <h2>WrapLayout hosting Mason chips</h2>
+      <WrapLayout class="core-host" #wrapHost>
+        @for (tag of tags(); track tag; let i = $index) {
+          <span [class]="['chip', 'wrap-chip', 'chip-' + ['a', 'b', 'c'][i % 3]]">{{ tag }}</span>
+        }
+      </WrapLayout>
+      <div class="btn-row">
+        <button class="small-btn" (tap)="addTag()">Add chip</button>
+        <button class="small-btn" (tap)="removeTag()">Remove chip</button>
+      </div>
+      <p class="readout">wrap height: {{ sizes().wrap }} dp · {{ tags().length }} chips — height changes as rows wrap</p>
+    </section>
+    <section class="card">
+      <h2>Double nesting</h2>
+      <StackLayout class="core-host" #deepHost>
+        <div class="nested">
+          <StackLayout class="core-host inner-host">
+            <p class="nested-p">Mason → StackLayout → Mason div → StackLayout → Mason p. Every level below the outer root is measured while the outer compute is in flight.</p>
+            <div class="chip-row">
+              <span class="chip chip-b">depth 4</span>
+            </div>
+          </StackLayout>
+        </div>
+      </StackLayout>
+      <p class="readout">outer stack height: {{ sizes().deep }} dp</p>
+      <button class="small-btn" (tap)="readSizes()">Read host sizes</button>
+    </section>
+    <section class="card">
+      <div class="setting-row">
+        <label text="Disable all controls" class="row-title"></label>
+        <Switch [(ngModel)]="allDisabled"></Switch>
+      </div>
+    </section>
+  </main>
+</demo-page>

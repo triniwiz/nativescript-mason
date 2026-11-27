@@ -5,9 +5,14 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
+#if canImport(UIKit)
 class MasonRangeInput: UISlider {
   internal var owner: MasonElement?
     private var isTrackingUser = false
@@ -98,7 +103,9 @@ class MasonRangeInput: UISlider {
         owner.node.mason.dispatch(change, owner.node)
     }
 }
+#endif
 
+#if canImport(UIKit)
 internal func thumbImage(diameter: CGFloat, color: UIColor) -> UIImage {
     let renderer = UIGraphicsImageRenderer(size: CGSize(width: diameter, height: diameter))
     return renderer.image { ctx in
@@ -195,3 +202,4 @@ internal func rangeTrackImage(
         )
     )
 }
+#endif

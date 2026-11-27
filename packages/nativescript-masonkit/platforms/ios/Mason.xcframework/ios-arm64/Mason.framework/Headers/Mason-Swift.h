@@ -477,6 +477,10 @@ SWIFT_CLASS_NAMED("Button")
 
 @class UIEvent;
 @interface MasonButton (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface MasonButton (SWIFT_EXTENSION(Mason))
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
@@ -628,6 +632,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (void)layoutSubviews;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonImg (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface MasonImg (SWIFT_EXTENSION(Mason))
@@ -894,6 +902,10 @@ SWIFT_CLASS_NAMED("MasonInput")
 @end
 
 @interface MasonInput (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface MasonInput (SWIFT_EXTENSION(Mason))
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
@@ -1091,6 +1103,10 @@ SWIFT_CLASS_NAMED("MasonLi")
 @end
 
 @interface MasonLi (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface MasonLi (SWIFT_EXTENSION(Mason))
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
@@ -1099,7 +1115,7 @@ SWIFT_CLASS_NAMED("MasonLi")
 @class NSIndexPath;
 @class UICollectionViewCell;
 SWIFT_CLASS_NAMED("MasonList")
-@interface MasonList : UIView <MasonElementObjc, UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout>
+@interface MasonList : UIView <MasonElementObjc>
 @property (nonatomic, strong) id <MasonListDelegate> _Nullable delegate;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
@@ -1115,8 +1131,8 @@ SWIFT_CLASS_NAMED("MasonList")
 @property (nonatomic, strong) NSMutableData * _Nonnull values;
 /// Virtual item count (set by user). Total count = staticItems.count + this value.
 @property (nonatomic) NSInteger count;
-- (void)layoutSubviews;
 - (void)registerWithCellClass:(Class _Nullable)cellClass forCellWithReuseIdentifier:(NSString * _Nonnull)identifier;
+- (void)layoutSubviews;
 /// Appends a static item at the end of the list (position = current count).
 - (void)addView:(MasonLi * _Nonnull)item;
 /// Inserts a static item at the given position, shifting existing entries at >= index.
@@ -1152,6 +1168,13 @@ SWIFT_CLASS_NAMED("MasonListCell")
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@interface MasonList (SWIFT_EXTENSION(Mason)) <UICollectionViewDataSource, UICollectionViewDataSourcePrefetching, UICollectionViewDelegateFlowLayout>
+@end
+
+@interface MasonList (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface MasonList (SWIFT_EXTENSION(Mason))
@@ -1208,6 +1231,8 @@ SWIFT_CLASS_NAMED("MasonNode")
 /// <code>auto</code>). A Mason scroll view only pans along an axis every element from
 /// the touched one up to it allows.
 @property (nonatomic) NSInteger touchAction;
+/// CSS <code>pointer-events</code>: 1 (<code>none</code>) leaves the element itself out of hit testing.
+@property (nonatomic) NSInteger pointerEvents;
 @property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
 - (void)setPseudoString:(uint16_t)pseudoState :(NSString * _Nonnull)key :(NSString * _Nonnull)value;
 - (NSString * _Nullable)getPseudoString:(uint16_t)pseudoState :(NSString * _Nonnull)key SWIFT_WARN_UNUSED_RESULT;
@@ -1258,6 +1283,44 @@ SWIFT_CLASS_NAMED("MasonOverflowPointCompat")
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+/// DOM PointerEvent. Coordinates are CSS pixels (points); client coordinates are relative to the window.
+SWIFT_CLASS_NAMED("MasonPointerEvent")
+@interface MasonPointerEvent : MasonEvent
+@property (nonatomic, readonly) NSInteger pointerId;
+@property (nonatomic, readonly, copy) NSString * _Nonnull pointerType;
+@property (nonatomic, readonly) BOOL isPrimary;
+@property (nonatomic, readonly) double clientX;
+@property (nonatomic, readonly) double clientY;
+@property (nonatomic, readonly) double screenX;
+@property (nonatomic, readonly) double screenY;
+@property (nonatomic, readonly) double offsetX;
+@property (nonatomic, readonly) double offsetY;
+@property (nonatomic, readonly) double movementX;
+@property (nonatomic, readonly) double movementY;
+@property (nonatomic, readonly) double pageX;
+@property (nonatomic, readonly) double pageY;
+@property (nonatomic, readonly) double x;
+@property (nonatomic, readonly) double y;
+@property (nonatomic, readonly) NSInteger button;
+@property (nonatomic, readonly) NSInteger buttons;
+@property (nonatomic, readonly) double width;
+@property (nonatomic, readonly) double height;
+@property (nonatomic, readonly) double pressure;
+@property (nonatomic, readonly) double tangentialPressure;
+@property (nonatomic, readonly) double tiltX;
+@property (nonatomic, readonly) double tiltY;
+@property (nonatomic, readonly) double twist;
+@property (nonatomic, readonly) BOOL ctrlKey;
+@property (nonatomic, readonly) BOOL shiftKey;
+@property (nonatomic, readonly) BOOL altKey;
+@property (nonatomic, readonly) BOOL metaKey;
+/// pointerover/out/enter/leave: the element the pointer came from or went to.
+@property (nonatomic, readonly) id _Nullable relatedTarget;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, copy) NSSet<NSString *> * _Nonnull types;)
++ (NSSet<NSString *> * _Nonnull)types SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 SWIFT_CLASS_NAMED("MasonRectHelper")
@@ -1553,6 +1616,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
@@ -1665,6 +1732,7 @@ SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layerClass;)
 + (Class _Nonnull)layerClass SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, strong) UIColor * _Nullable backgroundColor;
 - (void)didAddSubview:(UIView * _Nonnull)subview;
 - (void)drawRect:(CGRect)rect;
 @property (nonatomic) BOOL isAccessibilityElement;
@@ -1795,6 +1863,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) Class _Nonnull layer
 - (MasonLengthPercentageCompat * _Nonnull)getRowGap SWIFT_WARN_UNUSED_RESULT;
 - (MasonLengthPercentageCompat * _Nonnull)getColumnGap SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonUIView (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface MasonUIView (SWIFT_EXTENSION(Mason))
@@ -2079,6 +2151,10 @@ SWIFT_CLASS_NAMED("Scroll")
 @end
 
 @interface MasonScroll (SWIFT_EXTENSION(Mason))
+- (UIView * _Nullable)hitTest:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface MasonScroll (SWIFT_EXTENSION(Mason))
 - (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent * _Nullable)event SWIFT_WARN_UNUSED_RESULT;
 @end
 
@@ -2195,6 +2271,12 @@ typedef SWIFT_ENUM(uint8_t, TransformOpType, open) {
 
 @interface UIView (SWIFT_EXTENSION(Mason))
 - (UIView * _Nullable)mason_elementFromPoint:(CGFloat)x y:(CGFloat)y SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface UIView (SWIFT_EXTENSION(Mason))
+- (BOOL)mason_setPointerCapture:(NSInteger)pointerId SWIFT_WARN_UNUSED_RESULT;
+- (void)mason_releasePointerCapture:(NSInteger)pointerId;
+- (BOOL)mason_hasPointerCapture:(NSInteger)pointerId SWIFT_WARN_UNUSED_RESULT;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {

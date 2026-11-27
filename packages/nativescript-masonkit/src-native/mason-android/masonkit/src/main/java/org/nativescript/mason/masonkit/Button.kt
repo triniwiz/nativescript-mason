@@ -47,7 +47,7 @@ class Button @JvmOverloads constructor(
     setupButton(mason)
   }
 
-  override fun createOwnNode(mason: Mason, isAnonymous: Boolean): Node = mason.createButtonNode(this)
+  override fun createOwnNode(mason: Mason, isAnonymous: Boolean): Node = mason.createTextEngineButtonNode(this)
 
   override val centersVertically: Boolean
     get() = true

@@ -9,7 +9,7 @@
 </details>
 ```
 
-The behaviour is native on iOS, Android and Windows: the summary is exposed to screen readers as an expandable button, and markup parsed through [`innerHTML`](/guide/inner-html) toggles too.
+The behaviour is native on iOS, Android, Windows and Linux: the summary is exposed to screen readers as an expandable button, and markup parsed through [`innerHTML`](/guide/inner-html) toggles too.
 
 ## open
 

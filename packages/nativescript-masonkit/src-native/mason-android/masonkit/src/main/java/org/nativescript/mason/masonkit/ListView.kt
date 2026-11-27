@@ -45,7 +45,10 @@ class ListView @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
+
+  override fun dispatchHoverEvent(event: android.view.MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   // A descendant's text moved or changed: a text-clipped background paints through it.
   override fun onDescendantInvalidated(child: android.view.View, target: android.view.View) {
@@ -414,7 +417,7 @@ class ListView @JvmOverloads constructor(
   override val view: View
     get() = this
 
-  constructor(context: Context, mason: Mason) : this(context, null, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.themed(context), null, true) {
     node = mason.createNode().apply {
       view = this@ListView
     }

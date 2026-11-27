@@ -1,5 +1,12 @@
 package org.nativescript.mason.masonkit
 
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.widget.EditText
+import android.widget.FrameLayout
+import androidx.core.widget.CompoundButtonCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -7,8 +14,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
 class InputInstrumentedTest {
@@ -254,6 +266,35 @@ class InputInstrumentedTest {
   }
 
   @Test
+  fun dateFieldsFollowTheLocalesOrder() {
+    val base = InstrumentationRegistry.getInstrumentation().targetContext
+    val expected = mapOf(
+      "en-US" to listOf("mm", "dd", "yyyy"),
+      "en-AU" to listOf("dd", "mm", "yyyy"),
+      "de-DE" to listOf("dd", "mm", "yyyy"),
+      "ja-JP" to listOf("yyyy", "mm", "dd"),
+      "bg-BG" to listOf("dd", "mm", "yyyy"),
+    )
+    val default = Locale.getDefault()
+    try {
+      for ((tag, hints) in expected) {
+        val locale = Locale.forLanguageTag(tag)
+        Locale.setDefault(locale)
+        val context = base.createConfigurationContext(
+          Configuration(base.resources.configuration).apply { setLocale(locale) }
+        )
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+          val dateInput = Mason().createInput(context, Input.Type.Date).getChildAt(0) as FrameLayout
+          val fields = (0 until dateInput.childCount).mapNotNull { dateInput.getChildAt(it) as? EditText }
+          assertEquals(tag, hints, fields.map { it.hint.toString() })
+        }
+      }
+    } finally {
+      Locale.setDefault(default)
+    }
+  }
+
+  @Test
   fun switchingBetweenTextTypesKeepsAuthorPadding() {
     val (input, before) = layoutInput {
       it.configure { style -> style.paddingCss = "8 12" }
@@ -395,6 +436,188 @@ class InputInstrumentedTest {
       assertFalse("kept across a type change", text.rangeInput.isEnabled)
       text.isEnabled = true
       assertTrue(text.rangeInput.isEnabled)
+    }
+  }
+
+  @Test
+  fun checkboxIsNotClippedOnTheRight() {
+    val (input, _) = layoutInput {
+      it.type = Input.Type.Checkbox
+      it.checked = true
+    }
+
+    val drawableWidth = CompoundButtonCompat.getButtonDrawable(input.checkBoxInput)?.intrinsicWidth ?: 0
+    assertTrue("buttonDrawable intrinsicWidth must be positive ($drawableWidth)", drawableWidth > 0)
+    assertTrue(
+      "checkbox width (${input.width}) must fit buttonDrawable ($drawableWidth)",
+      input.width >= drawableWidth
+    )
+
+    val bitmap = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
+    try {
+      InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        input.checkBoxInput.jumpDrawablesToCurrentState()
+        input.draw(Canvas(bitmap))
+      }
+
+      val rightEdgePixels = (0 until bitmap.height).count { y ->
+        Color.alpha(bitmap.getPixel(bitmap.width - 1, y)) > 0
+      }
+      val interiorPixels = (0 until bitmap.width - 1).sumOf { x ->
+        (0 until bitmap.height).count { y ->
+          Color.alpha(bitmap.getPixel(x, y)) > 0
+        }
+      }
+      assertTrue("checkbox interior must contain drawn pixels", interiorPixels > 0)
+      assertEquals(
+        "checkbox rightmost column (x=${bitmap.width - 1}) must not be clipped",
+        0,
+        rightEdgePixels
+      )
+    } finally {
+      bitmap.recycle()
+    }
+  }
+
+  @Test
+  fun hiddenInputTakesNoSpaceInFlexSwitchTrack() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val density = context.resources.displayMetrics.density
+    val mason = Mason().apply { setDeviceScale(density) }
+
+    val track = mason.createView(context).apply {
+      configure { style ->
+        style.display = Display.Flex
+        style.flexDirection = FlexDirection.Row
+        style.alignItems = AlignItems.Center
+        style.justifyContent = JustifyContent.FlexEnd
+        style.size = Size(Dimension.Points(48f * density), Dimension.Points(28f * density))
+        val pad = LengthPercentage.Points(4f * density)
+        style.padding = Rect(pad, pad, pad, pad)
+      }
+    }
+
+    val hidden = mason.createInput(context, Input.Type.Hidden).apply {
+      name = "haptics"
+      value = "on"
+    }
+
+    val thumb = mason.createView(context).apply {
+      configure { style ->
+        style.size = Size(Dimension.Points(20f * density), Dimension.Points(20f * density))
+      }
+    }
+
+    track.addView(hidden)
+    track.addView(thumb)
+
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      val tree = track.computeAndLayout(48f * density, 28f * density)
+      if (tree.nodeCount > 0) {
+        track.applyLayoutFlat(track.node, tree)
+      }
+    }
+
+    assertEquals("hidden input adds no child view", 0, hidden.childCount)
+    assertEquals("hidden input is INVISIBLE", android.view.View.INVISIBLE, hidden.visibility)
+    assertEquals("hidden width is 0", 0, hidden.width)
+    assertEquals("hidden height is 0", 0, hidden.height)
+    assertFalse("hidden input is not focusable", hidden.isFocusable)
+    assertFalse("hidden input has no focusable descendants", hidden.hasFocusable())
+    assertEquals(Input.Type.Hidden, hidden.type)
+    assertEquals("haptics", hidden.name)
+    assertEquals("on", hidden.value)
+
+    val expectedThumb = (20f * density).roundToInt()
+    val expectedLeft = (24f * density).roundToInt()
+    assertTrue("thumb width=$expectedThumb got=${thumb.width}", abs(thumb.width - expectedThumb) <= 1)
+    assertTrue("thumb height=$expectedThumb got=${thumb.height}", abs(thumb.height - expectedThumb) <= 1)
+    assertTrue("thumb aligned right expectedLeft=$expectedLeft got=${thumb.left}", abs(thumb.left - expectedLeft) <= 1)
+  }
+
+  @Test
+  fun hiddenInputMutatesValueWithoutAddingChildView() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val mason = Mason().apply { setDeviceScale(context.resources.displayMetrics.density) }
+    val hidden = mason.createInput(context, Input.Type.Hidden)
+
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      hidden.value = "on"
+      assertEquals("on", hidden.value)
+      assertEquals(0, hidden.childCount)
+
+      hidden.value = "off"
+      assertEquals("off", hidden.value)
+      assertEquals(0, hidden.childCount)
+    }
+  }
+
+  @Test
+  fun hiddenInputEnforcesDisplayNoneAndRestoresAuthorDisplayOnTypeChange() {
+    val (input, _) = layoutInput {
+      it.type = Input.Type.Hidden
+      it.style.display = Display.Flex
+    }
+
+    assertEquals("display stays none while hidden", Display.None, input.style.display)
+    assertEquals("visibility stays INVISIBLE while hidden", android.view.View.INVISIBLE, input.visibility)
+    assertEquals(0, input.width)
+    assertEquals(0, input.height)
+
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.type = Input.Type.Text
+    }
+
+    assertEquals("author display restored on transition to text", Display.Flex, input.style.display)
+    assertEquals("visibility restored on transition to text", android.view.View.VISIBLE, input.visibility)
+  }
+
+  @Test
+  fun dynamicTransitionTextToHiddenAndBackToTextPreservesValueAndLayout() {
+    val (input, _) = layoutInput {
+      it.value = "persist-me"
+    }
+    assertTrue("initial text input has non-zero width", input.width > 0)
+    assertTrue("initial text input has non-zero height", input.height > 0)
+    assertEquals(1, input.childCount)
+
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.type = Input.Type.Hidden
+    }
+    relayout(input)
+
+    assertEquals(0, input.childCount)
+    assertEquals(android.view.View.INVISIBLE, input.visibility)
+    assertEquals(0, input.width)
+    assertEquals(0, input.height)
+    assertEquals("value preserved when switching to hidden", "persist-me", input.value)
+
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      input.type = Input.Type.Text
+    }
+    relayout(input)
+
+    assertEquals(1, input.childCount)
+    assertTrue("restored child is EditText", input.getChildAt(0) is EditText)
+    assertEquals(android.view.View.VISIBLE, input.visibility)
+    assertTrue("restored width > 0 (got ${input.width})", input.width > 0)
+    assertTrue("restored height > 0 (got ${input.height})", input.height > 0)
+    assertEquals("value preserved when returning to text", "persist-me", input.value)
+  }
+
+  @Test
+  fun htmlParserParsesHiddenInput() {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+      val nodes = HTMLParser(Mason(), context).parse("<input type=\"hidden\" name=\"haptics\" value=\"on\">")
+      assertEquals(1, nodes.size)
+      val input = nodes[0].view as Input
+      assertEquals(Input.Type.Hidden, input.type)
+      assertEquals("haptics", input.name)
+      assertEquals("on", input.value)
+      assertEquals(0, input.childCount)
+      assertEquals(Display.None, input.style.display)
+      assertEquals(android.view.View.INVISIBLE, input.visibility)
     }
   }
 }

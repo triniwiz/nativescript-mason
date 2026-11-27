@@ -1,5 +1,9 @@
 import CoreText
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 // text-orientation for vertical text. Lines are laid out sideways and turned clockwise; a
 // grapheme kept upright is kerned out to a cell of its own along the line and drawn turned back. The same table and rules are in Android VerticalText.kt and Windows VerticalText.h.

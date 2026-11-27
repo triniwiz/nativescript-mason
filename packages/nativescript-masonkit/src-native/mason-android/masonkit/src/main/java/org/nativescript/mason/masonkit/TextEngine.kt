@@ -46,14 +46,64 @@ import org.nativescript.mason.masonkit.enums.FontVariantNumeric
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
+import java.text.BreakIterator
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** U+200B ZERO WIDTH SPACE breaks a line without being whitespace (Java
- *  classifies it as a format char), so `isWhitespace` alone reports a whole
- *  ZWSP-joined run as one unbreakable word. */
-private fun Char.isSoftWrapOpportunity(): Boolean = isWhitespace() || this == '\u200B'
+private class LineBreakIterator {
+  private var locale: Locale? = null
+  private var iterator: BreakIterator? = null
+
+  fun over(text: String, locale: Locale): BreakIterator {
+    if (locale != this.locale) {
+      iterator = BreakIterator.getLineInstance(locale)
+      this.locale = locale
+    }
+    return iterator!!.apply { setText(text) }
+  }
+
+  companion object {
+    val current = object : ThreadLocal<LineBreakIterator>() {
+      override fun initialValue() = LineBreakIterator()
+    }
+  }
+}
+
+// Minikin breaks after these only when it hyphenates (its Hyphenator::isLineBreakingHyphen, and U+00AD).
+private fun Char.breaksOnlyWhenHyphenating(): Boolean = when (this) {
+  '-', '\u00AD', '\u058A', '\u05BE', '\u1400', '\u2010', '\u2013', '\u2027', '\u2E17', '\u2E40' -> true
+  else -> false
+}
+
+// Minikin breaks a URL or an email address by its own rules.
+private fun urlOrEmailEnd(text: String, start: Int): Int {
+  var end = start
+  var found = false
+  while (end < text.length && text[end] in '!'..'~') {
+    if (text[end] == '@' || text.startsWith("://", end)) found = true
+    end++
+  }
+  return if (found) end else start
+}
+
+private fun staticLayoutBreaks(text: String, locale: Locale, hyphenates: Boolean): IntArray {
+  val iterator = LineBreakIterator.current.get()!!.over(text, locale)
+  val breaks = IntArray(text.length)
+  var count = 0
+  var wholeUntil = urlOrEmailEnd(text, 0)
+  var b = iterator.next()
+  while (b != BreakIterator.DONE) {
+    if (b == text.length || (b >= wholeUntil && (hyphenates || !text[b - 1].breaksOnlyWhenHyphenating()))) {
+      breaks[count++] = b
+      wholeUntil = urlOrEmailEnd(text, b)
+    }
+    b = iterator.next()
+  }
+  return breaks.copyOf(count)
+}
 
 private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
   var w = 0f
@@ -63,6 +113,12 @@ private fun advanceSum(advances: FloatArray, start: Int, end: Int): Float {
 
 // Every strong right-to-left character and bidi control is at or above U+0590.
 private const val FIRST_RTL_CHAR = '\u0590'
+
+// StaticLayout expands tabs, hyphenates at soft hyphens and breaks at ICU's mandatory breaks.
+private fun Char.keepsStaticLayout(): Boolean = when (this) {
+  '\t', '\u00AD', '\n', '\u000B', '\u000C', '\r', '\u0085', '\u2028', '\u2029' -> true
+  else -> false
+}
 
 private fun uniformAdvances(text: CharSequence, paint: TextPaint, scratch: TextPaint): FloatArray? {
   val len = text.length
@@ -96,58 +152,42 @@ private fun isLineEndSpace(ch: Char): Boolean =
   ch == ' ' || ch == '	' || ch == ' ' ||
     (ch in ' '..' ' && ch != ' ') || ch == ' ' || ch == '　'
 
-private fun hasSoftWrapOpportunity(text: CharSequence, softHyphens: Boolean = false): Boolean {
-  for (i in 0 until text.length) {
-    if (text[i].isSoftWrapOpportunity() || (softHyphens && text[i] == '\u00AD')) return true
-  }
-  return false
-}
-
 // Text widths round up to 1/64 px, not a whole pixel, so fractional densities don't drift.
 private fun ceilFine(v: Float): Float = ceil(v * 64f - 0.01f) / 64f
 
 // A wrap width that a fractional box width fits in; flooring it re-wraps the last word.
-private fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
+internal fun ceilConstraint(v: Float): Int = ceil(v - 1f / 64f).toInt()
 
-/**
- * Compute the widest segment between soft wrap opportunities in [text] without
- * allocating a split array.
- * When [useLayout] is true, uses [Layout.getDesiredWidth] for rich text;
- * otherwise uses [Paint.measureText] for plain text.
- */
-private fun maxWordWidth(
+private fun widestPiece(
   text: CharSequence,
+  breaks: IntArray,
   paint: TextPaint,
-  useLayout: Boolean,
-  advances: FloatArray? = null,
-  softHyphens: Boolean = false
+  inline: Boolean,
+  advances: FloatArray?,
+  hyphenates: Boolean,
+  indent: Int
 ): Float {
-  var maxW = 0f
-  val len = text.length
-  val chars = CharArray(len)
-  TextUtils.getChars(text, 0, len, chars, 0)
   // A piece ending at a soft hyphen carries the hyphen drawn there.
-  val hyphenWidth = if (softHyphens) paint.measureText("\u2010") else 0f
+  val hyphenWidth = if (hyphenates) paint.measureText("\u2010") else 0f
+  var widest = 0f
+  var first = 0f
   var start = 0
-  var i = 0
-  while (i <= len) {
-    val isShy = softHyphens && i < len && chars[i] == '\u00AD'
-    val isWs = i < len && (chars[i].isSoftWrapOpportunity() || isShy)
-    if (i == len || isWs) {
-      if (i > start) {
-        // Measure the range directly; slicing a Spannable per word copies
-        // overlapping spans and turns this loop quadratic.
-        var w = if (advances != null) advanceSum(advances, start, i)
-        else if (useLayout) Layout.getDesiredWidth(text, start, i, paint)
-        else paint.measureText(text, start, i)
-        if (isShy) w += hyphenWidth
-        if (w > maxW) maxW = w
-      }
-      start = i + 1
+  for (b in breaks) {
+    var end = b
+    val shy = text[end - 1] == '\u00AD'
+    if (shy) end--
+    while (end > start && text[end - 1].isWhitespace()) end--
+    if (end > start) {
+      var w = if (advances != null) advanceSum(advances, start, end)
+      else if (inline) Layout.getDesiredWidth(text, start, end, paint)
+      else paint.measureText(text, start, end)
+      if (shy) w += hyphenWidth
+      if (start == 0) first = w
+      if (w > widest) widest = w
     }
-    i++
+    start = b
   }
-  return ceilFine(maxW)
+  return maxOf(widest, first + indent)
 }
 
 class TextEngine(val container: TextContainer) {
@@ -235,6 +275,7 @@ class TextEngine(val container: TextContainer) {
     }
     set(value) {
       mIncludePadding = value
+      if (PreparedText.enabled) recheckTexts(node, children = false)
       (container.node.view as? Element)?.invalidateLayout()
     }
 
@@ -379,9 +420,9 @@ class TextEngine(val container: TextContainer) {
       flushedOnce = true
       updateStyleOnTextNodes()
       if (layoutPending) {
-        invalidateInlineSegments(quiet = quiet)
-      } else if (!quiet) {
-        (node.view as? View)?.invalidate()
+        invalidateInlineSegments(requestLayout = !quiet, redraw = !quiet)
+      } else {
+        redrawAfterVisualChange(quiet)
       }
       return
     }
@@ -392,7 +433,7 @@ class TextEngine(val container: TextContainer) {
         lastTextVisualSignature = textVisualSignature()
         updateStyleOnTextNodes()
         if (sig != null) {
-          invalidateInlineSegments(quiet = quiet)
+          invalidateInlineSegments(requestLayout = !quiet, redraw = !quiet)
         }
       }
     } else if (visualPending) {
@@ -400,9 +441,7 @@ class TextEngine(val container: TextContainer) {
       if (sig == null || sig != lastTextVisualSignature) {
         lastTextVisualSignature = sig
         updateStyleOnTextNodes()
-        if (!quiet) {
-          (node.view as? View)?.invalidate()
-        }
+        redrawAfterVisualChange(quiet)
       }
     }
   }
@@ -479,6 +518,7 @@ class TextEngine(val container: TextContainer) {
     maxLines: Int,
     widthSlack: Int = 0
   ): StaticLayoutCacheEntry? {
+    val staticLayoutCache = layoutState.staticLayoutCache
     for (entry in staticLayoutCache) {
       if (entry != null &&
         entry.version == segmentsInvalidateVersion &&
@@ -534,7 +574,7 @@ class TextEngine(val container: TextContainer) {
 
   // text-indent in device px for a line length (a percentage resolves against it, 0 when
   // unconstrained). Inline boxes don't start a block, nor do anonymous runs after the first child.
-  private fun textIndentPx(lineLength: Float): Int {
+  internal fun textIndentPx(lineLength: Float): Int {
     val raw = style.resolvedTextIndent
     if (raw == 0f) return 0
     if (style.isValueInitialized && style.display == Display.Inline) return 0
@@ -547,7 +587,7 @@ class TextEngine(val container: TextContainer) {
     return kotlin.math.round(raw / 100f * lineLength).toInt()
   }
 
-  private val percentTextIndent: Boolean
+  internal val percentTextIndent: Boolean
     get() = style.resolvedTextIndentIsPercent && style.resolvedTextIndent != 0f
 
   // line-clamp: max visible lines, 0 for none. Inline boxes are not clamped.
@@ -692,6 +732,7 @@ class TextEngine(val container: TextContainer) {
       indent = indent,
       maxLines = maxLines
     )
+    val staticLayoutCache = layoutState.staticLayoutCache
     staticLayoutCache[staticLayoutCacheNextIdx] = entry
     staticLayoutCacheNextIdx = (staticLayoutCacheNextIdx + 1) % staticLayoutCache.size
 
@@ -732,7 +773,8 @@ class TextEngine(val container: TextContainer) {
     val constraint: Int,
     val isInline: Boolean,
     // What a percentage text-indent resolves against.
-    val indentBasis: Float
+    val indentBasis: Float,
+    val wraps: Boolean
   )
 
   private fun computeWidthConstraint(
@@ -840,7 +882,7 @@ class TextEngine(val container: TextContainer) {
       availableWidth.isFinite() && availableWidth > 0f -> availableWidth
       else -> 0f
     }
-    return MeasureWidthSpec(widthConstraint, isInline, indentBasis)
+    return MeasureWidthSpec(widthConstraint, isInline, indentBasis, allowWrap)
   }
 
   private fun measureLayout(
@@ -877,14 +919,13 @@ class TextEngine(val container: TextContainer) {
     measuredMaxLines = maxLines
     measuredExclusions = exclusions
 
-    val breaksAtSoftHyphens = style.resolvedHyphens.toInt() != 1
-    val measuredWidth = if (spec.constraint == Int.MAX_VALUE && availableWidth == -1f &&
-      !(spec.isInline && !hasSoftWrapOpportunity(spannable, breaksAtSoftHyphens))
-    ) {
-      val advances = if (spec.isInline) advancesFor(spannable, paint) else null
-      val widest = maxWordWidth(spannable, paint, spec.isInline, advances, breaksAtSoftHyphens)
-      // The first word also carries the indent.
-      if (indent != 0) maxOf(widest, firstWordWidth(spannable, paint, advances) + indent) else widest
+    val measuredWidth = if (spec.wraps && spec.constraint == Int.MAX_VALUE && availableWidth == -1f) {
+      val hyphenates = hyphenationFrequency(spannable) != Layout.HYPHENATION_FREQUENCY_NONE
+      val breaks = staticLayoutBreaks(spannable.toString(), paint.textLocale, hyphenates)
+      if (spec.isInline && breaks.size <= 1) lineWidth
+      else widestPiece(
+        spannable, breaks, paint, spec.isInline, advancesFor(spannable, paint), hyphenates, indent
+      ).let { if (spec.isInline) ceilFine(it) else ceil(it) }
     } else {
       lineWidth
     }
@@ -1042,14 +1083,15 @@ class TextEngine(val container: TextContainer) {
         lastDefiniteAvailableHeight = availableHeight
       }
       val ver = segmentsInvalidateVersion.toLong()
+      val keys = layoutState.measureCacheKeys
       for (probe in 0 until MEASURE_CACHE_SIZE) {
         val i = (measureCacheNext - 1 - probe + MEASURE_CACHE_SIZE) % MEASURE_CACHE_SIZE
         val b = i * 3
-        if (measureCacheKeys[b] == ver && measureCacheKeys[b + 1] == mcWKey &&
-          measureCacheKeys[b + 2] == mcWMode
+        if (keys[b] == ver && keys[b + 1] == mcWKey &&
+          keys[b + 2] == mcWMode
         ) {
           style.syncFontMetrics()
-          return measureCacheVals[i]
+          return layoutState.measureCacheVals[i]
         }
       }
       if (mcWMode == 2L && !percentIndent && exclusions == null && maxContentVersion == ver &&
@@ -1247,8 +1289,9 @@ class TextEngine(val container: TextContainer) {
     val textIndent = textIndentPx(width.toFloat())
     val rtl = startsRtl(text, heuristic)
     val maxLines = lineClamp
-    paint.getFontMetrics(scratchFontMetrics)
-    val lineH = (scratchFontMetrics.descent - scratchFontMetrics.ascent).coerceAtLeast(1f)
+    val fm = layoutState.scratchFontMetrics
+    paint.getFontMetrics(fm)
+    val lineH = (fm.descent - fm.ascent).coerceAtLeast(1f)
     var floatsBottom = 0f
     for (b in exclusions.indices step 5) floatsBottom = maxOf(floatsBottom, exclusions[b + 3])
     val estimated = (ceil(floatsBottom / lineH).toInt() + 1).coerceIn(1, 1000)
@@ -1349,6 +1392,8 @@ class TextEngine(val container: TextContainer) {
   ) {
     // Nothing relevant changed since the segments already sent for this
     // exact layout — skip the full spannable walk + JNI push.
+    val segmentsCacheLayouts = layoutState.segmentsCacheLayouts
+    val segmentsCacheVersions = layoutState.segmentsCacheVersions
     for (i in segmentsCacheLayouts.indices) {
       if (segmentsCacheLayouts[i] === layout && segmentsCacheVersions[i] == segmentsInvalidateVersion) {
         return
@@ -1358,7 +1403,7 @@ class TextEngine(val container: TextContainer) {
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint by lazy(LazyThreadSafetyMode.NONE) { scratchSegmentPaint.apply { set(paint) } }
+    val textPaint by lazy(LazyThreadSafetyMode.NONE) { layoutState.scratchSegmentPaint.apply { set(paint) } }
 
     // Pre-collect all ViewSpan and BrSpan boundaries sorted by start position
     // in a single O(spans) pass; subsequent lookups are O(1) via index cursor.
@@ -1516,15 +1561,16 @@ class TextEngine(val container: TextContainer) {
           } else {
             // Apply character style spans to a single reused TextPaint (avoids a
             // TextPaint allocation per run). Paint.set() copies all fields cheaply.
-            val runPaint = scratchRunPaint
+            val runPaint = layoutState.scratchRunPaint
             runPaint.set(textPaint)
             val spans =
               attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
             for (span in spans) {
               span.updateDrawState(runPaint)
             }
-            runPaint.getFontMetrics(scratchFontMetrics)
-            scratchFontMetrics
+            val fm = layoutState.scratchFontMetrics
+            runPaint.getFontMetrics(fm)
+            fm
           }
           segments.add(
             InlineSegment.Text(
@@ -1933,17 +1979,46 @@ class TextEngine(val container: TextContainer) {
   private var attributedStringVersion: Int = 0
   private var segmentsInvalidateVersion: Int = 0
 
-  // (version, widthKey, widthMode) per entry.
-  private val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 3)
-  private val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
+  // What only the StaticLayout path needs. A prepared text never creates it.
+  private class LayoutState {
+    // (version, widthKey, widthMode) per entry.
+    val measureCacheKeys = LongArray(MEASURE_CACHE_SIZE * 3)
+    val measureCacheVals = LongArray(MEASURE_CACHE_SIZE)
+    val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
+    val segmentsCacheVersions = IntArray(4) { -1 }
+    val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
+    val singleLineMetrics = BoringLayout.Metrics()
+    val singleLineTextMetrics = Paint.FontMetricsInt()
+    val uniformMetrics = Paint.FontMetrics()
+    val uniformMetricsInt = Paint.FontMetricsInt()
+
+    // Reused across paint.getFontMetrics() call sites instead of the allocating
+    // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
+    // fields immediately and text measurement/draw all happen on the UI thread.
+    val scratchFontMetrics = Paint.FontMetrics()
+
+    val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+
+    // Reused per text-run in collectAndCacheSegments() instead of a fresh
+    // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
+    // Nothing retains this instance across runs.
+    val scratchRunPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+
+    // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
+    val scratchSegmentPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
+  }
+
+  private val layoutState by lazy(LazyThreadSafetyMode.NONE) { LayoutState() }
+
   private var measureCacheNext = 0
 
   private fun storeMeasure(version: Long, widthKey: Long, widthMode: Long, out: Long) {
+    val keys = layoutState.measureCacheKeys
     val b = measureCacheNext * 3
-    measureCacheKeys[b] = version
-    measureCacheKeys[b + 1] = widthKey
-    measureCacheKeys[b + 2] = widthMode
-    measureCacheVals[measureCacheNext] = out
+    keys[b] = version
+    keys[b + 1] = widthKey
+    keys[b + 2] = widthMode
+    layoutState.measureCacheVals[measureCacheNext] = out
     measureCacheNext = (measureCacheNext + 1) % MEASURE_CACHE_SIZE
   }
 
@@ -1960,13 +2035,185 @@ class TextEngine(val container: TextContainer) {
   private var appliedTextVersion: Int = -1
   internal var cachedAttributedString: SpannableStringBuilder? = null
 
+  private var prepared: PreparedRun? = null
+
+  /** The text as Rust measures it, or null when a StaticLayout lays it out. */
+  internal val preparedRun: PreparedRun?
+    get() = prepared?.takeIf { it.version == segmentsInvalidateVersion }
+
+  internal val preparedText: String?
+    get() = preparedRun?.text
+
+  /**
+   * Prepares the text when it qualifies and drops a preparation it no longer qualifies for.
+   * True when Rust measures the text.
+   */
+  internal fun prepareIfQualified(): Boolean {
+    if (PreparedText.enabled) {
+      node.layoutParent?.everParentOfCheckedText = true
+      node.parent?.everParentOfCheckedText = true
+      if (preparedRun != null) return true
+      val child = preparableChild()
+      val text = child?.let { preparableText(it.node) }
+      if (child != null && text != null && prepare(text, child)) return true
+    }
+    clearPreparedText()
+    return false
+  }
+
+  private class PreparableChild(val node: TextNode, val paragraph: PreparedParagraph)
+
+  private fun preparableChild(): PreparableChild? {
+    val view = container as? TextView ?: return null
+    if (view.javaClass != TextView::class.java && view.javaClass != Button::class.java) return null
+    when (view.type) {
+      TextType.Blockquote, TextType.Pre -> return null
+      else -> {}
+    }
+    if (ListMarkers.insideMarker(view).isNotEmpty()) return null
+    val child = node.children.singleOrNull() as? TextNode ?: return null
+    if (child.verbatim != null || isVerticalWritingMode) return null
+    if (style.resolvedUnicodeBidi.toInt() != 0 || style.direction == Direction.RTL) return null
+    val a = child.attributes
+    if ((a.letterSpacing ?: 0f) != 0f || style.resolvedWordSpacing != 0f) return null
+    if (a.decorationLine.let { it != null && it != Styles.DecorationLine.None } || !a.textShadow.isNullOrEmpty()) {
+      return null
+    }
+    val paragraph = PreparedParagraph.preparableOrNull(this, a) ?: return null
+    if (style.resolvedHyphens.toInt() == 2) return null
+    if (includePadding || lineClamp > 0 || style.textOverflowEllipsis) return null
+    // The JVM measure wraps at a max-width in points even for a max-content size.
+    if (style.maxWidth.let { it is Dimension.Points && it.points > 0f }) return null
+    if (spacingTrimModes(1, style.resolvedTextSpacingTrim.toInt(), emptyList()) != null) return null
+    val parentFloats = try {
+      node.parent?.style?.float.let { it != null && it != org.nativescript.mason.masonkit.enums.Float.None }
+    } catch (_: Throwable) {
+      true
+    }
+    if (parentFloats || hasFloatedSibling() || inBlockLineBoxes()) return null
+    return PreparableChild(child, paragraph)
+  }
+
+  // Its block lays an inline text out from the segments its JVM measure sends.
+  private fun inBlockLineBoxes(): Boolean = NodeUtils.isInlineLike(node) && when (node.layoutParent?.style?.display) {
+    Display.Flex, Display.Grid, Display.InlineFlex, Display.InlineGrid -> false
+    else -> true
+  }
+
+  private fun preparableText(child: TextNode): String? {
+    val processed = child.container?.let { TextNode.processText(child.data, it.style) } ?: child.data
+    val text = SpannableStringBuilder(processed).also { collapseFlowSpaces(it) }.toString()
+    // The JVM measure sizes blank text from the segments it sends.
+    if (text.isBlank()) return null
+    // Minikin breaks URLs and email addresses by its own rules.
+    if (text.indexOf('@') >= 0 || text.contains("://")) return null
+    var complex = false
+    for (c in text) {
+      if (c.keepsStaticLayout()) return null
+      if (c >= FIRST_RTL_CHAR) complex = true
+    }
+    if (complex) {
+      if (hasFullWidthPunctuation(text)) return null
+      for (c in text) {
+        if (c in '\u200E'..'\u200F' || c in '\u202A'..'\u202E' || c in '\u2066'..'\u2069') return null
+      }
+      if (TextDirectionHeuristics.ANYRTL_LTR.isRtl(text, 0, text.length)) return null
+    }
+    return text
+  }
+
+  private fun prepare(text: String, child: PreparableChild): Boolean {
+    if (node.mason.inCompute) return false
+    val view = container as TextView
+    val runStyle = TextNode.runStyleSpan(child.node.attributes)
+    val paint = view.preparedPaint(runStyle)
+    val n = text.length
+    val font = runMetrics(paint, lastRunMetrics)
+    var ascent = font.ascent
+    var descent = font.descent
+    val usesOnlyPrimaryFont = font.asciiInPrimaryFont && text.all { it in ' '..'~' }
+    if (!usesOnlyPrimaryFont) {
+      val fmi = scratchFontMetricsInt
+      paint.getFontMetricsInt(text, 0, n, 0, n, false, fmi)
+      if (fmi.ascent < ascent || fmi.descent > descent) {
+        if (!oneLineLayoutsGetFallbackExtents) return false
+        ascent = minOf(fmi.ascent, ascent)
+        descent = maxOf(fmi.descent, descent)
+        // StaticLayout gives a line the extent of the fallback fonts it uses and carries it to the
+        // lines after it, so every line has the text's extent only when the first character does.
+        paint.getFontMetricsInt(text, 0, Character.charCount(text.codePointAt(0)), 0, n, false, fmi)
+        if (minOf(fmi.ascent, font.ascent) != ascent || maxOf(fmi.descent, font.descent) != descent) return false
+      }
+    }
+    val fixedLineHeight = TextNode.fixedLineHeightDip(child.node.attributes)?.let { it * paint.density }
+    // StaticLayout grows a line's carried metrics to the fonts that line uses, Rust to the whole
+    // text's. They differ only when a line height no taller than the text meets a fallback font.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) <= descent - ascent && !usesOnlyPrimaryFont) return false
+    // Layout.draw skips a layout with no height.
+    if (fixedLineHeight != null && Math.round(fixedLineHeight) == 0) return false
+    val advances = FloatArray(n)
+    paint.getTextWidths(text, advances)
+    val inline = NodeUtils.isInlineLike(node)
+    val prepared = PreparedText.prepare(
+      node, text, icuLocale(paint.textLocale), advances,
+      ascent = ascent,
+      descent = descent,
+      lineHeight = fixedLineHeight
+        ?: TextNode.normalLineHeight(ascent, descent, font.ascent, font.descent, font.floatHeight),
+      fixedLineHeight = fixedLineHeight != null,
+      minLineHeight = runMetrics(view.paint, lastViewMetrics).minLineHeight,
+      inline = inline,
+      paragraph = child.paragraph,
+    )
+    if (!prepared) return false
+    this.prepared = PreparedRun(this, text, runStyle, segmentsInvalidateVersion, inline, child.paragraph)
+    preparedEngines[this] = true
+    if (appliedTextVersion != segmentsInvalidateVersion) {
+      view.setTextDeferred(text, BufferType.NORMAL)
+      appliedTextVersion = segmentsInvalidateVersion
+    }
+    return true
+  }
+
+  private fun clearPreparedText() {
+    if (prepared == null) return
+    if (node.mason.inCompute) {
+      val clears = deferredClears ?: java.util.WeakHashMap<TextEngine, Boolean>().also { deferredClears = it }
+      clears[this] = true
+      return
+    }
+    deferredClears?.remove(this)
+    preparedEngines.remove(this)
+    prepared = null
+    PreparedText.clear(node)
+  }
+
+  private val warmMeasuresWillCheck: Boolean
+    get() = staleMeasures.containsKey(this)
+
+  private fun recheckPreparedText() {
+    val run = prepared
+    if (run == null) {
+      if (!warmMeasuresWillCheck && preparableChild() != null) staleMeasures[this] = true
+    } else if (preparableChild()?.paragraph != run.paragraph || run.inline != NodeUtils.isInlineLike(node)) {
+      invalidateInlineSegments(requestLayout = false)
+    }
+  }
+
+  // A decoration or shadow disqualifies a prepared text, which is then laid out again.
+  private fun redrawAfterVisualChange(quiet: Boolean) {
+    if (preparedRun != null && preparableChild() == null) {
+      invalidateInlineSegments(requestLayout = !quiet, redraw = !quiet)
+    } else if (!quiet) {
+      (node.view as? View)?.invalidate()
+    }
+  }
+
   // The inside list marker in the last built text.
   internal var insideMarker = ""
   private var cachedAttributedStringNested = false
   private var isBuilding = false
 
-  private val segmentsCacheLayouts = arrayOfNulls<android.text.Layout>(4)
-  private val segmentsCacheVersions = IntArray(4) { -1 }
   private var segmentsCacheNextIdx = 0
 
   private var minMeasuredTextWidth: Float = 0f
@@ -2027,13 +2274,6 @@ class TextEngine(val container: TextContainer) {
   // Max lines the last measured layout was clamped to.
   private var measuredMaxLines = 0
 
-  private fun firstWordWidth(text: CharSequence, paint: TextPaint, advances: FloatArray?): Float {
-    var end = 0
-    while (end < text.length && !text[end].isSoftWrapOpportunity()) end++
-    if (end == 0) return 0f
-    return ceilFine(advances?.let { advanceSum(it, 0, end) } ?: Layout.getDesiredWidth(text, 0, end, paint))
-  }
-
   private fun keepsTrailingSpaces(): Boolean = node.style.isValueInitialized && when (node.style.resolvedWhiteSpace) {
     Styles.WhiteSpace.Pre, Styles.WhiteSpace.BreakSpaces -> true
     else -> false
@@ -2042,7 +2282,6 @@ class TextEngine(val container: TextContainer) {
   private var advancesVersion = -1
   private var advancesLength = -1
   private var cachedAdvances: FloatArray? = null
-  private val advancesPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   internal var plainTextPaintOrNull: TextPaint? = null
     private set
@@ -2070,9 +2309,6 @@ class TextEngine(val container: TextContainer) {
     return run
   }
 
-  private val singleLineMetrics = BoringLayout.Metrics()
-  private val singleLineTextMetrics = Paint.FontMetricsInt()
-
   private fun singleLineLayout(
     text: CharSequence,
     paint: TextPaint,
@@ -2092,24 +2328,23 @@ class TextEngine(val container: TextContainer) {
     val visibleWidth = advanceSum(advances, 0, visibleEnd)
     if (visibleWidth > width - 0.5f) return null
 
-    val p = advancesPaint
+    val p = layoutState.advancesPaint
     uniformFontMetrics()
-    val primary = uniformMetricsInt
+    val primary = layoutState.uniformMetricsInt
     var top = primary.top
     var ascent = primary.ascent
     var descent = primary.descent
     var bottom = primary.bottom
-    val fm = singleLineTextMetrics
+    val fm = layoutState.singleLineTextMetrics
     fm.leading = primary.leading
-    // The text-range overload is API 34.
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    if (oneLineLayoutsGetFallbackExtents) {
       p.getFontMetricsInt(text, 0, len, 0, len, false, fm)
       top = minOf(top, fm.top)
       ascent = minOf(ascent, fm.ascent)
       descent = maxOf(descent, fm.descent)
       bottom = maxOf(bottom, fm.bottom)
     }
-    val m = singleLineMetrics
+    val m = layoutState.singleLineMetrics
     m.top = top
     m.ascent = ascent
     m.descent = descent
@@ -2135,34 +2370,31 @@ class TextEngine(val container: TextContainer) {
   private var uniformMetricsTypeface: Typeface? = null
   private var uniformMetricsSize = -1f
   private var uniformMetricsVariation: String? = null
-  private val uniformMetrics = Paint.FontMetrics()
-  private val uniformMetricsInt = Paint.FontMetricsInt()
 
   private fun uniformFontMetrics(): Paint.FontMetrics {
-    val p = advancesPaint
+    val p = layoutState.advancesPaint
     val variation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.fontVariationSettings else null
     if (p.typeface !== uniformMetricsTypeface || p.textSize != uniformMetricsSize ||
       variation != uniformMetricsVariation
     ) {
-      p.getFontMetrics(uniformMetrics)
-      p.getFontMetricsInt(uniformMetricsInt)
+      p.getFontMetrics(layoutState.uniformMetrics)
+      p.getFontMetricsInt(layoutState.uniformMetricsInt)
       uniformMetricsTypeface = p.typeface
       uniformMetricsSize = p.textSize
       uniformMetricsVariation = variation
     }
-    return uniformMetrics
+    return layoutState.uniformMetrics
   }
 
   private fun advancesFor(text: CharSequence, paint: TextPaint): FloatArray? {
     if (advancesVersion != segmentsInvalidateVersion || advancesLength != text.length) {
-      cachedAdvances = uniformAdvances(text, paint, advancesPaint)
+      cachedAdvances = uniformAdvances(text, paint, layoutState.advancesPaint)
       advancesVersion = segmentsInvalidateVersion
       advancesLength = text.length
     }
     return cachedAdvances
   }
 
-  private val staticLayoutCache = arrayOfNulls<StaticLayoutCacheEntry>(4)
   private var staticLayoutCacheNextIdx = 0
 
   private var minLineHeightTypeface: Typeface? = null
@@ -2171,27 +2403,14 @@ class TextEngine(val container: TextContainer) {
 
   private fun minLineHeight(paint: TextPaint): Float {
     if (paint.typeface !== minLineHeightTypeface || paint.textSize != minLineHeightTextSize) {
-      paint.getFontMetrics(scratchFontMetrics)
-      val fm = scratchFontMetrics
+      val fm = layoutState.scratchFontMetrics
+      paint.getFontMetrics(fm)
       minLineHeightValue = -fm.ascent + fm.descent + fm.leading
       minLineHeightTypeface = paint.typeface
       minLineHeightTextSize = paint.textSize
     }
     return minLineHeightValue
   }
-
-  // Reused across paint.getFontMetrics() call sites instead of the allocating
-  // no-arg `paint.fontMetrics` property. Safe to share: every use reads the
-  // fields immediately and text measurement/draw all happen on the UI thread.
-  private val scratchFontMetrics = android.graphics.Paint.FontMetrics()
-
-  // Reused per text-run in collectAndCacheSegments() instead of a fresh
-  // `TextPaint(textPaint)` copy — `.set()` overwrites all fields cheaply.
-  // Nothing retains this instance across runs.
-  private val scratchRunPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
-
-  // same pooling as scratchRunPaint, for collectAndCacheSegments()'s copy
-  private val scratchSegmentPaint by lazy(LazyThreadSafetyMode.NONE) { TextPaint() }
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
@@ -2619,7 +2838,7 @@ class TextEngine(val container: TextContainer) {
    * Collapses spaces across the pieces of one inline flow, as each text node only collapses its
    * own: a space after another space, or at the start of a line, is dropped.
    */
-  private fun collapseFlowSpaces(text: SpannableStringBuilder) {
+  private fun collapseFlowSpaces(text: android.text.Editable) {
     if (style.isValueInitialized) {
       when (style.resolvedWhiteSpace) {
         Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap, Styles.WhiteSpace.PreLine -> {}
@@ -2729,10 +2948,15 @@ class TextEngine(val container: TextContainer) {
     return items
   }
 
-  internal fun invalidateInlineSegments(markDirty: Boolean = true, quiet: Boolean = false) {
+  internal fun invalidateInlineSegments(
+    markDirty: Boolean = true,
+    requestLayout: Boolean = true,
+    redraw: Boolean = true
+  ) {
     Node.bumpTextInvalidationEpoch()
     segmentsInvalidateVersion += 1
     staleMeasures[this] = true
+    clearPreparedText()
     cachedAttributedString = null
     minMeasuredTextWidth = 0f
     minMeasuredTextHeight = 0f
@@ -2750,11 +2974,12 @@ class TextEngine(val container: TextContainer) {
     val parent = node.layoutParent
 
     if (parent?.view is TextContainer) {
-      (parent.view as TextContainer).engine.invalidateInlineSegments(quiet = quiet)
+      val parentEngine = (parent.view as TextContainer).engine
+      parentEngine.invalidateInlineSegments(requestLayout = requestLayout, redraw = requestLayout)
     } else {
       parent?.dirty()
       parent?.computeCacheDirty = true
-      if (!quiet) {
+      if (requestLayout) {
         (parent?.view as? View)?.invalidate()
       }
     }
@@ -2764,10 +2989,8 @@ class TextEngine(val container: TextContainer) {
         (node.view as Element).apply {
           val root = node.getRootNode() ?: this.node
           root.computeCacheDirty = true
-          if (!quiet) {
-            view.invalidate()
-            invalidateLayout()
-          }
+          if (redraw) view.invalidate()
+          if (requestLayout) invalidateLayout()
         }
       }
 
@@ -2777,12 +3000,9 @@ class TextEngine(val container: TextContainer) {
           root.computeCacheDirty = true
           root.dirty()
         }
-        if (!quiet) {
-          (node.view as View).apply {
-            invalidate()
-            requestLayout()
-          }
-        }
+        val view = node.view as View
+        if (redraw) view.invalidate()
+        if (requestLayout) view.requestLayout()
       }
 
       else -> {}
@@ -2808,7 +3028,7 @@ class TextEngine(val container: TextContainer) {
   // Block flow and a stretching flex column size a box at its container's width. When that holds
   // from the text up to the root (or a fixed width), taffy never asks the text for min- or
   // max-content, so warming those would be wasted.
-  private fun widthFromParent(): Boolean {
+  internal fun widthFromParent(): Boolean {
     var child = node
     var isText = true
     for (depth in 0 until 64) {
@@ -2869,8 +3089,80 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
+    private val oneLineLayoutsGetFallbackExtents: Boolean
+      get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+
     // Every entry is keyed by text version, so a text view only ever needs a few live constraints.
     private const val MEASURE_CACHE_SIZE = 8
+
+    private class RunMetrics(
+      val ascent: Int,
+      val descent: Int,
+      val floatHeight: Float,
+      val minLineHeight: Float,
+      val asciiInPrimaryFont: Boolean,
+    )
+
+    private data class RunMetricsKey(val typeface: Typeface?, val size: Float, val variations: String?)
+
+    private const val RUN_METRICS_CACHE_SIZE = 16
+
+    private val runMetricsCache by lazy(LazyThreadSafetyMode.NONE) {
+      object : LinkedHashMap<RunMetricsKey, RunMetrics>(RUN_METRICS_CACHE_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<RunMetricsKey, RunMetrics>) =
+          size > RUN_METRICS_CACHE_SIZE
+      }
+    }
+    private val scratchFontMetricsInt by lazy(LazyThreadSafetyMode.NONE) { Paint.FontMetricsInt() }
+    private val scratchFontMetrics by lazy(LazyThreadSafetyMode.NONE) { Paint.FontMetrics() }
+    private val PRINTABLE_ASCII by lazy(LazyThreadSafetyMode.NONE) { String(CharArray(95) { (' '.code + it).toChar() }) }
+
+    private class LastMetrics {
+      var key: RunMetricsKey? = null
+      lateinit var metrics: RunMetrics
+    }
+
+    // Most texts draw with another size than their view's own paint, so each keeps its last metrics.
+    private val lastRunMetrics by lazy(LazyThreadSafetyMode.NONE) { LastMetrics() }
+    private val lastViewMetrics by lazy(LazyThreadSafetyMode.NONE) { LastMetrics() }
+
+    private fun runMetrics(paint: TextPaint, last: LastMetrics): RunMetrics {
+      last.key?.let { key ->
+        if (key.typeface === paint.typeface && key.size == paint.textSize && key.variations == paint.fontVariationSettings) {
+          return last.metrics
+        }
+      }
+      val key = RunMetricsKey(paint.typeface, paint.textSize, paint.fontVariationSettings)
+      return runMetricsCache.getOrPut(key) {
+        val fmi = scratchFontMetricsInt
+        paint.getFontMetricsInt(fmi)
+        val ascent = fmi.ascent
+        val descent = fmi.descent
+        val fm = scratchFontMetrics
+        paint.getFontMetrics(fm)
+        paint.getFontMetricsInt(PRINTABLE_ASCII, 0, PRINTABLE_ASCII.length, 0, PRINTABLE_ASCII.length, false, fmi)
+        RunMetrics(
+          ascent, descent,
+          floatHeight = fm.descent - fm.ascent,
+          minLineHeight = -fm.ascent + fm.descent + fm.leading,
+          asciiInPrimaryFont = fmi.ascent == ascent && fmi.descent == descent,
+        )
+      }.also {
+        last.key = key
+        last.metrics = it
+      }
+    }
+
+    private var lastLocale: java.util.Locale? = null
+    private var lastIcuLocale = ""
+
+    private fun icuLocale(locale: java.util.Locale): String {
+      if (locale != lastLocale) {
+        lastLocale = locale
+        lastIcuLocale = android.icu.util.ULocale.forLocale(locale).name
+      }
+      return lastIcuLocale
+    }
 
     private val staleMeasures = java.util.WeakHashMap<TextEngine, Boolean>()
 
@@ -2878,20 +3170,76 @@ class TextEngine(val container: TextContainer) {
 
     private const val KNOWN_NONE = -3f
 
+    // Prepared texts invalidated during a compute, which writes no Rust node data.
+    private var deferredClears: java.util.WeakHashMap<TextEngine, Boolean>? = null
+
+    internal fun runDeferredClears() {
+      val engines = deferredClears ?: return
+      deferredClears = null
+      for (engine in engines.keys.toMutableList()) engine.clearPreparedText()
+    }
+
+    // Texts Rust measures. The rechecks that would drop them do nothing while prepared text is off.
+    private val preparedEngines by lazy(LazyThreadSafetyMode.NONE) { java.util.WeakHashMap<TextEngine, Boolean>() }
+
+    internal fun dropPreparedTexts() {
+      // toList() calls next() unchecked when size() is 1, and the GC can clear that key first.
+      for (engine in preparedEngines.keys.toMutableList()) engine.invalidateInlineSegments()
+    }
+
+    // A cleared tree's nodes are gone, and touching one aborts the process.
+    internal fun forgetPreparedTexts(mason: Mason) {
+      preparedEngines.keys.removeAll { it.node.mason === mason }
+    }
+
+    private fun recheckTextOf(node: Node) {
+      (node.view as? TextView)?.engine?.recheckPreparedText()
+    }
+
+    // Hidden texts read as unqualified; showing the node changes its display, which rechecks them.
+    private fun recheckTexts(node: Node, children: Boolean) {
+      if ((!children && node.view !is TextView) || node.style.display == Display.None) return
+      recheckTextOf(node)
+      if (!children) return
+      for (child in node.children) {
+        recheckTextOf(child)
+        if (child.isAnonymous) for (member in child.children) recheckTextOf(member)
+      }
+    }
+
+    private fun recheckChildTexts(parent: Node) {
+      if (parent.everParentOfCheckedText) recheckTexts(parent, children = true)
+    }
+
+    internal fun recheckPreparedTextAround(node: Node, floatChanged: Boolean) {
+      if (!PreparedText.enabled) return
+      recheckTexts(node, children = node.everParentOfCheckedText)
+      if (floatChanged) node.parent?.let(::recheckChildTexts)
+    }
+
+    internal fun recheckPreparedTextOnAttach(parent: Node, child: Node) {
+      if (!PreparedText.enabled) return
+      recheckTexts(child, children = false)
+      if (child.isFloated) recheckChildTexts(parent)
+    }
+
+    internal fun recheckPreparedTextOnDetach(parent: Node, child: Node) {
+      if (PreparedText.enabled && child.isFloated) recheckChildTexts(parent)
+    }
+
+    private fun staleEngines(root: Node): List<TextEngine> =
+      staleMeasures.keys.filter { (it.node.getRootNode() ?: it.node) === root }
+
     @JvmStatic
     internal fun warmMeasures(forRoot: Node) {
       flushPendingTextStyles(forRoot)
       Style.flushPendingMetrics(forRoot)
       if (staleMeasures.isEmpty()) return
-      val batch = ArrayList<TextEngine>()
-      val it = staleMeasures.entries.iterator()
-      while (it.hasNext()) {
-        val engine = it.next().key ?: continue
-        if ((engine.node.getRootNode() ?: engine.node) !== forRoot) continue
-        it.remove()
-        if (engine.container !is TextView || !engine.warmable()) continue
-        batch.add(engine)
-      }
+      // A flush can invalidate a text, so every stale text is flushed before any is prepared.
+      for (engine in staleEngines(forRoot)) engine.flushTextStyleIfNeeded(quiet = true)
+      val stale = staleEngines(forRoot)
+      staleMeasures.keys.removeAll(stale.toSet())
+      val batch = stale.filter { it.container is TextView && !it.prepareIfQualified() && it.warmable() }
       if (batch.isEmpty()) return
       warming = true
       try {

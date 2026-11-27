@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 05/11/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 internal struct Constants {
   static let AUTO_VALUE = "auto"

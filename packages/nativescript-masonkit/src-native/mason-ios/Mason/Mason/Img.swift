@@ -4,7 +4,11 @@
 //
 //  Created by Osei Fortune on 07/05/2025.
 //
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 @_implementationOnly import SDWebImage
 
 @objc(MasonLoadingState)
@@ -298,7 +302,7 @@ private let maxImgSvgRasterPx: CGFloat = 4096
 
 @objcMembers
 @objc(MasonImg)
-public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
+public class Img: MasonViewBase, MasonEventTarget, MasonElement, MasonElementObjc {
   
   public let node: MasonNode
   public let mason: NSCMason
@@ -427,7 +431,8 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
     let generation = loadGeneration
     if svg != nil { svg = nil }
     if let src = src, loadSvg(src, generation, current) { return }
-    guard let src = src, let url = URL(string: src) else {
+    // (`~/` sources arrive as absolute paths: a URL without a scheme loads nothing)
+    guard let src = src, let url = src.hasPrefix("/") ? URL(fileURLWithPath: src) : URL(string: src) else {
       if let current = current {
         CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
           self.state = .Loaded
@@ -460,17 +465,19 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
       }
     }else {
       SDWebImageManager.shared.loadImage(with: url, progress: nil) { image, _ , error, type, finished, _ in
+        // a source that gave no image is an error, as an <img>'s `error` event
+        let loaded: LoadingState = image != nil ? .Loaded : .Error
         if let current = current {
           CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
-            self.state = .Loaded
+            self.state = loaded
             self.image = image
-            self.onStateChange?(.Loaded, error)
+            self.onStateChange?(loaded, error)
           }
           CFRunLoopWakeUp(current)
         }else {
-          self.state = .Loaded
+          self.state = loaded
           self.image = image
-          self.onStateChange?(.Loaded, error)
+          self.onStateChange?(loaded, error)
         }
       }
     }

@@ -1,0 +1,209 @@
+<demo-page title="Issue repros">
+  <main class="page-body">
+    <p class="tk-muted note">One card per reported issue. DOM probes log REPRO lines to the console.</p>
+    <p class="tk-text heading">A. Centred nowrap text in a flex box</p>
+    <div class="tk-surface card">
+      <div class="row-flex">
+        <span class="avatar nowrap-center">AB</span>
+        <span class="avatar pre-center">CD</span>
+        <span class="wide-pill">centred pill label</span>
+      </div>
+    </div>
+    <p class="tk-text heading">B. collapse then hidden keeps a gap</p>
+    <div class="tk-surface card">
+      <div class="bar a">above</div>
+      <div #collapseThenHidden class="bar b">hidden (should be a gap)</div>
+      <div class="bar c">below</div>
+    </div>
+    <p class="tk-text heading">C. Centred pre, inline boxes on the baseline</p>
+    <div class="tk-surface card">
+      <pre class="code centred">
+one
+two two
+three three three</pre>
+      <p class="tk-text row">
+        Press <kbd class="kbd">Ctrl</kbd> then <button class="inline-btn">Go</button> and <span class="kbd two-line">two<br />lines</span> end.
+      </p>
+    </div>
+    <p class="tk-text heading">D. Inherited white-space and text-transform</p>
+    <div class="tk-surface card">
+      <div class="inherit-nowrap">
+        <p class="tk-text">This paragraph inherits nowrap from its div, so it stays on one line and is clipped</p>
+      </div>
+      <p class="tk-text upper">uppercase p with <span>a plain span</span> and <b>bold</b></p>
+    </div>
+    <p class="tk-text heading">1. Nested text keeps inline styles</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">plain <span class="red bold">red bold</span> plain <span class="blue italic">blue italic</span></p>
+      <blockquote class="quote">
+        <p class="green">green p in a blockquote</p>
+      </blockquote>
+      <pre class="code"><code><span class="kw">const</span> x <span class="op">=</span> <span class="num">42</span>;</code></pre>
+      <pre class="code"><span class="kw">pre</span> &gt; <span class="num">span</span> (no code)</pre>
+      <p class="tk-text row">
+        p &gt; code &gt; <code><span class="red">red</span>&ngsp;<span class="blue">blue</span></code>
+      </p>
+      <p class="tk-text row">
+        p &gt; span &gt; <span><span class="red">red</span> and <span class="blue">blue</span></span>
+      </p>
+      <p class="tk-text row">
+        p &gt; b &gt;
+        <b>
+          <span class="red">red bold</span>
+        </b>
+      </p>
+    </div>
+    <p class="tk-text heading">2. white-space: pre keeps spaces in runs</p>
+    <div class="tk-surface card">
+      <pre class="code"><code><span>[</span><span>    </span><span>]</span><span>[ edge ]</span><span> </span><span>end</span></code></pre>
+    </div>
+    <p class="tk-text heading">3. Inline div inside text</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">Read <ng-container [ngTemplateOutlet]="guideLink" /> first.</p>
+    </div>
+    <p class="tk-text heading">4. List markers</p>
+    <div class="tk-surface card">
+      <ul>
+        <li>Disc one</li>
+        <li>Disc two</li>
+      </ul>
+      <ol>
+        <li>Numbered one</li>
+        <li>Numbered two</li>
+      </ol>
+      <ul class="md-ul">
+        <li>Explicit disc one</li>
+        <li>Explicit disc two</li>
+      </ul>
+      <ol class="md-ol">
+        <li>Explicit decimal one</li>
+        <li>Explicit decimal two</li>
+      </ol>
+      <ul class="md-short">
+        <li>Shorthand disc one</li>
+        <li>Shorthand disc two</li>
+      </ul>
+      <ol class="md-short-ol">
+        <li>Shorthand decimal outside one</li>
+        <li>Shorthand decimal outside two</li>
+      </ol>
+      <ul class="md-pad">
+        <li class="md-li">Rule on the li one</li>
+        <li class="md-li">Rule on the li two</li>
+      </ul>
+      <ul class="md-ul">
+        <li>
+          <p class="li-p">p in li one</p>
+        </li>
+        <li>
+          <p class="li-p">p in li two</p>
+        </li>
+      </ul>
+      <ul class="md-ul">
+        <li>
+          <span>span in li one</span>
+        </li>
+        <li>
+          <span>span in li two</span>
+        </li>
+      </ul>
+      <ul class="md-ul">
+        <li>
+          <div>div in li one</div>
+        </li>
+        <li>
+          <div>div in li two</div>
+        </li>
+      </ul>
+      <ol class="md-ol">
+        <li>text and <a class="link">a link</a> in li</li>
+        <li><strong>bold</strong> start</li>
+      </ol>
+    </div>
+    <p class="tk-text heading">5. Inline-block on the baseline</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">Press <kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">K</kbd> or <a class="link chip-link">a link chip</a>.</p>
+    </div>
+    <p class="tk-text heading">6. pre in an overflow-x box</p>
+    <div class="tk-surface card">
+      <div class="scroller">
+        <pre class="code">
+line one
+line two is much longer than the viewport so it has to scroll sideways
+line three</pre>
+      </div>
+    </div>
+    <p class="tk-text heading">7. Button centres its text</p>
+    <div class="tk-surface card">
+      <button class="outline-btn">Outline</button>
+    </div>
+    <p class="tk-text heading">8. Flex text element centres its text</p>
+    <div class="tk-surface card">
+      <span class="avatar">AB</span>
+    </div>
+    <p class="tk-text heading">9. Passthrough host keeps its slot</p>
+    <div class="tk-surface card">
+      <div class="row-flex">
+        <span class="cell">A</span>
+        <ProxyViewContainer>
+          <span class="cell">B1</span>
+          <span class="cell">B2</span>
+        </ProxyViewContainer>
+        <span class="cell">C</span>
+      </div>
+    </div>
+    <p class="tk-text heading">10. visibility: collapse</p>
+    <div class="tk-surface card">
+      <div class="bar a">above</div>
+      <div class="bar b" style="visibility: collapse">collapsed</div>
+      <div class="bar c">below (should touch above)</div>
+    </div>
+    <p class="tk-text heading">12. Tap a child moved by a negative margin</p>
+    <div class="tk-surface card">
+      <div class="neg-host">
+        <div class="neg-spacer">spacer</div>
+        <div class="neg-target" (tap)="onNegTap()">tap me ({{ negTaps() }})</div>
+      </div>
+    </div>
+    <p class="tk-text heading">13. backdrop-filter</p>
+    <div class="tk-surface card">
+      <div class="backdrop-host">
+        <span class="tk-text">Text behind the overlay</span>
+        <div class="backdrop"></div>
+      </div>
+    </div>
+    <p class="tk-text heading">16. Calendar grid</p>
+    <div class="tk-surface card">
+      <div class="cal-grid">
+        @for (d of days; track d) {
+          <span class="cal-day">{{ d }}</span>
+        }
+      </div>
+      @for (w of weeks; track w[0]) {
+        <div class="cal-week">
+          @for (d of w; track d) {
+            <span class="cal-cell">{{ d }}</span>
+          }
+        </div>
+      }
+    </div>
+    <p class="tk-text heading">17. Progress and skeleton</p>
+    <div class="tk-surface card">
+      <div class="progress">
+        <div #progressFill class="progress-fill"></div>
+      </div>
+      <div class="skeleton"></div>
+    </div>
+    <p class="tk-text heading">Probes (11, 14, 15, tagName, getBoundingClientRect)</p>
+    <div class="tk-surface card">
+      <button #probeButton class="outline-btn" (tap)="probeTaps.set(probeTaps() + 1)">Probe target</button>
+      <span #probeText class="tk-text">Probe text</span>
+      <span class="tk-muted">{{ probeSummary() }}</span>
+    </div>
+  </main>
+</demo-page>
+
+<!-- HTML ends a p at the first div, so the divs inside text are templates. -->
+<ng-template #guideLink
+  ><div class="inline"><a class="link">the guide</a></div></ng-template
+>

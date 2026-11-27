@@ -1,0 +1,32 @@
+<demo-page title="Article">
+  <article class="page-body">
+    <header>
+      <p class="kicker">Engineering Notes</p>
+      <h1>The quiet rebirth of layout on mobile</h1>
+      <div class="byline">
+        <div class="mini-avatar">
+          <span>DK</span>
+        </div>
+        <div class="byline-body">
+          <p class="byline-author">Dana Kovac</p>
+          <p class="byline-meta">June 12 · 6 min read</p>
+        </div>
+        <button class="save-button" [class.saved]="saved()" (tap)="saved.set(!saved())">{{ saved() ? 'Saved ✓' : 'Save' }}</button>
+      </div>
+    </header>
+    <div class="hero">
+      <span class="hero-glyph">▦</span>
+    </div>
+    <p class="lede">For a decade, mobile layout meant one of two things: springs and struts, or a flex engine tuned for the web and bolted onto native views. Both worked. Neither felt like it belonged.</p>
+    <p>The web solved this a long time ago. Flexbox gave us distribution along an axis; Grid gave us two dimensions and the honesty to say so. The trouble was never the model — it was the host. Native widgets speak a different dialect, and every bridge charged a toll at the border.</p>
+    <h2>Shared memory changes the equation</h2>
+    <p>The newer generation of layout engines keeps the entire style tree in a shared buffer. The UI thread reads exactly what the style thread wrote, with no serialization step in between. A dirty node invalidates a subtree, the engine recomputes, and the native layer gets a plain array of frames.</p>
+    <blockquote>“Layout is not a rendering problem. It is a bookkeeping problem — and bookkeeping is what computers are good at.”</blockquote>
+    <h2>What this means for product teams</h2>
+    <p>Designers can hand over the same CSS they use for the web prototype. Engineers stop maintaining parallel constraint systems for iOS and Android. QA gets identical geometry on both platforms, which quietly deletes an entire class of screenshot-test diffs.</p>
+    <p>None of this is glamorous. But glamour was never the point. The point is that a junior developer should be able to centre a card — vertically and horizontally — without a computer science degree or a three-hundred-comment Stack Overflow thread.</p>
+    <footer class="article-footer">
+      <span>Filed under: layout, css, native</span>
+    </footer>
+  </article>
+</demo-page>

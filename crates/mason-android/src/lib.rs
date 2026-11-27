@@ -11,7 +11,9 @@ use mason_core::{Mason, NodeRef};
 use once_cell::sync::OnceCell;
 use std::ffi::c_void;
 
+mod icu_breaks;
 mod node;
+mod prepared_text;
 pub mod style;
 
 const INLINE_SEGMENT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment";

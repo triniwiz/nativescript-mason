@@ -1,0 +1,57 @@
+import { CSSType } from '@nativescript/core';
+import { ViewBase } from '../common';
+import { Style } from '../style';
+import { Tree } from '../tree';
+import { isMasonView_, native_, style_ } from '../symbols';
+import { appendNativeChild } from '../panel-helpers';
+import type * as Native from '../native.linux';
+
+@CSSType('Li')
+export class Li extends ViewBase {
+  [style_];
+  constructor() {
+    super();
+    this[isMasonView_] = true;
+  }
+
+  get _view(): Native.Li {
+    if (!this[native_]) {
+      this[native_] = Tree.instance.createListItem() as never;
+    }
+    return this[native_] as never as Native.Li;
+  }
+
+  // @ts-ignore
+  get linux() {
+    return this._view;
+  }
+
+  get _styleHelper(): Style {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
+  createNativeView() {
+    return this._view;
+  }
+
+  // @ts-ignore
+  public _addViewToNativeVisualTree(child: any, atIndex = -1): boolean {
+    if (this._windowsAttach(child)) return true;
+    const index = this._windowsNativeIndexOf(child, atIndex);
+    super._addViewToNativeVisualTree(child, index);
+    if (!appendNativeChild(this._view, child, index)) return false;
+    this._masonAdoptForeign(child);
+    return true;
+  }
+
+  // @ts-ignore
+  public _removeViewFromNativeVisualTree(child: any): void {
+    this._windowsDetachChild(child);
+    child._isMasonChild = false;
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(child);
+  }
+}

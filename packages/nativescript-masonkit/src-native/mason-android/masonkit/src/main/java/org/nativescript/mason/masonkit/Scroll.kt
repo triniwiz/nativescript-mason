@@ -64,7 +64,7 @@ class Scroll @JvmOverloads constructor(
     return v == Overflow.Auto.value || (visibleOverflowScrolls && v == Overflow.Visible.value)
   }
 
-  constructor(context: Context, mason: Mason) : this(context, null, 0, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.themed(context), null, 0, true) {
     node = mason.createNode().apply {
       view = this@Scroll
     }
@@ -89,6 +89,7 @@ class Scroll @JvmOverloads constructor(
     }
     clipChildren = false
     clipToPadding = false
+    if (android.os.Build.VERSION.SDK_INT >= 30) importantForContentCapture = android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO
     setScrollChangeListner(object : TwoDScrollView.ScrollChangeListener {
       override fun onScrollChanged(view: android.view.View?, x: Int, y: Int, oldx: Int, oldy: Int) {
         MasonPositioning.recomputeSticky(this@Scroll, stickyDescendants)
@@ -134,6 +135,11 @@ class Scroll @JvmOverloads constructor(
     post(fireScrollEvents)
   }
 
+  // Scrolling took the touch over, as a browser does: pointers inside are cancelled.
+  override fun onDragStarted() {
+    PointerDispatch.cancelInside(this)
+  }
+
   override fun onScrollMotionEnded() {
     if (node.listensForScroll && scrolledSinceEnd) queueScrollEvents()
   }
@@ -144,7 +150,7 @@ class Scroll @JvmOverloads constructor(
 
   // A <summary> reads as a button that expands or collapses its details (see Details).
   override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     Details.onInitializeAccessibilityNodeInfo(this, info)
   }
 
@@ -171,7 +177,10 @@ class Scroll @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
+
+  override fun dispatchHoverEvent(event: android.view.MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   // A descendant's text moved or changed: a text-clipped background paints through it.
   override fun onDescendantInvalidated(child: android.view.View, target: android.view.View) {

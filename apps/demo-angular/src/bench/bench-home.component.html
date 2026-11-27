@@ -1,0 +1,55 @@
+<demo-page title="Layout benchmark">
+  <main class="page-body bench">
+    <p class="lead">Four screens, each built twice: once from MasonKit elements, once from &#64;nativescript/core layouts. The runner opens every page, times mount, first frame and a scripted workload, pops back, and repeats. Medians are shown; the last column is Mason ÷ core, so below 1.0 means Mason was faster.</p>
+    <section class="card controls">
+      <div class="control-row">
+        <span class="h2">Run all</span>
+        <div class="iters">
+          @for (n of [1, 3, 5, 10]; track n) {
+            <div class="iter" [class.selected]="iterations() === n" (tap)="iterations.set(n)">
+              <span class="iter-text">{{ n }}×</span>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="control-row">
+        <button class="btn-primary" [class.disabled]="running()" (tap)="runAll()">{{ running() ? 'Running…' : 'Start' }}</button>
+        <button class="btn-plain" (tap)="reset()">Clear</button>
+        <button class="btn-plain" (tap)="dump()">Log JSON</button>
+      </div>
+      <span class="muted">{{ status() || 'Idle' }}</span>
+    </section>
+    @for (s of scenarios; track s.key) {
+      <section class="card">
+        <div class="scenario-head">
+          <div class="scenario-text">
+            <span class="h2">{{ s.title }}</span>
+            <span class="muted">{{ s.desc }}</span>
+          </div>
+        </div>
+        <div class="open-row">
+          <button class="btn-open mason" [nsRouterLink]="['/bench', s.key, 'mason']">Open Mason</button>
+          <button class="btn-open core" [nsRouterLink]="['/bench', s.key, 'core']">Open core</button>
+        </div>
+        @if (tables()[s.key]; as rows) {
+          <div class="table">
+            <div class="tr th">
+              <span class="td phase">phase</span>
+              <span class="td num">mason</span>
+              <span class="td num">core</span>
+              <span class="td num">m÷c</span>
+            </div>
+            @for (row of rows; track $index) {
+              <div class="tr">
+                <span class="td phase">{{ row.phase }}</span>
+                <span class="td num">{{ row.mason }}</span>
+                <span class="td num">{{ row.core }}</span>
+                <span class="td num ratio" [class]="row.ratioClass">{{ row.ratio }}</span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+  </main>
+</demo-page>

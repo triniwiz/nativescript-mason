@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import FontManager
 
 @objc(MasonDimensionCompatType)
@@ -3005,6 +3009,7 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
   case Month
   case Week
   case Reset
+  case Hidden
   public var description: String {
     switch(self){case .Text:
       return "text"
@@ -3046,6 +3051,8 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       return "week"
     case .Reset:
       return "reset"
+    case .Hidden:
+      return "hidden"
     }
   }
   
@@ -3091,6 +3098,8 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       self = .Week
     case 19:
       self = .Reset
+    case 20:
+      self = .Hidden
     default:
       return nil
     }
@@ -3137,6 +3146,8 @@ public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
       18
     case .Reset:
       19
+    case .Hidden:
+      20
     }
   }
 }

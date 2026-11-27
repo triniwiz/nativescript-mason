@@ -71,6 +71,7 @@ open class View @JvmOverloads constructor(
     clipToPadding = false
 
     isChildrenDrawingOrderEnabled = false
+    if (android.os.Build.VERSION.SDK_INT >= 30) importantForContentCapture = android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO
   }
 
 
@@ -142,19 +143,20 @@ open class View @JvmOverloads constructor(
   }
 
 
-  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-    // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
-    if (clipPathRejectsTouch(this, style, ev)) return false
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean = dispatchMasonTouch(ev) { event ->
     // higher zIndex should receive touch first
     if (hasZIndexedChildren) {
       for (i in zSortedChildren.size - 1 downTo 0) {
         val child = zSortedChildren[i]
         if (child.visibility != VISIBLE) continue
-        if (dispatchToChild(child, ev)) return true
+        if (dispatchToChild(child, event)) return@dispatchMasonTouch true
       }
     }
-    return super.dispatchTouchEvent(ev)
+    super.dispatchTouchEvent(event)
   }
+
+  override fun dispatchHoverEvent(event: MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   private fun dispatchToChild(child: android.view.View, ev: MotionEvent): Boolean {
     // Check if the touch point is within the child's bounds (standard Android behavior)
@@ -177,7 +179,7 @@ open class View @JvmOverloads constructor(
 
   // A <summary> reads as a button that expands or collapses its details (see Details).
   override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
-    super.onInitializeAccessibilityNodeInfo(info)
+    withoutDelegateWhileNoService { super.onInitializeAccessibilityNodeInfo(info) }
     Details.onInitializeAccessibilityNodeInfo(this, info)
   }
 

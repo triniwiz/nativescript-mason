@@ -77,6 +77,7 @@ namespace mason_leaf
     {
         HiddenByDisplay = 1, // display: none
         HiddenByDetails = 2, // content of a closed <details>
+        HiddenByInputType = 4,
     };
 
     struct HiddenState

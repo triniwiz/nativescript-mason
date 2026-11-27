@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 07/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
 internal func mapTextInputType(
@@ -25,6 +29,41 @@ internal func mapTextInputType(
   return "insertText"
 }
 
+#if canImport(UIKit)
+/// A line of the field's text that also paints its CSS text-shadow. UITextView takes one shadow
+/// per character (`NSShadow`), so the layers are painted here the way `TextEngine` paints them.
+final class MasonShadowedTextLayoutFragment: NSTextLayoutFragment {
+  var shadows: [TextShadow] = []
+
+  override var renderingSurfaceBounds: CGRect {
+    let outsets = TextShadow.outsets(shadows)
+    return super.renderingSurfaceBounds.inset(by: UIEdgeInsets(top: -outsets.top, left: -outsets.left, bottom: -outsets.bottom, right: -outsets.right))
+  }
+
+  override func draw(at point: CGPoint, in context: CGContext) {
+    TextShadow.paint(shadows, in: context) { super.draw(at: point, in: context) }
+    super.draw(at: point, in: context)
+  }
+}
+
+/// The placeholder, painting the field's text-shadow like the value does.
+final class MasonShadowedLabel: UILabel {
+  var textShadows: [TextShadow] = [] {
+    didSet { setNeedsDisplay() }
+  }
+
+  /// Room the frame leaves around the text for the shadows.
+  var shadowOutsets: UIEdgeInsets { TextShadow.outsets(textShadows) }
+
+  override func drawText(in rect: CGRect) {
+    let inner = rect.inset(by: shadowOutsets)
+    if let context = UIGraphicsGetCurrentContext() {
+      TextShadow.paint(textShadows, in: context) { super.drawText(in: inner) }
+    }
+    super.drawText(in: inner)
+  }
+}
+
 @objcMembers
 @objc(MasonTextInput)
 public class MasonTextInput: UITextView, UITextViewDelegate {
@@ -40,7 +79,54 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
     commonInit()
   }
   
-  internal let placeholderLabel = UILabel()
+  internal let placeholderLabel = MasonShadowedLabel()
+
+  /// CSS text-shadow, painted under the value and the placeholder.
+  internal var textShadows: [TextShadow] = [] {
+    didSet {
+      if textShadows.isEmpty && oldValue.isEmpty { return }
+      placeholderLabel.textShadows = textShadows
+      applyEditorBehavior()
+      // Lines are laid out again so each one is made with (or without) the shadows. Before
+      // iOS 16 the view has no TextKit 2 lines to swap, and only the placeholder shows them.
+      if #available(iOS 16.0, *), let manager = textLayoutManager {
+        manager.invalidateLayout(for: manager.documentRange)
+      }
+      setNeedsLayout()
+    }
+  }
+
+  /// Makes the lines: shadowed ones while the field has a text-shadow. It sits in front of
+  /// UIKit's own layout manager delegate and hands it everything else (link attributes).
+  private final class FragmentFactory: NSObject, NSTextLayoutManagerDelegate {
+    weak var owner: MasonTextInput?
+    weak var base: NSTextLayoutManagerDelegate?
+
+    override func responds(to aSelector: Selector!) -> Bool {
+      super.responds(to: aSelector) || (base?.responds(to: aSelector) ?? false)
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+      if let base, base.responds(to: aSelector) { return base }
+      return super.forwardingTarget(for: aSelector)
+    }
+
+    func textLayoutManager(_ textLayoutManager: NSTextLayoutManager, textLayoutFragmentFor location: NSTextLocation, in textElement: NSTextElement) -> NSTextLayoutFragment {
+      let range = textElement.elementRange
+      guard let shadows = owner?.textShadows, !shadows.isEmpty else {
+        if let made = base?.textLayoutManager?(textLayoutManager, textLayoutFragmentFor: location, in: textElement) {
+          return made
+        }
+        return NSTextLayoutFragment(textElement: textElement, range: range)
+      }
+      let fragment = MasonShadowedTextLayoutFragment(textElement: textElement, range: range)
+      fragment.shadows = shadows
+      return fragment
+    }
+  }
+
+  // NSTextLayoutManager holds its delegate weakly.
+  private let fragmentFactory = FragmentFactory()
   
   public var placeholder: String? {
     didSet { placeholderLabel.text = placeholder }
@@ -73,6 +159,11 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
   
   private func commonInit() {
     delegate = self
+    fragmentFactory.owner = self
+    if #available(iOS 16.0, *), let manager = textLayoutManager {
+      fragmentFactory.base = manager.delegate
+      manager.delegate = fragmentFactory
+    }
     // The element paints the box; text starts at its content edge, as on the web.
     backgroundColor = .clear
     textContainer.lineFragmentPadding = 0
@@ -100,6 +191,9 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
   
   internal func applyEditorBehavior() {
     isScrollEnabled = !singleLineBehavior
+    // A single line never scrolls, so its shadows may reach into the element's padding, which
+    // browsers clip at. A scrolling editor keeps its content clipped.
+    clipsToBounds = !singleLineBehavior || textShadows.isEmpty
     textContainer.maximumNumberOfLines = singleLineBehavior ? 1 : 0
     textContainer.lineBreakMode = singleLineBehavior ? .byTruncatingTail : .byWordWrapping
     placeholderLabel.numberOfLines = singleLineBehavior ? 1 : 0
@@ -142,7 +236,9 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
           CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
         ).height
       )
-    placeholderLabel.frame = CGRect(x: left, y: placeholderY, width: maxWidth, height: phHeight)
+    let outsets = placeholderLabel.shadowOutsets
+    placeholderLabel.frame = CGRect(x: left - outsets.left, y: placeholderY - outsets.top,
+                                    width: maxWidth + outsets.left + outsets.right, height: phHeight + outsets.top + outsets.bottom)
     
     if singleLineBehavior && contentOffset != .zero {
       contentOffset = .zero
@@ -362,3 +458,4 @@ public class MasonTextInput: UITextView, UITextViewDelegate {
     return rect
   }
 }
+#endif

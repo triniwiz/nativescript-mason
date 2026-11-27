@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 21/12/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 private let SPLIT_REGEX = try! NSRegularExpression(pattern: "\\s+")
 
@@ -14,6 +18,41 @@ struct TextShadow {
   let offsetY: CGFloat
   let blurRadius: CGFloat
   let color: UIColor
+
+  /// How far `shadows` reach past the glyphs on each side, blur included.
+  static func outsets(_ shadows: [TextShadow]) -> UIEdgeInsets {
+    var out = UIEdgeInsets.zero
+    for s in shadows {
+      let blur = ceil(s.blurRadius * 2)
+      out.left = max(out.left, blur - s.offsetX)
+      out.right = max(out.right, blur + s.offsetX)
+      out.top = max(out.top, blur - s.offsetY)
+      out.bottom = max(out.bottom, blur + s.offsetY)
+    }
+    return out
+  }
+
+  /// Paints `draw` once per shadow, last shadow first so the first ends up on top as in CSS,
+  /// the same way `TextEngine` paints text-shadow. The caller paints the text itself afterwards.
+  static func paint(_ shadows: [TextShadow], in context: CGContext, _ draw: () -> Void) {
+    for s in shadows.reversed() {
+      context.saveGState()
+      context.setShadow(offset: CGSize(width: s.offsetX, height: -s.offsetY), blur: s.blurRadius, color: s.color.cgColor)
+      draw()
+      context.restoreGState()
+    }
+  }
+
+#if canImport(UIKit)
+  /// One shadow as a text attribute, for text views that take a single shadow.
+  var nsShadow: NSShadow {
+    let shadow = NSShadow()
+    shadow.shadowOffset = CGSize(width: offsetX, height: offsetY)
+    shadow.shadowBlurRadius = blurRadius
+    shadow.shadowColor = color
+    return shadow
+  }
+#endif
 }
 
 struct BoxShadow: Hashable {
@@ -32,7 +71,7 @@ struct BoxShadow: Hashable {
     hasher.combine(inset)
     // Hash color by its RGBA components
     var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-    color.getRed(&r, green: &g, blue: &b, alpha: &a)
+    color.getRGBA(&r, &g, &b, &a)
     hasher.combine(r)
     hasher.combine(g)
     hasher.combine(b)
@@ -42,8 +81,8 @@ struct BoxShadow: Hashable {
   static func == (lhs: BoxShadow, rhs: BoxShadow) -> Bool {
     var lr: CGFloat = 0, lg: CGFloat = 0, lb: CGFloat = 0, la: CGFloat = 0
     var rr: CGFloat = 0, rg: CGFloat = 0, rb: CGFloat = 0, ra: CGFloat = 0
-    lhs.color.getRed(&lr, green: &lg, blue: &lb, alpha: &la)
-    rhs.color.getRed(&rr, green: &rg, blue: &rb, alpha: &ra)
+    lhs.color.getRGBA(&lr, &lg, &lb, &la)
+    rhs.color.getRGBA(&rr, &rg, &rb, &ra)
     return lhs.offsetX == rhs.offsetX &&
            lhs.offsetY == rhs.offsetY &&
            lhs.blurRadius == rhs.blurRadius &&

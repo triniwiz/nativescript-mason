@@ -1,10 +1,11 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -16,13 +17,13 @@ class SaturationValueView @JvmOverloads constructor(
   attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-  private var bmp: Bitmap? = null
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val saturationPaint = Paint()
+  private val valuePaint = Paint()
 
   var hue: Float = 0f
     set(value) {
       field = value
-      regenerateBitmap()
+      updateSaturationGradient()
       invalidate()
     }
 
@@ -41,33 +42,21 @@ class SaturationValueView @JvmOverloads constructor(
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
-    regenerateBitmap()
+    updateSaturationGradient()
+    valuePaint.shader =
+      LinearGradient(0f, 0.5f, 0f, h - 0.5f, Color.TRANSPARENT, Color.BLACK, Shader.TileMode.CLAMP)
   }
 
-  private fun regenerateBitmap() {
-    val w = width
-    val h = height
-    if (w <= 0 || h <= 0) return
-    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val hsv = floatArrayOf(hue, 0f, 0f)
-    val pixels = IntArray(w * h)
-    for (y in 0 until h) {
-      val v = 1f - y.toFloat() / (h - 1).coerceAtLeast(1)
-      for (x in 0 until w) {
-        val s = x.toFloat() / (w - 1).coerceAtLeast(1)
-        hsv[1] = s
-        hsv[2] = v
-        pixels[y * w + x] = Color.HSVToColor(hsv)
-      }
-    }
-    bitmap.setPixels(pixels, 0, w, 0, 0, w, h)
-    bmp?.recycle()
-    bmp = bitmap
+  private fun updateSaturationGradient() {
+    val pureHue = Color.HSVToColor(floatArrayOf(hue, 1f, 1f))
+    saturationPaint.shader =
+      LinearGradient(0.5f, 0f, width - 0.5f, 0f, Color.WHITE, pureHue, Shader.TileMode.CLAMP)
   }
 
   override fun onDraw(canvas: Canvas) {
     super.onDraw(canvas)
-    bmp?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
+    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), saturationPaint)
+    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), valuePaint)
     // draw selector
     val x = sat * (width - 1)
     val y = (1f - valueV) * (height - 1)

@@ -59,6 +59,8 @@ export class Input extends InputElementBase {
         return org.nativescript.mason.masonkit.Input.Type.Submit;
       case 'reset':
         return org.nativescript.mason.masonkit.Input.Type.Reset;
+      case 'hidden':
+        return org.nativescript.mason.masonkit.Input.Type.Hidden;
     }
     return org.nativescript.mason.masonkit.Input.Type.Text;
   }
@@ -129,7 +131,7 @@ export class Input extends InputElementBase {
 
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
-      this._view.setPlaceholder(value);
+      this._view.setPlaceholder(value ?? '');
     }
   }
 

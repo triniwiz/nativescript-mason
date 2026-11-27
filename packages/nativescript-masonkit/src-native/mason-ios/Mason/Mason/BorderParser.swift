@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 25/11/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 // MARK: - Parsing
 

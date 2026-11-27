@@ -1228,7 +1228,7 @@ impl Tree {
 
     /// Check if a node is a pure inline container (DisplayMode::Inline)
     /// Pure inline containers ignore explicit size styling and use content size
-    fn is_pure_inline(&self, child_id: Id) -> bool {
+    pub(crate) fn is_pure_inline(&self, child_id: Id) -> bool {
         let node = &self.nodes()[child_id];
         let style = node.style();
 
@@ -1239,6 +1239,18 @@ impl Tree {
 
         // Must be DisplayMode::Inline (not Box/inline-block)
         if style.display_mode() != DisplayMode::Inline {
+            return false;
+        }
+
+        // The native text engines draw an inline element with padding, a border or a set size
+        // as an atomic box, so it is measured before the text that reserves room for it.
+        let size = style.size();
+        if !size.width.is_auto() || !size.height.is_auto() {
+            return false;
+        }
+        let spacing = style.get_padding().resolve_or_zero(Some(100.0), |_v, _b| 0.0)
+            + style.border().resolve_or_zero(Some(100.0), |_v, _b| 0.0);
+        if spacing.left > 0.0 || spacing.right > 0.0 || spacing.top > 0.0 || spacing.bottom > 0.0 {
             return false;
         }
 
@@ -1465,10 +1477,24 @@ impl Tree {
             } else {
                 available_space
             };
+        let wrap_width_keys = crate::tree::keys_by_wrap_width(&self.inner(), child_id);
+        let width_key: fn(f32) -> f32 = if wrap_width_keys {
+            crate::tree::ceil_constraint
+        } else {
+            |w| w
+        };
+        let wrap_width_known = Size {
+            width: known_dimensions.width.map(width_key),
+            ..known_dimensions
+        };
+        let wrap_width_available = Size {
+            width: crate::tree::key_available(available_space.width, width_key),
+            ..available_space
+        };
         {
             let node = &self.nodes()[child_id];
             let cache = &node.inline_measure_cache;
-            if let Some(cached) = cache.get(known_dimensions, available_space) {
+            if let Some(cached) = cache.get(wrap_width_known, wrap_width_available) {
                 return cached;
             }
             if crate::tree::TEXT_FIT_FROM_MAX_CONTENT && node.is_text_container() {
@@ -1481,8 +1507,8 @@ impl Tree {
         }
         let result = measure.measure(known_dimensions, available_space);
         self.nodes_mut()[child_id].inline_measure_cache.store(
-            known_dimensions,
-            available_space,
+            wrap_width_known,
+            wrap_width_available,
             result,
         );
         result
@@ -1865,7 +1891,7 @@ impl Tree {
                     let measure_known = if is_inline {
                         Size::NONE
                     } else {
-                        known_dimensions
+                        crate::tree::known_content_box(known_dimensions, available_space)
                     };
                     // debug prints removed
 
@@ -2121,7 +2147,9 @@ impl Tree {
             None
         };
 
+        // The parent's content-size probe applies to the parent; the child keeps its own size.
         let block_inputs = LayoutInput {
+            sizing_mode: SizingMode::InherentSize,
             known_dimensions: Size {
                 width: stretched_width,
                 height: None,
@@ -2595,7 +2623,7 @@ impl Tree {
                     let measure_known = if is_inline {
                         Size::NONE
                     } else {
-                        known_dimensions
+                        crate::tree::known_content_box(known_dimensions, available_space)
                     };
                     // Measure callback must be invoked outside of long-held
                     // tree locks; we copy the measure earlier to enforce this.

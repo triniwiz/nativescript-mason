@@ -6,7 +6,11 @@
 //  or remote references. Keep in step with SvgParser.kt.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 /// One absolute path segment. Arcs, H/V, S and T are already normalised away.
@@ -629,7 +633,7 @@ func parseSvgTransform(_ value: String) -> CGAffineTransform? {
 func parseSvgColor(_ value: String) -> UInt32? {
   guard let color = parseColor(value) else { return nil }
   var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-  guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+  guard color.getRGBA(&r, &g, &b, &a) else { return nil }
   func byte(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
   return (byte(a) << 24) | (byte(r) << 16) | (byte(g) << 8) | byte(b)
 }

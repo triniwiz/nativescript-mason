@@ -23,6 +23,26 @@ namespace NativeScript.Mason
         Boolean MetaKey{ get; };
         // The element the event started at.
         Object Target{ get; };
+        // Pointer events: DIPs, client coordinates relative to the window content and offsets to the target.
+        Int32 PointerId{ get; };
+        String PointerType{ get; };
+        Boolean IsPrimary{ get; };
+        Double ClientX{ get; };
+        Double ClientY{ get; };
+        Double OffsetX{ get; };
+        Double OffsetY{ get; };
+        Double MovementX{ get; };
+        Double MovementY{ get; };
+        Int32 Button{ get; };
+        Int32 Buttons{ get; };
+        Double Pressure{ get; };
+        Double Width{ get; };
+        Double Height{ get; };
+        Double TiltX{ get; };
+        Double TiltY{ get; };
+        Double Twist{ get; };
+        // pointerover/out/enter/leave: the element the pointer came from or went to.
+        Object RelatedTarget{ get; };
         void PreventDefault();
         void StopPropagation();
         void StopImmediatePropagation();

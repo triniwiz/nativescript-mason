@@ -1,0 +1,95 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-top: 4;
+}
+
+/* Every cell centres its label both ways instead of relying on text-align. */
+.cell {
+  height: 56;
+  border-radius: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-round {
+  border-radius: 10;
+}
+
+.cell-sm {
+  height: 50;
+  border-radius: 8;
+}
+
+.cell-xs {
+  height: 48;
+}
+
+.cell-label {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 14;
+}
+
+.cell-label-sm {
+  font-size: 12;
+}
+
+/* Yellow cells keep dark text in both appearances. */
+.cell-dark .cell-label {
+  color: #1a1a2e;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 90 1fr;
+  grid-template-rows: 50 1fr 36;
+  grid-template-areas:
+    'header header'
+    'sidebar main'
+    'footer footer';
+  gap: 6;
+  height: 200;
+  margin-top: 4;
+}
+
+.dash-header {
+  grid-area: header;
+  background-color: #2d3436;
+  height: auto;
+  border-radius: 8;
+}
+
+.dash-sidebar {
+  grid-area: sidebar;
+  background-color: #636e72;
+  height: auto;
+  border-radius: 8;
+}
+
+.dash-main {
+  grid-area: main;
+  background-color: #0984e3;
+  height: auto;
+  border-radius: 8;
+}
+
+.dash-footer {
+  grid-area: footer;
+  background-color: #2d3436;
+  height: auto;
+  border-radius: 8;
+}

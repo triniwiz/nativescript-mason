@@ -1,0 +1,41 @@
+<demo-page title="Rich Text - MasonKit">
+  <main class="rich">
+    <div class="toolbar">
+      <div class="tool" (tap)="retext(nextStep())">
+        <span class="tool-text">Retext</span>
+      </div>
+      <div class="tool" (tap)="restyle()">
+        <span class="tool-text">Restyle</span>
+      </div>
+      <div class="tool" (tap)="append()">
+        <span class="tool-text">+10</span>
+      </div>
+      <div class="tool" (tap)="toggleNarrow()">
+        <span class="tool-text" [text]="narrow() ? 'Widen' : 'Narrow'"></span>
+      </div>
+    </div>
+    <span class="count" [text]="`${cards().length} cards · ${spanCount()} spans`"></span>
+    <div class="root" [class.narrow]="narrow()">
+      @for (card of cards(); track card.id) {
+        <div class="card" [style.borderColor]="card.color">
+          <div class="card-body">
+            <p class="title">
+              <span class="badge" [style.backgroundColor]="card.color" [text]="`#${card.id}`"></span>
+              <span class="title-text" [text]="' ' + card.title"></span>
+            </p>
+            <p class="para">
+              @for (r of card.runs; track $index) {
+                <span [text]="r.text" [style.fontWeight]="r.bold ? 'bold' : null" [style.fontStyle]="r.italic ? 'italic' : null" [style.color]="r.color ?? null"></span>
+              }
+            </p>
+            <p class="meta">
+              @for (r of card.meta; track $index) {
+                <span [text]="r.text" [style.fontWeight]="r.bold ? 'bold' : null" [style.fontStyle]="r.italic ? 'italic' : null" [style.color]="r.color ?? null"></span>
+              }
+            </p>
+          </div>
+        </div>
+      }
+    </div>
+  </main>
+</demo-page>

@@ -183,7 +183,7 @@ Values follow the [CSS Borders 4 draft](https://drafts.csswg.org/css-borders-4/#
 }
 ```
 
-The shorthand takes a source (an image URL, an SVG data URL or a gradient), slice values (with optional `fill`), widths, outset and repeat (`stretch`, `repeat`, `round`, `space`). While the source is loading, or if it fails, the normal border is drawn instead, as in CSS. Supported on iOS, Android and Windows.
+The shorthand takes a source (an image URL, an SVG data URL or a gradient), slice values (with optional `fill`), widths, outset and repeat (`stretch`, `repeat`, `round`, `space`). While the source is loading, or if it fails, the normal border is drawn instead, as in CSS. Supported on iOS, Android, Windows and Linux.
 
 ### Outlines
 

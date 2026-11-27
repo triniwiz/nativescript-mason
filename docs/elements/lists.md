@@ -18,7 +18,7 @@
 - `<li>` is a block-level [text element](/elements/text): it holds text and inline content directly.
 - `<ul>` draws discs, `<ol>` draws `1.`, `2.`, `3.`, ... counting its `<li>` children in order.
 
-Markers are drawn on iOS, Android and Windows, in the item's text colour and scaled to its font size.
+Markers are drawn on iOS, Android, Windows and Linux, in the item's text colour and scaled to its font size.
 
 ## list-style-type
 

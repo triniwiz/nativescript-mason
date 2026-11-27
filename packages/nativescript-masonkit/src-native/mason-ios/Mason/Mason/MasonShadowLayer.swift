@@ -5,7 +5,11 @@
 //  CSS box-shadow rendering using CALayer
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// A sublayer that renders CSS box-shadow effects outside the view's bounds.
 /// Under an opaque element each shadow is a Core Animation shadow on its own caster

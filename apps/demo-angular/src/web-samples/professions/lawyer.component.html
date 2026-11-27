@@ -1,0 +1,37 @@
+<demo-page title="Lawyer — Docket">
+  <main class="page-body">
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">7</span>
+        <span class="stat-label">Active</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">3</span>
+        <span class="stat-label">Court dates</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">94%</span>
+        <span class="stat-label">Win rate</span>
+      </div>
+    </section>
+    <h2>Active cases</h2>
+    <section class="case-list">
+      @for (c of cases; track c.ref) {
+        <article class="case-card">
+          <div class="case-head">
+            <p class="case-ref">{{ c.ref }}</p>
+            <span class="badge" [class]="c.stageClass">{{ c.stage }}</span>
+          </div>
+          <p class="case-title">{{ c.title }}</p>
+          <div class="case-meta">
+            <span class="client">{{ c.client }}</span>
+            <span class="date">⚖ {{ c.next }}</span>
+          </div>
+          <div class="track">
+            <div class="fill" [style.width]="c.progress + '%'"></div>
+          </div>
+        </article>
+      }
+    </section>
+  </main>
+</demo-page>

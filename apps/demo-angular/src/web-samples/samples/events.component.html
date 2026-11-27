@@ -1,0 +1,31 @@
+<demo-page title="Events">
+  <main class="page-body">
+    <nav class="chip-row">
+      @for (c of categories; track c) {
+        <button class="chip" [class.active]="filter() === c" (tap)="filter.set(c)">{{ c }}</button>
+      }
+    </nav>
+    <section class="event-list">
+      @for (event of filtered(); track event.title) {
+        <article class="event-card">
+          <div class="date-badge">
+            <span class="date-day">{{ event.day }}</span>
+            <span class="date-month">{{ event.month }}</span>
+          </div>
+          <div class="event-body">
+            <h3>{{ event.title }}</h3>
+            <p class="event-loc">{{ event.location }}</p>
+            <div class="event-meta">
+              <span class="event-time">{{ event.time }}</span>
+              <span class="event-cat">{{ event.category }}</span>
+            </div>
+          </div>
+          <button class="rsvp" [class.going]="event.going" (tap)="rsvp(event)">{{ event.going ? 'Going ✓' : 'RSVP' }}</button>
+        </article>
+      }
+    </section>
+    @if (!filtered().length) {
+      <p class="empty">No events in this category.</p>
+    }
+  </main>
+</demo-page>

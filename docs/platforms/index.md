@@ -1,6 +1,6 @@
 # Platform support
 
-MasonKit runs on iOS, Android and Windows. The Rust layout engine (`mason-core`, built on [taffy](https://github.com/DioxusLabs/taffy)) is shared by all three; each platform has its own native view layer that draws, measures text and handles input.
+MasonKit runs on iOS, Android, Windows and Linux. The Rust layout engine (`mason-core`, built on [taffy](https://github.com/DioxusLabs/taffy)) is shared by all four; each platform has its own native view layer that draws, measures text and handles input.
 
 ## Requirements
 
@@ -9,29 +9,32 @@ MasonKit runs on iOS, Android and Windows. The Rust layout engine (`mason-core`,
 | iOS | `@nativescript/ios` 8.0+ | iOS 15.6 | `platforms/ios/Mason.xcframework` (iOS device, iOS simulator, visionOS device and simulator slices) |
 | Android | `@nativescript/android` 8.0+ | API 21 | `platforms/android/masonkit-release.aar` (arm, arm64, x86, x86_64) |
 | Windows | `@nativescript/windows` 9.1+ | Windows 10/11 with the Windows App SDK (WinUI 3) | `platforms/windows/{x64,arm64}/NativeScript.Mason.{dll,winmd}` |
+| Linux | `@nativescript/linux` 0.1.0-alpha.0+ | GTK 4.6 | `platforms/linux/lib/x64/libmasonkit.so` and `platforms/linux/include/mason_linux.h` |
 
 The runtime minimums come from the `nativescript.platforms` field of the package's `package.json`. The OS minimums come from the native projects: `MinimumOSVersion` in the xcframework and `minSdk` in the AAR's Gradle build.
 
-The Android library also depends on Glide (images), Gson and `org.nativescript:fontmanager`; these are declared in `platforms/android/include.gradle` and resolved by Gradle when you build your app.
+The Android library also depends on Glide (images) and Gson, declared in `platforms/android/include.gradle` and resolved by Gradle when you build your app.
+
+Fonts come from `@nativescript/font-manager`, a dependency of MasonKit. It adds its native library on each platform (Maven on Android, SPM on iOS, NuGet on Windows); on Linux it registers fonts with fontconfig, which MasonKit's text reads.
 
 ## Feature differences
 
 Almost everything in these docs behaves the same on every platform. The differences below are the ones confirmed in the native code.
 
-| Feature | iOS | Android | Windows |
-| --- | --- | --- | --- |
-| Flexbox, grid, block, inline flow, float | Yes | Yes | Yes |
-| `position: fixed` / `sticky` | Yes | Yes | Yes |
-| `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes |
-| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes |
-| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) |
-| Floats in vertical text | Yes | Yes | Yes |
-| `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) |
-| SVG `url()` backgrounds and `Img` | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer |
-| `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes |
-| `box-shadow` backend switch (`setBoxShadowRenderMode`) | No-op | Yes | No-op (always Composition) |
-| `<details>` / `<summary>` | Native | Native | Native |
-| `<input>` types | All types in `InputType` are mapped | All types mapped | All types mapped |
+| Feature | iOS | Android | Windows | Linux |
+| --- | --- | --- | --- | --- |
+| Flexbox, grid, block, inline flow, float | Yes | Yes | Yes | Yes |
+| `position: fixed` / `sticky` | Yes | Yes | Yes | No (they scroll with the content) |
+| `writing-mode: vertical-rl` / `vertical-lr`, vertical containers | Yes | Yes | Yes | Yes (Pango vertical gravity) |
+| `text-orientation`, `text-combine-upright` | Yes | Yes | Yes | `text-orientation` only (see [Linux](/platforms/linux)) |
+| `text-spacing-trim` | Yes | Yes (font's `halt`) | Yes (fonts with `halt`/`vhal`) | No |
+| Floats in vertical text | Yes | Yes | Yes | No |
+| `mask-*`, `clip-path`, `mask-border-*`, `border-image` | Yes | Yes | Yes (see notes) | Yes (see [Linux](/platforms/linux)) |
+| SVG `url()` backgrounds and `Img` | Built-in static SVG reader | Built-in static SVG reader | Direct2D SVG renderer | gdk-pixbuf (needs librsvg's loader) |
+| `backdrop-filter` | Yes (snapshot of the content behind) | Yes (`RenderEffect` on API 31+, software snapshot below) | Yes | Mason content only |
+| `box-shadow` backend switch (`setBoxShadowRenderMode`) | No-op | Yes | No-op (always Composition) | No-op |
+| `<details>` / `<summary>` | Native | Native | Native | Native |
+| `<input>` types | All types in `InputType` are mapped | All types mapped | All types mapped | All types mapped (GTK controls) |
 
 Notes:
 
@@ -41,12 +44,13 @@ Notes:
 - **`url(#id)` masks and clip paths.** There is no in-document SVG to reference, so they are `none` on every platform.
 - **SVG.** Shapes, paths, groups, transforms, fills, strokes, opacity, gradients, patterns, masks, markers, text, `<use>`, `<symbol>`, `<clipPath>`, `<style>` sheets with simple selectors and raster data-URL `<image>` work on every platform. Filters and `<textPath>` are not supported anywhere.
 - **SVG text** uses the platform's fonts, so glyphs differ between platforms as fonts do. iOS and Android find app fonts by family name; Windows uses installed fonts only, with `serif`, `sans-serif` and `monospace` mapped to Times New Roman, Arial and Consolas as Chrome does.
+- **SVG on Linux** goes through gdk-pixbuf, so it needs librsvg's pixbuf loader on the system and follows librsvg's support.
 - **SVG on Windows.** A pattern on a stroke uses the paint's fallback color, and a mask inside a masked element is not applied.
 - **Vertical writing modes.** Cell sizes come from the font's vertical metrics where it has them, so they can differ between platforms as the fonts do. See [Writing modes](/styling/flow#writing-modes).
 
 ## Platform-specific APIs
 
-The box-shadow backend can be switched on Android (iOS and Windows export both functions as no-ops):
+The box-shadow backend can be switched on Android (iOS, Windows and Linux export both functions as no-ops):
 
 ```ts
 import { setBoxShadowRenderMode, setBoxShadowSoftwareRasterScale } from '@triniwiz/nativescript-masonkit';
@@ -61,4 +65,5 @@ if (__ANDROID__) {
 ## More
 
 - [Windows](/platforms/windows): how the Windows component is packaged and what differs there.
+- [Linux](/platforms/linux): how the Linux library is packaged and what differs there.
 - [Using Mason natively](/platforms/native): driving the Kotlin and Swift libraries without NativeScript.

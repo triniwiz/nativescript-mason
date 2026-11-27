@@ -91,12 +91,18 @@ open class Node internal constructor(
   @JvmField
   var touchAction: Int = TouchAction.AUTO
 
+  /** CSS `pointer-events` as a [PointerEvents] value; `none` makes the element itself untappable. */
+  @JvmField
+  var pointerEvents: Int = PointerEvents.AUTO
+
   // Sticky (only ever set true, never cleared) hint that this node's own
   // view is a TextContainer or some descendant's is, maintained by
   // appendChild. Lets invalidateDescendantTextViews skip walking subtrees
   // that contain no text at all, instead of unconditionally recursing into
   // every child on every text-style write.
   internal var hasTextDescendant = false
+
+  internal var everParentOfCheckedText = false
 
   internal var lastTextAttachParent: Node? = null
   internal var detachTextEpoch = -1
@@ -227,7 +233,7 @@ open class Node internal constructor(
   internal var stickyScrollHost: Scroll? = null
   internal var isStickyEngaged: Boolean = false
   internal open var layoutParent: Node? = null
-  private var dirtyMarkedEpoch = -1
+  private var dirtyMarkedEpoch = mason.computeEpoch
 
   open var parent: Node?
     internal set(value) {
@@ -463,6 +469,10 @@ open class Node internal constructor(
   internal val children = ChildList(4)
   internal val style = Style(this)
 
+  internal val isFloated: Boolean
+    get() = type == NodeType.Element && style.isValueInitialized &&
+      style.float != org.nativescript.mason.masonkit.enums.Float.None
+
   // Floated children as of the last scan; rescanned when the list or any style changes.
   private var floatScanChildren = -1
   private var floatScanStyles = -1L
@@ -476,8 +486,7 @@ open class Node internal constructor(
       var count = 0
       var first: Node? = null
       for (child in children) {
-        if (child.type != NodeType.Element || !child.style.isValueInitialized) continue
-        if (child.style.float != org.nativescript.mason.masonkit.enums.Float.None) {
+        if (child.isFloated) {
           if (count == 0) first = child
           count++
         }
@@ -1257,6 +1266,7 @@ open class Node internal constructor(
       val last = children.lastOrNull()
       if (joinsInlineRun(child, last != null && isRunContainer(last))) {
         appendToRun(child)
+        TextEngine.recheckPreparedTextOnAttach(this, child)
         return
       }
     }
@@ -1288,9 +1298,12 @@ open class Node internal constructor(
       NodeUtils.invalidateLayout(this)
     } else {
       children.add(child)
+      val childMarked = child.dirtyMarkedEpoch == mason.computeEpoch
       child.parent = this
       if (child.nativePtr != 0L) {
         NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+        dirtyMarkedEpoch = mason.computeEpoch
+        if (childMarked) child.dirtyMarkedEpoch = mason.computeEpoch
       }
 
       if (attach) {
@@ -1308,6 +1321,7 @@ open class Node internal constructor(
 
       onNodeAttached?.let { it() }
     }
+    TextEngine.recheckPreparedTextOnAttach(this, child)
   }
 
   fun appendChild(view: View) {
@@ -1329,7 +1343,12 @@ open class Node internal constructor(
     if (reference == child) {
       return
     }
+    replaceAuthorChild(nodes, index, reference, child)
+    TextEngine.recheckPreparedTextOnDetach(this, reference)
+    TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
 
+  private fun replaceAuthorChild(nodes: List<Node>, index: Int, reference: Node, child: Node) {
     if (establishesInlineRuns()) {
       val author = nodes.toMutableList()
       detachForRebuild(reference)
@@ -1559,6 +1578,11 @@ open class Node internal constructor(
       appendChild(child)
       return
     }
+    insertAuthorChild(child, index)
+    TextEngine.recheckPreparedTextOnAttach(this, child)
+  }
+
+  private fun insertAuthorChild(child: Node, index: Int) {
     val authorChildren = getChildren()
 
     if (establishesInlineRuns()) {
@@ -1798,6 +1822,7 @@ open class Node internal constructor(
       val removed = author.removeAt(index)
       detachForRebuild(removed)
       normalizeInlineRuns(author)
+      TextEngine.recheckPreparedTextOnDetach(this, removed)
       return removed
     }
     return removeAuthorChild(children[index])
@@ -1837,16 +1862,18 @@ open class Node internal constructor(
       (view as? TextContainer)?.engine?.invalidateInlineSegments()
       NodeUtils.invalidateLayout(this)
     }
+    TextEngine.recheckPreparedTextOnDetach(this, removed)
     return removed
   }
 
-  fun dirty() {
+  @JvmOverloads
+  fun dirty(force: Boolean = false) {
     // During compute Rust holds the lock — skip JNI to avoid deadlock
     if (mason.inCompute) {
       computeCacheDirty = true
       return
     }
-    if (dirtyMarkedEpoch == mason.computeEpoch) {
+    if (!force && dirtyMarkedEpoch == mason.computeEpoch) {
       computeCacheDirty = true
       return
     }

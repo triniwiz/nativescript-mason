@@ -3,6 +3,8 @@ import {
   CssAnimationProperty,
   InheritedCssProperty,
   backgroundColorProperty,
+  colorProperty,
+  Color,
   Style,
   ViewBase as NSViewBase,
   ShorthandProperty,
@@ -42,7 +44,7 @@ import {
 } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign, Float, Clear } from '.';
 import type { TextBase, ViewBase } from './common';
-import { elementDisplay_, isMasonView_, remapLogicalBoxes_, touchAction_ } from './symbols';
+import { elementDisplay_, isMasonView_, pointerEvents_, remapLogicalBoxes_, touchAction_ } from './symbols';
 
 /** Marks a Style whose size accessors already resolve Mason's units. */
 const MASON_SIZE_UNITS = Symbol('mason:size-units');
@@ -395,6 +397,30 @@ export const touchActionProperty = new CssProperty<Style, string>({
     if (view && view[isMasonView_]) {
       view[touchAction_] = parseTouchAction(newValue);
       (view as ViewBase)._applyTouchAction?.();
+    }
+  },
+});
+
+/** CSS `pointer-events` as the native value: 0 = auto, 1 = none. SVG keywords act like auto. */
+export function parsePointerEvents(value: string): number {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase() === 'none'
+    ? 1
+    : 0;
+}
+
+// Inherited, as in CSS: `none` reaches the subtree until a descendant sets `auto` again.
+export const pointerEventsProperty = new InheritedCssProperty<Style, string>({
+  name: 'pointerEvents',
+  cssName: 'pointer-events',
+  defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const ref = target?.viewRef;
+    const view = ref ? (__ANDROID__ ? ref.get() : ref.deref()) : undefined;
+    if (view && view[isMasonView_]) {
+      view[pointerEvents_] = parsePointerEvents(newValue);
+      (view as ViewBase)._applyPointerEvents?.();
     }
   },
 });
@@ -2613,6 +2639,7 @@ listStyleProperty.register(Style);
 registerAlongsideCore(whiteSpaceProperty);
 objectFitProperty.register(Style);
 touchActionProperty.register(Style);
+pointerEventsProperty.register(Style);
 textJustifyProperty.register(Style);
 textDecorationThicknessProperty.register(Style);
 textDecorationLineProperty.register(Style);
@@ -2631,9 +2658,11 @@ const TextDecorationParse = makeParser<string>(makeValidator('none', 'underline'
 // core owns `font-family` (through its Font shorthand), so extend its
 // valueChanged to keep core's Font state and forward the family to the mason
 // style helper, which performs the real native font lookup on mobile.
-// Windows keeps core's handling alone: its fontInternal setNative resolves app fonts.
-if (!__WINDOWS__) {
+// Windows and Linux keep core's handling alone: their fontInternal setNative resolves app fonts.
+if (!(__WINDOWS__ || __LINUX__)) {
   coreFontFamilyProperty.overrideHandlers({
+    name: 'fontFamily',
+    cssName: 'font-family',
     valueChanged(target, oldValue, newValue) {
       // Core's own update, restated — overrideHandlers replaces the handler
       // wholesale, so the fontInternal bookkeeping cannot just be delegated to.
@@ -2664,13 +2693,21 @@ interface CoreLonghandHandlers {
  * while Mason's setNative parses the text. Core views keep core's converter.
  */
 function keepCssOnMasonViews(longhands: CssProperty<Style, any>[], core: CoreLonghandHandlers): void {
+  // A stylesheet value reaches every matching element, so each distinct text is parsed once and shared.
+  const lengths = new Map<string, Readonly<CssLength>>();
   for (const property of longhands) {
     property.overrideHandlers({
       name: property.name,
       cssName: property.cssLocalName,
       valueConverter(this: Style, value: string) {
-        const css = core.keywords?.get(value.trim()) ?? value;
-        return isMasonView(this) ? cssLength(css, core.converter) : core.converter(css);
+        if (!isMasonView(this)) return core.converter(core.keywords?.get(value.trim()) ?? value);
+        let length = lengths.get(value);
+        if (!length) {
+          length = Object.freeze(cssLength(core.keywords?.get(value.trim()) ?? value, core.converter));
+          if (lengths.size >= 512) lengths.clear();
+          lengths.set(value, length);
+        }
+        return length;
       },
       // Core's parse reads `10%` and `10rem` alike, so the CSS text decides.
       equalityComparer: (a, b) => (isCssLength(a) || isCssLength(b) ? (a as CssLength)?.css === (b as CssLength)?.css : core.comparer(a, b)),
@@ -2690,6 +2727,22 @@ keepCssOnMasonViews(radiusLonghands, { converter: CoreLength.parse, comparer: Co
 keepCssOnMasonViews(marginLonghands, { converter: CorePercentLength.parse, comparer: CorePercentLength.equals });
 keepCssOnMasonViews(paddingLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals });
 keepCssOnMasonViews(borderWidthLonghands, { converter: CoreLength.parse, comparer: CoreLength.equals, keywords: BORDER_WIDTH_KEYWORDS });
+
+// Core builds a new Color per element for each color declaration; a Mason view shares one per text.
+const colors = new Map<string, Color>();
+function masonColorConverter(this: Style, value: string): Color {
+  if (!isMasonView(this)) return new Color(value);
+  let color = colors.get(value);
+  if (!color) {
+    color = new Color(value);
+    if (colors.size >= 512) colors.clear();
+    colors.set(value, color);
+  }
+  return color;
+}
+for (const property of [colorProperty, ...borderColorLonghands]) {
+  property.overrideHandlers({ name: property.name, cssName: property.cssLocalName, valueConverter: masonColorConverter });
+}
 
 /** The shorthands core registers; MasonKit builds these only to own core 9.1's parse-time split. */
 const coreShorthands: MasonShorthand[] = [

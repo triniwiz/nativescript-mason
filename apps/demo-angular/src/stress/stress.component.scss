@@ -1,0 +1,88 @@
+.b-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12;
+  padding: 8;
+  background-color: var(--surface-2);
+  border-radius: 6;
+}
+
+.b-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4;
+}
+
+.b-box {
+  width: 64;
+  height: 44;
+  background-color: var(--surface);
+}
+
+.b-cap {
+  font-size: 10;
+  color: var(--muted);
+}
+
+.b-solid-r {
+  border-radius: 14;
+}
+.b-solid-pill {
+  border-radius: 22;
+}
+.b-corners {
+  border-radius: 2 20 2 20;
+}
+.b-sq {
+  border-radius: 18;
+  corner-shape: squircle;
+}
+.b-notch {
+  border-radius: 18;
+  corner-shape: notch;
+}
+.b-bevel {
+  border-radius: 18;
+  corner-shape: bevel;
+}
+.b-se-mixed {
+  border-radius: 18;
+  corner-shape: round squircle notch bevel;
+}
+.b-sq-thick {
+  border-radius: 30;
+  corner-shape: squircle;
+}
+.b-notch-thick {
+  border-radius: 30;
+  corner-shape: notch;
+}
+.b-bevel-thick {
+  border-radius: 30;
+  corner-shape: bevel;
+}
+.b-sq-alpha {
+  border-radius: 22;
+  corner-shape: squircle;
+}
+.b-thick-r {
+  border-radius: 16;
+}
+.b-huge-radius {
+  border-radius: 200;
+}
+.b-alpha-r {
+  border-radius: 14;
+}
+.b-alpha-on-fill {
+  border-radius: 14;
+  background-color: #ffd9a0;
+}
+.b-pct {
+  border-radius: 50%;
+}
+.b-wide {
+  width: 180;
+}

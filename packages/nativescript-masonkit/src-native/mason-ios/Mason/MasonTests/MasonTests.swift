@@ -311,6 +311,24 @@ final class MasonTests: XCTestCase {
     XCTAssertEqual(minContentWidth, longWidth, accuracy: 0.5)
   }
 
+  // Text breaks where CoreText breaks it (UAX #14), not only at spaces: between ideographs and
+  // kana, and after a slash. A word with no break opportunity keeps its whole width.
+  func test_text_engine_min_content_width_breaks_where_core_text_breaks() {
+    let japaneseFont = CTFontCreateWithName("HiraginoSans-W3" as CFString, 17, nil)
+    let japanese = NSAttributedString(string: "日本語の文章は空白なしで折り返します", attributes: [.font: japaneseFont])
+    let oneIdeograph = typographicWidth(NSAttributedString(string: "語", attributes: [.font: japaneseFont]))
+    let japaneseMin = TextEngine.minContentWidth(for: japanese)
+    XCTAssertLessThan(japaneseMin, typographicWidth(japanese) / 4)
+    XCTAssertLessThanOrEqual(japaneseMin, ceil(oneIdeograph * 2) + 1)
+
+    let attrs: [NSAttributedString.Key: Any] = [.font: CTFontCreateWithName("Helvetica" as CFString, 17, nil)]
+    let list = NSAttributedString(string: "red/green/yellow/purple", attributes: attrs)
+    XCTAssertLessThan(TextEngine.minContentWidth(for: list), typographicWidth(list) / 2)
+
+    let word = NSAttributedString(string: "unbreakable", attributes: attrs)
+    XCTAssertEqual(TextEngine.minContentWidth(for: word), typographicWidth(word), accuracy: 1)
+  }
+
   func test_text_engine_inline_child_baseline_from_bottom_matches_css_alignment_defaults() {
     let parentFont = FontMetrics(
       ascent: 20,
@@ -1220,5 +1238,43 @@ final class HTMLParserTests: XCTestCase {
     XCTAssertTrue(hasViewportUnit("1px solid red, 2.5VMIN"))
     XCTAssertFalse(hasViewportUnit("10px"))
     XCTAssertFalse(hasViewportUnit("url(vw.png)"))
+  }
+}
+
+/// `<img src="~/...">` reaches `Img.src` as an absolute path (img/index.ios.ts).
+final class ImgLocalSourceTests: XCTestCase {
+  private func load(_ src: String) -> (LoadingState, Img) {
+    let img = NSCMason.shared.createImageView()
+    let done = expectation(description: "load settles")
+    var result: LoadingState = .Loading
+    img.onStateChange = { state, _ in
+      guard state != .Loading else { return }
+      result = state
+      done.fulfill()
+    }
+    img.src = src
+    wait(for: [done], timeout: 10)
+    return (result, img)
+  }
+
+  func testAbsolutePathLoads() throws {
+    let size = CGSize(width: 4, height: 3)
+    let png = UIGraphicsImageRenderer(size: size).image { ctx in
+      UIColor.red.setFill()
+      ctx.fill(CGRect(origin: .zero, size: size))
+    }.pngData()!
+    let path = NSTemporaryDirectory() + "mason-img-\(UUID().uuidString).png"
+    try png.write(to: URL(fileURLWithPath: path))
+    defer { try? FileManager.default.removeItem(atPath: path) }
+
+    let (state, img) = load(path)
+    XCTAssertEqual(state, .Loaded)
+    XCTAssertNotNil(img.image)
+  }
+
+  func testMissingFileIsAnError() {
+    let (state, img) = load(NSTemporaryDirectory() + "mason-img-missing-\(UUID().uuidString).png")
+    XCTAssertEqual(state, .Error)
+    XCTAssertNil(img.image)
   }
 }

@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 16/03/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objcMembers
 @objc(MasonHTMLParser)
@@ -1281,6 +1285,7 @@ public class HTMLParser: NSObject {
     case "submit": return .Submit
     case "reset": return .Reset
     case "button": return .Button
+    case "hidden": return .Hidden
     default: return .Text
     }
   }

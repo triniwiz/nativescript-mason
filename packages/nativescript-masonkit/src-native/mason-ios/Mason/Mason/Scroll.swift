@@ -4,7 +4,11 @@
 //
 //  Created by Osei Fortune on 16/08/2025.
 //
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objc(MasonScroll)
 @objcMembers
@@ -85,7 +89,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   public override func layoutSubviews() {
     // UIScrollView scrolls by moving bounds.origin, which would carry a CSS mask
     // along with the content; keep it on the element box.
-    (layer.mask as? MasonMaskLayer)?.follow(viewBounds: bounds)
+    (backingLayer.mask as? MasonMaskLayer)?.follow(viewBounds: bounds)
 
     if isApplyingLayout {
       super.layoutSubviews()

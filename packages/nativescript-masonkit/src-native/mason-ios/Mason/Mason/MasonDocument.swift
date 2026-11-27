@@ -4,7 +4,11 @@
 //
 //  Created by Osei Fortune on 08/10/2025.
 //
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 @objcMembers
 @objc(MasonDocument)

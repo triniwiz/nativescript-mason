@@ -1,5 +1,9 @@
 import CoreText
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 // text-spacing-trim: full-width punctuation gives up its blank half next to other punctuation
 // (every value but space-all), at the start of a line (trim-start, space-first past the first

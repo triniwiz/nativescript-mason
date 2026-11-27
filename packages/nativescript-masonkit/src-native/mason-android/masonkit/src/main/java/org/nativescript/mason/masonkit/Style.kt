@@ -732,6 +732,9 @@ class StateKeys internal constructor(val low: Long, val high: Long) {
       MAX_CONTENT_HEIGHT or FLOAT or CLEAR or LIST_STYLE_POSITION or VERTICAL_ALIGN or VISIBILITY or
       TEXT_LAYOUT
 
+    val TREE_HINTS: StateKeys = FLOAT or OVERFLOW_X or OVERFLOW_Y or OVERFLOW or WRITING_MODE or
+      TEXT_ORIENTATION or TEXT_COMBINE_UPRIGHT
+
     fun hasFlag(low: Long, high: Long, flag: StateKeys): Boolean =
       ((low and flag.low) != 0L) || ((high and flag.high) != 0L)
 
@@ -1370,6 +1373,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       StateKeys.hasFlag(low, high, StateKeys.FONT_FAMILY)
     ) {
       invalidateResolvedFontFace()
+    }
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+      (node.view as? Input)?.enforceHiddenDisplay()
     }
     // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
     // and a view that was laid out before going `display: none` keeps drawing at its old frame.
@@ -2343,6 +2349,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
     }
     set(value) {
+      if ((node.view as? Input)?.interceptDisplayWhileHidden(value) == true) {
+        return
+      }
       var displayMode = DisplayMode.None
       val display = when (value) {
         Display.None, Display.Flex, Display.Grid, Display.Block -> value.value
@@ -4436,15 +4445,18 @@ class Style internal constructor(@Transient internal var node: Node) {
 
     val stateKeys = StateKeys(isDirty, isDirtyHigh)
     // A first sync counts too: until then display reads as unset, whatever its value.
-    if (firstSync || stateKeys.hasFlag(StateKeys.DISPLAY) || stateKeys.hasFlag(StateKeys.DISPLAY_MODE) ||
+    val flowChanged = firstSync || stateKeys.hasFlag(StateKeys.DISPLAY) || stateKeys.hasFlag(StateKeys.DISPLAY_MODE) ||
       stateKeys.hasFlag(StateKeys.POSITION) || stateKeys.hasFlag(StateKeys.FLOAT)
-    ) {
+    if (flowChanged) {
       node.onFlowTypeChanged(firstSync)
     }
     val directionDirty = stateKeys.hasFlag(StateKeys.DIRECTION)
     if (directionDirty) {
       val androidView = node.view as? android.view.View
       androidView?.layoutDirection = toAndroidLayoutDirection(direction)
+    }
+    if (flowChanged || directionDirty || stateKeys.hasFlag(StateKeys.MAX_SIZE)) {
+      TextEngine.recheckPreparedTextAround(node, stateKeys.hasFlag(StateKeys.FLOAT))
     }
 
     val borderState = (isDirty and StateKeys.BORDER.low) or (isDirtyHigh and StateKeys.BORDER.high)
@@ -4630,6 +4642,8 @@ class Style internal constructor(@Transient internal var node: Node) {
         (node.parent?.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
       }
 
+      // Rust sets its float/scroll/writing-mode tree hints only in a native mark, so this one must not dedup.
+      if (StateKeys.hasFlag(isDirty, isDirtyHigh, StateKeys.TREE_HINTS)) node.dirty(force = true)
       resetState()
       if (layoutAffecting) {
         (node.view as? Element)?.invalidateLayout()

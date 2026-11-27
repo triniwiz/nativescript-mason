@@ -4,7 +4,11 @@
 //
 //  Created by Osei Fortune on 02/10/2025.
 //
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import FontManager
 
 internal func create_layout(_ floats: UnsafePointer<Float>?, _ count: UInt) -> UnsafeMutableRawPointer? {
@@ -105,6 +109,10 @@ public protocol MasonElement: NSObjectProtocol {
 private let ctFontCache: NSCache<NSString, CTFont> = {
   let cache = NSCache<NSString, CTFont>()
   cache.countLimit = 256
+  // A font registered later (e.g. a `FontFace` that finished loading) can change a family's face.
+  _ = NotificationCenter.default.addObserver(forName: NSNotification.Name(kCTFontManagerRegisteredFontsChangedNotification as String), object: nil, queue: nil) { [weak cache] _ in
+    cache?.removeAllObjects()
+  }
   return cache
 }()
 
@@ -121,6 +129,30 @@ private func systemFontDesign(_ postScriptName: String) -> UIFontDescriptor.Syst
   if postScriptName.contains("NewYork") { return .serif }
   if postScriptName.contains("Rounded") { return .rounded }
   return nil
+}
+
+/// The app's face for `family` when the family also has system faces, else nil.
+///
+/// An app-registered font can share its family name with a hidden system font (iOS ships a
+/// Bebas Neue in CoreUI), and matching by family alone picks the system face. As with an
+/// `@font-face` rule, the app's faces win: the nearest weight, in the requested style if any.
+private func appFace(family: String, weight: CGFloat, italic: Bool) -> CTFontDescriptor? {
+  let query = CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family] as CFDictionary)
+  let mandatory: Set<String> = [kCTFontFamilyNameAttribute as String]
+  guard let faces = CTFontDescriptorCreateMatchingFontDescriptors(query, mandatory as CFSet) as? [CTFontDescriptor] else { return nil }
+  // Faces registered from data have no URL.
+  let appFaces = faces.filter { face in
+    guard let url = CTFontDescriptorCopyAttribute(face, kCTFontURLAttribute) as? URL else { return true }
+    return !url.path.contains("/System/Library/")
+  }
+  guard !appFaces.isEmpty, appFaces.count < faces.count else { return nil }
+  func distance(_ face: CTFontDescriptor) -> CGFloat {
+    let traits = CTFontDescriptorCopyAttribute(face, kCTFontTraitsAttribute) as? [CFString: Any]
+    let faceWeight = (traits?[kCTFontWeightTrait] as? NSNumber)?.doubleValue ?? 0
+    let symbolic = CTFontSymbolicTraits(rawValue: (traits?[kCTFontSymbolicTrait] as? NSNumber)?.uint32Value ?? 0)
+    return abs(CGFloat(faceWeight) - weight) + (symbolic.contains(.traitItalic) == italic ? 0 : 10)
+  }
+  return appFaces.min { distance($0) < distance($1) }
 }
 
 private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -194,6 +226,9 @@ private func makeCTFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.W
     // name only if the family can't be determined.
     let baseCT = CTFontCreateWithGraphicsFont(cgFont, fontSize, nil, nil)
     if let familyName = CTFontCopyFamilyName(baseCT) as String? {
+      if let face = appFace(family: familyName, weight: weightValue, italic: symbolicTraits.contains(.traitItalic)) {
+        return CTFontCreateWithFontDescriptor(face, fontSize, nil)
+      }
       attributes[kCTFontFamilyNameAttribute] = familyName as CFString
     } else {
       attributes[kCTFontNameAttribute] = postScriptName as CFString
@@ -1034,10 +1069,10 @@ class MasonElementHelpers: NSObject {
     return view.subviews.enumerated().sorted { lhs, rhs in
       let left = lhs.element
       let right = rhs.element
-      if left.layer.zPosition == right.layer.zPosition {
+      if left.backingLayer.zPosition == right.backingLayer.zPosition {
         return lhs.offset < rhs.offset
       }
-      return left.layer.zPosition < right.layer.zPosition
+      return left.backingLayer.zPosition < right.backingLayer.zPosition
     }.map { $0.element }
   }
 
@@ -1057,7 +1092,8 @@ class MasonElementHelpers: NSObject {
       }
     }
 
-    return contains(view, point) ? view : nil
+    let skipped = (view as? MasonElement)?.node.pointerEvents == MasonPointerEventsValue.none
+    return contains(view, point) && !skipped ? view : nil
   }
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
@@ -1088,35 +1124,11 @@ class MasonElementHelpers: NSObject {
       }
     }
     
-    let tree = layout.tree
-    let childCount = tree.childCount[layout.index]
-    if childCount > 0 {
-      let parentText = MasonViewKind.textContainer(node.view)
-      let start = tree.childStart[layout.index]
+    if layout.tree.childCount[layout.index] > 0 {
       // Sweep orphaned outset-shadow layers (safety net for missed per-child
       // willMove cleanup under heavy churn).
       reconcileShadowLayers(node.view)
-      // Children with a nativePtr line up with the Rust layout tree's children,
-      // flattened text containers included.
-      var i = 0
-      for child in node.children where child.nativePtr != nil {
-        if i >= childCount { break }
-        let childIndex = tree.childIndices[start + i]
-        i += 1
-        if(child.type == .text){
-          continue
-        }
-
-        // Skip flattened text containers: the parent draws their text
-        if let parentText = parentText, let childText = MasonViewKind.textContainer(child.view) {
-          if parentText.engine.shouldFlattenTextContainer(childText) {
-            child.view?.frame = .zero
-            continue
-          }
-        }
-
-        applyToView(child, MasonLayout(tree: tree, index: childIndex))
-      }
+      applyToChildren(node, layout)
     }
 
     if node.hasPendingScroll { (node.view as? MasonUIView)?.applyPendingScroll() }
@@ -1124,6 +1136,36 @@ class MasonElementHelpers: NSObject {
   
   
   
+  private static func applyToChildren(_ node: MasonNode, _ layout: MasonLayout) {
+    let tree = layout.tree
+    let childCount = tree.childCount[layout.index]
+    guard childCount > 0 else { return }
+    let parentText = MasonViewKind.textContainer(node.view)
+    let start = tree.childStart[layout.index]
+    // Children with a nativePtr line up with the Rust layout tree's children,
+    // flattened text containers included.
+    var i = 0
+    for child in node.children where child.nativePtr != nil {
+      if i >= childCount { break }
+      let childLayout = MasonLayout(tree: tree, index: tree.childIndices[start + i])
+      i += 1
+      if child.type == .text {
+        continue
+      }
+
+      // A flattened text container is drawn by its parent, but its inline boxes are still laid out.
+      if let parentText = parentText, let childText = MasonViewKind.textContainer(child.view),
+         parentText.engine.shouldFlattenTextContainer(childText) {
+        child.view?.frame = .zero
+        child.computedLayout = childLayout
+        applyToChildren(child, childLayout)
+        continue
+      }
+
+      applyToView(child, childLayout)
+    }
+  }
+
   /// Applies `layout` to `view`: frame, clipping, mask, shadow and scroll content size.
   private static func applyBox(_ node: MasonNode, _ view: UIView, _ layout: MasonLayout) {
     var isTextView = false
@@ -1181,7 +1223,7 @@ class MasonElementHelpers: NSObject {
       if fallbackWidth || fallbackHeight {
         let assignedWidth = width
         let assignedHeight = height
-        let fitted = view.sizeThatFits(CGSize(
+        let fitted = view.masonSizeThatFits(CGSize(
           width: assignedWidth > 0 ? assignedWidth : .greatestFiniteMagnitude,
           height: assignedHeight > 0 ? assignedHeight : .greatestFiniteMagnitude
         ))
@@ -1254,7 +1296,7 @@ class MasonElementHelpers: NSObject {
     // An inline box inside text: its text view knows where the text left room.
     if let text = view.superview as? MasonText, text.ownsInlineBox(view) {
       text.placeInlineBox(node, view, newFrame)
-    } else if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
+    } else if view.transform.isIdentity && CATransform3DIsIdentity(view.backingLayer.transform) {
       if view.frame != newFrame {
         view.frame = newFrame
       }
@@ -1314,7 +1356,7 @@ class MasonElementHelpers: NSObject {
     // Never touch clipsToBounds on UIScrollView here: changing it during
     // layoutSubviews corrupts UIKit's gesture graph (UIGestureGraphEdge
     // assertions). It's fixed to true at init.
-    let clipWork = !(view is UIScrollView) && (clipX || clipY || view.clipsToBounds || view.layer.mask != nil)
+    let clipWork = !(view is UIScrollView) && (clipX || clipY || view.clipsToBounds || view.backingLayer.mask != nil)
     if clipWork {
       CATransaction.begin()
       CATransaction.setDisableActions(true)
@@ -1327,11 +1369,11 @@ class MasonElementHelpers: NSObject {
         } else if hasRadii, let corner = masonView?.layerCornerRadius(borderRender.radius) {
           // One circular radius: the layer's own corners clip it, no mask needed.
           cornerClip = corner
-          if view.layer.mask is CAShapeLayer { view.layer.mask = nil }
+          if view.backingLayer.mask is CAShapeLayer { view.backingLayer.mask = nil }
         } else if hasRadii {
           let clipPath = borderRender.getClipPath(rect: localBounds, radius: borderRender.radius)
           let newCGPath = clipPath.cgPath
-          if let existing = view.layer.mask as? CAShapeLayer {
+          if let existing = view.backingLayer.mask as? CAShapeLayer {
             if existing.path == nil || existing.path!.boundingBoxOfPath != newCGPath.boundingBoxOfPath {
               existing.path = newCGPath
             }
@@ -1340,10 +1382,10 @@ class MasonElementHelpers: NSObject {
             let maskLayer = CAShapeLayer()
             maskLayer.path = newCGPath
             maskLayer.frame = view.bounds
-            view.layer.mask = maskLayer
+            view.backingLayer.mask = maskLayer
           }
-        } else if view.layer.mask != nil {
-          view.layer.mask = nil
+        } else if view.backingLayer.mask != nil {
+          view.backingLayer.mask = nil
         }
       } else if clipX || clipY {
         // Only one axis clips — use a layer mask that extends beyond
@@ -1364,10 +1406,10 @@ class MasonElementHelpers: NSObject {
           ? borderRender.getClipPath(rect: localBounds, radius: borderRender.radius).cgPath
           : UIBezierPath(rect: clipRect).cgPath
         if !MasonStyle.routeOverflowClip(view, clipPath) {
-          let maskLayer = (view.layer.mask as? CAShapeLayer) ?? CAShapeLayer()
+          let maskLayer = (view.backingLayer.mask as? CAShapeLayer) ?? CAShapeLayer()
           maskLayer.path = clipPath
           maskLayer.frame = view.bounds
-          view.layer.mask = maskLayer
+          view.backingLayer.mask = maskLayer
         }
       } else {
         // Overflow visible: border-radius alone doesn't clip children (only the
@@ -1376,8 +1418,8 @@ class MasonElementHelpers: NSObject {
         view.clipsToBounds = false
         if MasonStyle.routeOverflowClip(view, nil) {
           // The CSS mask stays, without an overflow clip.
-        } else if view.layer.mask != nil {
-          view.layer.mask = nil
+        } else if view.backingLayer.mask != nil {
+          view.backingLayer.mask = nil
         }
       }
       if let masonView, masonView.overflowCornerClip?.radius != cornerClip?.radius
@@ -1454,7 +1496,7 @@ class MasonElementHelpers: NSObject {
   /// direct child (or whose style was freed). Safety net for per-child cleanup.
   internal static func reconcileShadowLayers(_ container: UIView?) {
     guard MasonShadowLayer.anyCreated || CSSFilters.FilterOutputLayer.anyCreated,
-          let container = container, let sublayers = container.layer.sublayers else { return }
+          let container = container, let sublayers = container.backingLayer.sublayers else { return }
     for layer in sublayers {
       if let output = layer as? CSSFilters.FilterOutputLayer {
         let ownerView = output.owner?.elementView

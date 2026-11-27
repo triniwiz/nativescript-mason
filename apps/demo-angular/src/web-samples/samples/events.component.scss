@@ -1,0 +1,125 @@
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 12;
+}
+
+.chip-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 6 14;
+  border-radius: 16;
+  background-color: var(--surface);
+  color: var(--text-2);
+  font-size: 12;
+  border: 1 solid #e2e4ec;
+  border-style: none;
+}
+
+.chip.active {
+  background-color: var(--ink);
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10;
+}
+
+.event-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12;
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 12;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.date-badge {
+  width: 52;
+  height: 52;
+  border-radius: 10;
+  background-color: #6c5ce7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-day {
+  color: #ffffff;
+  font-size: 18;
+  font-weight: bold;
+}
+
+.date-month {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 10;
+}
+
+.event-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2;
+}
+
+.event-body h3 {
+  font-size: 14;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.event-loc {
+  font-size: 11;
+  color: var(--muted);
+}
+
+.event-meta {
+  display: flex;
+  flex-direction: row;
+  gap: 8;
+  margin-top: 3;
+}
+
+.event-time {
+  font-size: 11;
+  color: var(--text-2);
+}
+
+.event-cat {
+  font-size: 11;
+  color: #6c5ce7;
+  font-weight: bold;
+}
+
+.rsvp {
+  padding: 7 12;
+  border-radius: 16;
+  background-color: var(--surface-2);
+  color: var(--text);
+  font-size: 11;
+  font-weight: 600;
+  border-style: none;
+}
+
+.rsvp.going {
+  background-color: #00b894;
+  color: #ffffff;
+}
+
+.empty {
+  font-size: 13;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 24;
+}

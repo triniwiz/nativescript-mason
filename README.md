@@ -16,7 +16,7 @@
 
 ---
 
-Mason brings flexbox, grid, block and inline flow, positioning and browser-like elements (`div`, `p`, `span`, `h1`, `ul`, `img`, `input`, `details`, ...) to NativeScript apps on iOS, Android and Windows. Every element is a native view. Layout runs in `mason-core`, a Rust crate built on [taffy](https://github.com/DioxusLabs/taffy).
+Mason brings flexbox, grid, block and inline flow, positioning and browser-like elements (`div`, `p`, `span`, `h1`, `ul`, `img`, `input`, `details`, ...) to NativeScript apps on iOS, Android, Windows and Linux. Every element is a native view. Layout runs in `mason-core`, a Rust crate built on [taffy](https://github.com/DioxusLabs/taffy).
 
 ```bash
 ns plugin add @triniwiz/nativescript-masonkit

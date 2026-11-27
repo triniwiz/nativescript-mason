@@ -1,0 +1,31 @@
+<ActionBar title="Feed - core">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="back()"></NavigationButton>
+</ActionBar>
+
+<ScrollView class="page">
+  <StackLayout class="feed">
+    <WrapLayout class="toolbar">
+      <Label class="tool" text="+20" (tap)="append()"></Label>
+      <Label class="tool" text="Prepend" (tap)="prepend()"></Label>
+      <Label class="tool" text="Shuffle" (tap)="shuffle()"></Label>
+      <Label class="tool" text="Retitle" (tap)="retitle(nextStep())"></Label>
+      <Label class="tool" text="Clear" (tap)="clear()"></Label>
+      <Label class="tool" text="Refill" (tap)="refill()"></Label>
+    </WrapLayout>
+    <Label class="count" [text]="`${items().length} rows`"></Label>
+    @for (item of items(); track item.id) {
+      <GridLayout class="row" columns="40, *, auto" rows="auto">
+        <GridLayout col="0" class="avatar" verticalAlignment="middle" [backgroundColor]="item.color">
+          <Label class="avatar-text" [text]="item.id % 100"></Label>
+        </GridLayout>
+        <StackLayout col="1" class="body">
+          <Label class="title" [text]="item.title"></Label>
+          <Label class="subtitle" [text]="item.subtitle" textWrap="true"></Label>
+        </StackLayout>
+        <GridLayout col="2" class="badge" verticalAlignment="middle">
+          <Label class="badge-text" [text]="item.badge"></Label>
+        </GridLayout>
+      </GridLayout>
+    }
+  </StackLayout>
+</ScrollView>

@@ -6,7 +6,11 @@
 //  layout and folded into the mask Mask.swift owns, so it composes with the other mask parts.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 // MARK: - CSS value helpers
@@ -507,7 +511,7 @@ extension MasonStyle {
   /// False when `point` (view coordinates) lies outside the view's `clip-path`: CSS gives
   /// clipped-out regions no pointer events. True for every view without one.
   internal static func clipPathAllows(_ view: UIView, _ point: CGPoint) -> Bool {
-    guard let mask = view.layer.mask as? MasonMaskLayer, let shape = mask.clipShape else { return true }
+    guard let mask = view.backingLayer.mask as? MasonMaskLayer, let shape = mask.clipShape else { return true }
     let p = CGPoint(x: point.x - view.bounds.minX, y: point.y - view.bounds.minY)
     return shape.contains(p, using: mask.clipEvenOdd ? .evenOdd : .winding)
   }

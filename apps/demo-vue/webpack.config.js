@@ -12,13 +12,14 @@ module.exports = (env) => {
     config.resolve.alias.set('@demo/shared', resolve(__dirname, '..', '..', 'tools', 'demo'));
 
     // NativeScript webpack defines the Android and Apple platform constants,
-    // but not __WINDOWS__. MasonKit branches on all three, so without this
+    // but not __WINDOWS__ or __LINUX__. MasonKit branches on all of them, so without this
     // substitution the Windows checks survive as free variables and crash the
     // Android app the first time a MasonKit native event is registered.
     config.plugin('DefinePlugin').tap((args) => {
       args[0] = {
         ...args[0],
         __WINDOWS__: env.platform === 'windows',
+        __LINUX__: env.platform === 'linux',
       };
 
       return args;

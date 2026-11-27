@@ -33,6 +33,7 @@ module.exports = (env) => {
       args[0] = {
         ...args[0],
         __WINDOWS__: env.platform === 'windows',
+        __LINUX__: env.platform === 'linux',
       };
 
       return args;

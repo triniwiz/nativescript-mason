@@ -106,7 +106,7 @@ class TextArea @JvmOverloads constructor(
       // The TextWatcher.afterTextChanged will handle node.dirty() + requestLayout()
     }
 
-  constructor(context: Context, mason: Mason) : this(context, null, true) {
+  constructor(context: Context, mason: Mason) : this(ThemelessContext.themed(context), null, true) {
     setup(mason)
   }
 
@@ -255,7 +255,10 @@ class TextArea @JvmOverloads constructor(
 
   // A touch outside the clip-path passes through to what's beneath (see ClipPath.kt).
   override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
-    !clipPathRejectsTouch(this, style, ev) && super.dispatchTouchEvent(ev)
+    dispatchMasonTouch(ev) { super.dispatchTouchEvent(it) }
+
+  override fun dispatchHoverEvent(event: android.view.MotionEvent): Boolean =
+    dispatchMasonHover(event) { super.dispatchHoverEvent(it) }
 
   override fun onDraw(canvas: Canvas) {
     // View.draw() pre-translates the canvas by (-scrollX, -scrollY) for internal

@@ -65,6 +65,17 @@ if [[ "$PLATFORM_NAME" == *"simulator"* ]]; then
     IS_SIMULATOR=true
 fi
 
+# Catalyst and AppKit builds both report PLATFORM_NAME=macosx; IS_MACCATALYST tells them apart.
+IS_MACOS=false
+IS_CATALYST=false
+if [[ "$PLATFORM_NAME" == "macosx" ]]; then
+  if [[ "$(to_bool "${IS_MACCATALYST:-NO}")" == true ]]; then
+    IS_CATALYST=true
+  else
+    IS_MACOS=true
+  fi
+fi
+
 # Xcode runs this phase once per build. For a multi-arch build (the simulator
 # slice is arm64 + x86_64) CURRENT_ARCH is "undefined_arch", so build a Rust
 # library for every arch in $ARCHS; each is linked from its own target dir.
@@ -81,6 +92,10 @@ rust_target_for() {
     else
       echo "aarch64-apple-visionos"
     fi
+  elif $IS_CATALYST; then
+    if [[ $1 == x86_64 ]]; then echo "x86_64-apple-ios-macabi"; else echo "aarch64-apple-ios-macabi"; fi
+  elif $IS_MACOS; then
+    if [[ $1 == x86_64 ]]; then echo "x86_64-apple-darwin"; else echo "aarch64-apple-darwin"; fi
   elif [[ $1 == x86_64 ]]; then
     echo "x86_64-apple-ios"
   elif [[ $1 == arm64 ]]; then

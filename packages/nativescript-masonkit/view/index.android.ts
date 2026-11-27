@@ -67,13 +67,11 @@ export class View extends ViewBase {
     (this as any)._invalidateAttachCursor();
     // Clear the attach flag; `_nativeIndexFor` counts it, so a stale `true` misindexes inserts.
     view._isMasonChild = false;
-    // detach the Rust node too, since
-    // super only removes the native view.
+    // Mason's removeView detaches the Rust node and the view; core's would call it a second time.
     const nativeView = this._view as org.nativescript.mason.masonkit.View;
     if (nativeView && view.nativeViewProtected && typeof nativeView.removeView === 'function') {
       nativeView.removeView(view.nativeViewProtected);
     }
-    // @ts-ignore
-    super._removeViewFromNativeVisualTree(view);
+    this._masonForgetNativeChild(view);
   }
 }

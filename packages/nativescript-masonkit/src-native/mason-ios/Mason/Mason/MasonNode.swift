@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import FontManager
 
 private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _ knownDimensionsHeight: Float, _ availableSpaceWidth: Float, _ availableSpaceHeight: Float) -> Int64 {
@@ -203,7 +207,12 @@ public class MasonNode: NSObject {
   @objc private dynamic func setComputedSize(_ width: CGFloat, height: CGFloat){
     cachedWidth = width
     cachedHeight = height
+    reportedSize = CGSize(width: width, height: height)
   }
+
+  // Border box from the core's last sizing of this node; a view's own measure overwrites
+  // cachedWidth/Height with its content size, so inline boxes read this before layout.
+  internal var reportedSize: CGSize = .zero
   
   
   // `cachedWidth`/`cachedHeight` are written only from the measure-function
@@ -260,6 +269,9 @@ public class MasonNode: NSObject {
   /// `auto`). A Mason scroll view only pans along an axis every element from
   /// the touched one up to it allows.
   @objc public var touchAction: Int = 7
+  /// CSS `pointer-events`: 1 (`none`) leaves the element itself out of hit testing.
+  @objc public var pointerEvents: Int = 0
+  internal var listensForPointer: Bool = false
   internal var hasClickGesture: Bool = false
   // Set when a "scroll"/"scrollend" listener is added; until then scrolling queues no events.
   internal var listensForScroll: Bool = false
@@ -291,12 +303,29 @@ public class MasonNode: NSObject {
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
-  internal weak var view: UIView? = nil
+  internal weak var view: UIView? = nil {
+    didSet { syncRetainedView() }
+  }
 
-  // `view` above is weak. An anonymous text container inside another text
-  // container is never added as a real subview, so nothing else keeps it
-  // alive - retain it here instead.
-  internal var retainedAnonymousView: UIView? = nil
+  // `view` above is weak and only the view hierarchy keeps it alive. A text container draws its
+  // children or attaches them at layout, so while under one the node holds its own view.
+  internal var retainedView: UIView? = nil
+
+  private var isUnderTextContainer: Bool {
+    MasonViewKind.isTextContainer(layoutParent?.view)
+  }
+
+  private func syncRetainedView() {
+    if isUnderTextContainer {
+      if retainedView == nil { retainedView = view }
+    } else if retainedView != nil {
+      // A rebuild can detach and re-attach in one pass: let go only once it has settled.
+      DispatchQueue.main.async { [weak self] in
+        guard let self, !self.isUnderTextContainer else { return }
+        self.retainedView = nil
+      }
+    }
+  }
 
   internal var children: [MasonNode] = []
   
@@ -520,6 +549,7 @@ public class MasonNode: NSObject {
     didSet {
       if isAnonymous { layoutParent?.hasAnonymousChild = true }
       MasonStyle.resolveEpoch &+= 1
+      syncRetainedView()
     }
   }
   public internal(set) var parent: MasonNode? {
@@ -644,6 +674,7 @@ public class MasonNode: NSObject {
     super.init()
     MasonNode.liveCount += 1
     self.isAnonymous = isAnonymous
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   
@@ -663,6 +694,7 @@ public class MasonNode: NSObject {
     children.forEach { node in
       node.parent = self
     }
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   
@@ -673,6 +705,7 @@ public class MasonNode: NSObject {
     super.init()
     MasonNode.liveCount += 1
     mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   internal init(listItem doc : NSCMason) {
@@ -680,6 +713,7 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_list_item_node(mason.nativePtr)
     super.init()
     MasonNode.liveCount += 1
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
   }
   
   internal init(listItem doc : NSCMason, measureFunc function: @escaping MeasureFunc) {
@@ -688,6 +722,7 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_list_item_node(mason.nativePtr)
     super.init()
     MasonNode.liveCount += 1
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque())
     mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
   }
   
@@ -698,10 +733,10 @@ public class MasonNode: NSObject {
     MasonNode.liveCount -= 1
     // Children's weak parent links go nil without a didSet, so cached inherited values must go too.
     MasonStyle.resolveEpoch &+= 1
-    // An anonymous text container under a text container keeps its own view alive, and the view
-    // owns that node: release the pair with this parent.
-    for child in children where child.retainedAnonymousView != nil {
-      child.retainedAnonymousView = nil
+    // A child under a text container keeps its own view alive, and the view owns that node:
+    // release the pair with this parent.
+    for child in children where child.retainedView != nil {
+      child.retainedView = nil
     }
     // Clean up event listeners to break strong reference from NSCMason
     mason.removeAllEventListeners(self)
@@ -970,7 +1005,7 @@ public class MasonNode: NSObject {
       // TextEngine spreads each line's slack itself: CoreText also widens letters.
       paragraphStyle.alignment = .natural
     case .Start:
-      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      let isLTR = masonLayoutIsLeftToRight()
       if(isLTR){
         paragraphStyle.alignment = .left
       }else {
@@ -978,7 +1013,7 @@ public class MasonNode: NSObject {
       }
       break
     case .End:
-      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      let isLTR = masonLayoutIsLeftToRight()
       if(isLTR){
         paragraphStyle.alignment = .right
       }else {
@@ -1364,7 +1399,7 @@ extension MasonNode {
       }
     } else {
       // a text container renders attributed-string runs, not subviews
-      textView.node.retainedAnonymousView = textView
+      textView.node.retainedView = textView
     }
 
     if(append){
@@ -2040,7 +2075,7 @@ extension MasonNode {
     }
 
     let constraintSize = CGSize(width: width, height: height)
-    var result = node.view?.sizeThatFits(constraintSize)
+    var result = node.view?.masonSizeThatFits(constraintSize)
 
     if let size = result {
       result?.width = size.width * CGFloat(NSCMason.scale)

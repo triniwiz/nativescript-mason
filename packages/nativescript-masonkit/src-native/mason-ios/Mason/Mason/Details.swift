@@ -3,7 +3,11 @@
 //  Mason
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// HTML `<details>`/`<summary>`. A closed details lays out only its first summary (mason-core hides
 /// the rest, leaving their `display` alone). A click on the summary, or VoiceOver activating it,
@@ -33,7 +37,11 @@ internal enum MasonDetails {
       refreshMarker(summary)
     }
     (node.view as? MasonElement)?.requestLayout()
+#if canImport(UIKit)
     UIAccessibility.post(notification: .layoutChanged, argument: nil)
+#else
+    if let view = node.view { NSAccessibility.post(element: view, notification: .layoutChanged) }
+#endif
   }
 
   /// The first summary child of a details: what stays visible while closed, and what toggles.
@@ -109,7 +117,11 @@ internal enum MasonDetails {
     func collect(_ v: UIView) {
       for sub in v.subviews where !sub.isHidden {
         if let text = sub as? MasonText {
+#if canImport(UIKit)
           let label = (text.accessibilityLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+#else
+          let label = (text.accessibilityLabel() ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+#endif
           if !label.isEmpty { parts.append(label) }
         } else {
           collect(sub)

@@ -3,7 +3,7 @@ import { native_ } from './symbols';
 import { masonHost } from '../../tools/testing/mason-test-kit/style-hosts';
 import { Input } from './input';
 import { TextArea } from './textarea';
-import { acceptProperty, appearanceProperty, multipleProperty, parseAppearance, syncCheckedPseudoClass } from './input/common';
+import { acceptProperty, appearanceProperty, multipleProperty, parseAppearance, placeholderProperty, syncCheckedPseudoClass, typeProperty } from './input/common';
 
 function inputWithNative(nativeView: Record<string, unknown>) {
   const input = new Input() as any;
@@ -36,6 +36,45 @@ describe('HTML input property bridge', () => {
     expect(input.value).toBe('hello');
     expect(input.placeholder).toBe('Search');
     expect(input.type).toBe('search');
+  });
+});
+
+describe('placeholder', () => {
+  it.each([
+    ['input', Input],
+    ['textarea', TextArea],
+  ])('sends an unset %s placeholder to the native view as an empty string', (_name, Element) => {
+    const setPlaceholder = vi.fn();
+    const element = new Element() as any;
+    element[native_] = { setPlaceholder };
+
+    element[placeholderProperty.setNative](undefined);
+    element[placeholderProperty.setNative](null);
+
+    expect(setPlaceholder.mock.calls).toEqual([[''], ['']]);
+  });
+
+  describe.each([
+    ['input', Input],
+    ['textarea', TextArea],
+  ])('on %s', (_name, Element) => {
+    it.each<[unknown, string]>([
+      [5, '5'],
+      [0, '0'],
+      [false, 'false'],
+      [null, ''],
+      [undefined, ''],
+    ])('is a string: %j becomes %j', (value, text) => {
+      const setPlaceholder = vi.fn();
+      const element = new Element() as any;
+      element[native_] = { setPlaceholder };
+      element._resumeNativeUpdates(element._suspendNativeUpdatesCount);
+      element.placeholder = 'before';
+      element.placeholder = value;
+
+      expect(setPlaceholder.mock.calls).toEqual([['before'], [text]]);
+      expect(element.placeholder).toBe(text);
+    });
   });
 });
 
@@ -339,5 +378,102 @@ describe('radio groups', () => {
     c.name = 'join';
     expect(b.checked).toBe(false);
     expect(c.checked).toBe(true);
+  });
+});
+
+describe('hidden input', () => {
+  it('sets type to hidden and forwards Input.Type.Hidden to the native view', () => {
+    const native = {
+      setType: vi.fn(),
+    };
+    const input = inputWithNative(native);
+
+    input.type = 'hidden';
+    input[typeProperty.setNative]('hidden');
+
+    expect(input.type).toBe('hidden');
+    expect(native.setType.mock.calls.map(([value]) => value.toString())).toEqual(['org.nativescript.mason.masonkit.Input.Type.Hidden']);
+  });
+
+  it('persists value and name before and after native view attachment', () => {
+    let nativeValue = '';
+    const native = {
+      getValue: vi.fn(() => nativeValue),
+      setValue: vi.fn((v: string) => (nativeValue = v)),
+      setChecked: vi.fn(),
+      getChecked: vi.fn(() => false),
+      setOnCheckedChange: vi.fn(),
+    };
+
+    const input = new Input() as any;
+    input.type = 'hidden';
+    input.name = 'haptics';
+    input.value = 'on';
+
+    expect(input.type).toBe('hidden');
+    expect(input.name).toBe('haptics');
+    expect(input.value).toBe('on');
+
+    const g = globalThis as any;
+    const previous = g.kotlin;
+    g.kotlin = {
+      jvm: {
+        functions: {
+          Function1: class {
+            constructor(impl: object) {
+              Object.assign(this, impl);
+            }
+          },
+        },
+      },
+    };
+    try {
+      input[native_] = native;
+      input.initNativeView();
+
+      expect(native.setValue).toHaveBeenCalledWith('on');
+      expect(input.value).toBe('on');
+      expect(input.name).toBe('haptics');
+
+      input.value = 'off';
+      expect(native.setValue).toHaveBeenLastCalledWith('off');
+      expect(input.value).toBe('off');
+    } finally {
+      g.kotlin = previous;
+    }
+  });
+
+  it('transitions dynamically between text and hidden while keeping value, name, and :checked false', () => {
+    let nativeValue = 'secret';
+    const native = {
+      setType: vi.fn(),
+      getValue: vi.fn(() => nativeValue),
+      setValue: vi.fn((v: string) => (nativeValue = v)),
+      getChecked: vi.fn(() => true),
+      setChecked: vi.fn(),
+    };
+    const input = inputWithNative(native);
+    input.name = 'token';
+    input.value = 'secret';
+    input.checked = true;
+
+    input.type = 'hidden';
+    input[typeProperty.setNative]('hidden');
+    expect(input.type).toBe('hidden');
+    expect(input.value).toBe('secret');
+    expect(input.name).toBe('token');
+    expect(input.cssPseudoClasses.has('checked')).toBe(false);
+
+    input.type = 'text';
+    input[typeProperty.setNative]('text');
+    expect(input.type).toBe('text');
+    expect(input.value).toBe('secret');
+    expect(input.name).toBe('token');
+    expect(input.cssPseudoClasses.has('checked')).toBe(false);
+
+    expect(native.setType.mock.calls.map(([value]) => value.toString())).toEqual([
+      'org.nativescript.mason.masonkit.Input.Type.Hidden',
+      'org.nativescript.mason.masonkit.Input.Type.Text',
+    ]);
   });
 });

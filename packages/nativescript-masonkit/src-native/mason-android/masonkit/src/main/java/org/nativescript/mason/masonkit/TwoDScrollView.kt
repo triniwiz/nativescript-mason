@@ -940,8 +940,12 @@ open class TwoDScrollView : FrameLayout, NestedScrollingChild3, NestedScrollingP
     lastMotionX = x
     lastMotionY = y
     parent?.requestDisallowInterceptTouchEvent(true)
+    onDragStarted()
     return true
   }
+
+  /** The scroll took the gesture over. */
+  protected open fun onDragStarted() {}
 
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
     if (!canScroll()) {

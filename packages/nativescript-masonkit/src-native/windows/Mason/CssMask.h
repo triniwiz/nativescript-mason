@@ -1662,6 +1662,22 @@ namespace mason_cssmask
         return entry;
     }
 
+    // Whether a mask is clip-path alone, which VisualApply clips the element's own visual with.
+    // FilterEffects draws a mask through a sprite in the parent's decoration layer, which paints over
+    // all of the parent's children, so a clip-path drawn that way hid the siblings meant to paint over
+    // it. path() without parsed commands has no geometry, so it is still drawn as a mask.
+    inline bool ClipOnly(Spec const& spec)
+    {
+        return spec.clip && !spec.HasLayers() && !(spec.border && spec.border->image.Drawable())
+            && !(spec.clip->shape == 5 && spec.clip->commands.empty());
+    }
+
+    inline bool ClipOnly(mux::UIElement const& element)
+    {
+        auto* entry = Find(element);
+        return entry && entry->mask && ClipOnly(*entry->mask);
+    }
+
     inline bool HasMask(mux::UIElement const& element)
     {
         auto* entry = Find(element);
@@ -1803,6 +1819,12 @@ namespace mason_cssmask
         auto& entry = Ensure(element);
         const bool had = entry.mask != nullptr;
         entry.mask = std::move(spec);
+        // A clip-path alone is a clip on the element's visual, set again on the next arrange.
+        if (ClipOnly(*entry.mask))
+        {
+            Release(entry);
+            return true;
+        }
         if (!had || !entry.maskBrush || entry.maskPad < 0.0f) return true;
         const auto brush = entry.maskBrush;
         return !Repaint(entry, entry.maskBoxes, entry.maskPad, entry.maskScale) || entry.maskBrush != brush;
@@ -2200,6 +2222,20 @@ namespace mason_cssmask
         auto* entry = Find(element);
         if (!entry || !entry->mask || !entry->mask->clip) return false;
         return !ClipContains(*entry->mask->clip, BoxesOf(node, width, height), x, y);
+    }
+
+    // The element's clip-path in DIPs from its border box's top-left: an empty geometry, rather
+    // than null, when the shape leaves nothing.
+    template <typename Node>
+    inline winrt::com_ptr<ID2D1Geometry> ClipPathGeometry(mux::UIElement const& element, Node const& node, float width, float height)
+    {
+        auto* entry = Find(element);
+        auto* factory = mason_shape::Factory();
+        if (!entry || !entry->mask || !entry->mask->clip || !factory) return nullptr;
+        if (auto geometry = ClipGeometry(factory, *entry->mask->clip, BoxesOf(node, width, height))) return geometry;
+        winrt::com_ptr<ID2D1RectangleGeometry> none;
+        factory->CreateRectangleGeometry(D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f), none.put());
+        return none ? none.as<ID2D1Geometry>() : nullptr;
     }
 
     // Whether the element paints an SVG that uses currentColor (a background or border-image).

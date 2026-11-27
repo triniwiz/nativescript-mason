@@ -1,0 +1,165 @@
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 14;
+}
+
+.summary-card {
+  background-color: var(--surface);
+  border-radius: 14;
+  padding: 18;
+  display: flex;
+  flex-direction: row;
+  gap: 18;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4;
+}
+
+.big-score {
+  font-size: 40;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.stars-row {
+  display: flex;
+  flex-direction: row;
+  gap: 2;
+}
+
+.star {
+  font-size: 18;
+  color: var(--muted);
+  background-color: transparent;
+  border-style: none;
+  padding: 0 2;
+}
+
+.star.filled {
+  color: #fdcb6e;
+}
+
+.review-count {
+  font-size: 11;
+  color: var(--muted);
+}
+
+.breakdown {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8;
+}
+
+.breakdown-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8;
+}
+
+.breakdown-label {
+  font-size: 11;
+  color: var(--text-2);
+  width: 10;
+}
+
+.track {
+  flex-grow: 1;
+  height: 8;
+  border-radius: 4;
+  background-color: var(--surface-2);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 4;
+  background-color: #fdcb6e;
+}
+
+.breakdown-pct {
+  font-size: 10;
+  color: var(--muted);
+  width: 28;
+  text-align: right;
+}
+
+.your-rating {
+  font-size: 12;
+  color: var(--muted);
+  text-align: center;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10;
+}
+
+.review-card {
+  background-color: var(--surface);
+  border-radius: 12;
+  padding: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 8;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.review-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10;
+}
+
+.mini-avatar {
+  width: 36;
+  height: 36;
+  border-radius: 18;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-initials {
+  color: #ffffff;
+  font-size: 14;
+  font-weight: bold;
+}
+
+.review-who {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1;
+}
+
+.review-author {
+  font-size: 13;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.review-stars {
+  font-size: 11;
+  color: #fdcb6e;
+}
+
+.review-date {
+  font-size: 10;
+  color: var(--muted);
+}
+
+.review-text {
+  font-size: 12;
+  color: var(--text-2);
+}

@@ -10,6 +10,7 @@ import org.nativescript.fontmanager.FontFace
 import org.nativescript.fontmanager.FontFaceSet
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.PointerEvent
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -43,6 +44,9 @@ class Mason {
   private val nodeEventListeners =
     WeakHashMap<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
 
+  // Pointer listeners added and not removed; until one exists touches skip pointer dispatch.
+  internal var pointerListenerCount = 0
+
   // True while Rust holds a lock during compute — prevents re-entrant
   // compute calls on the UI thread (e.g. layout → dirty → layout).
   @JvmField
@@ -51,9 +55,14 @@ class Mason {
   internal var computeEpoch = 0
     private set
 
+  internal fun beginCompute() {
+    inCompute = true
+  }
+
   internal fun endCompute() {
     inCompute = false
     computeFinished()
+    TextEngine.runDeferredClears()
   }
 
   internal fun computeFinished() {
@@ -222,6 +231,7 @@ class Mason {
   }
 
   fun clear() {
+    TextEngine.forgetPreparedTexts(this)
     nativeClear(nativePtr)
   }
 
@@ -272,6 +282,7 @@ class Mason {
     val byId = byType.getOrPut(type) { mutableMapOf() }
 
     byId[id] = listener
+    if (type in PointerEvent.TYPES) pointerListenerCount++
     if (LOG_EVENTS) {
       Log.d("Mason", "addEventListener node=${node.objectId()} type=$type id=$id")
     }
@@ -283,9 +294,10 @@ class Mason {
     type: String,
     id: UUID
   ) {
-    nodeEventListeners[node]
+    val removed = nodeEventListeners[node]
       ?.get(type)
       ?.remove(id)
+    if (removed != null && type in PointerEvent.TYPES && pointerListenerCount > 0) pointerListenerCount--
   }
 
   /** Calls only the target's own listeners, for events that don't bubble (scroll, scrollend). */
@@ -306,6 +318,17 @@ class Mason {
     var current: Node? = node
     while (current != null) {
       if (nodeEventListeners[current]?.get(type)?.isNotEmpty() == true) return true
+      current = current.parent
+    }
+    return false
+  }
+
+  /** True when [node] or one of its ancestors listens for any of [types]. */
+  internal fun hasListenerOnPath(node: Node, types: Set<String>): Boolean {
+    var current: Node? = node
+    while (current != null) {
+      val byType = nodeEventListeners[current]
+      if (byType != null && types.any { byType[it]?.isNotEmpty() == true }) return true
       current = current.parent
     }
     return false
@@ -422,12 +445,18 @@ class Mason {
     return node
   }
 
-  fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
-    val func = MeasureFuncImpl(WeakReference(measure))
+  fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node =
+    createTextNode(isAnonymous = isAnonymous).apply {
+      this.isAnonymous = isAnonymous
+      setMeasureFunction(measure)
+    }
+
+  internal fun createTextEngineNode(textView: TextView, isAnonymous: Boolean): Node {
+    val func = MeasureFuncImpl(WeakReference(textView))
     val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func.objectId, isAnonymous)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = WeakReference(this)
-      measureFunc = measure
+      measureFunc = textView
       measureFuncImpl = func
       this.isAnonymous = isAnonymous
     }
@@ -456,11 +485,24 @@ class Mason {
   }
 
   fun createButtonNode(measure: MeasureFunc): Node {
-    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr = NativeHelpers.nativeNodeNewButton(nativePtr)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = WeakReference(this)
+      setMeasureFunction(measure)
+    }
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
+
+    return node
+  }
+
+  internal fun createTextEngineButtonNode(button: Button): Node {
+    val func = MeasureFuncImpl(WeakReference(button))
     val nodePtr = NativeHelpers.nativeNodeNewButtonWithContext(nativePtr, func.objectId)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = WeakReference(this)
-      measureFunc = measure
+      measureFunc = button
       measureFuncImpl = func
     }
     NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)

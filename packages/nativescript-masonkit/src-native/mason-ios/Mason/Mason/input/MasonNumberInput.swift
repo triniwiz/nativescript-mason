@@ -5,9 +5,14 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
-class MasonNumberInput: UIView, UITextFieldDelegate {
+#if canImport(UIKit)
+class MasonNumberInput: MasonViewBase, UITextFieldDelegate {
   
   // MARK: - Subviews
   
@@ -268,3 +273,4 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
       owner.node.mason.dispatch(event, owner.node)
   }
 }
+#endif

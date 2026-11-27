@@ -47,7 +47,7 @@ namespace
     {
         kText = 0, kButton = 1, kCheckbox = 2, kEmail = 3, kPassword = 4, kDate = 5, kRadio = 6, kNumber = 7,
         kRange = 8, kTel = 9, kUrl = 10, kColor = 11, kFile = 12, kSubmit = 13, kSearch = 14, kTime = 15,
-        kDateTimeLocal = 16, kMonth = 17, kWeek = 18, kReset = 19,
+        kDateTimeLocal = 16, kMonth = 17, kWeek = 18, kReset = 19, kHidden = 20,
     };
 
     bool IsCheckable(int32_t type) { return type == kCheckbox || type == kRadio; }
@@ -289,6 +289,7 @@ namespace winrt::NativeScript::Mason::implementation
     void Input::Rebuild()
     {
         Children().Clear();
+        m_textShadows.Reset();
         m_swatch = nullptr;
         m_fileButton = nullptr;
         m_fileLabel = nullptr;
@@ -296,6 +297,7 @@ namespace winrt::NativeScript::Mason::implementation
         mux::FrameworkElement control{ nullptr };
         switch (m_type)
         {
+        case kHidden: break;
         case kColor: control = BuildColor(); break;
         case kFile: control = BuildFile(); break;
         case kPassword: control = muxc::PasswordBox(); break;
@@ -313,6 +315,19 @@ namespace winrt::NativeScript::Mason::implementation
             control = box;
             break;
         }
+        }
+        const bool hidden = m_type == kHidden;
+        if (hidden != m_wasHidden)
+        {
+            m_wasHidden = hidden;
+            mason_leaf::SetHidden(mason_leaf::LayoutChildOf(get_strong().as<mux::UIElement>()), mason_leaf::HiddenByInputType, hidden);
+        }
+        if (!control)
+        {
+            m_control = nullptr;
+            m_fieldWidth = -1.0f;
+            m_events->control = nullptr;
+            return;
         }
         m_control = control;
         m_control.HorizontalAlignment(mux::HorizontalAlignment::Stretch);
@@ -729,6 +744,13 @@ namespace winrt::NativeScript::Mason::implementation
         ApplyPlaceholderColor();
     }
 
+    void Input::SetTextShadow(hstring const& shadows)
+    {
+        if (!m_textShadows.Set(mason_dwrite::ParseShadows(shadows))) return;
+        // Sync after the field's template is applied and arranged.
+        InvalidateArrange();
+    }
+
     void Input::ApplyPlaceholderColor()
     {
         auto control = m_control ? m_control.try_as<muxc::Control>() : nullptr;
@@ -774,7 +796,7 @@ namespace winrt::NativeScript::Mason::implementation
 
     void Input::Type(int32_t value)
     {
-        if (m_type == value && m_control) return;
+        if (m_type == value && (m_control || m_type == kHidden)) return;
         if (m_control && !IsCheckable(m_type) && !IsCheckable(value)) m_value = m_type == kFile ? hstring{} : Value();
         m_type = value;
         Rebuild();
@@ -849,6 +871,7 @@ namespace winrt::NativeScript::Mason::implementation
                 }
             }
             m_control.Arrange(winrt::Windows::Foundation::Rect{ left, top, width, height });
+            if (IsField(m_control)) m_textShadows.Sync(m_control);
         }
         mason_visual::Apply(get_strong().as<winrt::Microsoft::UI::Xaml::UIElement>(), m_node, finalSize.Width, finalSize.Height, m_visual);
         return finalSize;

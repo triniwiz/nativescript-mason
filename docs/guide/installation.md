@@ -4,7 +4,7 @@
 ns plugin add @triniwiz/nativescript-masonkit
 ```
 
-That is all a plain NativeScript app needs. The native libraries for iOS, Android and Windows ship inside the package.
+That is all a plain NativeScript app needs. The native libraries for iOS, Android, Windows and Linux ship inside the package.
 
 ## Requirements
 

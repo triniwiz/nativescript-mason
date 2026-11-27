@@ -10,7 +10,7 @@ aside: false
 # MasonKit
 
 <p class="lede">
-MasonKit brings the web's layout model to NativeScript. Flexbox, grid, block and inline flow, floats and positioning are computed by a Rust engine built on taffy, and every element is drawn as a native view on iOS, Android and Windows. You write HTML-shaped elements and ordinary CSS; it works with plain NativeScript, Angular, Vue, Svelte, React and Solid.
+MasonKit brings the web's layout model to NativeScript. Flexbox, grid, block and inline flow, floats and positioning are computed by a Rust engine built on taffy, and every element is drawn as a native view on iOS, Android, Windows and Linux. You write HTML-shaped elements and ordinary CSS; it works with plain NativeScript, Angular, Vue, Svelte, React and Solid.
 </p>
 
 <div class="links">

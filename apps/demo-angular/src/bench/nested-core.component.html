@@ -1,0 +1,17 @@
+<ActionBar title="Nested - core">
+  <NavigationButton text="Back" android.systemIcon="ic_menu_back" (tap)="back()"></NavigationButton>
+</ActionBar>
+
+<ScrollView class="page">
+  <StackLayout class="nested">
+    <WrapLayout class="toolbar">
+      <Label class="tool" text="Retext" (tap)="retext(nextStep())"></Label>
+      <Label class="tool" [text]="showOdd() ? 'Hide row text' : 'Show row text'" (tap)="toggleOdd()"></Label>
+      <Label class="tool" [text]="narrow() ? 'Widen' : 'Narrow'" (tap)="toggleNarrow()"></Label>
+    </WrapLayout>
+    <Label class="count" [text]="`depth ${tree().depth} · ${boxCount()} boxes`"></Label>
+    <StackLayout class="root" [class.narrow]="narrow()">
+      <StackLayout [benchBox]="tree()" [showOdd]="showOdd()"></StackLayout>
+    </StackLayout>
+  </StackLayout>
+</ScrollView>

@@ -23,6 +23,11 @@
 #include "VisualState.h"
 #include "Node.h"
 
+namespace mason_events
+{
+    bool IsPointerNone(winrt::Windows::Foundation::IInspectable const& element);
+}
+
 namespace mason_visual
 {
     namespace nsm = winrt::NativeScript::Mason;
@@ -392,6 +397,16 @@ namespace mason_visual
         return 0xFF000000;
     }
 
+    // Where two geometries overlap. Null if Direct2D can't combine them.
+    inline winrt::com_ptr<ID2D1Geometry> Intersect(winrt::com_ptr<ID2D1Geometry> const& a, winrt::com_ptr<ID2D1Geometry> const& b)
+    {
+        winrt::com_ptr<ID2D1PathGeometry> path;
+        winrt::com_ptr<ID2D1GeometrySink> sink;
+        if (!a || !b || FAILED(mason_shape::Factory()->CreatePathGeometry(path.put())) || FAILED(path->Open(sink.put()))) return nullptr;
+        if (FAILED(a->CombineWithGeometry(b.get(), D2D1_COMBINE_MODE_INTERSECT, nullptr, sink.get())) || FAILED(sink->Close())) return nullptr;
+        return path.as<ID2D1Geometry>();
+    }
+
     inline void Apply(mux::UIElement const& element, nsm::Node const& node, float width, float height, AppliedState& state)
     {
         if (!element || !node) return;
@@ -480,10 +495,12 @@ namespace mason_visual
             muxc::Canvas::SetZIndex(host, zIndex);
             state.zIndex = zIndex;
         }
+        // A clip-path alone clips the element's own visual, which keeps its place among its siblings.
+        const bool clipPath = comp != nullptr && mason_filter::ClipsOwnVisual(element);
         // The element's own visual only to set or clear a clip: fetching it gives the element a
         // hand-off visual.
         auto visual = state.visual;
-        if (!visual && (needsClip || overflowClip || state.clip)) visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        if (!visual && (needsClip || overflowClip || clipPath || state.clip)) visual = mux::Hosting::ElementCompositionPreview::GetElementVisual(element);
 
         bool childOverflows = false;
         if ((visibleX || visibleY) && needsClip && !overflowClip)
@@ -588,17 +605,40 @@ namespace mason_visual
         }
         else if (panel && current && current == state.installed)
         {
-            // Transparent rather than null keeps the element hit-testable for tap handlers.
-            auto shared = SharedSolid(0);
+            // Transparent rather than null keeps the element hit-testable for tap handlers;
+            // pointer-events: none wants null so input reaches what's beneath.
+            auto shared = mason_events::IsPointerNone(element) ? muxm::Brush{ nullptr } : SharedSolid(0);
             if (current != shared) panel.Background(shared);
             state.installed = shared;
         }
 
         if (visual)
         {
-            if (overflowClip && comp)
+            constexpr float kOpen = 1.0e5f;
+            auto shape = clipPath ? mason_cssmask::ClipPathGeometry(element, node, width, height) : nullptr;
+            if (shape)
             {
-                constexpr float kOpen = 1.0e5f;
+                // Within the overflow or rounded clip the element would otherwise get.
+                winrt::com_ptr<ID2D1Geometry> box;
+                if (overflowClip)
+                {
+                    const auto rect = D2D1::RectF(visibleX ? -kOpen : 0.0f, visibleY ? -kOpen : 0.0f,
+                        visibleX ? width + kOpen : width, visibleY ? height + kOpen : height);
+                    box.copy_from(mason_shape::Path(mason_shape::Factory(), rect, !visibleX && !visibleY ? radii : mason_shape::Radii{}).get());
+                }
+                else if (needsClip && !childOverflows)
+                {
+                    box.copy_from(mason_shape::Path(mason_shape::Factory(), D2D1::RectF(0.0f, 0.0f, width, height), radii).get());
+                }
+                if (box)
+                {
+                    if (auto met = Intersect(shape, box)) shape = met;
+                }
+                auto source = winrt::make<mason_shape::GeometrySource>(shape);
+                visual.Clip(comp.CreateGeometricClip(comp.CreatePathGeometry(mucomp::CompositionPath(source))));
+            }
+            else if (overflowClip && comp)
+            {
                 mucomp::CompositionGeometry geo{ nullptr };
                 if (!visibleX && !visibleY)
                 {

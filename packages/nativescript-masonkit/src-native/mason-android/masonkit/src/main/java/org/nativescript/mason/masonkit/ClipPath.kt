@@ -883,3 +883,24 @@ internal fun clipPathRejectsTouch(view: android.view.View, style: Style, ev: Mot
   if (ev.actionMasked != MotionEvent.ACTION_DOWN) return false
   return !clip.contains(view, ev.x, ev.y)
 }
+
+/**
+ * Every Mason view's dispatchTouchEvent: a DOWN outside the clip-path, or on a pointer-events: none
+ * element away from a child that takes it, passes through to what's beneath; pointer events are
+ * raised before the view handles the touch.
+ */
+internal inline fun Element.dispatchMasonTouch(ev: MotionEvent, dispatch: (MotionEvent) -> Boolean): Boolean {
+  val view = view
+  if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+    if (clipPathRejectsTouch(view, style, ev)) return false
+    if (node.pointerEvents == PointerEvents.NONE && !HitTesting.childTakesPoint(view, ev.x, ev.y)) return false
+  }
+  val wantsStream = PointerDispatch.onTouch(this, ev)
+  return dispatch(ev) || wantsStream
+}
+
+/** Every Mason view's dispatchHoverEvent: raises mouse and pen pointer events. */
+internal inline fun Element.dispatchMasonHover(ev: MotionEvent, dispatch: (MotionEvent) -> Boolean): Boolean {
+  PointerDispatch.onHover(this, ev)
+  return dispatch(ev)
+}

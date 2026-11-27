@@ -12,6 +12,16 @@ namespace mason_events
     winrt::Windows::Foundation::IInspectable ElementAt(winrt::Microsoft::UI::Xaml::UIElement const& element, float x, float y);
 
     void HookTaps(winrt::Microsoft::UI::Xaml::UIElement const& element);
+    void HookPointers(winrt::Microsoft::UI::Xaml::UIElement const& element);
+
+    // CSS pointer-events: 0 auto, 1 none.
+    void SetPointerEvents(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t value);
+    bool IsPointerNone(winrt::Windows::Foundation::IInspectable const& element);
+    // A child was attached under parent or removed from it: none ancestors recheck their hit testing.
+    void SubtreeChanged(winrt::Microsoft::UI::Xaml::DependencyObject const& parent);
+    bool SetPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId);
+    void ReleasePointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId);
+    bool HasPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId);
 
     bool Dispatch(winrt::Windows::Foundation::IInspectable const& target, winrt::hstring const& type, bool bubbles, winrt::hstring const& data = {});
     bool DispatchEvent(winrt::Windows::Foundation::IInspectable const& target, winrt::com_ptr<winrt::NativeScript::Mason::implementation::Event> const& event, bool bubbles);

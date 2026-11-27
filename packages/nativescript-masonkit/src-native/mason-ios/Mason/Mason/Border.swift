@@ -5,7 +5,11 @@
 //  Created by Osei Fortune on 25/11/2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// CSS-like border renderer that reads from a MasonStyle buffer.
 public final class CSSBorderRenderer {
@@ -644,7 +648,7 @@ public final class CSSBorderRenderer {
       let f = shade(i)
       guard f != 1 else { return sides[i].color.cgColor }
       var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-      sides[i].color.getRed(&r, green: &g, blue: &b, alpha: &a)
+      sides[i].color.getRGBA(&r, &g, &b, &a)
       return UIColor(red: r * f, green: g * f, blue: b * f, alpha: a).cgColor
     }
     // A side with no width adds nothing to the ring, so it needn't match.
@@ -736,31 +740,32 @@ public final class CSSBorderRenderer {
       bl = (bl.x * f, bl.y * f)
     }
 
-    p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY))
+    // Two notches that meet leave no edge between them, so skip it rather than draw a spike.
+    func notchesMeet(_ a: CGFloat, _ b: CGFloat, _ ra: CGFloat, _ rb: CGFloat, _ side: CGFloat) -> Bool {
+      a == -.infinity && b == -.infinity && ra + rb >= side - 0.5
+    }
+    let topMeets = notchesMeet(tlExp, trExp, tl.x, tr.x, w)
+    let rightMeets = notchesMeet(trExp, brExp, tr.y, br.y, h)
+    let bottomMeets = notchesMeet(brExp, blExp, br.x, bl.x, w)
+    let leftMeets = notchesMeet(blExp, tlExp, bl.y, tl.y, h)
 
-    // Top edge
-    p.addLine(to: CGPoint(x: rect.maxX - tr.x, y: rect.minY))
+    if topMeets {
+      p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY + tl.y))
+    } else {
+      p.move(to: CGPoint(x: rect.minX + tl.x, y: rect.minY))
+      p.addLine(to: CGPoint(x: rect.maxX - tr.x, y: rect.minY))
+    }
 
-    // Top-right corner
-    addCorner(to: p, corner: .topRight, radius: tr, exponent: trExp, rect: rect)
+    addCorner(to: p, corner: .topRight, radius: tr, exponent: trExp, rect: rect, toEdge: !rightMeets)
+    if !rightMeets { p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br.y)) }
 
-    // Right edge
-    p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br.y))
+    addCorner(to: p, corner: .bottomRight, radius: br, exponent: brExp, rect: rect, toEdge: !bottomMeets)
+    if !bottomMeets { p.addLine(to: CGPoint(x: rect.minX + bl.x, y: rect.maxY)) }
 
-    // Bottom-right corner
-    addCorner(to: p, corner: .bottomRight, radius: br, exponent: brExp, rect: rect)
+    addCorner(to: p, corner: .bottomLeft, radius: bl, exponent: blExp, rect: rect, toEdge: !leftMeets)
+    if !leftMeets { p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl.y)) }
 
-    // Bottom edge
-    p.addLine(to: CGPoint(x: rect.minX + bl.x, y: rect.maxY))
-
-    // Bottom-left corner
-    addCorner(to: p, corner: .bottomLeft, radius: bl, exponent: blExp, rect: rect)
-
-    // Left edge
-    p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl.y))
-
-    // Top-left corner
-    addCorner(to: p, corner: .topLeft, radius: tl, exponent: tlExp, rect: rect)
+    addCorner(to: p, corner: .topLeft, radius: tl, exponent: tlExp, rect: rect, toEdge: !topMeets)
 
     p.close()
     return p
@@ -775,7 +780,8 @@ public final class CSSBorderRenderer {
     corner: Corner,
     radius: (x: CGFloat, y: CGFloat),
     exponent: CGFloat,
-    rect: CGRect
+    rect: CGRect,
+    toEdge: Bool = true
   ) {
     guard radius.x > 0 || radius.y > 0 else { return }
 
@@ -822,6 +828,27 @@ public final class CSSBorderRenderer {
       return
     }
 
+    // (cx, cy) on the unit corner curve runs from the corner's start (1, 0) to its end (0, 1).
+    func point(_ cx: CGFloat, _ cy: CGFloat) -> CGPoint {
+      switch corner {
+      case .topRight:
+        return CGPoint(x: rect.maxX - radius.x * (1 - cy), y: rect.minY + radius.y * (1 - cx))
+      case .bottomRight:
+        return CGPoint(x: rect.maxX - radius.x * (1 - cx), y: rect.maxY - radius.y * (1 - cy))
+      case .bottomLeft:
+        return CGPoint(x: rect.minX + radius.x * (1 - cy), y: rect.maxY - radius.y * (1 - cx))
+      case .topLeft:
+        return CGPoint(x: rect.minX + radius.x * (1 - cx), y: rect.minY + radius.y * (1 - cy))
+      }
+    }
+
+    // notch and square: the curve degenerates (0^0 is 1), so draw their two segments.
+    if exponent.isInfinite {
+      path.addLine(to: exponent < 0 ? point(0, 0) : point(1, 1))
+      if toEdge { path.addLine(to: point(0, 1)) }
+      return
+    }
+
     // Superellipse curve
     let steps = 16
     let exp = pow(2.0, 1.0 - abs(Double(exponent)))
@@ -838,26 +865,7 @@ public final class CSSBorderRenderer {
       let sy = CGFloat(1 - t.squareRoot())
       let cx = shallow ? c - c * sx + (1 - c) * sy : concave ? 1 - b : a
       let cy = shallow ? c + (1 - c) * sx - c * sy : concave ? 1 - a : b
-
-      let px: CGFloat
-      let py: CGFloat
-
-      switch corner {
-      case .topRight:
-        px = rect.maxX - radius.x * (1 - cy)
-        py = rect.minY + radius.y * (1 - cx)
-      case .bottomRight:
-        px = rect.maxX - radius.x * (1 - cx)
-        py = rect.maxY - radius.y * (1 - cy)
-      case .bottomLeft:
-        px = rect.minX + radius.x * (1 - cy)
-        py = rect.maxY - radius.y * (1 - cx)
-      case .topLeft:
-        px = rect.minX + radius.x * (1 - cx)
-        py = rect.minY + radius.y * (1 - cy)
-      }
-
-      path.addLine(to: CGPoint(x: px, y: py))
+      path.addLine(to: point(cx, cy))
     }
   }
 }

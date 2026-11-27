@@ -6,7 +6,11 @@
 //
 
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import CoreGraphics
 
 // Shared color space — avoids deviceRGB allocation per gradient draw
@@ -75,8 +79,8 @@ extension Background {
     }
     for sub in view.subviews where !sub.isHidden && sub.alpha > 0 {
       // Its outlines come from its last draw, which may still be pending in this pass.
-      if sub is MasonText { sub.layer.displayIfNeeded() }
-      let layer = sub.layer
+      if sub is MasonText { sub.backingLayer.displayIfNeeded() }
+      let layer = sub.backingLayer
       let b = sub.bounds
       let toSuper = CGAffineTransform(translationX: -(b.minX + b.width * layer.anchorPoint.x),
                                       y: -(b.minY + b.height * layer.anchorPoint.y))
@@ -184,7 +188,7 @@ extension Background {
     switch layer.attachment {
     case .fixed:
       // Positioned against the app window; the origin box does not apply.
-      if let view = view, let root = (view.window as UIView?) ?? style.node.getRootNode().view {
+      if let view = view, let root = view.windowRootView ?? style.node.getRootNode().view {
         return (rect, view.convert(root.bounds, from: root))
       }
       return (rect, rect)
@@ -569,8 +573,8 @@ func sampleGradient(_ colors: [CGColor], _ locations: [CGFloat], _ t: CGFloat) -
     let f = l1 - l0 > 1e-9 ? (t - l0) / (l1 - l0) : 1
     var r0: CGFloat = 0, g0: CGFloat = 0, b0: CGFloat = 0, a0: CGFloat = 0
     var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
-    UIColor(cgColor: colors[i - 1]).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
-    UIColor(cgColor: colors[i]).getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+    UIColor.from(cgColor: colors[i - 1]).getRGBA(&r0, &g0, &b0, &a0)
+    UIColor.from(cgColor: colors[i]).getRGBA(&r1, &g1, &b1, &a1)
     return CGColor(srgbRed: r0 + (r1 - r0) * f, green: g0 + (g1 - g0) * f, blue: b0 + (b1 - b0) * f, alpha: a0 + (a1 - a0) * f)
   }
   return lastColor

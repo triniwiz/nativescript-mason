@@ -122,11 +122,13 @@ namespace winrt::NativeScript::Mason::implementation
     void Mason::ReparentChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child, int32_t index)
     {
         Css::ReparentChild(parent, child, index);
+        mason_events::SubtreeChanged(parent);
     }
 
     void Mason::RemoveChild(winrt::Microsoft::UI::Xaml::Controls::Panel const& parent, winrt::Microsoft::UI::Xaml::UIElement const& child)
     {
         Css::RemoveChild(parent, child);
+        mason_events::SubtreeChanged(parent);
     }
 
     static void SetPercent(winrt::Microsoft::UI::Xaml::UIElement const& element, bool horizontal, float fraction)
@@ -162,6 +164,26 @@ namespace winrt::NativeScript::Mason::implementation
     void Mason::RemoveEventListener(winrt::Microsoft::UI::Xaml::UIElement const& element, hstring const& type, int64_t id)
     {
         mason_events::Remove(element, type, id);
+    }
+
+    void Mason::SetPointerEvents(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t value)
+    {
+        mason_events::SetPointerEvents(element, value);
+    }
+
+    bool Mason::SetPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        return mason_events::SetPointerCapture(element, pointerId);
+    }
+
+    void Mason::ReleasePointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        mason_events::ReleasePointerCapture(element, pointerId);
+    }
+
+    bool Mason::HasPointerCapture(winrt::Microsoft::UI::Xaml::UIElement const& element, int32_t pointerId)
+    {
+        return mason_events::HasPointerCapture(element, pointerId);
     }
 
     double Mason::ScrollLeft(winrt::Microsoft::UI::Xaml::UIElement const& element)

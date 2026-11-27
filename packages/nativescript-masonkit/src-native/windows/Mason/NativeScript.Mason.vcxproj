@@ -210,13 +210,9 @@
     <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.240111.5" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-    <!-- Shared font management (CSS Font Loading API: @font-face / custom fonts + DirectWrite
-         registration), mirroring the iOS SwiftPM and Android Gradle FontManager dependency. Mason
-         resolves a node's font-family/size/weight/style through this and applies it to the text
-         controls. The component reaches it via winrt/NativeScript.FontManager.h; the app gets
-         NativeScript.FontManager.dll through plugin.props' PackageReference, whose package stages
-         and registers it (1.0.19+ for a C# host). -->
-    <PackageReference Include="NativeScript.FontManager" Version="1.0.19" />
+    <!-- Fonts (CSS Font Loading API). Keep in step with @nativescript/font-manager, whose
+         plugin.props gives the app the same NuGet package. -->
+    <PackageReference Include="NativeScript.FontManager" Version="1.0.20" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

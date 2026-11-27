@@ -1,0 +1,44 @@
+<demo-page title="Animation">
+  <main class="stack page-body">
+    <span class="body">NativeScript's view.animate() drives MasonKit views like any other view. Tap a card to run its animation.</span>
+    <section class="card demo" (tap)="run(slide)">
+      <div class="stage">
+        <div #slideBox class="box" style="background-color: #4ecdc4"></div>
+      </div>
+      <div class="demo-meta">
+        <span class="h2">Translate</span>
+        <span class="muted">Slide right and back · 500 ms each way</span>
+      </div>
+    </section>
+    <section class="card demo" (tap)="run(spin)">
+      <div class="stage">
+        <div #spinBox class="box" style="background-color: #6c5ce7"></div>
+      </div>
+      <div class="demo-meta">
+        <span class="h2">Rotate + scale</span>
+        <span class="muted">Full turn while growing to 1.4×, ease-in-out</span>
+      </div>
+    </section>
+    <section class="card demo" (tap)="run(fade)">
+      <div class="stage">
+        <div #fadeBox class="box" style="background-color: #ff6b6b"></div>
+      </div>
+      <div class="demo-meta">
+        <span class="h2">Opacity</span>
+        <span class="muted">Fade out then back in</span>
+      </div>
+    </section>
+    <section class="card demo" (tap)="run(sequence)">
+      <div class="stage">
+        @for (c of sequenceColors; track c) {
+          <div #sequenceBox class="box small" [style.backgroundColor]="c"></div>
+        }
+      </div>
+      <div class="demo-meta">
+        <span class="h2">Staggered</span>
+        <span class="muted">Three views, 120 ms apart</span>
+      </div>
+    </section>
+    <span class="muted" style="text-align: center; padding-top: 8">Ported from the Lynx styling/animation guide.</span>
+  </main>
+</demo-page>

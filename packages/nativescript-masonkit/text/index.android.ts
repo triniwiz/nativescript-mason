@@ -185,8 +185,7 @@ export class Text extends TextBase {
     if (nativeView && child) {
       nativeView.removeView(child);
     }
-    // @ts-ignore
-    super._removeViewFromNativeVisualTree(view);
+    this._masonForgetNativeChild(view);
   }
 }
 

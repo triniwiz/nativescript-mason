@@ -5,9 +5,14 @@
 //  Created by Osei Fortune on 08/01/2026.
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 
+#if canImport(UIKit)
 class MasonPasswordInput: UITextField, UITextFieldDelegate {
   internal var owner: MasonElement? = nil
   
@@ -184,3 +189,4 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
     return !event.defaultPrevented
   }
 }
+#endif

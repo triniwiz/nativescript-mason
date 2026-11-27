@@ -1,0 +1,315 @@
+.note {
+  margin: 0 0 12 0;
+  font-size: 13;
+}
+
+.heading {
+  margin: 0 0 8 0;
+  font-size: 17;
+  font-weight: bold;
+}
+
+.card {
+  border-radius: 10;
+  padding: 12;
+  margin-bottom: 16;
+  border-width: 1;
+  border-color: #dddddd;
+}
+
+.row {
+  font-size: 16;
+  margin: 0 0 8 0;
+}
+
+.red {
+  color: #d63031;
+}
+.blue {
+  color: #0984e3;
+}
+.green {
+  color: #00b894;
+}
+.bold {
+  font-weight: bold;
+}
+.italic {
+  font-style: italic;
+}
+
+.quote {
+  border-left-width: 3;
+  border-left-color: #b2bec3;
+  padding-left: 10;
+  margin: 0 0 8 0;
+}
+
+.code {
+  white-space: pre;
+  font-size: 13;
+  padding: 8;
+  background-color: #2d3436;
+  color: #dfe6e9;
+  margin: 0 0 4 0;
+}
+
+.kw {
+  color: #fd79a8;
+}
+.op {
+  color: #fdcb6e;
+}
+.num {
+  color: #55efc4;
+}
+
+.inline {
+  display: inline;
+}
+
+.link {
+  color: #0984e3;
+  text-decoration: underline;
+}
+
+.kbd {
+  display: inline-block;
+  padding: 2 6;
+  border-width: 1;
+  border-color: #b2bec3;
+  border-radius: 4;
+  font-size: 13;
+}
+
+.chip-link {
+  display: inline-block;
+  padding: 4 8;
+  background-color: #dfe6fd;
+  border-radius: 6;
+}
+
+.scroller {
+  overflow-x: auto;
+}
+
+.md-ul {
+  list-style-type: disc;
+  padding-left: 24;
+}
+
+.md-ol {
+  list-style-type: decimal;
+  padding-left: 24;
+}
+
+.md-short {
+  list-style: disc;
+  padding-left: 24;
+}
+
+.md-short-ol {
+  list-style: decimal outside;
+  padding-left: 24;
+}
+
+.md-pad {
+  padding-left: 24;
+}
+
+.li-p {
+  margin: 0;
+}
+
+.md-li {
+  list-style-type: disc;
+}
+
+.outline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40;
+  width: 140;
+  border-width: 1;
+  border-color: #636e72;
+  border-radius: 6;
+  background-color: transparent;
+  color: #2d3436;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48;
+  height: 48;
+  border-radius: 24;
+  background-color: #a29bfe;
+  color: white;
+  font-weight: bold;
+}
+
+.nowrap-center {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pre-center {
+  text-align: center;
+  white-space: pre;
+}
+
+.wide-pill {
+  display: flex;
+  justify-content: center;
+  width: 170;
+  height: 48;
+  align-items: center;
+  text-align: center;
+  white-space: nowrap;
+  border-radius: 24;
+  background-color: #81ecec;
+}
+
+.centred {
+  text-align: center;
+}
+
+.inline-btn {
+  display: inline-block;
+  padding: 4 10;
+  border-width: 1;
+  border-color: #636e72;
+  border-radius: 6;
+  background-color: transparent;
+  color: #2d3436;
+}
+
+.two-line {
+  display: inline-block;
+}
+
+.row-flex {
+  display: flex;
+  flex-direction: row;
+  gap: 6;
+}
+
+.cell {
+  padding: 6 10;
+  background-color: #dfe6fd;
+  border-radius: 4;
+}
+
+.bar {
+  height: 28;
+  padding: 4;
+}
+
+.inherit-nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  background-color: #ffeaa7;
+}
+
+.upper {
+  text-transform: uppercase;
+}
+.a {
+  background-color: #74b9ff;
+}
+.b {
+  background-color: #fab1a0;
+}
+.c {
+  background-color: #55efc4;
+}
+
+.neg-host {
+  display: flex;
+  flex-direction: column;
+}
+
+.neg-spacer {
+  height: 60;
+  background-color: #dfe6e9;
+}
+
+.neg-target {
+  margin-top: -40;
+  margin-left: 40;
+  width: 160;
+  height: 40;
+  background-color: #e17055;
+  color: white;
+}
+
+.backdrop-host {
+  height: 80;
+  background-color: #ffeaa7;
+}
+
+.backdrop {
+  position: absolute;
+  left: 20;
+  top: 10;
+  width: 200;
+  height: 60;
+  background-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-bottom: 8;
+}
+
+.cal-day {
+  text-align: center;
+  padding: 4;
+}
+
+.cal-week {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+.cal-cell {
+  width: 36;
+  height: 36;
+  text-align: center;
+}
+
+.progress {
+  position: relative;
+  height: 8;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 4;
+  background-color: #dfe6e9;
+  margin-bottom: 12;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 100%;
+  background-color: #6c5ce7;
+  transform: translateX(-35%);
+}
+
+.skeleton {
+  height: 16;
+  width: 250;
+  border-radius: 6;
+  background-color: #b2bec3;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}

@@ -1,0 +1,52 @@
+<demo-page title="Musician — Studio" background="#101014">
+  <main class="page-body">
+    <section class="release-hero">
+      <p class="hero-kicker">Latest single</p>
+      <h1>Glass Harbour</h1>
+      <p class="hero-sub">Neon Coastline · out now</p>
+    </section>
+    <section class="stat-row">
+      <div class="stat">
+        <span class="stat-value">128k</span>
+        <span class="stat-label">Streams</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">14</span>
+        <span class="stat-label">Shows</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">3</span>
+        <span class="stat-label">Releases</span>
+      </div>
+    </section>
+    <h2>Tracks</h2>
+    <section class="track-list">
+      @for (t of tracks(); track t.title) {
+        <article class="track-card">
+          <span class="track-num">{{ t.num }}</span>
+          <div class="track-body">
+            <p class="track-title">{{ t.title }}</p>
+            <p class="track-meta">{{ t.plays }} plays</p>
+          </div>
+          <button class="play" [class.playing]="t.playing" (tap)="toggle(t)">{{ t.playing ? '❚❚' : '▶' }}</button>
+        </article>
+      }
+    </section>
+    <h2>Upcoming shows</h2>
+    <section class="show-list">
+      @for (s of shows; track s.city) {
+        <div class="show-row">
+          <div class="show-date">
+            <span class="day">{{ s.day }}</span>
+            <span class="month">{{ s.month }}</span>
+          </div>
+          <div class="show-body">
+            <p class="show-city">{{ s.city }}</p>
+            <p class="show-venue">{{ s.venue }}</p>
+          </div>
+          <span class="badge" [class]="s.statusClass">{{ s.status }}</span>
+        </div>
+      }
+    </section>
+  </main>
+</demo-page>

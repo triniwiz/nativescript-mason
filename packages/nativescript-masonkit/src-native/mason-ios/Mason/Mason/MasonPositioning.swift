@@ -3,7 +3,11 @@
 //  Mason
 //
 
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 enum MasonPositioning {
 
@@ -86,7 +90,7 @@ enum MasonPositioning {
             rootView(of: element.node) === root, let host = view.superview else { continue }
       let origin = accumulateOrigin(root.frame.origin, from: root, upTo: host)
       let target = CGPoint(x: element.node.fixedRootOrigin.x + origin.x, y: element.node.fixedRootOrigin.y + origin.y)
-      if view.transform.isIdentity && CATransform3DIsIdentity(view.layer.transform) {
+      if view.transform.isIdentity && CATransform3DIsIdentity(view.backingLayer.transform) {
         if view.frame.origin != target { view.frame.origin = target }
       } else {
         let center = CGPoint(x: target.x + view.bounds.width / 2, y: target.y + view.bounds.height / 2)

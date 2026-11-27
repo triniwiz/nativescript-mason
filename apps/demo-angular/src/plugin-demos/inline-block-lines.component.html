@@ -1,0 +1,17 @@
+<demo-page title="Inline-block lines">
+  <div class="page-body">
+    @for (c of cases; track c.id) {
+      <div class="case">
+        <span class="label">Case {{ c.id }}: box on line {{ c.line }}</span>
+        @if (c.tag === 'code') {
+          <!-- prettier-ignore -->
+          <p #paragraph [style]="c.pStyle">{{ c.before }}<code #box [style]="c.boxStyle">{{ c.box }}</code>{{ c.after }}</p>
+        } @else {
+          <!-- prettier-ignore -->
+          <p #paragraph [style]="c.pStyle">{{ c.before }}<span #box [style]="c.boxStyle">{{ c.box }}</span>{{ c.after }}</p>
+        }
+        <p style="background-color: #bfdbfe">NEXT PARAGRAPH</p>
+      </div>
+    }
+  </div>
+</demo-page>

@@ -1,0 +1,42 @@
+<demo-page title="Inline boxes">
+  <main class="page-body">
+    <p class="tk-muted note">Each row's boxes should sit on the same baseline as the text around them, as in a browser.</p>
+    <p class="tk-text heading">Padded chips</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">Install <code class="chip">npm i masonkit</code> then run it.</p>
+      <p class="tk-text row">Press <span class="chip tall">Enter</span> to send the form.</p>
+      <p class="tk-text row">A <span class="chip lopsided">top-heavy</span> chip with more padding above.</p>
+    </div>
+    <p class="tk-text heading">Inline div around a link</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">Read <ng-container [ngTemplateOutlet]="guideLink" /> before you start.</p>
+      <p class="tk-text row">See <ng-container [ngTemplateOutlet]="boxedLink" /> in its text.</p>
+    </div>
+    <p class="tk-text heading">Two-line inline block</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">Sits on <span class="chip narrow">its last line here</span> as on the web.</p>
+    </div>
+    <p class="tk-text heading">Bottom edge on the baseline</p>
+    <div class="tk-surface card">
+      <p class="tk-text row">A clipped <span class="chip clipped">overflow hidden</span> box keeps its bottom edge.</p>
+      <p class="tk-text row">An empty <span class="swatch"></span> box keeps its bottom edge.</p>
+    </div>
+    <p class="tk-text heading">pre in a horizontal scroller</p>
+    <div class="tk-surface card">
+      <div class="scroller">
+        <pre class="code-block">
+const a = 1;
+const longerLine = someFunction(withArguments, thatRunPastTheEdge, ofTheViewport);
+done();</pre>
+      </div>
+    </div>
+  </main>
+</demo-page>
+
+<!-- HTML ends a p at the first div, so the divs inside text are templates. -->
+<ng-template #guideLink
+  ><div class="wrapper"><a class="link">the guide</a></div></ng-template
+>
+<ng-template #boxedLink
+  ><div class="wrapper boxed"><a class="link">this boxed link</a></div></ng-template
+>

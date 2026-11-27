@@ -95,6 +95,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     private var lastBase = 0f
     private var lastBottom = 0f
     private var boxLineTop = NO_LINE
+    private var inAscent = 0
+    private var inDescent = 0
+    private var outAscent = 0
+    private var outDescent = 0
+    private var insideRun = false
+    private var aboveInAscent = 0
+    private var aboveInDescent = 0
+    private var aboveOutAscent = 0
+    private var aboveOutDescent = 0
 
     var afterBoxLine = false
       private set
@@ -109,9 +118,15 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val top = v - spanstartv
       if (top <= 0) {
         afterBoxLine = false
+        insideRun = false
         boxLineTop = NO_LINE
       } else if (top != lastTop) {
-        afterBoxLine = lastTop == boxLineTop && startsInsideRun(text, start, end)
+        insideRun = startsInsideRun(text, start, end)
+        afterBoxLine = lastTop == boxLineTop && insideRun
+        aboveInAscent = inAscent
+        aboveInDescent = inDescent
+        aboveOutAscent = outAscent
+        aboveOutDescent = outDescent
       }
       val line = LineScan.of(text, start, end)
       if (line.hasBoxes) boxLineTop = top
@@ -123,6 +138,12 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       val spanned = text as? Spanned ?: return false
       if (start <= 0 || text[start - 1] == '\n') return false
       return spanned.nextSpanTransition(start - 1, end, MetricAffectingSpan::class.java) != start
+    }
+
+    fun restoreCarried(fm: Paint.FontMetricsInt) {
+      if (!insideRun || fm.ascent != aboveOutAscent || fm.descent != aboveOutDescent) return
+      fm.ascent = aboveInAscent
+      fm.descent = aboveInDescent
     }
 
     fun apply(fm: Paint.FontMetricsInt, spanstartv: Int, v: Int, height: Float) {
@@ -138,13 +159,18 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       lastTop = top
       lastBase = base
       lastBottom = bottom
+      inAscent = fm.ascent
+      inDescent = fm.descent
       val diff = (bottom.roundToInt() - top) - (fm.descent - fm.ascent)
-      if (diff == 0) return
-      val half = diff / 2
-      fm.ascent -= half
-      fm.descent += (diff - half)
-      fm.top = fm.ascent
-      fm.bottom = fm.descent
+      if (diff != 0) {
+        val half = diff / 2
+        fm.ascent -= half
+        fm.descent += (diff - half)
+        fm.top = fm.ascent
+        fm.bottom = fm.descent
+      }
+      outAscent = fm.ascent
+      outDescent = fm.descent
     }
 
     private companion object {
@@ -301,13 +327,16 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
     private fun resolve(paint: TextPaint) {
       if (paint.density == density && exact > 0f) return
-      val p = TextPaint().apply {
+      val s = scratch.get()!!
+      val p = s.paint.apply {
         set(paint)
         textSize = fontSizeDip * paint.density
         this@NormalLineHeightSpan.typeface?.let { typeface = it }
       }
-      val f = p.fontMetrics
-      val i = p.fontMetricsInt
+      val f = s.metrics
+      val i = s.metricsInt
+      p.getFontMetrics(f)
+      p.getFontMetricsInt(i)
       density = paint.density
       exact = f.descent - f.ascent
       intAscent = i.ascent
@@ -327,10 +356,8 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       if (m.descent - m.ascent <= 0 || fontSizeDip <= 0f || paint == null) return
       resolve(paint)
       val line = boxes.enterLine(text, start, end, spanstartv, lineHeight)
-      if (boxes.afterBoxLine) line.lineMetrics(paint, m)
-      val own = m.descent - m.ascent
-      val height = if (m.ascent == intAscent && m.descent == intDescent) exact else own.toFloat()
-      boxes.apply(m, spanstartv, lineHeight, height)
+      if (boxes.afterBoxLine) line.lineMetrics(paint, m) else boxes.restoreCarried(m)
+      boxes.apply(m, spanstartv, lineHeight, normalLineHeight(m.ascent, m.descent, intAscent, intDescent, exact))
     }
 
     override fun chooseHeight(
@@ -341,6 +368,19 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
       lineHeight: Int,
       fm: Paint.FontMetricsInt?
     ) {}
+
+    private class Scratch {
+      val paint = TextPaint()
+      val metrics = Paint.FontMetrics()
+      val metricsInt = Paint.FontMetricsInt()
+    }
+
+    private companion object {
+      // Every span reads its metrics once; a TextPaint per span was a native allocation per text build.
+      val scratch = object : ThreadLocal<Scratch>() {
+        override fun initialValue() = Scratch()
+      }
+    }
   }
 
   class RelativeLineHeightSpan(private val multiplier: Float) : LineHeightSpan {
@@ -423,6 +463,39 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
     internal fun isItalic(face: org.nativescript.fontmanager.FontFace) =
       face.style != org.nativescript.fontmanager.FontStyle.Normal
 
+    /**
+     * `line-height: normal` for a line with [ascent] and [descent]: the font's float height when
+     * the line has the font's own integer metrics, else the line's integer height.
+     */
+    internal fun normalLineHeight(ascent: Int, descent: Int, fontAscent: Int, fontDescent: Int, fontHeight: Float): Float =
+      if (ascent == fontAscent && descent == fontDescent) fontHeight else (descent - ascent).toFloat()
+
+    internal fun fixedLineHeightDip(attributes: TextDefaultAttributes): Float? {
+      val lineHeight = attributes.lineHeight?.takeIf { it > 0 } ?: return null
+      val type = attributes.lineHeightType ?: 0
+      if (type == StyleState.SET) return lineHeight
+      val fontSizeDip = (attributes.fontSize?.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
+      return lineHeight * fontSizeDip
+    }
+
+    internal fun runStyleSpan(attributes: TextDefaultAttributes): Spans.RunStyleSpan? {
+      val setColor = attributes.color.let { it != null && it != 0 }
+      val measureSize = attributes.fontSize?.takeIf { it > 0 }
+      val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }
+      val fontFace = attributes.font
+      val typeface = fontFace?.resolvedTypeface
+      if (!setColor && measureSize == null && letterSpacing == null && typeface == null) return null
+      return Spans.RunStyleSpan(
+        attributes,
+        setColor,
+        measureSize,
+        letterSpacing,
+        typeface,
+        isBold = typeface != null && isBold(fontFace),
+        isItalic = typeface != null && isItalic(fontFace)
+      )
+    }
+
     internal fun applyAttributes(
       spannable: SpannableStringBuilder,
       start: Int,
@@ -433,47 +506,18 @@ open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData
 
       val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
-      val setColor = attributes.color.let { it != null && it != 0 }
-      val measureSize = attributes.fontSize?.takeIf { it > 0 }
-      val letterSpacing = attributes.letterSpacing?.takeIf { it != 0f }
-      val fontFace = attributes.font
-      val typeface = fontFace?.resolvedTypeface
-      if (setColor || measureSize != null || letterSpacing != null || typeface != null) {
-        spannable.setSpan(
-          Spans.RunStyleSpan(
-            attributes,
-            setColor,
-            measureSize,
-            letterSpacing,
-            typeface,
-            isBold = typeface != null && isBold(fontFace),
-            isItalic = typeface != null && isItalic(fontFace)
-          ),
-          start, end, flags
-        )
-      }
+      runStyleSpan(attributes)?.let { spannable.setSpan(it, start, end, flags) }
+      val typeface = attributes.font?.resolvedTypeface
 
       // Resolve line-height to absolute (multiplier * font-size) + idempotent
       // FixedLineHeightSpan; RelativeLineHeightSpan compounds on repeated
       // chooseHeight() calls into an exponential blowup.
-      val lineHeight = attributes.lineHeight?.takeIf { it > 0 }
-      if (lineHeight == null) {
+      val fixedLineHeight = fixedLineHeightDip(attributes)
+      if (fixedLineHeight != null) {
+        spannable.setSpan(FixedLineHeightSpan(fixedLineHeight), start, end, flags)
+      } else {
         val fontSizeDip = (attributes.fontSize?.takeIf { it > 0 } ?: Constants.DEFAULT_FONT_SIZE).toFloat()
         spannable.setSpan(NormalLineHeightSpan(fontSizeDip, typeface), start, end, flags)
-      } else {
-        val type = attributes.lineHeightType ?: 0
-        lineHeight.let {
-          if (type == StyleState.SET) {
-            spannable.setSpan(FixedLineHeightSpan(it), start, end, flags)
-          } else {
-            val fontSizeDip = (attributes.fontSize?.takeIf { fs -> fs > 0 }
-              ?: Constants.DEFAULT_FONT_SIZE).toFloat()
-            val absolute = it * fontSizeDip
-            if (absolute > 0f) {
-              spannable.setSpan(FixedLineHeightSpan(absolute), start, end, flags)
-            }
-          }
-        }
       }
 
       // Apply decoration

@@ -1,0 +1,42 @@
+<Scroll class="page" iosOverflowSafeAreaEnabled="false">
+  <main class="home page-body">
+    <header class="hero">
+      <span class="hero-kicker">NativeScript Angular</span>
+      <span class="hero-title">MasonKit</span>
+      <span class="hero-sub">Flexbox, Grid and web-shaped elements on native views.</span>
+      <span class="hero-note">Following the system appearance · currently {{ appearance() }}</span>
+    </header>
+
+    @for (group of groups; track group.title) {
+      <section class="group">
+        <span class="section-label">{{ group.title }}</span>
+        <div class="nav-list">
+          @for (demo of group.items; track demo.path) {
+            <div class="nav-row" [nsRouterLink]="'/' + demo.path">
+              <div class="nav-icon" [style.backgroundColor]="demo.color">
+                <span class="nav-icon-text">{{ demo.icon }}</span>
+              </div>
+              <div class="nav-body">
+                <span class="nav-title">{{ demo.title }}</span>
+                <span class="nav-desc">{{ demo.desc }}</span>
+              </div>
+              <span class="nav-arrow">›</span>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <section class="card fib">
+      <div class="nav-body">
+        <span class="nav-title">JS benchmark</span>
+        <span class="nav-desc">{{ fibStatus() }}</span>
+      </div>
+      <button class="btn-primary" (tap)="runFibTest()">Run fib(30)</button>
+    </section>
+
+    <footer class="foot">
+      <span class="muted">&#64;triniwiz/nativescript-masonkit</span>
+    </footer>
+  </main>
+</Scroll>

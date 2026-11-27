@@ -1,0 +1,44 @@
+<demo-page title="Sign In">
+  <main class="page-body">
+    <header class="brand">
+      <div class="logo">
+        <span class="logo-glyph">M</span>
+      </div>
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to continue to MasonKit</p>
+    </header>
+    <form class="form" [formGroup]="form">
+      <label class="field-label" for="email">Email</label>
+      <input id="email" formControlName="email" class="field" type="email" placeholder="you&#64;example.com" />
+      <label class="field-label" for="password">Password</label>
+      <input id="password" formControlName="password" class="field" type="password" placeholder="Your password" />
+      <div class="form-row">
+        <div class="remember">
+          <Switch formControlName="remember"></Switch>
+          <span class="remember-text">Remember me</span>
+        </div>
+        <a class="forgot" (tap)="notice.set('Password reset link sent (demo).')">Forgot?</a>
+      </div>
+      <button class="primary-button" (tap)="signIn()">Sign in</button>
+    </form>
+    <div class="divider">
+      <div class="divider-line"></div>
+      <span class="divider-text">or continue with</span>
+      <div class="divider-line"></div>
+    </div>
+    <div class="social-row">
+      <button class="social-button" (tap)="notice.set('Google sign-in (demo).')">G</button>
+      <button class="social-button" (tap)="notice.set('GitHub sign-in (demo).')">GH</button>
+      <button class="social-button" (tap)="notice.set('Apple sign-in (demo).')">A</button>
+    </div>
+    @if (notice()) {
+      <p class="notice">{{ notice() }}</p>
+    }
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+    <footer class="footer">
+      <p>New here? <a class="link">Create an account</a></p>
+    </footer>
+  </main>
+</demo-page>
