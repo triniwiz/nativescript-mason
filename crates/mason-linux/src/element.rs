@@ -445,10 +445,10 @@ impl Element {
             return (0.0, 0.0);
         };
         let l = engine::layout(id);
-        let o = &l.scrollable_overflow_rect;
+        let o = l.scrollable_overflow_rect;
         // the overflow rect starts at the padding box corner and includes the end padding
-        let w = l.border.left + o.right + l.border.right;
-        let h = l.border.top + o.bottom + l.border.bottom;
+        let w = l.border.left + o.right() + l.border.right;
+        let h = l.border.top + o.bottom() + l.border.bottom;
         (l.size.width.max(w), l.size.height.max(h))
     }
 

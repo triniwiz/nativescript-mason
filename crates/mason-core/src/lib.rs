@@ -5,6 +5,7 @@ use parking_lot::lock_api::MappedRwLockReadGuard;
 use slotmap::Key;
 use std::ffi::{c_float, c_longlong, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
+use taffy::ScrollableOverflow;
 pub use style_atoms::Atom;
 
 pub static PREFLIGHT_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -40,20 +41,37 @@ pub mod utils;
 mod writing_mode;
 
 #[inline]
-pub(crate) fn scrollable_overflow_rect_from_size(size: Size<f32>) -> Rect<f32> {
-    Rect {
-        left: 0.0,
-        right: size.width.max(0.0),
-        top: 0.0,
-        bottom: size.height.max(0.0),
-    }
+pub(crate) fn scrollable_overflow_rect_from_size(size: Size<f32>) -> ScrollableOverflow {
+    ScrollableOverflow::new(
+        Rect {
+            left: 0.0,
+            right: size.width.max(0.0),
+            top: 0.0,
+            bottom: size.height.max(0.0),
+        },
+        Point { x: false, y: false },
+    )
 }
 
 #[inline]
-pub(crate) fn scrollable_overflow_size(rect: Rect<f32>) -> Size<f32> {
+pub(crate) fn overflow_with_right(o: ScrollableOverflow, right: f32) -> ScrollableOverflow {
+    let mut rect = o.rect();
+    rect.right = right.max(0.0);
+    ScrollableOverflow::new(rect, o.is_reversed())
+}
+
+#[inline]
+pub(crate) fn overflow_with_bottom(o: ScrollableOverflow, bottom: f32) -> ScrollableOverflow {
+    let mut rect = o.rect();
+    rect.bottom = bottom.max(0.0);
+    ScrollableOverflow::new(rect, o.is_reversed())
+}
+
+#[inline]
+pub(crate) fn scrollable_overflow_size(rect: ScrollableOverflow) -> Size<f32> {
     Size {
-        width: rect.right.max(0.0),
-        height: rect.bottom.max(0.0),
+        width: rect.right().max(0.0),
+        height: rect.bottom().max(0.0),
     }
 }
 
@@ -193,8 +211,8 @@ fn push_layout_record(
         let h = layout.size.height;
         // Promote a near-zero (degenerate) height to content_size.height when
         // the content itself is larger — avoids invisible collapsed containers.
-        if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom > h {
-            layout.scrollable_overflow_rect.bottom
+        if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom() > h {
+            layout.scrollable_overflow_rect.bottom()
         } else {
             h
         }
@@ -218,8 +236,8 @@ fn push_layout_record(
         layout.padding.right,
         layout.padding.bottom,
         layout.padding.left,
-        layout.scrollable_overflow_rect.right,
-        layout.scrollable_overflow_rect.bottom,
+        layout.scrollable_overflow_rect.right(),
+        layout.scrollable_overflow_rect.bottom(),
         layout.scrollbar_size.width,
         layout.scrollbar_size.height,
         child_count as f32,
@@ -248,8 +266,8 @@ fn copy_output_to_slice_inner(
         };
         let export_h = {
             let h = layout.size.height;
-            if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom > h {
-                layout.scrollable_overflow_rect.bottom
+            if h.abs() <= 1e-6 && layout.scrollable_overflow_rect.bottom() > h {
+                layout.scrollable_overflow_rect.bottom()
             } else {
                 h
             }
@@ -273,8 +291,8 @@ fn copy_output_to_slice_inner(
             layout.padding.right,
             layout.padding.bottom,
             layout.padding.left,
-            layout.scrollable_overflow_rect.right,
-            layout.scrollable_overflow_rect.bottom,
+            layout.scrollable_overflow_rect.right(),
+            layout.scrollable_overflow_rect.bottom(),
             layout.scrollbar_size.width,
             layout.scrollbar_size.height,
             len as f32,

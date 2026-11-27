@@ -1469,11 +1469,13 @@ impl Tree {
                 let mut inner = self.0.write();
                 if let Some(node) = inner.nodes.get_mut(id) {
                     if node.unrounded_layout.size.height > constraint_h {
-                        if node.unrounded_layout.scrollable_overflow_rect.bottom
+                        if node.unrounded_layout.scrollable_overflow_rect.bottom()
                             < node.unrounded_layout.size.height
                         {
-                            node.unrounded_layout.scrollable_overflow_rect.bottom =
-                                node.unrounded_layout.size.height;
+                            node.unrounded_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                node.unrounded_layout.scrollable_overflow_rect,
+                                node.unrounded_layout.size.height,
+                            );
                         }
                         node.unrounded_layout.size.height = constraint_h;
                     }
@@ -1486,11 +1488,13 @@ impl Tree {
                 let mut inner = self.0.write();
                 if let Some(node) = inner.nodes.get_mut(id) {
                     if node.unrounded_layout.size.width > constraint_w {
-                        if node.unrounded_layout.scrollable_overflow_rect.right
+                        if node.unrounded_layout.scrollable_overflow_rect.right()
                             < node.unrounded_layout.size.width
                         {
-                            node.unrounded_layout.scrollable_overflow_rect.right =
-                                node.unrounded_layout.size.width;
+                            node.unrounded_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                node.unrounded_layout.scrollable_overflow_rect,
+                                node.unrounded_layout.size.width,
+                            );
                         }
                         node.unrounded_layout.size.width = constraint_w;
                     }
@@ -2473,7 +2477,7 @@ impl LayoutPartialTree for Tree {
         self.style_guard(node_id)
     }
 
-    fn resolve_calc_value(&self, _val: *const (), _basis: f32) -> f32 {
+    fn resolve_calc_value(&self, _val: taffy::CalcHandle, _basis: f32) -> f32 {
         0.0
     }
 
@@ -2725,8 +2729,8 @@ fn measure_cache_key(ignores_offered_height: bool, inputs: &LayoutInput) -> Layo
 
 impl CacheTree for Tree {
     #[inline]
-    fn cache_get(&mut self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
-        let node = self.node_from_id_mut(node_id);
+    fn cache_get(&self, node_id: NodeId, inputs: &LayoutInput) -> Option<LayoutOutput> {
+        let node = self.node_from_id(node_id);
         node.cache
             .get(&measure_cache_key(node.ignores_offered_height, inputs))
     }
@@ -2993,19 +2997,19 @@ impl LayoutBlockContainer for Tree {
                         // viewport while preserving full content extent.
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
-                                    .scrollable_overflow_rect
-                                    .bottom
-                                    .max(computed_layout.size.height);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.bottom().max(computed_layout.size.height),
+                                );
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.scrollable_overflow_rect.right = computed_layout
-                                    .scrollable_overflow_rect
-                                    .right
-                                    .max(computed_layout.size.width);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.right().max(computed_layout.size.width),
+                                );
                                 computed_layout.size.width = constrained_w;
                             }
                         }
@@ -3036,19 +3040,19 @@ impl LayoutBlockContainer for Tree {
                         // Clamp scroll container visible size, preserve content extent
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
-                                    .scrollable_overflow_rect
-                                    .bottom
-                                    .max(computed_layout.size.height);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.bottom().max(computed_layout.size.height),
+                                );
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.scrollable_overflow_rect.right = computed_layout
-                                    .scrollable_overflow_rect
-                                    .right
-                                    .max(computed_layout.size.width);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.right().max(computed_layout.size.width),
+                                );
                                 computed_layout.size.width = constrained_w;
                             }
                         }
@@ -3075,19 +3079,19 @@ impl LayoutBlockContainer for Tree {
                         // Clamp scroll container visible size, preserve content extent
                         if let Some(constrained_h) = scroll_constraint_y {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
-                                    .scrollable_overflow_rect
-                                    .bottom
-                                    .max(computed_layout.size.height);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.bottom().max(computed_layout.size.height),
+                                );
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                         if let Some(constrained_w) = scroll_constraint_x {
                             if computed_layout.size.width > constrained_w {
-                                computed_layout.scrollable_overflow_rect.right = computed_layout
-                                    .scrollable_overflow_rect
-                                    .right
-                                    .max(computed_layout.size.width);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.right().max(computed_layout.size.width),
+                                );
                                 computed_layout.size.width = constrained_w;
                             }
                         }
@@ -3361,20 +3365,20 @@ impl LayoutBlockContainer for Tree {
                     if is_scroll_container_y {
                         if let Some(constrained_h) = inputs.known_dimensions.height {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
-                                    .scrollable_overflow_rect
-                                    .bottom
-                                    .max(computed_layout.size.height);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.bottom().max(computed_layout.size.height),
+                                );
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                     }
                     if let Some(constrained_w) = scroll_constraint_x {
                         if computed_layout.size.width > constrained_w {
-                            computed_layout.scrollable_overflow_rect.right = computed_layout
-                                .scrollable_overflow_rect
-                                .right
-                                .max(computed_layout.size.width);
+                            computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                computed_layout.scrollable_overflow_rect,
+                                computed_layout.scrollable_overflow_rect.right().max(computed_layout.size.width),
+                            );
                             computed_layout.size.width = constrained_w;
                         }
                     }
@@ -3450,20 +3454,20 @@ impl LayoutBlockContainer for Tree {
                     if is_scroll_container_y {
                         if let Some(constrained_h) = inputs.known_dimensions.height {
                             if computed_layout.size.height > constrained_h {
-                                computed_layout.scrollable_overflow_rect.bottom = computed_layout
-                                    .scrollable_overflow_rect
-                                    .bottom
-                                    .max(computed_layout.size.height);
+                                computed_layout.scrollable_overflow_rect = crate::overflow_with_bottom(
+                                    computed_layout.scrollable_overflow_rect,
+                                    computed_layout.scrollable_overflow_rect.bottom().max(computed_layout.size.height),
+                                );
                                 computed_layout.size.height = constrained_h;
                             }
                         }
                     }
                     if let Some(constrained_w) = scroll_constraint_x {
                         if computed_layout.size.width > constrained_w {
-                            computed_layout.scrollable_overflow_rect.right = computed_layout
-                                .scrollable_overflow_rect
-                                .right
-                                .max(computed_layout.size.width);
+                            computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                                computed_layout.scrollable_overflow_rect,
+                                computed_layout.scrollable_overflow_rect.right().max(computed_layout.size.width),
+                            );
                             computed_layout.size.width = constrained_w;
                         }
                     }
@@ -3541,7 +3545,10 @@ impl LayoutBlockContainer for Tree {
 
                     // Add reserved marker space back into reported size
                     computed_layout.size.width += reserved;
-                    computed_layout.scrollable_overflow_rect.right += reserved;
+                    computed_layout.scrollable_overflow_rect = crate::overflow_with_right(
+                        computed_layout.scrollable_overflow_rect,
+                        computed_layout.scrollable_overflow_rect.right() + reserved,
+                    );
 
                     // Honor explicit size on text-containers like other blocks
                     if is_text_container {
@@ -3882,8 +3889,8 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             y = layout.location.y,
             width = layout.size.width,
             height = layout.size.height,
-            content_width = layout.scrollable_overflow_rect.right,
-            content_height = layout.scrollable_overflow_rect.bottom,
+            content_width = layout.scrollable_overflow_rect.right(),
+            content_height = layout.scrollable_overflow_rect.bottom(),
             bl = layout.border.left,
             br = layout.border.right,
             bt = layout.border.top,
@@ -4134,8 +4141,8 @@ pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
             y = layout.location.y,
             width = layout.size.width,
             height = layout.size.height,
-            content_width = layout.scrollable_overflow_rect.right,
-            content_height = layout.scrollable_overflow_rect.bottom,
+            content_width = layout.scrollable_overflow_rect.right(),
+            content_height = layout.scrollable_overflow_rect.bottom(),
             bl = layout.border.left,
             br = layout.border.right,
             bt = layout.border.top,

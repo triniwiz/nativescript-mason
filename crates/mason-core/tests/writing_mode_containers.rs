@@ -904,7 +904,7 @@ fn vertical_rl_scroll_container_moves_left_overflow_into_its_content_box() {
         ],
     );
     let l = mason.layout_raw(root);
-    assert_eq!(l.scrollable_overflow_rect.right, 90.0);
+    assert_eq!(l.scrollable_overflow_rect.right(), 90.0);
 }
 
 #[test]
