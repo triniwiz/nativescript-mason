@@ -944,6 +944,7 @@ typedef SWIFT_ENUM_NAMED(int8_t, MasonInputType, "MasonInputType", open) {
   MasonInputTypeMonth = 17,
   MasonInputTypeWeek = 18,
   MasonInputTypeReset = 19,
+  MasonInputTypeHidden = 20,
 };
 
 @class MasonRectHelper;
@@ -3242,6 +3243,7 @@ typedef SWIFT_ENUM_NAMED(int8_t, MasonInputType, "MasonInputType", open) {
   MasonInputTypeMonth = 17,
   MasonInputTypeWeek = 18,
   MasonInputTypeReset = 19,
+  MasonInputTypeHidden = 20,
 };
 
 @class MasonRectHelper;
