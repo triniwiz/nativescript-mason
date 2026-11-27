@@ -92,6 +92,8 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
       break
     case .Submit:
       break
+    case .Hidden:
+      break
     }
   }
   
@@ -240,7 +242,7 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
   }
 
   private func applyDisabled() {
-    isUserInteractionEnabled = !disabled
+    isUserInteractionEnabled = !disabled && type != .Hidden
     for subview in subviews {
       (subview as? UIControl)?.isEnabled = !disabled
     }
@@ -253,7 +255,7 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
     }
 #else
     if disabled { endEditing(true) }
-    setAccessibilityEnabled(!disabled)
+    setAccessibilityEnabled(!disabled && type != .Hidden)
 #endif
   }
   
@@ -307,6 +309,20 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
   }
   // A checkbox or radio value is the string it submits, "on" unless set, never its checked state.
   private var checkableValue = "on"
+  private var hiddenValue = ""
+  private var displayBeforeHidden: Display?
+  private var enforcingHiddenDisplay = false
+
+  internal func enforceHiddenDisplay() {
+    guard type == .Hidden && !enforcingHiddenDisplay else { return }
+    let current = node.style.display
+    displayBeforeHidden = current
+    if current != .None {
+      enforcingHiddenDisplay = true
+      node.style.display = .None
+      enforcingHiddenDisplay = false
+    }
+  }
 
   /// Setting `checked` from code fires no events, as on the web.
   public var checked: Bool {
@@ -390,6 +406,8 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
         }
       case .File:
         fileInput.labelText = newValue
+      case .Hidden:
+        hiddenValue = newValue
       }
     }
     get {
@@ -415,6 +433,8 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
         return colorInput.selectedColor?.toCSS().lowercased() ?? "#000000"
       case .File:
         return fileInput.labelText
+      case .Hidden:
+        return hiddenValue
       }
     }
   }
@@ -535,11 +555,16 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
         break
       case .Submit:
         break
+      case .Hidden:
+        break
       }
     }
   }
   
   public override func draw(_ rect: CGRect) {
+    if type == .Hidden {
+      return
+    }
 
     guard let context = UIGraphicsGetCurrentContext() else {
       return
@@ -611,6 +636,7 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
     node.view = self
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
+      if self.type == .Hidden { return .zero }
       var size = CGSize(width: 300, height: 150)
       let ch = self.measureText("0")
       let scale = CGFloat(NSCMason.scale)
@@ -645,6 +671,8 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
         size.width = intrinsic.width * scale
         size.height = intrinsic.height * scale
         break
+      case .Hidden:
+        return .zero
       }
       if let known = known {
         if(!known.width.isNaN && known.width.isFinite){
@@ -756,6 +784,8 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
     case .Submit:
       submitInput.frame = inputSize
       break
+    case .Hidden:
+      break
     default:
       break
     }
@@ -801,6 +831,16 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
       for subview in subviews {
         subview.removeFromSuperview()
       }
+    }
+    if previous == .Hidden && type != .Hidden {
+      node.style.display = displayBeforeHidden ?? .InlineBlock
+      displayBeforeHidden = nil
+      isUserInteractionEnabled = !disabled
+#if canImport(UIKit)
+      accessibilityElementsHidden = false
+#else
+      setAccessibilityEnabled(!disabled)
+#endif
     }
     let kind = MasonInput.uaKind(type)
     if previous.map({ MasonInput.uaKind($0) != kind }) ?? (kind != .bare) {
@@ -872,6 +912,21 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
     case .File:
       addSubview(fileInput)
       break
+    case .Hidden:
+      if previous != .Hidden {
+        displayBeforeHidden = previous == nil ? .InlineBlock : node.style.display
+      }
+      enforcingHiddenDisplay = true
+      node.style.display = .None
+      enforcingHiddenDisplay = false
+      isHidden = true
+      isUserInteractionEnabled = false
+      endEditing(true)
+#if canImport(UIKit)
+      accessibilityElementsHidden = true
+#else
+      setAccessibilityEnabled(false)
+#endif
     default:
       break
     }
