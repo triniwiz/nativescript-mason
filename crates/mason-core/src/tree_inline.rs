@@ -1610,14 +1610,14 @@ impl Tree {
             if let Some(child) = self.nodes_mut().get_mut(child_id) {
                 child.unrounded_layout.location = Point::zero();
                 child.unrounded_layout.size = Size::ZERO;
-                child.unrounded_layout.scrollable_overflow_rect = taffy::Rect::ZERO;
+                child.unrounded_layout.scrollable_overflow_rect = taffy::ScrollableOverflow::ZERO;
                 child.unrounded_layout.padding = taffy::Rect::zero();
                 child.unrounded_layout.border = taffy::Rect::zero();
             }
 
             return LayoutOutput {
                 size: Size::ZERO,
-                scrollable_overflow_rect: taffy::Rect::ZERO,
+                scrollable_overflow_rect: taffy::ScrollableOverflow::ZERO,
                 baselines: taffy::Baselines::NONE,
                 top_margin: taffy::CollapsibleMarginSet::ZERO,
                 bottom_margin: taffy::CollapsibleMarginSet::ZERO,
@@ -2186,8 +2186,9 @@ impl Tree {
                     | crate::style::Overflow::Auto
                     | crate::style::Overflow::Hidden
             );
-            if !is_scroll_container && layout.scrollable_overflow_rect.right > value {
-                layout.scrollable_overflow_rect.right = value;
+            if !is_scroll_container && layout.scrollable_overflow_rect.right() > value {
+                layout.scrollable_overflow_rect =
+                    crate::overflow_with_right(layout.scrollable_overflow_rect, value);
             }
         }
 
@@ -2854,16 +2855,14 @@ impl Tree {
                 let visible_content_width = (ret.size.width - pb.left - pb.right).max(0.0);
                 let visible_content_height = (ret.size.height - pb.top - pb.bottom).max(0.0);
 
-                ret.scrollable_overflow_rect.right = ret
-                    .scrollable_overflow_rect
-                    .right
-                    .max(visible_content_width)
-                    .max(ifc_width);
-                ret.scrollable_overflow_rect.bottom = ret
-                    .scrollable_overflow_rect
-                    .bottom
-                    .max(visible_content_height)
-                    .max(ifc_height);
+                ret.scrollable_overflow_rect = crate::overflow_with_right(
+                    ret.scrollable_overflow_rect,
+                    ret.scrollable_overflow_rect.right().max(visible_content_width).max(ifc_width),
+                );
+                ret.scrollable_overflow_rect = crate::overflow_with_bottom(
+                    ret.scrollable_overflow_rect,
+                    ret.scrollable_overflow_rect.bottom().max(visible_content_height).max(ifc_height),
+                );
 
                 // If the parent is a list, native list containers (ListView)
                 // may position items themselves. In that case, avoid

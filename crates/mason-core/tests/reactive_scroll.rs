@@ -33,8 +33,8 @@ fn rect(mason: &Mason, node: Id) -> [f32; 4] {
     [
         l.size.width,
         l.size.height,
-        l.scrollable_overflow_rect.right,
-        l.scrollable_overflow_rect.bottom,
+        l.scrollable_overflow_rect.right(),
+        l.scrollable_overflow_rect.bottom(),
     ]
 }
 

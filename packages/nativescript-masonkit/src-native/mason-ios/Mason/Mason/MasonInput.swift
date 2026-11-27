@@ -313,6 +313,13 @@ public class MasonInput: MasonViewBase,MasonEventTarget, MasonElement, StyleChan
   private var displayBeforeHidden: Display?
   private var enforcingHiddenDisplay = false
 
+  /// A native `display` write while hidden is kept for when the type changes back.
+  internal func interceptDisplayWhileHidden(_ value: Display) -> Bool {
+    guard type == .Hidden && !enforcingHiddenDisplay else { return false }
+    displayBeforeHidden = value
+    return true
+  }
+
   internal func enforceHiddenDisplay() {
     guard type == .Hidden && !enforcingHiddenDisplay else { return }
     let current = node.style.display

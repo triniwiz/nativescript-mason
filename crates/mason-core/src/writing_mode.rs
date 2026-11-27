@@ -294,7 +294,7 @@ fn left_overflow(
         return 0.0;
     }
     // The frame's block axis (y) is the physical width.
-    (output.scrollable_overflow_rect.bottom - width).max(0.0)
+    (output.scrollable_overflow_rect.bottom() - width).max(0.0)
 }
 
 /// Frame a vertical container runs its own algorithm in, or `Physical` for every other node.

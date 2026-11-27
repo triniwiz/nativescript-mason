@@ -18,8 +18,8 @@ fn geometry(mason: &Mason, ids: &[Id]) -> Vec<[f32; 6]> {
                 l.location.y,
                 l.size.width,
                 l.size.height,
-                l.scrollable_overflow_rect.right,
-                l.scrollable_overflow_rect.bottom,
+                l.scrollable_overflow_rect.right(),
+                l.scrollable_overflow_rect.bottom(),
             ]
         })
         .collect()

@@ -54,9 +54,9 @@ fn scroll_overflow_x_flex_direct() {
         scroll_layout.size.width
     );
     assert!(
-        scroll_layout.scrollable_overflow_rect.right >= 999.0,
+        scroll_layout.scrollable_overflow_rect.right() >= 999.0,
         "scroll content width {} should be >= 1000",
-        scroll_layout.scrollable_overflow_rect.right
+        scroll_layout.scrollable_overflow_rect.right()
     );
 }
 
@@ -133,9 +133,9 @@ fn scroll_overflow_x_block_with_flex_child() {
 
     // Content width should reflect the full row width (1000)
     assert!(
-        scroll_layout.scrollable_overflow_rect.right >= 999.0,
+        scroll_layout.scrollable_overflow_rect.right() >= 999.0,
         "scroll content width {} should be >= 1000 (row has 5 × 200px children)",
-        scroll_layout.scrollable_overflow_rect.right
+        scroll_layout.scrollable_overflow_rect.right()
     );
 
     // The row inside the scroll should be unconstrained
