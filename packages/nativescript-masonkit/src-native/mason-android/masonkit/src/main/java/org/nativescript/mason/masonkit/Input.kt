@@ -30,6 +30,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import androidx.core.widget.CompoundButtonCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.events.Event
@@ -1291,7 +1292,9 @@ class Input @JvmOverloads constructor(
           24F,
           resources.displayMetrics
         )
-        sizeWidth = dim
+        val drawableWidth =
+          CompoundButtonCompat.getButtonDrawable(checkBoxInput)?.intrinsicWidth ?: 0
+        sizeWidth = max(dim, drawableWidth.toFloat())
         sizeHeight = dim
       }
 
@@ -1306,7 +1309,9 @@ class Input @JvmOverloads constructor(
           24F,
           resources.displayMetrics
         )
-        sizeWidth = width
+        val drawableWidth =
+          CompoundButtonCompat.getButtonDrawable(radioInput)?.intrinsicWidth ?: 0
+        sizeWidth = max(width, drawableWidth.toFloat())
         sizeHeight = height
       }
 

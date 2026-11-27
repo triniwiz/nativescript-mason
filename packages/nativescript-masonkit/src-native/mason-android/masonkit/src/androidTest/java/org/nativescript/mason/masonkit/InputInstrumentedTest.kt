@@ -1,8 +1,12 @@
 package org.nativescript.mason.masonkit
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.widget.EditText
 import android.widget.FrameLayout
+import androidx.core.widget.CompoundButtonCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -432,6 +436,46 @@ class InputInstrumentedTest {
       assertFalse("kept across a type change", text.rangeInput.isEnabled)
       text.isEnabled = true
       assertTrue(text.rangeInput.isEnabled)
+    }
+  }
+
+  @Test
+  fun checkboxIsNotClippedOnTheRight() {
+    val (input, _) = layoutInput {
+      it.type = Input.Type.Checkbox
+      it.checked = true
+    }
+
+    val drawableWidth = CompoundButtonCompat.getButtonDrawable(input.checkBoxInput)?.intrinsicWidth ?: 0
+    assertTrue("buttonDrawable intrinsicWidth must be positive ($drawableWidth)", drawableWidth > 0)
+    assertTrue(
+      "checkbox width (${input.width}) must fit buttonDrawable ($drawableWidth)",
+      input.width >= drawableWidth
+    )
+
+    val bitmap = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
+    try {
+      InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        input.checkBoxInput.jumpDrawablesToCurrentState()
+        input.draw(Canvas(bitmap))
+      }
+
+      val rightEdgePixels = (0 until bitmap.height).count { y ->
+        Color.alpha(bitmap.getPixel(bitmap.width - 1, y)) > 0
+      }
+      val interiorPixels = (0 until bitmap.width - 1).sumOf { x ->
+        (0 until bitmap.height).count { y ->
+          Color.alpha(bitmap.getPixel(x, y)) > 0
+        }
+      }
+      assertTrue("checkbox interior must contain drawn pixels", interiorPixels > 0)
+      assertEquals(
+        "checkbox rightmost column (x=${bitmap.width - 1}) must not be clipped",
+        0,
+        rightEdgePixels
+      )
+    } finally {
+      bitmap.recycle()
     }
   }
 
