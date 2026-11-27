@@ -2613,6 +2613,9 @@ public class MasonStyle: NSObject {
       }
     }
     set {
+      if let input = node.view as? MasonInput, input.interceptDisplayWhileHidden(newValue) {
+        return
+      }
       var displayMode = DisplayMode.None
       var value: Int8
       switch (newValue){
