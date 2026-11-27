@@ -4,7 +4,7 @@ use crate::element::{Element, ROLE_DETAILS, ROLE_SUMMARY};
 use crate::events::{self, EventInit};
 use gtk::prelude::*;
 
-const HIDDEN_KEY: &str = "mason-details-hidden";
+pub(crate) const HIDDEN_KEY: &str = "mason-details-hidden";
 
 fn summary_of(details: &Element) -> Option<gtk::Widget> {
     let mut child = details.first_child();
@@ -35,15 +35,20 @@ fn hide_closed_content(details: &Element) {
             continue;
         }
         let hidden_here = unsafe { c.data::<bool>(HIDDEN_KEY).is_some() };
+        let hidden_by_input = unsafe { c.data::<bool>(crate::input::HIDDEN_KEY).is_some() };
         let hide = closed && Some(&c) != summary.as_ref();
-        if hide && c.is_visible() {
-            c.set_visible(false);
+        if hide && (c.is_visible() || hidden_by_input) {
+            if c.is_visible() {
+                c.set_visible(false);
+            }
             unsafe { c.set_data(HIDDEN_KEY, true) };
         } else if !hide && hidden_here {
             unsafe {
                 let _ = c.steal_data::<bool>(HIDDEN_KEY);
             }
-            c.set_visible(true);
+            if !hidden_by_input {
+                c.set_visible(true);
+            }
         }
     }
     details.mark_children_dirty();

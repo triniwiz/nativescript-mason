@@ -1374,6 +1374,9 @@ class Style internal constructor(@Transient internal var node: Node) {
     ) {
       invalidateResolvedFontFace()
     }
+    if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY)) {
+      (node.view as? Input)?.enforceHiddenDisplay()
+    }
     // Likewise for `display`: the setter hides the view, but a JS write only reaches the buffer,
     // and a view that was laid out before going `display: none` keeps drawing at its old frame.
     if (StateKeys.hasFlag(low, high, StateKeys.DISPLAY) || StateKeys.hasFlag(low, high, StateKeys.VISIBILITY)) {
@@ -2346,6 +2349,9 @@ class Style internal constructor(@Transient internal var node: Node) {
       return resolvePseudo(StateKeys.DISPLAY, base) { buf -> readDisplayFrom(buf) }
     }
     set(value) {
+      if ((node.view as? Input)?.interceptDisplayWhileHidden(value) == true) {
+        return
+      }
       var displayMode = DisplayMode.None
       val display = when (value) {
         Display.None, Display.Flex, Display.Grid, Display.Block -> value.value
