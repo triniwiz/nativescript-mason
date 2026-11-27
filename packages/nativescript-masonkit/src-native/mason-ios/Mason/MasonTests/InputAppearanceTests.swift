@@ -217,4 +217,72 @@ final class InputAppearanceTests: XCTestCase {
     input.style.textShadow = ""
     XCTAssertTrue(input.textInput.clipsToBounds)
   }
+
+  func testHiddenInputHasNoSubviewAndIsNonInteractive() {
+    let input = MasonInput(mason: NSCMason.shared, type: .Hidden)
+    XCTAssertEqual(input.type, .Hidden)
+    XCTAssertEqual(input.type.rawValue, 20)
+    XCTAssertEqual(input.type.description, "hidden")
+    XCTAssertTrue(input.subviews.isEmpty)
+    XCTAssertTrue(input.isHidden)
+    XCTAssertFalse(input.isUserInteractionEnabled)
+    XCTAssertTrue(input.accessibilityElementsHidden)
+    XCTAssertEqual(input.style.display, .None)
+    XCTAssertEqual(input.node.measureFunc?(nil, CGSize(width: 200, height: 100)), .zero)
+    XCTAssertEqual(input.node.measureFunc?(CGSize(width: 120, height: 40), CGSize(width: 200, height: 100)), .zero)
+  }
+
+  func testHiddenInputReadsAndWritesValueWithoutTextInput() {
+    let input = MasonInput(mason: NSCMason.shared, type: .Hidden)
+    XCTAssertEqual(input.value, "")
+    input.value = "csrf-token"
+    XCTAssertEqual(input.value, "csrf-token")
+    XCTAssertTrue(input.subviews.isEmpty)
+  }
+
+  func testDynamicSwitchBetweenTextAndHiddenPreservesValueAndDisplay() {
+    let input = MasonInput(mason: NSCMason.shared, type: .Text)
+    input.value = "hello"
+    XCTAssertFalse(input.subviews.isEmpty)
+    XCTAssertFalse(input.isHidden)
+    XCTAssertTrue(input.isUserInteractionEnabled)
+
+    input.type = .Hidden
+    XCTAssertTrue(input.subviews.isEmpty)
+    XCTAssertTrue(input.isHidden)
+    XCTAssertFalse(input.isUserInteractionEnabled)
+    XCTAssertEqual(input.style.display, .None)
+    XCTAssertEqual(input.value, "hello")
+
+    input.value = "updated"
+    input.type = .Text
+    XCTAssertFalse(input.subviews.isEmpty)
+    XCTAssertFalse(input.isHidden)
+    XCTAssertTrue(input.isUserInteractionEnabled)
+    XCTAssertFalse(input.accessibilityElementsHidden)
+    XCTAssertEqual(input.style.display, .InlineBlock)
+    XCTAssertEqual(input.value, "updated")
+  }
+
+  func testHiddenInputIgnoresAuthorDisplayUntilTypeChanges() {
+    let input = MasonInput(mason: NSCMason.shared, type: .Hidden)
+    input.style.display = .Flex
+    XCTAssertEqual(input.style.display, .None)
+    XCTAssertTrue(input.isHidden)
+
+    input.type = .Text
+    XCTAssertEqual(input.style.display, .Flex)
+    XCTAssertFalse(input.isHidden)
+  }
+
+  func testHTMLParserCreatesHiddenInputWithValue() throws {
+    let parser = HTMLParser(mason: NSCMason.shared)
+    let roots = parser.parse("<input type=\"hidden\" value=\"on\">")
+    let input = try XCTUnwrap(roots.first?.view as? MasonInput)
+    XCTAssertEqual(input.type, .Hidden)
+    XCTAssertEqual(input.value, "on")
+    XCTAssertTrue(input.subviews.isEmpty)
+    XCTAssertTrue(input.isHidden)
+    XCTAssertEqual(input.style.display, .None)
+  }
 }

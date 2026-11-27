@@ -93,6 +93,7 @@ function create(el: HtmlElement): any {
     case 'input': {
       const input = new Input() as any;
       if (a.type) input.type = a.type;
+      if (a.name) input.name = a.name;
       if ('value' in a) input.value = a.value;
       if (a.placeholder) input.placeholder = a.placeholder;
       return input;

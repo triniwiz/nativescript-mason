@@ -1285,6 +1285,7 @@ public class HTMLParser: NSObject {
     case "submit": return .Submit
     case "reset": return .Reset
     case "button": return .Button
+    case "hidden": return .Hidden
     default: return .Text
     }
   }

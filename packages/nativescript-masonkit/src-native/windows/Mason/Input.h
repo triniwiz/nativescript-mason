@@ -85,6 +85,7 @@ namespace winrt::NativeScript::Mason::implementation
         winrt::Microsoft::UI::Xaml::Controls::TextBlock m_fileLabel{ nullptr };
         std::vector<hstring> m_fileNames;
         bool m_picking{ false };
+        bool m_wasHidden{ false };
     };
 }
 

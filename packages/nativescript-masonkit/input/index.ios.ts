@@ -55,6 +55,8 @@ export class Input extends InputElementBase {
         return MasonInputType.Submit;
       case 'reset':
         return MasonInputType.Reset;
+      case 'hidden':
+        return MasonInputType.Hidden;
     }
     return MasonInputType.Text;
   }

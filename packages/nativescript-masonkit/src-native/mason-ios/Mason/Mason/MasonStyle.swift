@@ -953,6 +953,10 @@ public class MasonStyle: NSObject {
 
   // Helpers to set full 128-bit masks (low/high halves)
   internal func setStateFromHalves(_ low: UInt64, _ high: UInt64) {
+    let changed = StateKeys(low: low, high: high)
+    if changed.contains(.display) {
+      (node.view as? MasonInput)?.enforceHiddenDisplay()
+    }
     if isDirty == 0 && isDirtyHigh == 0 {
       isDirty = low
       isDirtyHigh = high
@@ -966,7 +970,6 @@ public class MasonStyle: NSObject {
       }
       updateNativeStyle()
     }
-    let changed = StateKeys(low: low, high: high)
     if changed.contains(StateKeys.display.union(.displayMode).union(.position).union(.float).union(.visibility)) {
       node.onFlowTypeChanged()
     }
@@ -2636,7 +2639,7 @@ public class MasonStyle: NSObject {
       // `display: none` gives the subtree a zero-sized layout, but a
       // zero-sized UIView still draws unclipped. Take it out of the render
       // tree to match.
-      node.view?.isHidden = newValue == .None || hidesView || MasonDetails.isHidden(node)
+      node.view?.isHidden = display == .None || hidesView || MasonDetails.isHidden(node)
     }
   }
 

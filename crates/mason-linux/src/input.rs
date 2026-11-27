@@ -20,6 +20,9 @@ pub const COLOR: i32 = 11;
 pub const FILE: i32 = 12;
 pub const SUBMIT: i32 = 13;
 pub const RESET: i32 = 19;
+pub const HIDDEN: i32 = 20;
+
+pub(crate) const HIDDEN_KEY: &str = "mason-input-hidden";
 
 pub struct InputState {
     pub kind: Cell<i32>,
@@ -109,16 +112,19 @@ impl InputState {
     }
 }
 
-fn control_for(kind: i32, area: bool) -> gtk::Widget {
+fn control_for(kind: i32, area: bool) -> Option<gtk::Widget> {
     if area {
         let view = gtk::TextView::new();
         view.set_wrap_mode(gtk::WrapMode::WordChar);
         let scroller = gtk::ScrolledWindow::new();
         scroller.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         scroller.set_child(Some(&view));
-        return scroller.upcast();
+        return Some(scroller.upcast());
     }
-    match kind {
+    if kind == HIDDEN {
+        return None;
+    }
+    Some(match kind {
         CHECKBOX => gtk::CheckButton::new().upcast(),
         RADIO => gtk::CheckButton::new().upcast(),
         RANGE => gtk::Scale::with_range(gtk::Orientation::Horizontal, 0.0, 100.0, 1.0).upcast(),
@@ -137,7 +143,7 @@ fn control_for(kind: i32, area: bool) -> gtk::Widget {
             }
             entry.upcast()
         }
-    }
+    })
 }
 
 fn text_view(control: &gtk::Widget) -> Option<gtk::TextView> {
@@ -198,17 +204,42 @@ fn rebuild_control(el: &Element) {
     {
         old.unparent();
     }
-    let control = control_for(kind, area);
-    mark_internal(&control);
-    if let Some(s) = el.input_state().as_ref() {
-        control.add_css_class(&s.class);
-        s.control.replace(Some(control.clone()));
+    if let Some(control) = control_for(kind, area) {
+        mark_internal(&control);
+        if let Some(s) = el.input_state().as_ref() {
+            control.add_css_class(&s.class);
+            s.control.replace(Some(control.clone()));
+        }
+        control.set_parent(el);
+        wire(el, &control, kind, area);
+        apply_value(el);
+        if let Some(s) = el.input_state().as_ref() {
+            s.style_changed(el);
+        }
     }
-    control.set_parent(el);
-    wire(el, &control, kind, area);
-    apply_value(el);
-    if let Some(s) = el.input_state().as_ref() {
-        s.style_changed(el);
+    if !area {
+        let hidden = kind == HIDDEN;
+        let was_visible = el.is_visible();
+        if hidden {
+            unsafe { el.set_data(HIDDEN_KEY, true) };
+            if was_visible {
+                el.set_visible(false);
+            }
+        } else {
+            unsafe {
+                let _ = el.steal_data::<bool>(HIDDEN_KEY);
+            }
+            let hidden_by_details =
+                unsafe { el.data::<bool>(crate::details::HIDDEN_KEY).is_some() };
+            if !hidden_by_details && !was_visible {
+                el.set_visible(true);
+            }
+        }
+        if el.is_visible() != was_visible {
+            if let Some(parent) = Element::mason_parent(el.upcast_ref()) {
+                parent.mark_children_dirty();
+            }
+        }
     }
     el.invalidate_layout();
 }

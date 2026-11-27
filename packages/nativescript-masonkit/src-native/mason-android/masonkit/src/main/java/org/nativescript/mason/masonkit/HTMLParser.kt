@@ -542,6 +542,13 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
             else -> {}
           }
         }
+        "name" -> {
+          when (element) {
+            is Input -> element.name = value
+            is TextArea -> element.name = value
+            else -> {}
+          }
+        }
         "placeholder" -> {
           when (element) {
             is Input -> element.placeholder = value
@@ -1184,6 +1191,7 @@ class HTMLParser(private val mason: Mason, internal var context: Context) {
       "submit" -> Input.Type.Submit
       "reset" -> Input.Type.Reset
       "button" -> Input.Type.Button
+      "hidden" -> Input.Type.Hidden
       else -> Input.Type.Text
     }
   }

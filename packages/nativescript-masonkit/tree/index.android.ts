@@ -180,6 +180,8 @@ export class Tree {
       case 'file':
         //@ts-ignore
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.File);
+      case 'hidden':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Hidden);
       default:
         return this.native.createInput(context);
     }

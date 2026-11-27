@@ -3,7 +3,7 @@ import { Color, CoreTypes, ItemsSource, KeyedTemplate, Template } from '@natives
 import { TextBase, ViewBase } from './common';
 import { LengthPercentage } from '@nativescript/core/css/parser';
 
-export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'month' | 'week' | 'color' | 'checkbox' | 'radio' | 'button' | 'submit' | 'reset' | 'file' | 'range';
+export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'month' | 'week' | 'color' | 'checkbox' | 'radio' | 'button' | 'submit' | 'reset' | 'file' | 'range' | 'hidden';
 
 /**
  * A CSS length. `px` is a CSS pixel — the same size as a dip, exactly as on the
