@@ -2245,6 +2245,7 @@ declare module org {
 						public static Month: org.nativescript.mason.masonkit.Input.Type;
 						public static Week: org.nativescript.mason.masonkit.Input.Type;
 						public static Reset: org.nativescript.mason.masonkit.Input.Type;
+						public static Hidden: org.nativescript.mason.masonkit.Input.Type;
 						public static getEntries(): any;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Type>;
 						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Type;

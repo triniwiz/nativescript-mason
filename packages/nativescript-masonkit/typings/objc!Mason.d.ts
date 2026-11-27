@@ -912,7 +912,9 @@ declare const enum MasonInputType {
 
 	Week = 18,
 
-	Reset = 19
+	Reset = 19,
+
+	Hidden = 20
 }
 
 declare const enum MasonJustifyContent {

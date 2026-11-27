@@ -86,6 +86,7 @@ class Input @JvmOverloads constructor(
 
   // The mask and clip-path cover the whole draw: own box, content and children (see Mask.kt).
   override fun draw(canvas: Canvas) {
+    if (type == Type.Hidden) return
     val save = beginMask(this, style, canvas)
     super.draw(canvas)
     endMask(style, canvas, save)
@@ -543,7 +544,7 @@ class Input @JvmOverloads constructor(
 
 
   enum class Type {
-    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit, Search, Time, DatetimeLocal, Month, Week, Reset
+    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit, Search, Time, DatetimeLocal, Month, Week, Reset, Hidden
   }
 
   /** CSS `appearance`. */
@@ -649,11 +650,40 @@ class Input @JvmOverloads constructor(
     }
   }
 
+  private var hiddenValue: String = ""
+  private var displayBeforeHidden: Display? = null
+  private var enforcingHiddenDisplay = false
+
+  internal fun interceptDisplayWhileHidden(value: Display): Boolean {
+    if (type != Type.Hidden || enforcingHiddenDisplay) return false
+    displayBeforeHidden = value
+    return true
+  }
+
+  internal fun enforceHiddenDisplay() {
+    if (type != Type.Hidden || enforcingHiddenDisplay) return
+    val current = node.style.display
+    displayBeforeHidden = current
+    if (current != Display.None) {
+      enforcingHiddenDisplay = true
+      try {
+        node.style.display = Display.None
+      } finally {
+        enforcingHiddenDisplay = false
+      }
+    }
+  }
+
   /** [previous] is null on construction. */
   private fun setupType(previous: Type? = null) {
     if (previous != null) {
       removeAllViews()
       style.inBatch = true
+    }
+    if (previous == Type.Hidden && type != Type.Hidden) {
+      node.style.display = displayBeforeHidden ?: Display.InlineBlock
+      displayBeforeHidden = null
+      importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
     val kindChanged = if (previous == null) type.uaStyle != UaStyle.Bare else previous.uaStyle != type.uaStyle
     if (kindChanged) {
@@ -757,6 +787,22 @@ class Input @JvmOverloads constructor(
       Type.File -> {
         addView(fileInput)
       }
+
+      Type.Hidden -> {
+        if (previous != Type.Hidden) {
+          displayBeforeHidden = if (previous == null) Display.InlineBlock else node.style.display
+        }
+        enforcingHiddenDisplay = true
+        try {
+          node.style.display = Display.None
+        } finally {
+          enforcingHiddenDisplay = false
+        }
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        if (hasFocus()) {
+          clearFocus()
+        }
+      }
     }
     syncChildrenEnabled()
     style.inBatch = false
@@ -857,6 +903,7 @@ class Input @JvmOverloads constructor(
         Type.Week -> {}
         Type.Color -> {}
         Type.File -> {}
+        Type.Hidden -> {}
       }
     }
 
@@ -960,6 +1007,10 @@ class Input @JvmOverloads constructor(
           }
           fileInput.labelText = value
         }
+
+        Type.Hidden -> {
+          hiddenValue = value
+        }
       }
     }
     get() {
@@ -993,6 +1044,8 @@ class Input @JvmOverloads constructor(
         Type.File -> {
           fileInput.labelText
         }
+
+        Type.Hidden -> hiddenValue
       }
     }
 
@@ -1214,6 +1267,8 @@ class Input @JvmOverloads constructor(
         )
         fileInput.layout(l, t, r, b)
       }
+
+      Type.Hidden -> {}
     }
   }
 
@@ -1221,6 +1276,9 @@ class Input @JvmOverloads constructor(
     knownWidth: Float, knownHeight: Float,
     availableWidth: Float, availableHeight: Float
   ): Long {
+    if (type == Type.Hidden) {
+      return MeasureOutput.make(0f, 0f)
+    }
     var sizeWidth = 300f
     var sizeHeight = 150f
 
@@ -1377,6 +1435,8 @@ class Input @JvmOverloads constructor(
           syncTextStyle(fileInput.fileLabel.text.toString(), fileInput.fileLabel)
         }
       }
+
+      Type.Hidden -> {}
     }
   }
 }

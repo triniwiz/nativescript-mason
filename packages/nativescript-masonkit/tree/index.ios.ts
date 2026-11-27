@@ -177,6 +177,8 @@ export class Tree {
         return this.native.createInput(MasonInputType.Reset);
       case 'file':
         return this.native.createInput(MasonInputType.File);
+      case 'hidden':
+        return this.native.createInput(MasonInputType.Hidden);
       default:
         return this.native.createInput(MasonInputType.Text);
     }

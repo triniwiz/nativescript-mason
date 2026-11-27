@@ -51,6 +51,8 @@ function typeToInt(t: InputType): number {
       return 18;
     case 'reset':
       return 19;
+    case 'hidden':
+      return 20;
     default:
       return 0;
   }
