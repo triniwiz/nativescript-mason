@@ -7,6 +7,29 @@
       <main class="page-body">
         <p class="note">Each block mirrors plain HTML. Compare with the same markup in a browser.</p>
 
+        <p class="section">Hidden input</p>
+        <div class="stack">
+          <div class="row">
+            <div class="switch-track" :class="{ 'switch-off': !hapticsOn }" @tap="toggleHaptics">
+              <Input type="hidden" name="haptics" :value="hapticsOn ? 'on' : 'off'" />
+              <span class="switch-thumb" />
+            </div>
+            <span class="label">Haptics switch</span>
+            <span class="note">{{ hiddenSummary }}</span>
+          </div>
+          <div class="row">
+            <span class="badge">Left</span>
+            <Input type="hidden" name="csrf" value="tok_123" class="forced-flex" />
+            <span class="badge">Right</span>
+            <span class="note">hidden with display:flex stays 0x0</span>
+          </div>
+          <div class="row">
+            <button class="btn" @tap="toggleHiddenType">Type: {{ toggleType }}</button>
+            <span class="note">name="secret" value="{{ secretValue }}"</span>
+          </div>
+          <Input :type="toggleType" name="secret" v-model="secretValue" class="field" placeholder="secret value" />
+        </div>
+
         <p class="section">Bound value</p>
         <div class="stack">
           <Input class="field" v-model="live" placeholder="type here" />
@@ -122,7 +145,18 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'nativescript-vue';
+import { computed, ref } from 'nativescript-vue';
+
+const hapticsOn = ref(true);
+const toggleType = ref<'hidden' | 'text'>('hidden');
+const secretValue = ref('persist-me');
+const toggleHaptics = () => {
+  hapticsOn.value = !hapticsOn.value;
+};
+const toggleHiddenType = () => {
+  toggleType.value = toggleType.value === 'hidden' ? 'text' : 'hidden';
+};
+const hiddenSummary = computed(() => `name="haptics" value="${hapticsOn.value ? 'on' : 'off'}"`);
 
 const prefilled = ref('Prefilled value');
 const small = ref('Small text');
@@ -276,5 +310,39 @@ const noop = () => {};
 }
 .w-half {
   width: 50%;
+}
+.switch-track {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  width: 48;
+  height: 28;
+  padding: 4;
+  border-radius: 999;
+  background-color: #1f6b60;
+}
+.switch-off {
+  justify-content: flex-start;
+  background-color: #94a3b8;
+}
+.switch-thumb {
+  width: 20;
+  height: 20;
+  border-radius: 999;
+  background-color: #ffffff;
+}
+.badge {
+  padding: 4 10;
+  border-radius: 6;
+  background-color: var(--surface-2);
+  color: var(--text);
+  font-size: 12;
+}
+.forced-flex {
+  display: flex;
+  width: 120;
+  height: 40;
+  background-color: #ff0000;
 }
 </style>
