@@ -5409,6 +5409,13 @@ export class Style {
       this.appleStyle.gridArea = value;
     }
 
+    if ((__ANDROID__ || __APPLE__) && !this.view[isMasonView_]) {
+      // A foreign leaf needs the native sync to flush and invalidate layout.
+      // The grid string lives outside the buffer, so byte equality cannot skip it.
+      this._turnSnapshot = false;
+      this.setOrAppendState(StateKeys.NONE);
+    }
+
     if (__WINDOWS__ || __LINUX__) {
       windowsSetGrid(this.nativeView, 'gridArea', value);
     }

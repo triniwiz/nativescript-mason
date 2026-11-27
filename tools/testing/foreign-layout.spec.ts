@@ -270,6 +270,19 @@ describe('effective CSS layout on foreign NativeScript children', () => {
     expect(native.leaf(view).gridArea).toBe('3 / auto / auto / auto');
   });
 
+  it('resets a foreign grid column shorthand without clearing the row', () => {
+    const native = nativeTransport();
+    const { view, style } = foreign();
+    style.gridRowStart = '2';
+    adopt(view);
+
+    style.gridColumn = '3 / 4';
+    expect(native.leaf(view).gridArea).toBe('2 / 3 / auto / 4');
+
+    style.gridColumn = unsetValue;
+    expect(native.leaf(view).gridArea).toBe('2 / auto / auto / auto');
+  });
+
   it('keeps Mason direct grid setters and stylesheet expansion working', () => {
     nativeTransport();
     const { view, style } = foreign();

@@ -14,7 +14,13 @@ if (__WINDOWS__) {
 
 function foreignStyle() {
   const sync = vi.fn();
-  const native = __ANDROID__ || __WINDOWS__ ? {} : { mason_syncStyleParts: sync };
+  const setGridArea = vi.fn();
+  const appleStyle = {
+    set gridArea(value: string) {
+      setGridArea(value);
+    },
+  };
+  const native = __ANDROID__ || __WINDOWS__ ? {} : { mason_syncStyleParts: sync, style: appleStyle };
   if (__WINDOWS__) windowsSync = sync;
   if (__ANDROID__) {
     vi.stubGlobal('org', {
@@ -22,6 +28,7 @@ function foreignStyle() {
         mason: {
           masonkit: {
             Mason: { getShared: () => ({ syncStyleParts: sync }) },
+            NodeHelper: { getShared: () => ({ setGridArea: (_view: unknown, value: string) => setGridArea(value) }) },
           },
         },
       },
@@ -29,9 +36,10 @@ function foreignStyle() {
   }
   const { style: value } = styleUnderTest();
   const style = value as any;
+  style.inBatch = false;
   style.nativeView = native;
   style.view_ = { android: native, ios: native, windows: native };
-  return { style, sync, native };
+  return { style, sync, native, setGridArea };
 }
 
 function args(native: object, words: number[]) {
@@ -59,6 +67,33 @@ describe('native style dispatch for ordinary views', () => {
       style.height = 43;
     });
     expect(sync).toHaveBeenCalledTimes(2);
+  });
+
+  it.runIf(__ANDROID__ || __APPLE__)('syncs foreign grid placement and its reset after the native string writes', async () => {
+    const { style, sync, native, setGridArea } = foreignStyle();
+
+    style.gridArea = 'auto / 3 / auto / auto';
+    await Promise.resolve();
+    expect(setGridArea).toHaveBeenLastCalledWith('auto / 3 / auto / auto');
+    expect(sync).toHaveBeenCalledExactlyOnceWith(...args(native, [0, 0, 0, 0]));
+    expect(setGridArea).toHaveBeenCalledBefore(sync);
+
+    setGridArea.mockClear();
+    sync.mockClear();
+    style.gridArea = 'auto / auto / auto / auto';
+    await Promise.resolve();
+    expect(setGridArea).toHaveBeenLastCalledWith('auto / auto / auto / auto');
+    expect(sync).toHaveBeenCalledExactlyOnceWith(...args(native, [0, 0, 0, 0]));
+    expect(setGridArea).toHaveBeenCalledBefore(sync);
+
+    style.width = 31;
+    await Promise.resolve();
+    sync.mockClear();
+    style.width = 42;
+    style.width = 31;
+    style.gridArea = 'auto / 3 / auto / auto';
+    await Promise.resolve();
+    expect(sync).toHaveBeenCalledExactlyOnceWith(...args(native, [1 << 20, 0, 0, 0]));
   });
 
   it.runIf(__ANDROID__)('syncs Mason views directly without fetching the native singleton', () => {
