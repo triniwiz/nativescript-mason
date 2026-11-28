@@ -253,3 +253,60 @@ final class CoreLayoutInteropTests: XCTestCase {
     XCTAssertNil(released)
   }
 }
+
+// Deferred intrinsic queries must not become the host root's final viewport.
+extension CoreLayoutInteropTests {
+  func test_deferredIntrinsicMeasurePreservesAssignedRootBounds() {
+    let scale = NSCMason.scale
+    let host = UIView()
+    let root = MasonUIView(mason: mason)
+    root.display = .Flex
+    root.flexDirection = .Column
+    root.style.size = MasonSize(.Percent(1), .Percent(1))
+    host.addSubview(root)
+    let stage = MasonUIView(mason: mason)
+    stage.display = .Grid
+    stage.flexGrow = 1
+    stage.style.gridTemplateColumns = "1fr"
+    stage.style.gridTemplateRows = "1fr"
+    let confirmation = MasonUIView(mason: mason)
+    confirmation.setSize(240 * scale, 200 * scale)
+    stage.addView(confirmation)
+    root.addView(stage)
+
+    for size in [CGSize(width: 402, height: 874), CGSize(width: 107, height: 300),
+                 CGSize(width: 200, height: 500), CGSize(width: 107, height: 300),
+                 CGSize(width: 402, height: 874)] {
+      host.frame = CGRect(origin: .zero, size: size)
+      root.frame = host.bounds
+      let pixels = CGSize(width: size.width * CGFloat(scale), height: size.height * CGFloat(scale))
+      // Pending intrinsic work must not restore the previous viewport when
+      // the host supplies a new box in this pass.
+      mason.inCompute = true
+      _ = root.measure(spec(0, 0), spec(0, 0), root: true, viewport: false)
+      mason.inCompute = false
+      _ = root.computeRoot(Float(pixels.width), Float(pixels.height))
+      XCTAssertEqual(root.frame.width, size.width, accuracy: 0.5)
+      XCTAssertEqual(stage.frame.width, size.width, accuracy: 0.5)
+      // Model the foreign host's intrinsic query while the shared engine is locked.
+      mason.inCompute = true
+      _ = root.measure(spec(0, 0), spec(0, 0), root: true, viewport: false)
+      mason.inCompute = false
+      _ = root.settleDeferredSizes()
+
+      let intrinsic = root.node.settledRootSizes.first { $0.available == CGSize(width: -2, height: -2) }
+      XCTAssertNotNil(intrinsic)
+      XCTAssertEqual(intrinsic!.size.width, CGFloat(240 * scale), accuracy: 0.5,
+                     "The outer tree must still receive the real intrinsic measurement")
+      XCTAssertEqual(root.frame.width, size.width, accuracy: 0.5)
+      XCTAssertEqual(root.frame.height, size.height, accuracy: 0.5)
+      XCTAssertEqual(stage.frame.width, size.width, accuracy: 0.5)
+      XCTAssertEqual(stage.frame.height, size.height, accuracy: 0.5)
+      XCTAssertEqual(root.node.computedLayout.width, Float(pixels.width), accuracy: 0.5)
+      XCTAssertEqual(root.node.computedLayout.height, Float(pixels.height), accuracy: 0.5)
+      XCTAssertEqual(root.computeCache(), pixels)
+      XCTAssertEqual(root.node.elementHostRootSize, pixels)
+      mason.endPass()
+    }
+  }
+}
